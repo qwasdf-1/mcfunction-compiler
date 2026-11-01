@@ -15,8 +15,9 @@ The compiler automatically creates a default configuration file at `config/funct
 
 ```json
 {
-  "enabled": true,
-  "fused_regions": true,
+  "enabled": false,
+  "score_add": false,
+  "fused_regions": false,
   "selective_macros": true,
   "tiered_bytecode": false,
   "tiered_threshold": 5,
@@ -28,8 +29,9 @@ The compiler automatically creates a default configuration file at `config/funct
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `enabled` | boolean | `true` | Master switch. When `false`, the compiler disables all specialization and delegates directly to vanilla Minecraft function execution. |
-| `fused_regions` | boolean | `true` | Enables contiguous command fusing, context modifier folding, scoreboard condition/store interception, block/entity predicates, and storage data mutations. |
+| `enabled` | boolean | `false` | Master switch. When `false`, compiler wrapping and optimization surfaces are disabled unless a focused probe sets their `FC_*` environment variables. |
+| `score_add` | boolean | `false` | Enables parsed literal scoreboard specialization on an enabled wrapper. |
+| `fused_regions` | boolean | `false` | Enables contiguous command fusing, context modifier folding, scoreboard condition/store interception, block/entity predicates, and storage data mutations. |
 | `selective_macros` | boolean | `true` | Enables selective extraction of declared macro parameter keys directly from entity custom data and storage targets, bypassing full NBT compound serialization. |
 | `tiered_bytecode` | boolean | `false` | Enables the ASM hidden class bytecode compilation backend for hot function regions. |
 | `tiered_threshold` | integer | `5` | The number of times a region executes via interpreted fusion before automatically compiling to unrolled JVM bytecode (active only when `enable_tiered_bytecode` is `true`). |

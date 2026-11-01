@@ -38,6 +38,7 @@ The compiler automatically generates a configuration file at `config/function-co
 ```json
 {
   "enabled": false,
+  "score_add": false,
   "fused_regions": false,
   "selective_macros": true,
   "tiered_bytecode": false,
@@ -49,6 +50,7 @@ The compiler automatically generates a configuration file at `config/function-co
 | Setting | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | boolean | `false` | Master switch for compiler wrapping and optimizations. |
+| `score_add` | boolean | `false` | Enables parsed literal scoreboard specialization when wrapper mode is active. |
 | `fused_regions` | boolean | `false` | Enables pipeline chaining and fused region execution. |
 | `selective_macros` | boolean | `true` | Enables selective NBT key extraction for macro invocations. |
 | `tiered_bytecode` | boolean | `false` | Enables tiered JIT ASM hidden class bytecode compilation. |

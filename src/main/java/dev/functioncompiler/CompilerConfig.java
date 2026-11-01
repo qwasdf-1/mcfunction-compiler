@@ -18,11 +18,11 @@ public final class CompilerConfig {
     private static final String CONFIG_FILENAME = "function-compiler.json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    // Default to the evidence-backed selective macro path only. The generic
-    // wrapper, ScoreAdd specialization, and fused interpreted regions stay opt-in
-    // until their own semantic/performance gates are met. Config reload can still
-    // enable them deliberately.
+    // Compiler config intentionally separates the generic wrapper/runtime hook
+    // surface from each optimizing prototype. enabled remains the shared master
+    // switch; each optimization also has its own explicit gate.
     private static boolean enabled = false;
+    private static boolean scoreAddEnabled = false;
     private static boolean fusedRegions = false;
     private static boolean selectiveMacros = true;
     private static boolean tieredBytecode = false;
@@ -45,6 +45,12 @@ public final class CompilerConfig {
                     JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
                     if (json.has("enabled")) {
                         enabled = json.get("enabled").getAsBoolean();
+                    }
+                    if (json.has("score_add")) {
+                        scoreAddEnabled = json.get("score_add").getAsBoolean();
+                    } else if (json.has("enabled")) {
+                        // Legacy configs only had the bundled master switch.
+                        scoreAddEnabled = json.get("enabled").getAsBoolean();
                     }
                     if (json.has("fused_regions")) {
                         fusedRegions = json.get("fused_regions").getAsBoolean();
@@ -80,6 +86,7 @@ public final class CompilerConfig {
             }
             JsonObject json = new JsonObject();
             json.addProperty("enabled", false);
+            json.addProperty("score_add", false);
             json.addProperty("fused_regions", false);
             json.addProperty("selective_macros", true);
             json.addProperty("tiered_bytecode", false);
@@ -96,6 +103,10 @@ public final class CompilerConfig {
 
     public static boolean isEnabled() {
         return enabled;
+    }
+
+    public static boolean isScoreAddEnabled() {
+        return enabled && scoreAddEnabled;
     }
 
     public static boolean isFusedRegions() {
