@@ -1,0 +1,2 @@
+execute store result score #nested_store_result fc_probe run function function_compiler_probe:quota_execute_if_exception_child
+execute store success score #nested_store_success fc_probe run function function_compiler_probe:quota_execute_if_exception_child

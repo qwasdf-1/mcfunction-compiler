@@ -1,0 +1,270 @@
+package dev.functioncompiler;
+
+import net.minecraft.resources.Identifier;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
+
+public final class ProbeMetrics {
+    private static final AtomicLong WRAPPERS_CREATED = new AtomicLong();
+    private static final AtomicLong WRAPPER_INSTANTIATIONS = new AtomicLong();
+    private static final AtomicLong PROBE_FUNCTION_PARSE_COUNT = new AtomicLong();
+    private static final AtomicLong SCORE_ADD_COMPILED = new AtomicLong();
+    private static final AtomicLong SCORE_ADD_EXECUTED = new AtomicLong();
+    private static final AtomicLong FUSED_REGIONS_COMPILED = new AtomicLong();
+    private static final AtomicLong FUSED_REGIONS_EXECUTED = new AtomicLong();
+    private static final AtomicLong BYTECODE_REGIONS_COMPILED = new AtomicLong();
+    private static final AtomicLong BYTECODE_REGIONS_COMPILE_FAILED = new AtomicLong();
+    private static final AtomicLong BYTECODE_REGIONS_EXECUTED = new AtomicLong();
+    private static final AtomicLong BYTECODE_CLASS_BYTES_GENERATED = new AtomicLong();
+    private static final AtomicLong BYTECODE_TIERED_JIT_TRIGGERS = new AtomicLong();
+    private static final AtomicLong MODDED_COMMAND_CALLS = new AtomicLong();
+    private static final AtomicLong MODDED_CONTROL_FLOW_CALLS = new AtomicLong();
+    private static final ConcurrentMap<Identifier, AtomicLong> SCORE_ADD_COMPILED_BY_FUNCTION =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Identifier, AtomicLong> SCORE_ADD_EXECUTED_BY_FUNCTION =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Identifier, AtomicLong> SCORE_ADD_TIMED_BY_FUNCTION =
+            new ConcurrentHashMap<>();
+    // Timed command callbacks run on the Minecraft server thread. These
+    // test-only counters avoid adding atomic operations to the measured path.
+    private static long SCORE_ADD_TIMED_CALLS;
+    private static long SCORE_ADD_ELAPSED_NANOS;
+    private static boolean EXECUTION_QUEUE_TIMER_ACTIVE;
+    private static long EXECUTION_QUEUE_STARTED_NANOS;
+    private static long EXECUTION_QUEUE_TIMED_CALLS;
+    private static long EXECUTION_QUEUE_ELAPSED_NANOS;
+    // The server executes function queues on its command thread. These
+    // counters are opt-in because each leaf callback passes through Brigadier.
+    private static boolean END_COMMAND_CALLBACK_SCOPE_REQUESTED;
+    private static int COMMAND_CALLBACK_SCOPE_DEPTH;
+    private static long GENERIC_LEAF_CALLBACKS;
+    private static long OPTIMIZED_SCORE_ADD_LEAF_CALLBACKS;
+    private static long SELECTIVE_MACRO_ARGUMENT_CALLS;
+
+    private ProbeMetrics() {
+    }
+
+    public static void wrapperCreated() {
+        WRAPPERS_CREATED.incrementAndGet();
+    }
+
+    public static void wrapperInstantiated() {
+        WRAPPER_INSTANTIATIONS.incrementAndGet();
+    }
+
+    public static long wrappersCreated() {
+        return WRAPPERS_CREATED.get();
+    }
+
+    public static long wrapperInstantiations() {
+        return WRAPPER_INSTANTIATIONS.get();
+    }
+
+    public static void probeFunctionParsed() {
+        PROBE_FUNCTION_PARSE_COUNT.incrementAndGet();
+    }
+
+    public static long probeFunctionParseCount() {
+        return PROBE_FUNCTION_PARSE_COUNT.get();
+    }
+
+    public static void scoreAddCompiled(Identifier functionId) {
+        SCORE_ADD_COMPILED.incrementAndGet();
+        SCORE_ADD_COMPILED_BY_FUNCTION
+                .computeIfAbsent(functionId, ignored -> new AtomicLong())
+                .incrementAndGet();
+    }
+
+    public static long scoreAddsCompiled() {
+        return SCORE_ADD_COMPILED.get();
+    }
+
+    public static long scoreAddsCompiled(Identifier functionId) {
+        AtomicLong count = SCORE_ADD_COMPILED_BY_FUNCTION.get(functionId);
+        return count == null ? 0 : count.get();
+    }
+
+    public static void scoreAddExecuted(Identifier functionId) {
+        SCORE_ADD_EXECUTED.incrementAndGet();
+        SCORE_ADD_EXECUTED_BY_FUNCTION
+                .computeIfAbsent(functionId, ignored -> new AtomicLong())
+                .incrementAndGet();
+    }
+
+    public static long scoreAddsExecuted() {
+        return SCORE_ADD_EXECUTED.get();
+    }
+
+    public static long scoreAddsExecuted(Identifier functionId) {
+        AtomicLong count = SCORE_ADD_EXECUTED_BY_FUNCTION.get(functionId);
+        return count == null ? 0 : count.get();
+    }
+
+    public static void fusedRegionsCompiled(int count) {
+        FUSED_REGIONS_COMPILED.addAndGet(count);
+    }
+
+    public static void fusedRegionExecuted() {
+        FUSED_REGIONS_EXECUTED.incrementAndGet();
+    }
+
+    public static long fusedRegionsCompiled() {
+        return FUSED_REGIONS_COMPILED.get();
+    }
+
+    public static long fusedRegionsExecuted() {
+        return FUSED_REGIONS_EXECUTED.get();
+    }
+
+    public static void bytecodeRegionCompiled() {
+        BYTECODE_REGIONS_COMPILED.incrementAndGet();
+    }
+
+    public static void bytecodeRegionCompileFailed() {
+        BYTECODE_REGIONS_COMPILE_FAILED.incrementAndGet();
+    }
+
+    public static void bytecodeRegionExecuted() {
+        BYTECODE_REGIONS_EXECUTED.incrementAndGet();
+    }
+
+    public static long bytecodeRegionsCompiled() {
+        return BYTECODE_REGIONS_COMPILED.get();
+    }
+
+    public static long bytecodeRegionsCompileFailed() {
+        return BYTECODE_REGIONS_COMPILE_FAILED.get();
+    }
+
+    public static long bytecodeRegionsExecuted() {
+        return BYTECODE_REGIONS_EXECUTED.get();
+    }
+
+    public static void bytecodeClassBytesGenerated(long byteCount) {
+        BYTECODE_CLASS_BYTES_GENERATED.addAndGet(byteCount);
+    }
+
+    public static long bytecodeClassBytesGenerated() {
+        return BYTECODE_CLASS_BYTES_GENERATED.get();
+    }
+
+    public static void bytecodeTieredJitTriggered() {
+        BYTECODE_TIERED_JIT_TRIGGERS.incrementAndGet();
+    }
+
+    public static long bytecodeTieredJitTriggers() {
+        return BYTECODE_TIERED_JIT_TRIGGERS.get();
+    }
+
+    public static void moddedCommandExecuted() {
+        MODDED_COMMAND_CALLS.incrementAndGet();
+    }
+
+    public static long moddedCommandCalls() {
+        return MODDED_COMMAND_CALLS.get();
+    }
+
+    public static void moddedControlFlowExecuted() {
+        MODDED_CONTROL_FLOW_CALLS.incrementAndGet();
+    }
+
+    public static long moddedControlFlowCalls() {
+        return MODDED_CONTROL_FLOW_CALLS.get();
+    }
+
+    public static void scoreAddTimed(Identifier functionId, long elapsedNanos) {
+        SCORE_ADD_TIMED_CALLS++;
+        SCORE_ADD_ELAPSED_NANOS += elapsedNanos;
+        SCORE_ADD_TIMED_BY_FUNCTION
+                .computeIfAbsent(functionId, ignored -> new AtomicLong())
+                .incrementAndGet();
+    }
+
+    public static long scoreAddTimedCalls() {
+        return SCORE_ADD_TIMED_CALLS;
+    }
+
+    public static long scoreAddElapsedNanos() {
+        return SCORE_ADD_ELAPSED_NANOS;
+    }
+
+    public static long scoreAddTimedCalls(Identifier functionId) {
+        AtomicLong count = SCORE_ADD_TIMED_BY_FUNCTION.get(functionId);
+        return count == null ? 0 : count.get();
+    }
+
+    public static void beginExecutionQueueTiming() {
+        EXECUTION_QUEUE_STARTED_NANOS = System.nanoTime();
+        EXECUTION_QUEUE_TIMER_ACTIVE = true;
+    }
+
+    public static void endExecutionQueueTiming() {
+        if (!EXECUTION_QUEUE_TIMER_ACTIVE) {
+            return;
+        }
+        long elapsedNanos = System.nanoTime() - EXECUTION_QUEUE_STARTED_NANOS;
+        EXECUTION_QUEUE_TIMER_ACTIVE = false;
+        EXECUTION_QUEUE_ELAPSED_NANOS += elapsedNanos;
+        EXECUTION_QUEUE_TIMED_CALLS++;
+    }
+
+    public static long executionQueueTimedCalls() {
+        return EXECUTION_QUEUE_TIMED_CALLS;
+    }
+
+    public static long executionQueueElapsedNanos() {
+        return EXECUTION_QUEUE_ELAPSED_NANOS;
+    }
+
+    public static void beginCommandCallbackScopeUntilQueueReturn() {
+        beginCommandCallbackScope();
+        END_COMMAND_CALLBACK_SCOPE_REQUESTED = true;
+    }
+
+    public static boolean consumeCommandCallbackScopeEndRequest() {
+        boolean requested = END_COMMAND_CALLBACK_SCOPE_REQUESTED;
+        END_COMMAND_CALLBACK_SCOPE_REQUESTED = false;
+        return requested;
+    }
+
+    public static void beginCommandCallbackScope() {
+        COMMAND_CALLBACK_SCOPE_DEPTH++;
+    }
+
+    public static void endCommandCallbackScope() {
+        if (COMMAND_CALLBACK_SCOPE_DEPTH > 0) {
+            COMMAND_CALLBACK_SCOPE_DEPTH--;
+        }
+    }
+
+    public static boolean commandCallbackScopeActive() {
+        return COMMAND_CALLBACK_SCOPE_DEPTH > 0;
+    }
+
+    public static void commandCallbackExecuted(boolean optimizedScoreAdd) {
+        if (optimizedScoreAdd) {
+            OPTIMIZED_SCORE_ADD_LEAF_CALLBACKS++;
+        } else {
+            GENERIC_LEAF_CALLBACKS++;
+        }
+    }
+
+    public static long genericLeafCallbacks() {
+        return GENERIC_LEAF_CALLBACKS;
+    }
+
+    public static long optimizedScoreAddLeafCallbacks() {
+        return OPTIMIZED_SCORE_ADD_LEAF_CALLBACKS;
+    }
+
+    public static void selectiveMacroArgumentsUsed() {
+        SELECTIVE_MACRO_ARGUMENT_CALLS++;
+    }
+
+    public static long selectiveMacroArgumentCalls() {
+        return SELECTIVE_MACRO_ARGUMENT_CALLS;
+    }
+
+}

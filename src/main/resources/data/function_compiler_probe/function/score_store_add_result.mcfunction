@@ -1,0 +1,1 @@
+execute store result score #stored_add_result fc_probe run function function_compiler_probe:score_add_return

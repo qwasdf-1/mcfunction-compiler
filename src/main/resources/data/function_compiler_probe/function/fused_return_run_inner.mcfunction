@@ -1,0 +1,5 @@
+scoreboard players add #fcprobe fc_probe 10
+scoreboard players add #fcprobe fc_probe 20
+return 7
+scoreboard players add #fcprobe fc_probe 100
+scoreboard players add #fcprobe fc_probe 100

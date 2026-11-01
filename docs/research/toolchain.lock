@@ -1,0 +1,10 @@
+# Project development and runtime-probe toolchain.
+# Compatible pinned toolchain for Minecraft 26.3. This stable cached Loom line
+# was selected for the prototype and verified with a dedicated server launch.
+minecraft=26.3
+java=25
+gradle=9.7.1
+fabric_loom=1.18.4
+fabric_loader=0.20.1
+fabric_api=0.165.0+26.3
+reference_fabric_example_mod_commit=91f19010a4e764f193fe50acfe2c8ee68f1f15cd

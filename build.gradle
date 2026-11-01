@@ -1,0 +1,67 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+if (project.hasProperty('fcEnableReloadFailureProbe')
+        && project.property('fcEnableReloadFailureProbe').toString().toBoolean()) {
+    sourceSets.main.java.srcDir 'tests/runtime/reload-failure-probe/java'
+}
+
+if (project.hasProperty('fcEnableConcurrentReloadProbe')
+        && project.property('fcEnableConcurrentReloadProbe').toString().toBoolean()) {
+    sourceSets.main.java.srcDir 'tests/runtime/concurrent-reload-probe/java'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+loom {
+    runs {
+        server {
+            server()
+            runDirectory = file(providers.gradleProperty("fcRunDirectory").getOrElse("run"))
+            def benchmarkJvmArguments = providers.gradleProperty("fcJvmArgs").orNull
+            if (benchmarkJvmArguments != null) {
+                jvmArguments.addAll(benchmarkJvmArguments.split(","))
+            }
+            def agentPath = providers.gradleProperty("fcSparkAgentPath").orNull
+            if (agentPath != null) {
+                def agentPort = providers.gradleProperty("fcSparkPort").getOrElse("2222")
+                jvmArguments.add("-javaagent:${file(agentPath).absolutePath}=port=${agentPort}")
+            }
+        }
+    }
+
+    mods {
+        "function_compiler" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}

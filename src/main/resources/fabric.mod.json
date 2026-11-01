@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "function_compiler",
+  "version": "${version}",
+  "name": "Function Compiler",
+  "description": "A research prototype for preserving Minecraft function behavior while testing construction hooks.",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "dev.functioncompiler.FunctionCompilerMod"
+    ]
+  },
+  "mixins": [
+    "function_compiler.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": ">=0.165.0"
+  }
+}

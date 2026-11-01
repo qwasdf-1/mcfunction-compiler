@@ -1,0 +1,3 @@
+scoreboard players add #storage_macro_before_error fc_lifecycle 1
+function function_compiler_lifecycle:macro_add with storage function_compiler_lifecycle:probe storage_invalid
+scoreboard players add #storage_macro_after_error fc_lifecycle 1

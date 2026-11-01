@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Function Compiler Bellows selector and NBT benchmark",
+    "min_format": [97, 1],
+    "max_format": [97, 1]
+  }
+}

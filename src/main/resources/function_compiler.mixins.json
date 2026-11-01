@@ -1,0 +1,27 @@
+{
+  "required": true,
+  "package": "dev.functioncompiler.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "CallFunctionMixin",
+    "FunctionBuilderMixin",
+    "ExecutionContextMixin",
+    "CommandFunctionMixin",
+    "FunctionCommandMixin",
+    "SelectiveMacroArgumentsMixin",
+    "BuildContextsAccessor",
+    "ExecutionContextAccessor",
+    "CommandContextAccessor",
+    "ContextChainAccessor",
+    "ScoreboardCommandAccessor",
+    "EntityDataAccessorAccessor",
+    "FunctionCommandMacroProviderAccessor",
+    "FunctionCommandInvoker",
+    "MacroFunctionAccessor",
+    "CustomDataAccessor",
+    "BellowsHomePosAdapterMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

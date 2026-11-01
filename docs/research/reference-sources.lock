@@ -1,0 +1,26 @@
+# Pinned upstream source snapshots reviewed for this project.
+# Dates are upstream commit dates; source findings are static and have not been
+# validated by building or running the referenced projects.
+
+[mcfc]
+repository = "https://gitlab.epicpix.dev/EpicPix/MinecraftFunctionCompiler"
+revision = "15ca1db43556999ff29619ed0e41c971b66aae3e"
+revision_date = "2026-06-17"
+target = "Minecraft 26.1.2"
+status = "development snapshot; Changelog labels 0.4.0-alpha.1 in development and supports no released versions"
+license = "LGPL-3.0-or-later"
+
+[mercury]
+repository = "https://github.com/clang-mc/Mercury"
+revision = "193d65bd031debf6539136427339f9ce1619696c"
+revision_date = "2026-05-23"
+target = "Minecraft 1.21.4; Yarn 1.21.4+build.8; Fabric Loader 0.17.2; Fabric API 0.119.4+1.21.4"
+license = "Apache-2.0"
+
+[bellows]
+repository = "https://github.com/Smithed-MC/Bellows"
+tag = "1.1.0"
+revision = "59f6e80514da6022aa4d2afd87bab201c2ed94fd"
+revision_date = "2026-09-16"
+target = "Minecraft 26.3; Fabric Loader 0.19.5; Fabric API 0.160.6+26.3"
+license = "Apache-2.0"

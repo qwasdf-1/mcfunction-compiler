@@ -1,0 +1,21 @@
+.gradle/
+/.gradle-user-home/
+**/build/
+run/
+logs/
+*.iml
+.idea/
+.vscode/
+__pycache__/
+.pytest_cache/
+
+# Local project-management material; maintained project references stay tracked.
+/AGENTS.md
+/CLAUDE.md
+/references/
+/spark/tmp/
+/docs/issue-ledger.md
+/docs/open-work.md
+/docs/TODOS.md
+/docs/work-register.md
+/docs/local/
