@@ -63,6 +63,9 @@ def profile_summary(
         "selective_macro_argument_calls_delta": result[
             "selective_macro_argument_calls_delta"
         ],
+        "selective_macro_diagnostics_delta": result.get(
+            "selective_macro_diagnostics_delta"
+        ),
         "work_after": result["work_after"],
         "work_expected": result["work_expected"],
         "queue_head_delta": result["queue_head_delta"],

@@ -690,6 +690,7 @@ def main() -> int:
                 )
 
         selective_macro_argument_calls_delta = None
+        selective_macro_diagnostics_delta = None
         if selective_macro_metrics_enabled:
             if compiler_status_before is None or compiler_status_after is None:
                 raise RuntimeError("Selective macro diagnostic did not capture probe status")
@@ -697,6 +698,21 @@ def main() -> int:
                 stats_int(compiler_status_after, "selective_macro_arguments_used")
                 - stats_int(compiler_status_before, "selective_macro_arguments_used")
             )
+            selective_macro_diagnostics_delta = {
+                name: (
+                    stats_int(
+                        compiler_status_after, alias
+                    ) - stats_int(compiler_status_before, alias)
+                )
+                for name, alias in (
+                    ("attempted", "selective_macro_argument_attempts"),
+                    ("unsupported_providers", "selective_macro_unsupported_providers"),
+                    ("invalid_storage_sources", "selective_macro_invalid_storage_sources"),
+                    ("missing_entity_custom_data", "selective_macro_missing_entity_custom_data"),
+                    ("macro_resolution_fallbacks", "selective_macro_macro_resolution_fallbacks"),
+                    ("missing_selected_keys", "selective_macro_missing_selected_keys"),
+                )
+            }
             if selective_macro_argument_calls_delta <= 0:
                 raise RuntimeError(
                     "Selective macro diagnostic did not intercept a real workload call: "
@@ -734,6 +750,9 @@ def main() -> int:
             "command_callback_metrics_enabled": callback_metrics_enabled,
             "selective_macro_arguments_metrics_enabled": selective_macro_metrics_enabled,
             "selective_macro_argument_calls_delta": selective_macro_argument_calls_delta,
+            "selective_macro_diagnostics_delta": selective_macro_diagnostics_delta,
+            "selective_macro_diagnostics_before": compiler_status_before,
+            "selective_macro_diagnostics_after": compiler_status_after,
             "callback_metrics_forced_wrapper": (
                 callback_metrics_enabled and not compiler_enabled
             ),
