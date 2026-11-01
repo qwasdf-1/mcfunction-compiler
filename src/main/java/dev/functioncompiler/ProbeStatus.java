@@ -118,6 +118,8 @@ final class ProbeStatus {
                 + ProbeMetrics.selectiveMacroArgumentsAttemptedCount()
                 + " selective_macro_unsupported_providers="
                 + ProbeMetrics.selectiveMacroArgumentsUnsupportedProviderCount()
+                + " selective_macro_unsupported_entity_paths="
+                + ProbeMetrics.selectiveMacroArgumentsUnsupportedEntityPathCount()
                 + " selective_macro_invalid_storage_sources="
                 + ProbeMetrics.selectiveMacroArgumentsInvalidStorageSourceCount()
                 + " selective_macro_missing_entity_custom_data="
