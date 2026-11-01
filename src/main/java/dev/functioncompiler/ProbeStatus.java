@@ -114,6 +114,18 @@ final class ProbeStatus {
                 + ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()
                 + " selective_macro_arguments_used="
                 + ProbeMetrics.selectiveMacroArgumentCalls()
+                + " selective_macro_argument_attempts="
+                + ProbeMetrics.selectiveMacroArgumentsAttemptedCount()
+                + " selective_macro_unsupported_providers="
+                + ProbeMetrics.selectiveMacroArgumentsUnsupportedProviderCount()
+                + " selective_macro_invalid_storage_sources="
+                + ProbeMetrics.selectiveMacroArgumentsInvalidStorageSourceCount()
+                + " selective_macro_missing_entity_custom_data="
+                + ProbeMetrics.selectiveMacroArgumentsMissingEntityCustomDataCount()
+                + " selective_macro_macro_resolution_fallbacks="
+                + ProbeMetrics.selectiveMacroArgumentsMacroResolutionFailedCount()
+                + " selective_macro_missing_selected_keys="
+                + ProbeMetrics.selectiveMacroArgumentsMissingSelectedKeyCount()
                 + " generic_leaf_callbacks=" + ProbeMetrics.genericLeafCallbacks()
                 + " optimized_score_add_leaf_callbacks="
                 + ProbeMetrics.optimizedScoreAddLeafCallbacks()

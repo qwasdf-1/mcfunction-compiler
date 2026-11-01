@@ -19,3 +19,6 @@ __pycache__/
 /docs/TODOS.md
 /docs/work-register.md
 /docs/local/
+
+# Git worktrees
+/.worktrees/
