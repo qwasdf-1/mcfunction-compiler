@@ -215,6 +215,8 @@ final class ProbeStatus {
                 + "  • Selective Macro Hits: " + ProbeMetrics.selectiveMacroArgumentCalls() + "\n"
                 + "  • Selective Macro Diagnostics: attempts=" + ProbeMetrics.selectiveMacroArgumentsAttemptedCount()
                 + ", unsupported_providers=" + ProbeMetrics.selectiveMacroArgumentsUnsupportedProviderCount()
+                + ", unsupported_provider_classes="
+                + ProbeMetrics.selectiveMacroUnsupportedProviderClassSummary()
                 + ", unsupported_entity_paths=" + ProbeMetrics.selectiveMacroArgumentsUnsupportedEntityPathCount()
                 + ", invalid_storage_sources=" + ProbeMetrics.selectiveMacroArgumentsInvalidStorageSourceCount()
                 + ", missing_entity_custom_data=" + ProbeMetrics.selectiveMacroArgumentsMissingEntityCustomDataCount()

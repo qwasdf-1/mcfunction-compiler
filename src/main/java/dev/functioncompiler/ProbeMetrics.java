@@ -300,11 +300,22 @@ public final class ProbeMetrics {
     }
 
     public static java.util.Map<String, Long> selectiveMacroUnsupportedProviderClasses() {
-        java.util.Map<String, Long> result = new java.util.TreeMap<>();
+        java.util.TreeMap<String, Long> result = new java.util.TreeMap<>();
         for (var entry : SELECTIVE_MACRO_UNSUPPORTED_PROVIDER_CLASSES.entrySet()) {
             result.put(entry.getKey(), entry.getValue().get());
         }
         return result;
+    }
+
+    public static String selectiveMacroUnsupportedProviderClassSummary() {
+        StringBuilder builder = new StringBuilder();
+        for (var entry : selectiveMacroUnsupportedProviderClasses().entrySet()) {
+            if (!builder.isEmpty()) {
+                builder.append(',');
+            }
+            builder.append(entry.getKey()).append('=').append(entry.getValue());
+        }
+        return builder.substring(0, Math.min(builder.length(), 200));
     }
 
     public static long selectiveMacroArgumentsUnsupportedProviderCount() {
