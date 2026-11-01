@@ -34,6 +34,9 @@ public final class SelectiveMacroArgumentPrototype {
             DataAccessor dataAccessor,
             CommandContext<CommandSourceStack> context
     ) throws CommandSyntaxException {
+        if (ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()) {
+            ProbeMetrics.selectiveMacroArgumentsAttempted();
+        }
         CompoundTag source = resolveSourceCompound(path, dataAccessor);
         if (source == null) {
             return null;
@@ -41,6 +44,9 @@ public final class SelectiveMacroArgumentPrototype {
 
         List<String> parameters = resolveMacroParameters(context);
         if (parameters == null || parameters.isEmpty()) {
+            if (ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()) {
+                ProbeMetrics.selectiveMacroArgumentsMacroResolutionFailed();
+            }
             return null;
         }
 
@@ -57,6 +63,9 @@ public final class SelectiveMacroArgumentPrototype {
         if (dataAccessor instanceof StorageDataAccessor storageAccessor) {
             return resolveStorageSource(path, storageAccessor);
         }
+        if (ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()) {
+            ProbeMetrics.selectiveMacroArgumentsUnsupportedProvider();
+        }
         return null;
     }
 
@@ -65,11 +74,17 @@ public final class SelectiveMacroArgumentPrototype {
             EntityDataAccessorAccessor entityAccessor
     ) {
         if (!"data".equals(path.asString())) {
+            if (ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()) {
+                ProbeMetrics.selectiveMacroArgumentsUnsupportedProvider();
+            }
             return null;
         }
         Entity entity = entityAccessor.functionCompiler$getEntity();
         CustomData customData = entity.get(DataComponents.CUSTOM_DATA);
         if (customData == null || customData.isEmpty()) {
+            if (ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()) {
+                ProbeMetrics.selectiveMacroArgumentsMissingEntityCustomData();
+            }
             return null;
         }
         return ((CustomDataAccessor) (Object) customData).functionCompiler$getTag();
@@ -83,6 +98,9 @@ public final class SelectiveMacroArgumentPrototype {
             List<Tag> tags = path.get(storageAccessor.getData());
             if (tags.size() == 1 && tags.get(0) instanceof CompoundTag compound) {
                 return compound;
+            }
+            if (ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()) {
+                ProbeMetrics.selectiveMacroArgumentsInvalidStorageSource();
             }
         } catch (CommandSyntaxException exception) {
             return null;
@@ -126,6 +144,9 @@ public final class SelectiveMacroArgumentPrototype {
         for (String parameter : parameters) {
             Tag value = source.get(parameter);
             if (value == null) {
+                if (ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()) {
+                    ProbeMetrics.selectiveMacroArgumentsMissingSelectedKey();
+                }
                 return null;
             }
             selected.put(parameter, value.copy());
