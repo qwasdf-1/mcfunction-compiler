@@ -66,7 +66,9 @@ def profile_summary(
         "selective_macro_diagnostics_delta": result.get(
             "selective_macro_diagnostics_delta"
         ),
-        "work_after": result["work_after"],
+        "selective_macro_provider_class_delta": result.get(
+            "selective_macro_provider_class_delta"
+        ),        "work_after": result["work_after"],
         "work_expected": result["work_expected"],
         "queue_head_delta": result["queue_head_delta"],
         "queue_score_add_compiled": result["queue_score_add_compiled"],
@@ -306,6 +308,20 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
         )
         for key in diagnostic_keys
     }
+
+    provider_class_total = {}
+    for pair in pairs:
+        delta = (
+            (pair.get(args.candidate) or {}).get(
+                "selective_macro_provider_class_delta", {}
+            )
+            or {}
+        )
+        for provider, count in delta.items():
+            provider_class_total[provider] = (
+                provider_class_total.get(provider, 0) + count
+            )
+    report["selective_macro_provider_class_total"] = provider_class_total
 
     report["all_pairs_exact_parity"] = all(bool(pair["exact_parity"]) for pair in pairs)
     report["paired_median_deltas"] = {

@@ -125,6 +125,34 @@ def stats_int(status: str | None, name: str) -> int:
     return int(match.group(1)) if match else 0
 
 
+def stats_provider_classes(status: str | None) -> dict[str, int]:
+    if not status:
+        return {}
+    match = re.search(
+        r"selective_macro_unsupported_provider_classes=([^ ]*)", status
+    )
+    if not match or not match.group(1):
+        return {}
+    result = {}
+    for item in match.group(1).split(","):
+        if not item or "=" not in item:
+            continue
+        key, value = item.split("=", 1)
+        result[key] = int(value)
+    return result
+
+
+def _selective_macro_provider_class_delta(
+    before: str | None, after: str | None
+) -> dict[str, int]:
+    before_counts = stats_provider_classes(before)
+    after_counts = stats_provider_classes(after)
+    keys = sorted(set(before_counts) | set(after_counts))
+    return {
+        key: after_counts.get(key, 0) - before_counts.get(key, 0) for key in keys
+    }
+
+
 def function_stats(client: DrainingRconClient, function_id: str, enabled: bool) -> str | None:
     return client.command(f"function_compiler_probe stats {function_id}") if enabled else None
 
@@ -691,6 +719,7 @@ def main() -> int:
 
         selective_macro_argument_calls_delta = None
         selective_macro_diagnostics_delta = None
+        selective_macro_provider_class_delta = None
         if selective_macro_metrics_enabled:
             if compiler_status_before is None or compiler_status_after is None:
                 raise RuntimeError("Selective macro diagnostic did not capture probe status")
@@ -713,6 +742,10 @@ def main() -> int:
                     ("missing_selected_keys", "selective_macro_missing_selected_keys"),
                 )
             }
+            selective_macro_provider_class_delta = _selective_macro_provider_class_delta(
+                compiler_status_before, compiler_status_after
+            )
+
             if selective_macro_argument_calls_delta <= 0:
                 raise RuntimeError(
                     "Selective macro diagnostic did not intercept a real workload call: "
@@ -751,6 +784,7 @@ def main() -> int:
             "selective_macro_arguments_metrics_enabled": selective_macro_metrics_enabled,
             "selective_macro_argument_calls_delta": selective_macro_argument_calls_delta,
             "selective_macro_diagnostics_delta": selective_macro_diagnostics_delta,
+            "selective_macro_provider_class_delta": selective_macro_provider_class_delta,
             "selective_macro_diagnostics_before": compiler_status_before,
             "selective_macro_diagnostics_after": compiler_status_after,
             "callback_metrics_forced_wrapper": (

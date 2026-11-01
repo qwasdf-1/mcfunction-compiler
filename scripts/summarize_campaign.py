@@ -54,6 +54,9 @@ def main() -> int:
     diagnostics = report.get("selective_macro_diagnostics_total")
     if diagnostics:
         print("selective macro diagnostics total:", diagnostics)
+    provider_classes = report.get("selective_macro_provider_class_total")
+    if provider_classes:
+        print("selective macro provider class total:", provider_classes)
 
     return 0
 
