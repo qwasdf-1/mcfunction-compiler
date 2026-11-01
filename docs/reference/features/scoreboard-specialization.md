@@ -1,7 +1,7 @@
 # Scoreboard Specialization (`ScoreAddPrototype`)
 
 **Status:** Production implementation verified; promoted in v1.0.  
-**Configuration Key:** Controlled via `"enable_fused_regions": true` (in `config/function-compiler.json`)  
+**Configuration Key:** Controlled via `"fused_regions": true` (in `config/function-compiler.json`)  
 **Owner Classes:** [`ScoreAddPrototype.java`](../../../src/main/java/dev/functioncompiler/ScoreAddPrototype.java), [`ScoreAddCommand.java`](../../../src/main/java/dev/functioncompiler/ScoreAddCommand.java), [`ScoreOperationCommand.java`](../../../src/main/java/dev/functioncompiler/ScoreOperationCommand.java), [`ScoreResetCommand.java`](../../../src/main/java/dev/functioncompiler/ScoreResetCommand.java), [`ScoreConditionCommand.java`](../../../src/main/java/dev/functioncompiler/ScoreConditionCommand.java), [`ScoreStoreCommand.java`](../../../src/main/java/dev/functioncompiler/ScoreStoreCommand.java)  
 **Test IDs:** [`SCORE-001`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L21) through [`SCORE-015`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L91)
 

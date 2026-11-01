@@ -1,7 +1,7 @@
 # Selective Macro Arguments (`SelectiveMacroArgumentPrototype`)
 
 **Status:** Promoted to default-enabled in v1.0 Production Release.  
-**Configuration Key:** `"enable_selective_macros": true` (in `config/function-compiler.json`)  
+**Configuration Key:** `"selective_macros": true` (in `config/function-compiler.json`)  
 **Owner Class:** [`SelectiveMacroArgumentPrototype.java`](../../../src/main/java/dev/functioncompiler/SelectiveMacroArgumentPrototype.java)  
 **Test IDs:** [`MACRO-001`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L61) through [`MACRO-010`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L70), [`PERF-011`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L80), [`PERF-015`](../../../benchmarks/PERF-015-multi-mod-endurance-campaigns.md)
 

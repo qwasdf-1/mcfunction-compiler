@@ -1,7 +1,7 @@
 # Emitted ASM Bytecode Regions & Tiered JIT Engine
 
 **Status:** Opt-in / Experimental Tiered JIT Backend (Milestone 2 Verified).  
-**Configuration Key:** `"enable_tiered_bytecode": false` (in `config/function-compiler.json`)  
+**Configuration Key:** `"tiered_bytecode": false` (in `config/function-compiler.json`)  
 **Threshold Setting:** `"tiered_threshold": 5`  
 **Owner Classes:** [`BytecodeRegionPrototype.java`](../../../src/main/java/dev/functioncompiler/BytecodeRegionPrototype.java), [`BytecodeRegionEmitter.java`](../../../src/main/java/dev/functioncompiler/BytecodeRegionEmitter.java), [`TieredRegionAction.java`](../../../src/main/java/dev/functioncompiler/TieredRegionAction.java)  
 **Test IDs:** [`PERF-013`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L92), [`PERF-014`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L93), [`PERF-008`](../../../benchmarks/PERF-008-large-scale-compilation.md), [`RELOAD-002`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L52)

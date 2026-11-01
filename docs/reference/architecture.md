@@ -30,7 +30,7 @@ flowchart TD
     ExcludeCheck -- "Yes" --> VanillaExec["Delegate to Vanilla Instantiation"]
     ExcludeCheck -- "No" --> Analyze["Contiguous Sequence Analysis<br>(FusableCommand Detection)"]
     Analyze --> Partition["Partition into Surrounding Regions<br>&amp; Unrecognized Command Leaves"]
-    Partition --> EngineCheck{"Bytecode Enabled?<br>(enable_tiered_bytecode)"}
+    Partition --> EngineCheck{"Bytecode Enabled?<br>(tiered_bytecode)"}
     EngineCheck -- "No (Default)" --> FuseInterp["FusedRegionPrototype<br>(Interpreted Fused Region Action)"]
     EngineCheck -- "Yes" --> ColdPolicy{"Cold Policy Check<br>(L < 3 or #load?)"}
     ColdPolicy -- "Cold" --> FuseInterp

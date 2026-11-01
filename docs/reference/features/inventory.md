@@ -65,7 +65,7 @@ These handlers replace specific Brigadier command shapes after parsing. They ret
 
 | Interface | Component | Purpose |
 |---|---|---|
-| `config/function-compiler.json` | [`CompilerConfig.java`](../../../src/main/java/dev/functioncompiler/CompilerConfig.java) | Granular toggles (`enable_fused_regions`, `enable_selective_macros`, `enable_tiered_bytecode`, `tiered_threshold`, `excluded_namespaces`). |
+| `config/function-compiler.json` | [`CompilerConfig.java`](../../../src/main/java/dev/functioncompiler/CompilerConfig.java) | Granular toggles (`fused_regions`, `selective_macros`, `tiered_bytecode`, `tiered_threshold`, `excluded_namespaces`). |
 | In-Game Admin Commands | [`ProbeCommands.java`](../../../src/main/java/dev/functioncompiler/ProbeCommands.java), [`ProbeStatus.java`](../../../src/main/java/dev/functioncompiler/ProbeStatus.java) | Operator commands: `/functioncompiler status`, `/functioncompiler metrics`, and `/functioncompiler reload`. |
 
 ---

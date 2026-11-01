@@ -226,9 +226,9 @@ flowchart TD
 1. **User Configuration (`config/function-compiler.json`):**
    - Implemented [`CompilerConfig.java`](../../../src/main/java/dev/functioncompiler/CompilerConfig.java) with auto-creation and dynamic hot reloading.
    - Default-on production toggles:
-     - `enable_fused_regions`: `true`
-     - `enable_selective_macros`: `true`
-     - `enable_tiered_bytecode`: `false` (opt-in experimental)
+     - `fused_regions`: `true`
+     - `selective_macros`: `true`
+     - `tiered_bytecode`: `false` (opt-in experimental)
      - `tiered_threshold`: `5`
      - `excluded_namespaces`: `[]` (per-datapack granular opt-out)
 2. **Diagnostics & User Admin Commands:**

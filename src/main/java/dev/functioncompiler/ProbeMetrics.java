@@ -309,11 +309,11 @@ public final class ProbeMetrics {
 
     public static String selectiveMacroUnsupportedProviderClassSummary() {
         StringBuilder builder = new StringBuilder();
-        for (var entry : selectiveMacroUnsupportedProviderClasses().entrySet()) {
+        for (var entry : SELECTIVE_MACRO_UNSUPPORTED_PROVIDER_CLASSES.entrySet()) {
             if (!builder.isEmpty()) {
                 builder.append(',');
             }
-            builder.append(entry.getKey()).append('=').append(entry.getValue());
+            builder.append(entry.getKey()).append('=').append(entry.getValue().get());
         }
         return builder.substring(0, Math.min(builder.length(), 200));
     }

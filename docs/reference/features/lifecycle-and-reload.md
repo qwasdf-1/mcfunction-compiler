@@ -47,5 +47,5 @@ In multi-request overlapping reload scenarios (HOOK-008):
 
 In addition to datapack resource reloads, the compiler supports live configuration updates without restarting the server:
 - **Command:** `/functioncompiler reload` triggers [`CompilerConfig.reload()`](../../../src/main/java/dev/functioncompiler/CompilerConfig.java).
-- **Behavior:** Reads `config/function-compiler.json` from disk, atomically updating active optimization toggles (`enable_fused_regions`, `enable_selective_macros`, `enable_tiered_bytecode`, `tiered_threshold`) and namespace exclusion sets.
+- **Behavior:** Reads `config/function-compiler.json` from disk, atomically updating active optimization toggles (`fused_regions`, `selective_macros`, `tiered_bytecode`, `tiered_threshold`) and namespace exclusion sets.
 - **Safety:** Ongoing function executions finish cleanly; newly dispatched or instantiated functions immediately observe updated compilation rules.

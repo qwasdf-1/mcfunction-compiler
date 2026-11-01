@@ -23,7 +23,7 @@
    Opt-in bytecode remains slower than fused on the static fixture. Metaspace no-leak evidence is bounded to the 25-cycle/injected-failure runs and should stay labeled as such.
 
 5. **Configuration key mismatch.**  
-   README formerly documented `enable_fused_regions`, `enable_selective_macros`, and `enable_tiered_bytecode`, while `CompilerConfig` uses `fused_regions`, `selective_macros`, and `tiered_bytecode`. Corrected in README, inventory, and configuration reference.
+   README formerly documented `fused_regions`, `selective_macros`, and `tiered_bytecode`, while `CompilerConfig` uses `fused_regions`, `selective_macros`, and `tiered_bytecode`. Corrected in README, inventory, and configuration reference.
 
 6. **Prototype vs general compiler separation.**  
    Specialized command handlers replace specific parsed Brigadier shapes and retain original command fallback. Inventory title and handler section clarified to avoid implying general compilation.

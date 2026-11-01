@@ -1,7 +1,7 @@
 # Fused Interpreted Regions (`FusedRegionPrototype`)
 
 **Status:** Promoted to default-enabled in v1.0 Production Release.  
-**Configuration Key:** `"enable_fused_regions": true` (in `config/function-compiler.json`)  
+**Configuration Key:** `"fused_regions": true` (in `config/function-compiler.json`)  
 **Owner Classes:** [`FusedRegionPrototype.java`](../../../src/main/java/dev/functioncompiler/FusedRegionPrototype.java), [`FusableCommand.java`](../../../src/main/java/dev/functioncompiler/FusableCommand.java)  
 **Test IDs:** [`CTRL-005`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L46), [`CTRL-007`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L48), [`SCORE-014`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L90), [`SCORE-015`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L91), [`MACRO-009`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L71), [`PERF-012`](../../../benchmarks/PERF-012-macro-region-compilation.md)
 

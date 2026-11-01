@@ -34,7 +34,7 @@ The compiler automatically creates a default configuration file at `config/funct
 | `fused_regions` | boolean | `false` | Enables contiguous command fusing, context modifier folding, scoreboard condition/store interception, block/entity predicates, and storage data mutations. |
 | `selective_macros` | boolean | `true` | Enables selective extraction of declared macro parameter keys directly from entity custom data and storage targets, bypassing full NBT compound serialization. |
 | `tiered_bytecode` | boolean | `false` | Enables the ASM hidden class bytecode compilation backend for hot function regions. |
-| `tiered_threshold` | integer | `5` | The number of times a region executes via interpreted fusion before automatically compiling to unrolled JVM bytecode (active only when `enable_tiered_bytecode` is `true`). |
+| `tiered_threshold` | integer | `5` | The number of times a region executes via interpreted fusion before automatically compiling to unrolled JVM bytecode (active only when `tiered_bytecode` is `true`). |
 | `excluded_namespaces` | array of strings | `[]` | List of datapack namespaces to exclude completely from compilation (e.g. `["custom_debug", "profiler"]`). Functions in these namespaces retain 100% vanilla delegation. |
 
 ---
