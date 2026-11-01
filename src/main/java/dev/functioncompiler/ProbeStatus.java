@@ -199,6 +199,12 @@ final class ProbeStatus {
                 + ", live_classes=" + BytecodeRegionPrototype.liveGeneratedClassCount() + "\n"
                 + "  • Tiered JIT Triggers: " + ProbeMetrics.bytecodeTieredJitTriggers() + "\n"
                 + "  • Selective Macro Hits: " + ProbeMetrics.selectiveMacroArgumentCalls() + "\n"
+                + "  • Selective Macro Diagnostics: attempts=" + ProbeMetrics.selectiveMacroArgumentsAttemptedCount()
+                + ", unsupported_providers=" + ProbeMetrics.selectiveMacroArgumentsUnsupportedProviderCount()
+                + ", invalid_storage_sources=" + ProbeMetrics.selectiveMacroArgumentsInvalidStorageSourceCount()
+                + ", missing_entity_custom_data=" + ProbeMetrics.selectiveMacroArgumentsMissingEntityCustomDataCount()
+                + ", macro_resolution_fallbacks=" + ProbeMetrics.selectiveMacroArgumentsMacroResolutionFailedCount()
+                + ", missing_selected_keys=" + ProbeMetrics.selectiveMacroArgumentsMissingSelectedKeyCount() + "\n"
                 + "  • Scoreboard Operations: compiled=" + ProbeMetrics.scoreAddsCompiled()
                 + ", executed=" + ProbeMetrics.scoreAddsExecuted();
         source.sendSuccess(() -> Component.literal(message), false);

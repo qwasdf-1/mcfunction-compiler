@@ -42,6 +42,12 @@ public final class ProbeMetrics {
     private static long GENERIC_LEAF_CALLBACKS;
     private static long OPTIMIZED_SCORE_ADD_LEAF_CALLBACKS;
     private static long SELECTIVE_MACRO_ARGUMENT_CALLS;
+    private static long SELECTIVE_MACRO_ARGUMENT_ATTEMPTS;
+    private static long SELECTIVE_MACRO_UNSUPPORTED_PROVIDERS;
+    private static long SELECTIVE_MACRO_INVALID_STORAGE_SOURCES;
+    private static long SELECTIVE_MACRO_MISSING_ENTITY_CUSTOM_DATA;
+    private static long SELECTIVE_MACRO_MACRO_RESOLUTION_FALLBACKS;
+    private static long SELECTIVE_MACRO_MISSING_SELECTED_KEYS;
 
     private ProbeMetrics() {
     }
@@ -265,6 +271,54 @@ public final class ProbeMetrics {
 
     public static long selectiveMacroArgumentCalls() {
         return SELECTIVE_MACRO_ARGUMENT_CALLS;
+    }
+
+    public static void selectiveMacroArgumentsAttempted() {
+        SELECTIVE_MACRO_ARGUMENT_ATTEMPTS++;
+    }
+
+    public static long selectiveMacroArgumentsAttemptedCount() {
+        return SELECTIVE_MACRO_ARGUMENT_ATTEMPTS;
+    }
+
+    public static void selectiveMacroArgumentsUnsupportedProvider() {
+        SELECTIVE_MACRO_UNSUPPORTED_PROVIDERS++;
+    }
+
+    public static long selectiveMacroArgumentsUnsupportedProviderCount() {
+        return SELECTIVE_MACRO_UNSUPPORTED_PROVIDERS;
+    }
+
+    public static void selectiveMacroArgumentsInvalidStorageSource() {
+        SELECTIVE_MACRO_INVALID_STORAGE_SOURCES++;
+    }
+
+    public static long selectiveMacroArgumentsInvalidStorageSourceCount() {
+        return SELECTIVE_MACRO_INVALID_STORAGE_SOURCES;
+    }
+
+    public static void selectiveMacroArgumentsMissingEntityCustomData() {
+        SELECTIVE_MACRO_MISSING_ENTITY_CUSTOM_DATA++;
+    }
+
+    public static long selectiveMacroArgumentsMissingEntityCustomDataCount() {
+        return SELECTIVE_MACRO_MISSING_ENTITY_CUSTOM_DATA;
+    }
+
+    public static void selectiveMacroArgumentsMacroResolutionFailed() {
+        SELECTIVE_MACRO_MACRO_RESOLUTION_FALLBACKS++;
+    }
+
+    public static long selectiveMacroArgumentsMacroResolutionFailedCount() {
+        return SELECTIVE_MACRO_MACRO_RESOLUTION_FALLBACKS;
+    }
+
+    public static void selectiveMacroArgumentsMissingSelectedKey() {
+        SELECTIVE_MACRO_MISSING_SELECTED_KEYS++;
+    }
+
+    public static long selectiveMacroArgumentsMissingSelectedKeyCount() {
+        return SELECTIVE_MACRO_MISSING_SELECTED_KEYS;
     }
 
 }
