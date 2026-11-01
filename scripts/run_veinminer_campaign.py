@@ -210,6 +210,8 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
                 str(args.capture_timeout),
                 "--no-spark",
             ]
+            if mode == "selective-macro":
+                command.append("--count-selective-macro-arguments")
             environment = os.environ.copy()
             completed = subprocess.run(
                 command,
@@ -291,8 +293,11 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
     report["selective_macro_diagnostics_total"] = {
         key: sum(
             int(
-                (pair.get(args.candidate) or {}).get(
-                    "selective_macro_diagnostics_delta", {}
+                (
+                    (pair.get(args.candidate) or {}).get(
+                        "selective_macro_diagnostics_delta", {}
+                    )
+                    or {}
                 ).get(key, 0)
                 or 0
             )
