@@ -78,8 +78,24 @@ The compiler undergoes continuous differential verification against vanilla Mine
 
 ---
 
-## Building from Source
+## Promotion Status (Current Evidence)
 
+Statuses follow the saved campaign results recorded in `docs/research/implementation-audit-2026-11.md`.
+
+| Optimization | Default | Promotion status | Evidence |
+|---|---|---|---|
+| Selective macro arguments | `true` | **Supported** — promoted | Real-event Vein Miner 6-pair confirmatory campaigns passed the 15% gate: Fabric -22.34%, Lithium -22.06%; MSPT-based Belows metric also passed (-73.75%). |
+| Selective macro arguments on Belows | `true` | **Supported but less stable** | 6-pair real-event campaign: first seed completion inconclusive, repeat seed passed (-18.34%), tick-average metric strongly passed. |
+| Fused regions | `false` | Experimental / unqualified | Static-fixture gain only; no adjacent-eligible real-world workload yet. |
+| Tiered bytecode | `false` | Opt-in / evidence-gated | Static-fixture result shown as slower than fused interpreted; bounded Metaspace/reload evidence only. |
+| ScoreAdd specialization | `false` | Not qualified | 6-pair confirmatory Vein Miner run median -0.88%, `does_not_meet_threshold`; no current evidence qualifies it. |
+
+Supporting stack aliases live in [`docs/reference/stack-aliases.md`](docs/reference/stack-aliases.md).
+
+---
+
+## Building from Source
+r
 Requirements: Java 25 JDK.
 
 ```sh
