@@ -707,7 +707,7 @@ def main() -> int:
                 for name, alias in (
                     ("attempted", "selective_macro_argument_attempts"),
                     ("unsupported_providers", "selective_macro_unsupported_providers"),
-                    ("invalid_storage_sources", "selective_macro_invalid_storage_sources"),
+                    ("unsupported_entity_paths", "selective_macro_unsupported_entity_paths"),                    ("invalid_storage_sources", "selective_macro_invalid_storage_sources"),
                     ("missing_entity_custom_data", "selective_macro_missing_entity_custom_data"),
                     ("macro_resolution_fallbacks", "selective_macro_macro_resolution_fallbacks"),
                     ("missing_selected_keys", "selective_macro_missing_selected_keys"),

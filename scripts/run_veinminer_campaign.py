@@ -285,6 +285,7 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
     diagnostic_keys = (
         "attempted",
         "unsupported_providers",
+        "unsupported_entity_paths",
         "invalid_storage_sources",
         "missing_entity_custom_data",
         "macro_resolution_fallbacks",

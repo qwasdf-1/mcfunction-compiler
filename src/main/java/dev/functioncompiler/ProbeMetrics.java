@@ -44,6 +44,7 @@ public final class ProbeMetrics {
     private static long SELECTIVE_MACRO_ARGUMENT_CALLS;
     private static long SELECTIVE_MACRO_ARGUMENT_ATTEMPTS;
     private static long SELECTIVE_MACRO_UNSUPPORTED_PROVIDERS;
+    private static long SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS;
     private static long SELECTIVE_MACRO_INVALID_STORAGE_SOURCES;
     private static long SELECTIVE_MACRO_MISSING_ENTITY_CUSTOM_DATA;
     private static long SELECTIVE_MACRO_MACRO_RESOLUTION_FALLBACKS;
@@ -287,6 +288,14 @@ public final class ProbeMetrics {
 
     public static long selectiveMacroArgumentsUnsupportedProviderCount() {
         return SELECTIVE_MACRO_UNSUPPORTED_PROVIDERS;
+    }
+
+    public static void selectiveMacroArgumentsUnsupportedEntityPath() {
+        SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS++;
+    }
+
+    public static long selectiveMacroArgumentsUnsupportedEntityPathCount() {
+        return SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS;
     }
 
     public static void selectiveMacroArgumentsInvalidStorageSource() {

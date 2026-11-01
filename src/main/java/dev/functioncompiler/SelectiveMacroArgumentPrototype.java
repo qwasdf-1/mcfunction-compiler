@@ -75,7 +75,7 @@ public final class SelectiveMacroArgumentPrototype {
     ) {
         if (!"data".equals(path.asString())) {
             if (ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()) {
-                ProbeMetrics.selectiveMacroArgumentsUnsupportedProvider();
+                ProbeMetrics.selectiveMacroArgumentsUnsupportedEntityPath();
             }
             return null;
         }
