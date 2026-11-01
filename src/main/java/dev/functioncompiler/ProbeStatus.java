@@ -128,6 +128,8 @@ final class ProbeStatus {
                 + ProbeMetrics.selectiveMacroArgumentsMacroResolutionFailedCount()
                 + " selective_macro_missing_selected_keys="
                 + ProbeMetrics.selectiveMacroArgumentsMissingSelectedKeyCount()
+                + " selective_macro_unsupported_provider_classes="
+                + ProbeMetrics.selectiveMacroUnsupportedProviderClassSummary()
                 + " generic_leaf_callbacks=" + ProbeMetrics.genericLeafCallbacks()
                 + " optimized_score_add_leaf_callbacks="
                 + ProbeMetrics.optimizedScoreAddLeafCallbacks()
