@@ -1,6 +1,6 @@
-# Minecraft Function Compiler (v1.0)
+# Minecraft Function Compiler
 
-A high-performance, server-side Fabric mod providing safe specialization, execution pipeline chaining, and parameterized bytecode compilation for Minecraft Java Edition 26.3 functions and macros.
+A server-side Fabric mod for Minecraft 26.3 functions and macros, containing conservative, evidence-gated specialization and execution prototypes.
 
 Minecraft Function Compiler investigates eliminating Minecraft's recursive command queue scheduler overhead while preserving vanilla execution semantics, error handling, command quotas, and trace parity. The specialized command handlers and prototype paths below are narrow parsed-command optimizations and evidence-gated experiments; see `docs/research/implementation-sanity-audit-2026-10.md` and the raw reports in `build/reports/` and `build/benchmarks/` for current evidence status.
 

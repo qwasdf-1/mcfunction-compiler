@@ -1,17 +1,18 @@
 # Current state
 
-The repository contains the complete v1.0 production release of the Minecraft
-Function Compiler mod for Minecraft 26.3 Fabric dedicated servers.
+The repository is a research-transition codebase for a Minecraft 26.3 Fabric
+server-side function compiler. It includes opt-in wrappers, selective macro
+argument handling, fused interpreted prototype regions, and an opt-in ASM
+bytecode backend. Defaults and promotions must track the measured evidence in
+`docs/research/implementation-audit-2026-11.md`, not broad campaign claims.
 
-Fused region interpretation and selective macro arguments are promoted to
-default-enabled production status based on verified 100% exact differential parity
-(55/55 pairwise checks across the test matrix) and statistically significant
-performance gains (-22.25% to -28.40% latency reduction, >6.5x MSPT speedups
-on production multi-mod stacks with Lithium, Bellows, and Moonrise). The
-parameterized ASM bytecode backend is fully integrated as an opt-in tiered JIT
-engine with zero Metaspace memory leaks. Production configuration
-(`config/function-compiler.json`) and admin commands
-(`/functioncompiler status|metrics|reload`) are fully operational.
+Selective macro extraction is the only optimization with real-event confirmatory
+parity and performance promotion evidence (-22.34% on Fabric, -22.06% on
+Lithium; Belows is supported but less stable). Fused region prototype code is
+present, but it has no adjacent eligible real-world workload and remains
+disabled by default. Tiered bytecode is present but opt-in; the bounded reload
+and Metaspace evidence only supports continued experimentation, not blanket
+production claims.
 
 ## Verified
 
