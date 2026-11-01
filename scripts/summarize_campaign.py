@@ -51,6 +51,10 @@ def main() -> int:
             f"decision={metric.get('decision')}"
         )
 
+    diagnostics = report.get("selective_macro_diagnostics_total")
+    if diagnostics:
+        print("selective macro diagnostics total:", diagnostics)
+
     return 0
 
 
