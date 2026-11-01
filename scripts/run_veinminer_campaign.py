@@ -280,6 +280,27 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
             report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
             raise RuntimeError(f"Off/on workload state diverged in pair {repetition}")
 
+    diagnostic_keys = (
+        "attempted",
+        "unsupported_providers",
+        "invalid_storage_sources",
+        "missing_entity_custom_data",
+        "macro_resolution_fallbacks",
+        "missing_selected_keys",
+    )
+    report["selective_macro_diagnostics_total"] = {
+        key: sum(
+            int(
+                (pair.get(args.candidate) or {}).get(
+                    "selective_macro_diagnostics_delta", {}
+                ).get(key, 0)
+                or 0
+            )
+            for pair in pairs
+        )
+        for key in diagnostic_keys
+    }
+
     report["all_pairs_exact_parity"] = all(bool(pair["exact_parity"]) for pair in pairs)
     report["paired_median_deltas"] = {
         metric: summarize_paired_changes(
