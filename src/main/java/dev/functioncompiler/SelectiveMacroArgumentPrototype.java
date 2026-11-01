@@ -64,7 +64,9 @@ public final class SelectiveMacroArgumentPrototype {
             return resolveStorageSource(path, storageAccessor);
         }
         if (ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()) {
-            ProbeMetrics.selectiveMacroArgumentsUnsupportedProvider();
+            ProbeMetrics.selectiveMacroArgumentsUnsupportedProvider(
+                    dataAccessor == null ? "null" : dataAccessor.getClass().getName()
+            );
         }
         return null;
     }

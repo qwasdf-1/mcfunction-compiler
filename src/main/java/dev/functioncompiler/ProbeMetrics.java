@@ -42,6 +42,7 @@ public final class ProbeMetrics {
     private static long GENERIC_LEAF_CALLBACKS;
     private static long OPTIMIZED_SCORE_ADD_LEAF_CALLBACKS;
     private static long SELECTIVE_MACRO_ARGUMENT_CALLS;
+    private static final ConcurrentMap<String, AtomicLong> SELECTIVE_MACRO_UNSUPPORTED_PROVIDER_CLASSES = new ConcurrentHashMap<>();
     private static long SELECTIVE_MACRO_ARGUMENT_ATTEMPTS;
     private static long SELECTIVE_MACRO_UNSUPPORTED_PROVIDERS;
     private static long SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS;
@@ -284,6 +285,26 @@ public final class ProbeMetrics {
 
     public static void selectiveMacroArgumentsUnsupportedProvider() {
         SELECTIVE_MACRO_UNSUPPORTED_PROVIDERS++;
+    }
+
+    public static void selectiveMacroArgumentsUnsupportedProvider(
+            String providerClassName
+    ) {
+        if (providerClassName == null || providerClassName.isBlank()) {
+            return;
+        }
+        SELECTIVE_MACRO_UNSUPPORTED_PROVIDERS++;
+        SELECTIVE_MACRO_UNSUPPORTED_PROVIDER_CLASSES
+                .computeIfAbsent(providerClassName, ignored -> new AtomicLong())
+                .incrementAndGet();
+    }
+
+    public static java.util.Map<String, Long> selectiveMacroUnsupportedProviderClasses() {
+        java.util.Map<String, Long> result = new java.util.TreeMap<>();
+        for (var entry : SELECTIVE_MACRO_UNSUPPORTED_PROVIDER_CLASSES.entrySet()) {
+            result.put(entry.getKey(), entry.getValue().get());
+        }
+        return result;
     }
 
     public static long selectiveMacroArgumentsUnsupportedProviderCount() {
