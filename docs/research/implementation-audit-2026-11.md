@@ -46,6 +46,7 @@
   - Fabric median -22.34%, status complete, decision `meets_threshold`, confidence 0.96875. Report: `build/benchmarks/PERF-011-veinminer/campaigns/vein-6-fabric-selective-macro-6pairs-seed26871028-20261101T020128Z.json`
   - Lithium median -22.06%, status complete, decision `meets_threshold`, confidence 0.96875. Report: `build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lithium-selective-macro-6pairs-seed26871028-20261101T021246Z.json`
   - lb113 repeat (seed 26871031): median -18.34% completion, decision `meets_threshold`; tick average -73.75%, decision `meets_threshold`, 95% confidence. Report: `build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lb113-selective-macro-6pairs-seed26871031-20261101T055249Z.json`
+  - lb113 nested-source gain closed (seed 26871028): -22.17% completion on the same Belows stack, 6 pairs, 95% confidence. Diagnostics report 70,494 attempts with zero fallback categories. Report: `build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lb113-selective-macro-6pairs-seed26871028-20261102T015111Z.json`
 - Real-event 6-pair Vein Miner ScoreAdd campaign:
   - Fabric median -0.88%, status complete, decision `does_not_meet_threshold`. Report: `build/benchmarks/PERF-011-veinminer/campaigns/vein-6-fabric-score-add-6pairs-seed26871028-20261101T015028Z.json`
 - Selective macro lifecycle gate:
