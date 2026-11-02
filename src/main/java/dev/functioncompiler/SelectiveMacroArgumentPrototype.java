@@ -75,14 +75,6 @@ public final class SelectiveMacroArgumentPrototype {
             NbtPathArgument.NbtPath path,
             EntityDataAccessorAccessor entityAccessor
     ) {
-        if (!"data".equals(path.asString())) {
-            if (ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()) {
-                ProbeMetrics.selectiveMacroArgumentsUnsupportedEntityPath(
-                        path.asString()
-                );
-            }
-            return null;
-        }
         Entity entity = entityAccessor.functionCompiler$getEntity();
         CustomData customData = entity.get(DataComponents.CUSTOM_DATA);
         if (customData == null || customData.isEmpty()) {
@@ -91,7 +83,33 @@ public final class SelectiveMacroArgumentPrototype {
             }
             return null;
         }
-        return ((CustomDataAccessor) (Object) customData).functionCompiler$getTag();
+        CompoundTag customDataTag =
+                ((CustomDataAccessor) (Object) customData).functionCompiler$getTag();
+
+        if ("data".equals(path.asString())) {
+            return customDataTag;
+        }
+
+        if (path.asString().startsWith("data.")) {
+            String relativePath = path.asString().substring("data.".length());
+            try {
+                NbtPathArgument.NbtPath relative =
+                        NbtPathArgument.NbtPath.of(relativePath);
+                List<Tag> tags = relative.get(customDataTag);
+                if (tags.size() == 1 && tags.get(0) instanceof CompoundTag compound) {
+                    return compound;
+                }
+            } catch (CommandSyntaxException exception) {
+                return null;
+            }
+        }
+
+        if (ProbeConfiguration.selectiveMacroArgumentsMetricsEnabled()) {
+            ProbeMetrics.selectiveMacroArgumentsUnsupportedEntityPath(
+                    path.asString()
+            );
+        }
+        return null;
     }
 
     private static CompoundTag resolveStorageSource(

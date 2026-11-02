@@ -910,10 +910,13 @@ def run_lifecycle_functions(
         raise RuntimeError(
             f"{mode} nested entity macro path state was {nested_path_state}"
         )
-    if nested_path_selected_calls != 0:
+    # A nested compound-valued entity custom-data path is also now a supported
+    # selective source, so the selective path legitimately runs once.
+    expected_nested_calls = 1 if mode == "selective-macro-arguments" else 0
+    if nested_path_selected_calls != expected_nested_calls:
         raise RuntimeError(
-            f"{mode} nested entity macro path entered the selective entity-data "
-            f"path {nested_path_selected_calls} times"
+            f"{mode} nested entity macro path selection count was "
+            f"{nested_path_selected_calls}; expected {expected_nested_calls}"
         )
 
     client.command(
@@ -1185,7 +1188,14 @@ def run_lifecycle_functions(
         raise RuntimeError(
             f"{mode} custom entity path macro state was {custom_path_state}"
         )
-    if custom_path_selected_calls != 0:
+    # Custom entity data paths are now optimized through a controlled
+    # nested Compound extraction rather than requiring direct source-root "data".
+    if mode == "selective-macro-arguments" and custom_path_selected_calls != 1:
+        raise RuntimeError(
+            f"{mode} custom entity path selection count was "
+            f"{custom_path_selected_calls}; expected 1"
+        )
+    if mode != "selective-macro-arguments" and custom_path_selected_calls != 0:
         raise RuntimeError(
             f"{mode} custom entity path entered the selective entity-data path "
             f"{custom_path_selected_calls} times"
