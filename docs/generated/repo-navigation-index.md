@@ -22,13 +22,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `method run()`:81
 - [`src/main/java/dev/functioncompiler/CompilerConfig.java`](../../src/main/java/dev/functioncompiler/CompilerConfig.java):
   - `class CompilerConfig`:17
-  - `method load()`:35
-  - `method isEnabled()`:93
-  - `method isFusedRegions()`:97
-  - `method isSelectiveMacros()`:101
-  - `method isTieredBytecode()`:105
-  - `method getTieredThreshold()`:109
-  - `method isNamespaceExcluded()`:113
+  - `method load()`:39
+  - `method isEnabled()`:104
+  - `method isScoreAddEnabled()`:108
+  - `method isFusedRegions()`:112
+  - `method isSelectiveMacros()`:116
+  - `method isTieredBytecode()`:120
+  - `method getTieredThreshold()`:124
+  - `method isNamespaceExcluded()`:128
 - [`src/main/java/dev/functioncompiler/ContextModifierCommand.java`](../../src/main/java/dev/functioncompiler/ContextModifierCommand.java):
   - `class ContextModifierCommand`:13
   - `class Transformation`:15
@@ -84,6 +85,8 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `method original()`:226
   - `method retainsOriginal()`:231
   - `method traceEntryCount()`:239
+- [`src/main/java/dev/functioncompiler/GameplayCommandParser.java`](../../src/main/java/dev/functioncompiler/GameplayCommandParser.java):
+  - `class GameplayCommandParser`:16
 - [`src/main/java/dev/functioncompiler/InlinedForkingCommand.java`](../../src/main/java/dev/functioncompiler/InlinedForkingCommand.java):
   - `class InlinedForkingCommand`:17
   - `method run()`:42
@@ -134,17 +137,17 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `method originalFallbackRetained()`:145
 - [`src/main/java/dev/functioncompiler/ProbeMetrics.java`](../../src/main/java/dev/functioncompiler/ProbeMetrics.java):
   - `class ProbeMetrics`:9
-  - `method wrapperCreated()`:49
-  - `method wrapperInstantiated()`:53
-  - `method wrappersCreated()`:57
-  - `method wrapperInstantiations()`:61
-  - `method probeFunctionParsed()`:65
-  - `method probeFunctionParseCount()`:69
-  - `method scoreAddCompiled()`:73
-  - `method scoreAddsCompiled()`:80
-  - `method scoreAddsCompiled()`:84
-  - `method scoreAddExecuted()`:89
-  - `method scoreAddsExecuted()`:96
+  - `method wrapperCreated()`:59
+  - `method wrapperInstantiated()`:63
+  - `method wrappersCreated()`:67
+  - `method wrapperInstantiations()`:71
+  - `method probeFunctionParsed()`:75
+  - `method probeFunctionParseCount()`:79
+  - `method scoreAddCompiled()`:83
+  - `method scoreAddsCompiled()`:90
+  - `method scoreAddsCompiled()`:94
+  - `method scoreAddExecuted()`:99
+  - `method scoreAddsExecuted()`:106
 - [`src/main/java/dev/functioncompiler/ProbeRuntimeTrace.java`](../../src/main/java/dev/functioncompiler/ProbeRuntimeTrace.java):
   - `class ProbeRuntimeTrace`:3
   - `method enabled()`:9
@@ -162,11 +165,11 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `method compile()`:42
   - `method compile()`:50
   - `class ExecutableCompiler`:141
-  - `class SingleModifierParser`:187
-  - `class ModifierParser`:280
-  - `class ParsedCondition`:532
-  - `class ParsedStore`:545
-  - `class ParsedTarget`:553
+  - `class SingleModifierParser`:188
+  - `class ModifierParser`:281
+  - `class ParsedCondition`:533
+  - `class ParsedStore`:546
+  - `class ParsedTarget`:554
 - [`src/main/java/dev/functioncompiler/ScoreConditionCommand.java`](../../src/main/java/dev/functioncompiler/ScoreConditionCommand.java):
   - `class ScoreConditionCommand`:17
   - `class Operator`:18
@@ -365,6 +368,15 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def _read_exact()`:74
   - `def free_port()`:84
   - `def wait_for_rcon()`:90
+- [`scripts/run_fused_region_sustained.py`](../../scripts/run_fused_region_sustained.py):
+  - `def sha256()`:54
+  - `def adjacent_adds_per_tick()`:62
+  - `def generated_files()`:77
+  - `def generated_hashes()`:102
+  - `def reserve_ports()`:109
+  - `def wait_for_rcon()`:125
+  - `def connect_player_when_ready()`:141
+  - `def score()`:169
 - [`scripts/run_macro_perf_benchmark.py`](../../scripts/run_macro_perf_benchmark.py):
   - `def run_benchmark_for_mode()`:33
   - `def main()`:122
@@ -438,8 +450,8 @@ This navigation index summarizes key code symbols across Java source and Python 
 - [`scripts/run_veinminer_campaign.py`](../../scripts/run_veinminer_campaign.py):
   - `def tick_metrics()`:38
   - `def profile_summary()`:52
-  - `def make_report()`:88
-  - `def main()`:310
+  - `def make_report()`:93
+  - `def main()`:356
 - [`scripts/run_veinminer_profile.py`](../../scripts/run_veinminer_profile.py):
   - `def free_port()`:68
   - `def wait_for_rcon()`:74
@@ -447,5 +459,8 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def read_score_or_zero()`:101
   - `def count_entities()`:110
   - `def stats_int()`:121
-  - `def function_stats()`:128
-  - `def function_stats_value()`:132
+  - `def stats_provider_classes()`:128
+  - `def _selective_macro_provider_class_delta()`:145
+- [`scripts/summarize_campaign.py`](../../scripts/summarize_campaign.py):
+  - `def _metric()`:10
+  - `def main()`:20

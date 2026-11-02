@@ -865,6 +865,24 @@ those six exploratory pairs, the median active-tick-average change is
 not establish the selected 15% minimum gain, and the interrupted campaign has
 no standalone performance decision. Historical PERF-011 event times had Spark
 sampling active; new primary campaigns use the no-Spark arm.
+PERF-016 now supplies the adjacent-eligible fused-region workload. The checked-in
+`tests/fixtures/function_compiler_fused_sustained` fixture applies 5,000
+contiguous eligible adds per active tick, and
+`scripts/run_fused_region_sustained.py` drives it through mod-free vanilla,
+same-stack compiler-off, a separate activation diagnostic, and counterbalanced
+paired timing arms with no Spark and no compiler counters. The confirmatory
+10-pair Fabric campaign passed exact workload parity in every arm (5,000 adds
+per active tick) and exact activation (94 regions compiled at load; one region
+executed per active tick, matching the active tick count). Its workload-
+attributable tick average (active-phase `/tick query` median minus the same
+server's post-workload idle median, aggregated as the median of five sampled
+windows per arm) has a −19.72% median paired change with a 97.85% exact
+interval from −30.30% to −12.90%. That interval overlaps the pre-declared 15%
+minimum gain, so the campaign decision is inconclusive and `fused_regions`
+stays disabled by default. The 5-pair screening pilot (single-window design)
+had a −22.86% median and a −86.55% to 0.00% interval and is retained as
+screening only. Full evidence, gates, limitations, and next actions:
+[PERF-016 report](../benchmarks/PERF-016-sustained-fused-region-active-tick.md).
 Bellows 1.1.2's compiler-off Vein Miner workload fails on Bellows,
 Lithium+Bellows, and Lithium+Bellows+Moonrise 1.2.0. On Bellows 1.1.3,
 Bellows-only 4×4×4 and Lithium+Bellows 6×6×6 native controls pass. A separate

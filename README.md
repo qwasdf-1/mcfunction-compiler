@@ -8,7 +8,7 @@ Minecraft Function Compiler investigates eliminating Minecraft's recursive comma
 
 ## Features & Optimizations
 
-### 1. Fused Region Specialization (Default: Enabled)
+### 1. Fused Region Specialization (Disabled by Default / Experimental)
 Minecraft functions normally execute commands sequentially through an iterative command queue (`ExecutionContext`), allocating separate execution frames and re-resolving command dispatchers on every line. 
 
 The **Fused Region Engine** groups consecutive eligible commands into single unrolled actions:
@@ -18,11 +18,13 @@ The **Fused Region Engine** groups consecutive eligible commands into single unr
 - **Entity & Block Predicates:** Inlined evaluation of `execute if/unless entity @s` and `execute if/unless block <pos> <block>`.
 - **Storage Operations:** Direct in-memory mutation for `data modify storage ... set value` and `data remove storage`.
 
+`fused_regions` remains disabled by default: its semantic matrices and static-fixture timings pass, but no screened datapack supplies an adjacent-eligible region, so its real-world performance gate is still open (see the promotion table below).
+
 ### 2. Selective Macro Arguments (Default: Enabled)
 Dynamic macro functions (`function <name> with ...`) traditionally trigger full NBT compound serialization on every call. The **Selective Macro Prototype** inspects the function template and extracts only the targeted keys (e.g., `amount`, `x`, `y`, `z`) directly from compound tags or storage targets:
 - **Selective macro:** 3-pair Vein Miner screening campaign reported -22.25% to -28.40% median event completion latency; confirmatory 6-pair Vein Miner campaigns now meet the pre-declared 15% gate on the real event workload: Fabric -22.34%, Lithium -22.06%. A separate confirmatory 6-pair synthetic sustained macro benchmark met the same gate more strongly: -80.49% active tick average (`lb113`) and -83.22% (`lbm113120`). ScoreAdd remains unqualified and, in its own 6-pair confirmatory Vein Miner run, changed the workload median by only -0.88% and did not meet the gate.
-- **>6.5x faster average tick times** (27.1 ms vs 177.8 ms) and **-35.21% P95 MSPT reduction**.
-- Fully synergistic with [Lithium](https://github.com/CaffeineMC/lithium-fabric), [Bellows](https://github.com), and [Moonrise](https://github.com).
+- **Tick-time evidence is secondary.** The 3-pair PERF-015 screening run reported `>6.5x` average-tick ratios and `-35.21%` P95 MSPT; three pairs provide at most 93.75% exact median coverage, so those numbers are screening observations only. Tick percentiles remain noisy, and the promotion decision rests on the confirmatory event-completion campaigns above.
+- Fully synergistic with [Lithium](https://github.com/CaffeineMC/lithium-fabric), [Bellows](https://github), and [Moonrise](https://github.com).
 
 ### 3. Tiered JIT & Parameterized ASM Bytecode (Opt-In / Experimental)
 For server workloads demanding peak throughput, an optional ASM bytecode backend generates unrolled JVM hidden classes for frequently executed function regions:
@@ -86,7 +88,7 @@ Statuses follow the saved campaign results recorded in `docs/research/implementa
 |---|---|---|---|
 | Selective macro arguments | `true` | **Supported** — promoted | Real-event Vein Miner 6-pair confirmatory campaigns passed the 15% gate: Fabric -22.34%, Lithium -22.06%; MSPT-based Belows metric also passed (-73.75%). |
 | Selective macro arguments on Belows | `true` | **Supported with closed evidence** | New nested extraction run: -22.17% event completion (-25.41% to -16.50%), 6 pairs, 95% confidence; all 70,494 attempts became eligible. |
-| Fused regions | `false` | Experimental / unqualified | Static-fixture gain only; no adjacent-eligible real-world workload yet. |
+| Fused regions | `false` | Experimental / unqualified | Adjacent-eligible PERF-016 confirmatory campaign (`benchmarks/PERF-016-sustained-fused-region-active-tick.md`): all 10 pairs passed exact workload parity at 5,000 adds per active tick and exact region activation, median -19.72% workload-attributable tick average, but the 97.85% interval (-30.30% to -12.90%) overlaps the pre-declared 15% gain, so the decision is inconclusive. |
 | Tiered bytecode | `false` | Opt-in / evidence-gated | Static-fixture result shown as slower than fused interpreted; bounded Metaspace/reload evidence only. |
 | ScoreAdd specialization | `false` | Not qualified | 6-pair confirmatory Vein Miner run median -0.88%, `does_not_meet_threshold`; no current evidence qualifies it. |
 

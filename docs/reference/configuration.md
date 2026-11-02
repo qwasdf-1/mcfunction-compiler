@@ -47,8 +47,8 @@ The mod registers the `/functioncompiler` root command for server operators (Per
 Displays the current runtime configuration, active optimization passes, and namespace exclusion rules:
 ```text
 [FunctionCompiler] Status:
-  enabled: true
-  fused_regions: true
+  enabled: false
+  fused_regions: false
   selective_macros: true
   tiered_bytecode: false
   tiered_threshold: 5
@@ -86,4 +86,4 @@ The compiler determines its active configuration through a clear hierarchy:
 2. **Disk Configuration (`config/function-compiler.json`):**
    - Active on production servers when environment variables are omitted.
 3. **Built-in Production Defaults (Fallback):**
-   - Applied if the configuration file is unreadable or absent (`fused_regions=true`, `selective_macros=true`, `tiered_bytecode=false`).
+   - Applied if the configuration file is unreadable or absent (`enabled=false`, `score_add=false`, `fused_regions=false`, `selective_macros=true`, `tiered_bytecode=false`).

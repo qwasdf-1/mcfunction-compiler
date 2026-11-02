@@ -83,6 +83,15 @@ summary is entirely inside the workload. Primary runs have no Spark agent,
 compiler counters, or timers. A separate candidate diagnostic verifies every
 eligible call reached selective argument construction.
 
+`function_compiler_fused_sustained` is the adjacent-eligible fused-region
+counterpart ([`PERF-016`](../benchmarks/PERF-016-sustained-fused-region-active-tick.md)):
+a pristine contiguous block of 5,000 eligible adds per active tick, instrumented only
+by generated tick counters and an enable gate so the measured command block is
+untouched. Its runner is the first to sample several full tick-query windows per arm
+and aggregate them with a per-label median, which keeps one GC pause or JIT hiccup
+from defining an arm; its primary metric is the workload-attributable tick average
+(active phase minus the same server's post-workload idle phase).
+
 Run a five-pair screen on the pinned Lithium+Bellows 1.1.3 stack with:
 
 ```sh
@@ -261,9 +270,14 @@ ScoreAdd has no reliable real-datapack gain. Selective macro has a confirmed
 faster median on Lithium+Bellows 1.1.3 Vein Miner (−19.27%, 96.531% interval
 −27.09% to −13.03%), but does not establish the preselected 15% minimum. Keep
 it disabled pending a result that meets the practical threshold and the
-remaining semantic and compatibility gates. Fused interpretation has promising
-fixed-fixture server-thread timing but no eligible real-datapack region.
-Emitted bytecode has semantic and reload-retention evidence but no real-workload
+remaining semantic and compatibility gates. Fused interpretation now has a
+controlled adjacent-eligible workload (`PERF-016`): a 10-pair confirmatory
+Fabric campaign passed exact workload parity and exact region activation, but
+its −19.72% median workload-attributable tick-average change has a 97.85%
+interval of −30.30% to −12.90% that overlaps the preselected 15% minimum, so
+it is inconclusive rather than qualifying. It is one synthetic workload on one
+stack, and no screened datapack has an adjacent eligible region. Emitted
+bytecode has semantic and reload-retention evidence but no real-workload
 performance result. Keep ScoreAdd, fused interpretation, and emitted bytecode
 disabled while their relevant workload and confirmatory performance gates remain
 open.

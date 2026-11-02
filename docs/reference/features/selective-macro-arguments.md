@@ -1,6 +1,6 @@
 # Selective Macro Arguments (`SelectiveMacroArgumentPrototype`)
 
-**Status:** Promoted to default-enabled in v1.0 Production Release.  
+**Status:** Supported — promoted to default-enabled (`selective_macros: true`); see the [promotion table](../../../README.md#promotion-status-current-evidence).  
 **Configuration Key:** `"selective_macros": true` (in `config/function-compiler.json`)  
 **Owner Class:** [`SelectiveMacroArgumentPrototype.java`](../../../src/main/java/dev/functioncompiler/SelectiveMacroArgumentPrototype.java)  
 **Test IDs:** [`MACRO-001`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L61) through [`MACRO-010`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L70), [`PERF-011`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L80), [`PERF-015`](../../../benchmarks/PERF-015-multi-mod-endurance-campaigns.md)
@@ -47,9 +47,10 @@ Vanilla Minecraft maintains an equality-aware eight-entry LRU cache for expanded
 
 ---
 
-## 4. Multi-Mod Endurance Results (`PERF-015`)
+## 4. Multi-Mod Endurance Results (`PERF-015` and confirmatory campaigns)
 
-In sustained multi-hour server campaigns evaluating Vein Miner 5.3.0 ($6 \times 6 \times 6 = 216$ blocks, 1,952 queue increments per event):
-- **Plain Fabric Server:** **-22.25% median event completion latency** and **>6.5x faster average tick time** (27.1 ms vs 177.8 ms), with median tick duration dropping from 191.4 ms to 5.5 ms (>34x reduction).
-- **Production Multi-Mod Stack (`lbm113120` - Lithium 0.26.2 + Bellows 1.1.3 + Moonrise 1.2.0):** **-28.40% median event completion latency**, **-28.46% median average MSPT** (85.0 ms vs 114.2 ms), and **-35.21% P95 MSPT reduction** (174.1 ms vs 254.4 ms).
-- **Workload Integrity:** 100% exact parity across all 12 arms (215/215 blocks mined, $\Delta\text{\#head} = 1,952$).
+Vein Miner 5.3.0 ($6 \times 6 \times 6 = 216$ blocks, 1,952 queue increments per event):
+
+- **Screening (3 pairs, [`PERF-015`](../../../benchmarks/PERF-015-multi-mod-endurance-campaigns.md)):** Fabric -22.25% median event completion with `>6.5x` average-tick ratios, and `lbm113120` -28.40% with -35.21% P95 MSPT. Three pairs reach at most 93.75% exact median coverage, so these are screening observations only.
+- **Confirmatory (6 pairs):** Fabric -22.34% and Lithium -22.06% median event completion each met the pre-declared 15% gate; the Lithium+Bellows 1.1.3 nested-source run measured -22.17% at 95% confidence. Synthetic sustained macro fixtures measured -80.49% (`lb113`) and -83.22% (`lbm113120`) active-tick averages.
+- **Workload Integrity:** exact parity across all recorded arms (215/215 blocks mined, $\Delta\text{\#head} = 1,952$).

@@ -57,7 +57,7 @@ flowchart TD
 ### B. Selective Macro Argument Processor
 - **Class:** [`SelectiveMacroArgumentPrototype.java`](../../src/main/java/dev/functioncompiler/SelectiveMacroArgumentPrototype.java)
 - **Mechanism:** Intercepts macro invocations (`function <id> with entity <sel> data` or `function <id> with storage <storage> <path>`). Inspects macro template parameter requirements and extracts only declared keys directly from `custom_data` or root storage compounds without full NBT compound serialization.
-- **Performance Impact:** Reduces sustained entity traversal event latency by **-22.25% to -28.40%** and cuts tick MSPT by **>6.5x** ([`PERF-015`](../../benchmarks/PERF-015-multi-mod-endurance-campaigns.md)).
+- **Performance Impact:** Confirmatory 6-pair Vein Miner campaigns met the pre-declared 15% event-completion gate on the real workload (Fabric -22.34%, Lithium -22.06%), with the Lithium+Bellows 1.1.3 nested-source run at -22.17% and 95% confidence; synthetic sustained macro fixtures measured -80.49%/-83.22% active-tick averages. Evidence summary: [`docs/research/implementation-audit-2026-11.md`](../research/implementation-audit-2026-11.md). The 3-pair [`PERF-015`](../../benchmarks/PERF-015-multi-mod-endurance-campaigns.md) screening numbers (`>6.5x` tick ratio, -35.21% P95 MSPT) are screening-level and are not the promotion basis.
 
 ### C. Parameterized Bytecode Backend & Tiered JIT
 - **Classes:** [`BytecodeRegionPrototype.java`](../../src/main/java/dev/functioncompiler/BytecodeRegionPrototype.java), [`BytecodeRegionEmitter.java`](../../src/main/java/dev/functioncompiler/BytecodeRegionEmitter.java), [`TieredRegionAction.java`](../../src/main/java/dev/functioncompiler/TieredRegionAction.java)

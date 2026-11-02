@@ -333,6 +333,41 @@ current Bigger Every Kill archive because it fails 26.3 registry loading.
 Require exact workload checks and matched pack-off controls before comparison
 profiles. Incendium stays excluded unless its upstream AI project restriction
 is resolved.
+## PERF-016: sustained adjacent-eligible fused-region active-tick fixture
+
+No screened datapack contains an adjacent eligible region for the fused engine, so
+`tests/fixtures/function_compiler_fused_sustained` supplies the controlled workload:
+a pristine block of 5,000 contiguous `scoreboard players add #fused fc_fused 1` lines
+that runs once per enabled active tick. The runner generates only tick instrumentation
+(a gated call plus tick counters) into each disposable datapack copy, so the measured
+command block is untouched.
+
+Each arm samples five active 110-tick windows and three idle windows and takes the
+per-label median, which removes single-window GC outliers from the arm estimate. The
+primary metric is the workload-attributable tick average (active minus the same
+server's post-workload idle average). Arms: mod-free vanilla reference, a separate
+activation diagnostic that must count exactly one executed fused region per active
+tick, and counterbalanced same-stack compiler-off/candidate pairs with no Spark and
+no compiler counters or timers.
+
+The confirmatory 10-pair Fabric campaign pre-declared a 15% minimum gain. All ten
+pairs passed exact workload parity at 5,000 adds per active tick. The primary metric's
+median paired change is −19.72% with a 97.85% exact interval of −30.30% to −12.90%, so
+it overlaps the threshold and the campaign decision is **inconclusive**; the raw active
+tick average median is −16.53% and the P95 median −18.63% as context. The 5-pair
+screening pilot (single-window design) had a −22.86% median with a −86.55% to 0.00%
+interval and is retained as screening only. Full results, gates, limitations, and next
+actions are in
+[`PERF-016-sustained-fused-region-active-tick.md`](PERF-016-sustained-fused-region-active-tick.md).
+`fused_regions` stays disabled by default.
+
+Reproduce with:
+
+```sh
+FC_GRADLE_OFFLINE=true python3 scripts/run_fused_region_sustained.py \
+  --stack fabric --pairs 10 --phase confirmatory \
+  --minimum-gain-percent 15 --seed 26871041
+```
 
 ## Compiler optimization A/B
 

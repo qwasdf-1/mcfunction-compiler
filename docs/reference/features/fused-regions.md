@@ -1,7 +1,7 @@
 # Fused Interpreted Regions (`FusedRegionPrototype`)
 
-**Status:** Promoted to default-enabled in v1.0 Production Release.  
-**Configuration Key:** `"fused_regions": true` (in `config/function-compiler.json`)  
+**Status:** Disabled by default; experimental. Semantic matrices, quota/trace parity, and static-fixture timings pass, but no screened datapack supplies an adjacent-eligible region, so the real-world performance gate remains open.  
+**Configuration Key:** `"fused_regions": false` (in `config/function-compiler.json`)  
 **Owner Classes:** [`FusedRegionPrototype.java`](../../../src/main/java/dev/functioncompiler/FusedRegionPrototype.java), [`FusableCommand.java`](../../../src/main/java/dev/functioncompiler/FusableCommand.java)  
 **Test IDs:** [`CTRL-005`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L46), [`CTRL-007`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L48), [`SCORE-014`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L90), [`SCORE-015`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L91), [`MACRO-009`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L71), [`PERF-012`](../../../benchmarks/PERF-012-macro-region-compilation.md)
 
@@ -63,4 +63,4 @@ In addition to static plain-text functions, `FusedRegionPrototype` is hooked int
 
 1. **Static Workload (PERF-004):** On a static 5,000-add fixture, fused interpreted regions achieved a median queue execution time of 1.537 ms (compared to 2.500 ms for vanilla delegate and 2.784 ms for ScoreAdd), a 38.5% queue speedup.
 2. **Macro Workload ([PERF-012](../../../benchmarks/PERF-012-macro-region-compilation.md)):** On an 11-operation macro sequence across 300 invocations, fused interpretation reduced queue dispatches by 90.9% and achieved a **+37.17% median speedup** ($0.4428\ \text{ms} \to 0.2782\ \text{ms}$) and a **+74.28% mean speedup** ($1.2109\ \text{ms} \to 0.3115\ \text{ms}$) with 86.4% tail jitter reduction over vanilla `fabric-off`.
-3. **Multi-Mod Server Campaigns ([PERF-015](../../../benchmarks/PERF-015-multi-mod-endurance-campaigns.md)):** Combined with selective macros on Vein Miner 5.3.0, achieved a **-22.25% to -28.40% median event latency reduction** and **>6.5x faster tick MSPT** across Fabric and the complete mod stack (Lithium 0.26.2 + Bellows 1.1.3 + Moonrise 1.2.0).
+3. **Multi-Mod Server Campaigns ([PERF-015](../../../benchmarks/PERF-015-multi-mod-endurance-campaigns.md)):** Those campaigns are 3-pair **screening** evidence for selective macro arguments, not for fusion: Vein Miner 5.3.0 has no adjacent eligible fused commands, so it supplies no fused-region workload. The fused engine's real-world gate stays open until an adjacent-eligible workload is screened (see the [benchmarking protocol](../../benchmarking.md)).
