@@ -46,7 +46,9 @@ public final class ProbeMetrics {
     private static long SELECTIVE_MACRO_ARGUMENT_ATTEMPTS;
     private static long SELECTIVE_MACRO_UNSUPPORTED_PROVIDERS;
     private static long SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS;
-    private static long SELECTIVE_MACRO_INVALID_STORAGE_SOURCES;
+    private static final ConcurrentMap<String, AtomicLong>
+            SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS_MAP =
+            new ConcurrentHashMap<>();    private static long SELECTIVE_MACRO_INVALID_STORAGE_SOURCES;
     private static long SELECTIVE_MACRO_MISSING_ENTITY_CUSTOM_DATA;
     private static long SELECTIVE_MACRO_MACRO_RESOLUTION_FALLBACKS;
     private static long SELECTIVE_MACRO_MISSING_SELECTED_KEYS;
@@ -326,10 +328,40 @@ public final class ProbeMetrics {
         SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS++;
     }
 
+    public static void selectiveMacroArgumentsUnsupportedEntityPath(
+            String entityPath
+    ) {
+        String path = (entityPath == null || entityPath.isBlank())
+                ? "unknown"
+                : entityPath;
+        SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS++;
+        SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS_MAP
+                .computeIfAbsent(path, ignored -> new AtomicLong())
+                .incrementAndGet();
+    }
+
+    public static java.util.Map<String, Long> selectiveMacroUnsupportedEntityPaths() {
+        java.util.TreeMap<String, Long> result = new java.util.TreeMap<>();
+        for (var entry : SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS_MAP.entrySet()) {
+            result.put(entry.getKey(), entry.getValue().get());
+        }
+        return result;
+    }
+
+    public static String selectiveMacroUnsupportedEntityPathSummary() {
+        StringBuilder builder = new StringBuilder();
+        for (var entry : SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS_MAP.entrySet()) {
+            if (!builder.isEmpty()) {
+                builder.append(',');
+            }
+            builder.append(entry.getKey()).append('=').append(entry.getValue().get());
+        }
+        return builder.substring(0, Math.min(builder.length(), 200));
+    }
+
     public static long selectiveMacroArgumentsUnsupportedEntityPathCount() {
         return SELECTIVE_MACRO_UNSUPPORTED_ENTITY_PATHS;
     }
-
     public static void selectiveMacroArgumentsInvalidStorageSource() {
         SELECTIVE_MACRO_INVALID_STORAGE_SOURCES++;
     }

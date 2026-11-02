@@ -220,7 +220,7 @@ final class ProbeStatus {
                 + ", unsupported_provider_classes="
                 + ProbeMetrics.selectiveMacroUnsupportedProviderClassSummary()
                 + ", unsupported_entity_paths=" + ProbeMetrics.selectiveMacroArgumentsUnsupportedEntityPathCount()
-                + ", invalid_storage_sources=" + ProbeMetrics.selectiveMacroArgumentsInvalidStorageSourceCount()
+                + ", unsupported_provider_classes=" + ProbeMetrics.selectiveMacroUnsupportedProviderClassSummary()                + ", invalid_storage_sources=" + ProbeMetrics.selectiveMacroArgumentsInvalidStorageSourceCount()
                 + ", missing_entity_custom_data=" + ProbeMetrics.selectiveMacroArgumentsMissingEntityCustomDataCount()
                 + ", macro_resolution_fallbacks=" + ProbeMetrics.selectiveMacroArgumentsMacroResolutionFailedCount()
                 + ", missing_selected_keys=" + ProbeMetrics.selectiveMacroArgumentsMissingSelectedKeyCount() + "\n"

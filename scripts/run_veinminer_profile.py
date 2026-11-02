@@ -129,7 +129,7 @@ def stats_provider_classes(status: str | None) -> dict[str, int]:
     if not status:
         return {}
     match = re.search(
-        r"selective_macro_unsupported_provider_classes=([^ ]*)", status
+        r"unsupported_provider_classes=([^ ]*)", status
     )
     if not match or not match.group(1):
         return {}
