@@ -381,9 +381,11 @@ host-quietness gate is a prerequisite for any future attempt to separate from �
 Run `python3 scripts/diagnose_perf016_host_noise.py --adds-per-tick 5000` (add `--load 8`
 to reproduce contention) to measure the workspace's noise floor before a campaign.
 
-The `lb113` campaign's first two pairs are
-cold-world artifacts; excluding them as a sensitivity observation leaves a −18.57% median
-with a −32.50% to +3.45% interval, still inconclusive. The 5-pair screening pilot had a
+The `lb113` campaign's first two pairs contain contaminated `off` arms (one whose own
+pre-workload idle was already 14.6 ms against 7.6–10.6 ms elsewhere, one that degraded
+progressively); because both are `off` arms, excluding them is the conservative
+direction, and the remaining eight pairs still give a −18.57% median with a −32.50% to
++3.45% interval — inconclusive. The 5-pair screening pilot had a
 −22.86% median with a −86.55% to 0.00% interval and is retained as screening only. Full
 results, gates, limitations, and next actions are in
 [`PERF-016-sustained-fused-region-active-tick.md`](PERF-016-sustained-fused-region-active-tick.md).

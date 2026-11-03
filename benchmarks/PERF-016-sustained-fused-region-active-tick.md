@@ -145,7 +145,9 @@ The first mod-stack confirmatory run for this fixture. The stack passed the same
 | 9 | fused, off | 3.7 | 2.8 | −24.3% |
 | 10 | off, fused | 2.9 | 3.0 | +3.4% |
 
-Primary metric median −22.16% with a −86.39% to −12.12% interval. Pairs 1–2 open the campaign with cold-world arms (the `off` arm at 27.8 ms and 19.1 ms against fused arms near 2.6–2.9 ms); as a sensitivity observation only, excluding those two pairs leaves a −18.57% median with a −32.50% to +3.45% interval (99.22% coverage), which is still inconclusive because pair 10 crosses zero. The sensitivity view is not a decision metric.
+Primary metric median −22.16% with a −86.39% to −12.12% interval. Pairs 1–2 open the campaign with contaminated arms, and the runner's recorded per-arm phases show the contamination was environmental rather than workload-related: `pair-01-off`'s *pre-workload* idle tick average was 14.6 ms against 7.6–10.6 ms for every other arm, and its post-workload idle was 5.3 ms against 0.7–1.1 ms, so that arm was slow before the fixture was enabled; `pair-02-off` degraded progressively across its windows (5.6 → 14.0 → 23.6 → 34.1 → 26.9 ms). Every one of the ten `fused` arms in this campaign was clean at 3.2–4.2 ms, as were the `off` arms from pair 3 onward.
+
+Both contaminated arms are `off` arms, so pairs 1–2 inflate the *apparent* gain: excluding them is the conservative direction. As a sensitivity observation only, the remaining eight pairs give a −18.57% median with a −32.50% to +3.45% interval (99.22% coverage), which is still inconclusive because pair 10 crosses zero. The sensitivity view is not a decision metric, and the campaign decision stands at the recorded −22.16% / −86.39% to −12.12% result.
 
 ---
 
