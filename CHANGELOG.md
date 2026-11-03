@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Run the pinned Engineering Auditor v1.5.0 pass-close review (119 findings:
+  1 high, 97 medium, 21 low; 6 production, 113 tooling) and record per-finding
+  dispositions in `docs/research/engineering-auditor-review-2026-10-29.md`,
+  including the concrete follow-ups for the new `CompilerConfig.load` advisory
+  and the new sustained-runner clone findings. No baseline or suppression added.
+- Remove the fully merged and clean `feature/implementation-work` worktree; its
+  branch held no commits absent from `main`.
+
 - Extend the 21-arm compatibility matrix with NBT-predicate selector coverage:
   `compat_selector_nbt_match` and `compat_selector_nbt_no_match` pair a `Silent:1b`
   actor with a `Glowing:1b` actor inside a `dx/dy/dz` box, and all 21 arms

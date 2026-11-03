@@ -395,3 +395,73 @@ compatibility, scheduler behavior, command quotas, datapack workload integrity,
 or performance. Preserve the exact runtime and performance gates in
 [`verification.md`](../verification.md) and the shared
 [`benchmarking protocol`](../benchmarking.md).
+
+---
+
+## Pass-close review — 2026-11-02
+
+**Tool:** Engineering Auditor 1.5.0, release commit
+`d014177acf6b3c3cefc425252229d81fbea62150`  
+**Profile:** `gating`, report-only  
+**Status:** Advisory source review; not an EA gate or a clean-audit claim.
+
+Run `bash scripts/run_ea_review.sh` after the PERF-016 fused-region campaign and
+the NBT-selector compatibility extension. The wrapper again verified the pinned
+binary version and checkout commit, scanned the current repository with no
+baseline, no suppression, and no pass/fail threshold, and refreshed the machine
+report at the ignored local path
+`build/reports/engineering-auditor/v1.5.0/report.json`.
+
+The scan covered 187 files and reported **119 findings: 1 high, 97 medium, and
+21 low**. Six findings are classified as production source and 113 as tooling.
+No new production-source finding category appeared, and no documentation-link
+finding remained.
+
+### New in this scan
+
+- `CompilerConfig.load` cognitive complexity (low, advisory tier). Disposition:
+  recorded, not fixed. The method's nesting is the legacy `score_add` fallback
+  plus six optional-key reads. Flattening it is behavior-preserving in review
+  but changes the config-parse path, which has no unit coverage in this
+  repository and silently selects which optimizations load. Concretely: add a
+  focused config-parse differential (temporary config file versus default
+  values, including the legacy single-switch shape) and then flatten the
+  optional-key reads behind a helper in the same change. No suppression added.
+- Tooling findings attributable to the new `scripts/run_fused_region_sustained.py`
+  (21 findings: clone classes against the sustained macro harness, `run_arm`'s
+  parameter list, and `run_arm`/`main` branch counts). Disposition: accepted as
+  deliberate adapter duplication. The benchmarking protocol requires each
+  optimization to own its workload adapter and keep optimization-specific setup
+  and assertions local while sharing the same paired-analysis fields, so the
+  runner mirrors `run_selective_macro_sustained.py` rather than importing it.
+  Consolidation is a real follow-up, but it touches the harness whose campaign
+  is recorded in `benchmarks/PERF-016-sustained-fused-region-active-tick.md`; the
+  protocol requires re-running semantic, workload-integrity, and performance
+  gates on any changed runner before reusing its evidence. Next action if taken:
+  extract the shared disposable-server/RCON/arm machinery behind a common module,
+  then rerun both sustained campaigns before citing either result.
+- `run_compatibility_probe.py` growth-weighted complexity (medium): its selector
+  matrix gained the NBT-predicate cases and actors. Accepted for this
+  verification pass; the added cases are assertions against fixed expected
+  identities, and run `20261102T235411` passes all 21 arms.
+
+### Carried findings and dispositions
+
+- The single high finding remains `scripts/run_runtime_probe.py` at 6,571
+  nonblank lines (up from 6,538). This is the test-harness orchestrator, not
+  production code. Keep its behavior stable while its P0 matrix runs are active;
+  split it by fixture family behind the same vanilla/off/candidate contract and
+  rerun the full runtime matrix. Do not suppress the finding.
+- The five previously reviewed production findings are unchanged:
+  `FunctionCompilerMod` and `ProbeMetrics` remain single entry points for the
+  opt-in research prototypes; `ScoreAddPrototype.compileEntry` and
+  `SelectiveMacroArgumentPrototype.tryBuild` retain their fail-closed eligibility
+  and fallback guards; `FunctionCommandMixin.beginFunctionTiming`'s parameter
+  list mirrors the pinned 26.3 injection signature.
+- The remaining tooling findings are clone, complexity, and parameter-count
+  signals across the profile and runtime harnesses, consistent with the prior
+  review's dispositions.
+
+No baseline or detector suppression was added. Revisit the structural
+dispositions before preparing a release, and rerun this review after changing
+the affected production files.
