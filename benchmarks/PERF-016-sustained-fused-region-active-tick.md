@@ -4,6 +4,7 @@
 **Evidence:**
 - Fabric, 5,000 adds/tick, 10 confirmatory pairs: [`build/benchmarks/PERF-FUSED-SUSTAINED/fabric-confirmatory-10pairs-20261102T224610670509Z/results.json`](../build/benchmarks/PERF-FUSED-SUSTAINED/fabric-confirmatory-10pairs-20261102T224610670509Z/results.json)
 - Fabric, 20,000 adds/tick, 12 confirmatory pairs (seed 26871042): [`build/benchmarks/PERF-FUSED-SUSTAINED/fabric-confirmatory-12pairs-20261103T010812635221Z/results.json`](../build/benchmarks/PERF-FUSED-SUSTAINED/fabric-confirmatory-12pairs-20261103T010812635221Z/results.json)
+- Fabric, 20,000 adds/tick, 12 confirmatory pairs, **quiet-window re-run** (seed 26872001): [`build/benchmarks/PERF-FUSED-SUSTAINED/fabric-confirmatory-12pairs-20261103T195304834967Z/results.json`](../build/benchmarks/PERF-FUSED-SUSTAINED/fabric-confirmatory-12pairs-20261103T195304834967Z/results.json)
 - Lithium 0.26.2 + Bellows 1.1.3 (`lb113`), 5,000 adds/tick, 10 confirmatory pairs (seed 26871043): [`build/benchmarks/PERF-FUSED-SUSTAINED/lb113-confirmatory-10pairs-20261103T031145145286Z/results.json`](../build/benchmarks/PERF-FUSED-SUSTAINED/lb113-confirmatory-10pairs-20261103T031145145286Z/results.json)
 - Screening pilots retained as screening only: [`fabric-screening-5pairs-20261102T221639260029Z`](../build/benchmarks/PERF-FUSED-SUSTAINED/fabric-screening-5pairs-20261102T221639260029Z/results.json) and [`fabric-screening-1pairs-20261103T005747818791Z`](../build/benchmarks/PERF-FUSED-SUSTAINED/fabric-screening-1pairs-20261103T005747818791Z/results.json)
 - Datapack screen: [`build/reports/datapack-screening/adjacent-regions-20261103T010423Z`](../build/reports/datapack-screening/adjacent-regions-20261103T010423Z.md)
@@ -89,6 +90,7 @@ Each campaign pre-declared its threshold and pair count before the first timing 
 | `fabric-confirmatory-10pairs` (seed 26871041) | Fabric | 5,000 | 10 | **−19.72%** | −30.30% to −12.90% | 97.85% | **inconclusive** |
 | `fabric-confirmatory-12pairs` (seed 26871042) | Fabric | 20,000 | 12 | **−12.48%** | −33.09% to +77.44% | 96.14% | **inconclusive** |
 | `lb113-confirmatory-10pairs` (seed 26871043) | Lithium + Bellows 1.1.3 | 5,000 | 10 | **−22.16%** | −86.39% to −12.12% | 97.85% | **inconclusive** |
+| `fabric-confirmatory-12pairs` **re-run** (seed 26872001, quiet window) | Fabric | 20,000 | 12 | **−18.43%** | **−20.18% to −14.95%** | 96.14% | **inconclusive** |
 
 ### 5.1 Fabric, 5,000 adds per active tick (10 pairs)
 
@@ -127,6 +129,31 @@ This campaign tested whether a larger per-tick block would separate the interval
 | 12 | off, fused | 15.3 | 10.8 | −29.4% |
 
 Context metrics: raw active tick average median −13.46% (interval −27.27% to +85.06%), active tick P95 median −19.47% (interval −27.11% to +210.38%).
+
+### 5.4 Fabric, 20,000 adds per active tick (12 pairs, quiet-window re-run, seed 26872001)
+
+Motivated by the Section 6 diagnosis, this campaign repeats the 20,000-add design with a fresh seed behind a host-quietness gate. The gate required eight consecutive 15-second samples with 1-minute load below 4.0, no `rustc`/`cargo`/`auditor` processes, more than 1 GB of free swap, and PSI cpu/io below 4%/3%; it passed at load 3.29 / PSI cpu 2.09% / swap 8191 MB free. Host state was sampled every 15 s throughout and is archived with this report.
+
+**All twelve pairs were negative**, and **no arm in the campaign landed in the noisy run's 20–27 ms band** (0 of 24 arms had a median window above 16 ms, against 7 of 24 in the noisy run). Every `off` arm measured 11.3–13.3 ms per window and every `fused` arm 8.9–12.4 ms.
+
+| Pair | Order | `off` ms | `fused` ms | Change |
+|---|---|---:|---:|---:|---:|
+| 1 | off, fused | 10.8 | 9.4 | −13.0% |
+| 2 | off, fused | 11.1 | 9.0 | −18.9% |
+| 3 | off, fused | 10.8 | 8.4 | −22.2% |
+| 4 | off, fused | 10.8 | 8.8 | −18.5% |
+| 5 | off, fused | 10.6 | 9.1 | −14.2% |
+| 6 | fused, off | 10.9 | 8.7 | −20.2% |
+| 7 | fused, off | 10.7 | 9.1 | −15.0% |
+| 8 | off, fused | 10.6 | 8.9 | −16.0% |
+| 9 | fused, off | 11.5 | 9.2 | −20.0% |
+| 10 | fused, off | 11.0 | 8.3 | −24.5% |
+| 11 | fused, off | 10.9 | 8.9 | −18.3% |
+| 12 | fused, off | 11.1 | 9.1 | −18.0% |
+
+**Decision metrics:** primary metric median **−18.43%** with an exact interval of **−20.18% to −14.95%** (96.14% coverage). Context: raw active tick average median −17.09% (interval −19.49% to −13.27%), active tick P95 median −20.93% (interval −22.76% to −12.95%). The vanilla reference measured 6.0 ms, matching the quiet-window baseline of 6.0–7.3 ms. Gates passed: exact parity in all pairs and exact activation (95 compiled, 671 executed, one region per active tick).
+
+The point estimate now clears the pre-declared 15% minimum gain, but the interval's upper edge sits **0.05 percentage points** above −15%, so the pre-declared decision rule keeps this campaign **inconclusive** rather than qualifying. The gate missed it because the tenth largest of twelve changes was −15.0% rather than −15.05% or better; a larger pair count, pre-declared in advance, is the correct way to test whether the interval clears rather than re-rolling seeds.
 
 ### 5.3 Lithium + Bellows 1.1.3, 5,000 adds per active tick (10 pairs)
 
@@ -200,12 +227,20 @@ so other tenants' page-fault bursts are visible as host-wide contention that
 this fixture absorbs directly into its tick cost.
 
 **Quiet-window re-run of the same campaign.** Same stack, same 20k block, same
-runner, two pairs in a quieter window
-([`fabric-screening-2pairs-20261103T055314892530Z`](../build/benchmarks/PERF-FUSED-SUSTAINED/fabric-screening-2pairs-20261103T055314892530Z/results.json)):
-`off` windows 11.8–12.6 ms, `fused` windows 9.3–10.0 ms, pairs −21.9% and
-−18.9%, exact parity and exact activation. No slow band appeared. That re-run is
-diagnostic evidence for the cause of the 12-pair campaign's variance; it is a
-2-pair screening run and is **not** a promotion decision.
+runner, 12 pairs behind a host-quietness gate
+([`fabric-confirmatory-12pairs-20261103T195304834967Z`](../build/benchmarks/PERF-FUSED-SUSTAINED/fabric-confirmatory-12pairs-20261103T195304834967Z/results.json)):
+all twelve pairs negative, **0 of 24 arms above the 16 ms median-window line**
+against 7 of 24 in the noisy run, primary median −18.43% with a −20.18% to
+−14.95% interval, exact parity and exact activation. A 2-pair pilot behind the
+same reasoning (seed 26871400,
+[`fabric-screening-2pairs-20261103T055314892530Z`](../build/benchmarks/PERF-FUSED-SUSTAINED/fabric-screening-2pairs-20261103T055314892530Z/results.json))
+gave the first confirmation: `off` windows 11.8–12.6 ms, `fused` 9.3–10.0 ms,
+pairs −21.9% and −18.9%. Both are direct evidence that the noise diagnosis
+explains the 12-pair campaign's variance. During the gated run the host still
+saw bursts (max sampled PSI cpu 12.79%, max load 8.84), and the five-window
+median absorbed them without producing a single out-of-band arm — which is why
+the gate plus per-window medians, not a perfectly quiet host, is the durable
+control.
 
 **Why the variance grows with the workload.** A CPU-bound tick's work time
 scales with the block size, so any given contention event (host tenants, CPU
@@ -227,7 +262,7 @@ it means the fixture's absolute numbers describe the dev server, not vanilla.
 
 ## 7. Decision & Limitations
 
-- `fused_regions` remains `false` by default. No confirmatory campaign meets the pre-declared 15% minimum gain, and the direction is consistent (favorable median on every campaign) but unqualified.
+- `fused_regions` remains `false` by default. No confirmatory campaign meets the pre-declared 15% minimum gain *under the decision rule as written*: the closest is the quiet-window 20,000-add re-run at a −18.43% median whose interval upper edge (−14.95%) misses −15% by 0.05 percentage points. The direction is consistent — every pair in that campaign, and every campaign median, favours the fused arm — but it is unqualified.
 - The workload is a **controlled mechanism fixture**, not a real datapack. It closes the mechanism-level measurement gap. The 2026-11-03 screen found candidate runs in Blastback, Vein Miner, and Simple Timer, but none has runtime-confirmed specialization or a measured campaign, so no real pack corroborates this result yet.
 - Scaling the block to 20,000 adds per active tick **widened** the interval on this host rather than narrowing it, because host CPU contention inflates a larger fraction of a CPU-bound tick (Section 6). The 5,000-add design is the better instrument here. Do not repeat the 20,000 design on this machine for a promotion decision.
 - No campaign sampled host state. `/proc/loadavg` and `/proc/pressure/memory` should be captured per arm, and arms that ran under contention should be re-run, before another campaign claims to separate from −15%.
@@ -236,7 +271,7 @@ it means the fixture's absolute numbers describe the dev server, not vanilla.
 - The vanilla reference arm is a standalone server jar and shows a different background from the dev-server arms (~6.4 ms vs ~12 ms at 20,000 adds, from the mod's integration hook and the Loom dev runtime); only same-stack `off`/`fused` pairs feed the decision.
 - The datapack screen is static candidate evidence. Its `parsed_candidates` tier is conservative: it does not cover every parser family, and a flagged run can still fail to parse at runtime.
 
-**Next actions:** (1) instrument one screened candidate (Vein Miner `detection/acquire_target` or Blastback's state reader) with an activation diagnostic to confirm runtime specialization, then run a paired campaign on it; (2) add a host-quietness gate to the runner (load and `/proc/pressure/memory` before and after each arm, with re-run on rejection) before any further campaign attempts to separate from −15%; (3) if more mechanism-level evidence is needed, add pairs on `lb113` at 5,000 adds/tick rather than enlarging the block; (4) keep the `score_add`/`fused_regions` implication documented and covered by the runner's explicit candidate-arm configuration.
+**Next actions:** (1) instrument one screened candidate (Vein Miner `detection/acquire_target` or Blastback's state reader) with an activation diagnostic to confirm runtime specialization, then run a paired campaign on it; (2) fold the host-quietness gate into the runner itself (load, `/proc/pressure/*`, and build-process checks before each arm, with re-run on rejection) so the gate is not an external wrapper; (3) a single larger confirmatory campaign — pre-declared threshold, pair count, and seed committed before the first arm — is the legitimate way to test the 0.05 pp gap at 20,000 adds/tick; do not re-roll seeds on the 12-pair design; (4) if more mechanism-level evidence is needed, add pairs on `lb113` at 5,000 adds/tick; (5) keep the `score_add`/`fused_regions` implication documented and covered by the runner's explicit candidate-arm configuration.
 
 ---
 
@@ -261,6 +296,11 @@ FC_GRADLE_OFFLINE=true python3 scripts/run_fused_region_sustained.py \
 FC_GRADLE_OFFLINE=true python3 scripts/run_fused_region_sustained.py \
   --stack lb113 --pairs 10 --phase confirmatory \
   --adds-per-tick 5000 --seed 26871043
+
+# Quiet-window re-run of the 20,000-add Fabric design (fresh seed)
+FC_GRADLE_OFFLINE=true python3 scripts/run_fused_region_sustained.py \
+  --stack fabric --pairs 12 --phase confirmatory \
+  --adds-per-tick 20000 --minimum-gain-percent 15 --seed 26872001
 ```
 
 The runner verifies the pinned server hash and mod hashes, starts a same-stack vanilla reference (or mod-free vanilla for the Fabric stack), a separate activation diagnostic, then counterbalanced `off`/`fused` pairs in fresh disposable worlds, and writes the raw reports above. Semantic parity for the fused engine is covered separately by the ten-arm runtime matrix in [`docs/verification.md`](../docs/verification.md).

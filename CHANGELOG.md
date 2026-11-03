@@ -28,18 +28,31 @@
   Every arm passed exact workload parity and exact one-region-per-active-tick
   activation, and every interval overlaps the pre-declared 15% minimum gain, so
   all three are inconclusive and `fused_regions` stays disabled by default.
+- Re-run the 20,000-add Fabric confirmatory campaign (12 pairs, seed 26872001)
+  behind a host-quietness gate, and record it as the fourth PERF-016 campaign.
+  All twelve pairs were negative and no arm landed in the noisy run's 20–27 ms
+  band (0 of 24 arms above a 16 ms median window, against 7 of 24 before),
+  giving a −18.43% primary median with a −20.18% to −14.95% interval (96.14%
+  coverage). The point estimate now clears the pre-declared 15% minimum gain,
+  but the interval's upper edge misses it by 0.05 percentage points, so the
+  campaign stays inconclusive under the decision rule as written and
+  `fused_regions` remains disabled by default. The re-run confirms the noise
+  diagnosis directly, and the host-state samples taken during it show bursts
+  (max PSI cpu 12.79%) absorbed by the five-window median rather than by a
+  perfectly quiet host.
+
 - Diagnose the 20,000-add campaign's wide interval: it is workspace noise, not
   a compiler effect. The same fixture on the mod-free 26.3 server measures
   6.0–7.3 ms per window with GC pauses of ~1.5 ms every ~2.6 s, while the
   campaign's own mod-free vanilla reference arm measured 27.1 ms during the
   campaign and 6.4 ms in a quieter window. Injecting eight CPU-bound processes
   reproduces the inflated windows (5,000 adds: 2.2 → 3.6 ms; 20,000 adds:
-  6.5 → 19.6 ms), and the host keeps only 39 MB of free swap, so other
-  tenants' page-fault bursts also land directly in the measurement. Add
+  6.5 → 19.6 ms), and the host had only 39 MB of free swap, so other
+  tenants' page-fault bursts also landed directly in the measurement. Add
   `scripts/diagnose_perf016_host_noise.py` so the workspace's noise floor can
   be measured before a campaign and contention can be reproduced on demand; a
-  host-quietness gate becomes a prerequisite for any attempt to separate from
-  −15%.
+  host-quietness gate is now a prerequisite for any attempt to separate from
+  −15%, and folding it into the runner itself is the recorded next action.
 
 - Run the pinned Engineering Auditor v1.5.0 pass-close review (119 findings:
   1 high, 97 medium, 21 low; 6 production, 113 tooling) and record per-finding
