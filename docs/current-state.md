@@ -366,7 +366,9 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   Positive-tag `dx/dy/dz` selection across two boxes, nearest `limit=1`,
   nearest-sorted order-dependent effects, positive-tag distance filtering,
   score plus AABB filtering, positive/negative tag constraints with an AABB,
-  and furthest `limit=1` all select the same entity identities as vanilla.
+  furthest `limit=1`, and NBT-predicate selection (`nbt={Silent:1b}` and
+  `nbt={Glowing:1b}` in a `dx/dy/dz` box, each selecting exactly its own actor
+  in run `20261102T235411`) all select the same entity identities as vanilla.
   Common entity NBT modify/merge/remove, entity-tag cache updates, and literal
   ScoreAdd state/feedback also match across the compiler-off/on pairs. The
   Bellows adapter now restores vanilla mob `home_pos` values for

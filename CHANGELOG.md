@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Extend the 21-arm compatibility matrix with NBT-predicate selector coverage:
+  `compat_selector_nbt_match` and `compat_selector_nbt_no_match` pair a `Silent:1b`
+  actor with a `Glowing:1b` actor inside a `dx/dy/dz` box, and all 21 arms
+  (vanilla, Fabric, Bellows 1.1.2, Bellows 1.1.2+Moonrise 1.2.0, and
+  Lithium+Bellows 1.1.3+Moonrise 1.2.0) select identical identities with
+  `compatibility_parity_pass = true` (run `20261102T235411`). No previously
+  recorded selector, NBT, scoreboard, callback-failure, or low-fork observation
+  changed.
+
 - Add `scripts/run_fused_region_sustained.py` (PERF-016): a paired no-Spark
   active-tick campaign that drives the checked-in adjacent-eligible
   `function_compiler_fused_sustained` fixture (5,000 contiguous fake-holder

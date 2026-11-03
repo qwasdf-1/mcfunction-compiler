@@ -258,21 +258,23 @@ def run_selector_cases(client: RconClient) -> dict[str, object]:
     command(client, "forceload add 0 0 256 32")
     common = "NoGravity:1b,Invisible:1b,Invulnerable:1b"
     actors = (
-        ("0.5 100 0.5", "fc_compat_selector,fc_compat_inside_tagged,fc_compat_limit"),
-        ("-0.35 100 0.5", "fc_compat_selector,fc_compat_near_outside,fc_compat_limit"),
-        ("3.5 100 0.5", "fc_compat_selector,fc_compat_far_outside"),
-        ("0.75 100 0.75", "fc_compat_inside_untagged"),
-        ("16.5 100 0.5", "fc_compat_selector,fc_compat_second_inside"),
-        ("32.5 100 0.5", "fc_compat_order,fc_compat_order_a"),
-        ("33.5 100 0.5", "fc_compat_order,fc_compat_order_b"),
-        ("34.5 100 0.5", "fc_compat_order,fc_compat_order_c"),
+        ("0.5 100 0.5", "fc_compat_selector,fc_compat_inside_tagged,fc_compat_limit", ""),
+        ("-0.35 100 0.5", "fc_compat_selector,fc_compat_near_outside,fc_compat_limit", ""),
+        ("3.5 100 0.5", "fc_compat_selector,fc_compat_far_outside", ""),
+        ("0.75 100 0.75", "fc_compat_inside_untagged", ""),
+        ("16.5 100 0.5", "fc_compat_selector,fc_compat_second_inside", ""),
+        ("32.5 100 0.5", "fc_compat_order,fc_compat_order_a", ""),
+        ("33.5 100 0.5", "fc_compat_order,fc_compat_order_b", ""),
+        ("34.5 100 0.5", "fc_compat_order,fc_compat_order_c", ""),
+        ("64.5 100 0.5", "fc_compat_selector,fc_compat_nbt_silent", ",Silent:1b"),
+        ("65.5 100 0.5", "fc_compat_selector,fc_compat_nbt_glow", ",Glowing:1b"),
     )
-    for position, tags in actors:
+    for position, tags, extra_nbt in actors:
         for _ in range(10):
             res = command(
                 client,
                 f'summon minecraft:armor_stand {position} '
-                f'{{{common},Tags:["{tags.replace(",", chr(34)+","+chr(34))}"]}}',
+                f'{{{common}{extra_nbt},Tags:["{tags.replace(",", chr(34)+","+chr(34))}"]}}',
             )
             if "Summoned" in res:
                 break
@@ -295,6 +297,8 @@ def run_selector_cases(client: RconClient) -> dict[str, object]:
         "compat_selector_furthest_limit",
         "compat_selector_score_box",
         "compat_selector_negated_tag_box",
+        "compat_selector_nbt_match",
+        "compat_selector_nbt_no_match",
     ):
         feedback[fixture] = command(client, f"function function_compiler_probe:{fixture}")
 
@@ -309,6 +313,8 @@ def run_selector_cases(client: RconClient) -> dict[str, object]:
             "fc_compat_order_a",
             "fc_compat_order_b",
             "fc_compat_order_c",
+            "fc_compat_nbt_silent",
+            "fc_compat_nbt_glow",
         )
     }
     tags_after = {
@@ -324,6 +330,8 @@ def run_selector_cases(client: RconClient) -> dict[str, object]:
         "fc_compat_score_box_selected",
         "fc_compat_negated_tag_box_selected",
         "fc_compat_furthest_selected",
+        "fc_compat_nbt_match_selected",
+        "fc_compat_nbt_no_match_selected",
     )
     observed_selection = {
         identity: [marker for marker in selection_markers if marker in tags]
@@ -348,6 +356,8 @@ def run_selector_cases(client: RconClient) -> dict[str, object]:
         "fc_compat_order_a": [],
         "fc_compat_order_b": [],
         "fc_compat_order_c": ["fc_compat_furthest_selected"],
+        "fc_compat_nbt_silent": ["fc_compat_nbt_match_selected"],
+        "fc_compat_nbt_glow": ["fc_compat_nbt_no_match_selected"],
     }
     if observed_selection != expected_selection:
         raise RuntimeError(

@@ -330,8 +330,10 @@ wrapper-on, ScoreAdd, fused, bytecode); five Bellows 1.1.2 arms; five
 Bellows 1.1.2+Moonrise 1.2.0 arms; and five Lithium+Bellows 1.1.3+Moonrise
 1.2.0 arms. It verifies selected identities
 and order-sensitive effects for positive-tag AABB cases, distance filters,
-score filters combined with AABBs, positive/negative tag constraints, and
-nearest/furthest limited ordering. It also checks ordinary entity NBT updates,
+score filters combined with AABBs, positive/negative tag constraints,
+nearest/furthest limited ordering, and NBT-predicate selection
+(`nbt={Silent:1b}` and `nbt={Glowing:1b}` inside a `dx/dy/dz` box, where each
+must select exactly its own actor). It also checks ordinary entity NBT updates,
 Bellows tag-index maintenance, and the compiled literal ScoreAdd entry.
 Compiler-off/on pairs match. For mob `home_pos`, the probe asserts vanilla's
 exact init/merge/modify/remove values and checks that all Bellows profiles
@@ -386,6 +388,14 @@ Run `20261029T154729` passed all seven arms and their selected vanilla and
 same-stack pair checks, including selector order, entity NBT, tag-index updates,
 `home_pos`/`home_radius`, and modded-leaf behavior. This is selected fixture
 coverage on the pinned stack, not general support for every mod path.
+
+Run `20261102T235411` passed all 21 arms and added the NBT-predicate selector
+cases (`nbt={Silent:1b}` and `nbt={Glowing:1b}` in a `dx/dy/dz` box) to the
+selected matrix: every arm reports the same selected identities and ordering and
+`compatibility_parity_pass = true` (report
+`build/reports/compatibility-probe/20261102T235411.results.json`). No previously
+recorded selector, NBT, scoreboard, callback-failure, or low-fork observation
+changed; the only differing entity-NBT dumps contain per-run UUID values.
 
 For the focused macro behavior differential, run:
 
