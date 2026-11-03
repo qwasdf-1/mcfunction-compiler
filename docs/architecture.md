@@ -78,9 +78,11 @@ real-pack ScoreAdd workload: five Fabric pairs show no reliable gain, and five
 Fabric+Lithium plus five Fabric+Lithium+Moonrise pairs have slower medians with
 wide ranges crossing zero. The Moonrise campaign included a temporary dormant
 diagnostic mixin in both arms. No tested stack demonstrates a real-world
-ScoreAdd speedup. The datapack has no adjacent eligible pair, so fused and
-bytecode have not been measured in a real pack. Allocation, timer calibration,
-fallback coverage, and broader parity gates remain open. PERF-004 found emitted
+ScoreAdd speedup. A 2026-11-03 static screen found adjacent candidate runs in
+the pack's family detection, but they have no runtime activation or performance
+evidence, so fused and bytecode have not been measured in a real pack.
+Allocation, timer calibration, fallback coverage, and broader parity gates
+remain open. PERF-004 found emitted
 bytecode about 23% slower than fused interpreted for the measured static
 fixture. Prioritize profiling expensive function paths before adding more
 ScoreAdd/backend variants. Keep all prototypes disabled.

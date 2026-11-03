@@ -30,8 +30,8 @@ The compiler automatically creates a default configuration file at `config/funct
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | boolean | `false` | Master switch. When `false`, compiler wrapping and optimization surfaces are disabled unless a focused probe sets their `FC_*` environment variables. |
-| `score_add` | boolean | `false` | Enables parsed literal scoreboard specialization on an enabled wrapper. |
-| `fused_regions` | boolean | `false` | Enables contiguous command fusing, context modifier folding, scoreboard condition/store interception, block/entity predicates, and storage data mutations. |
+| `score_add` | boolean | `false` | Enables the shared parsed-command specialization pass on an enabled wrapper when `fused_regions` is off. The pass covers scoreboard mutations, operations, resets, conditions, and stores plus the other parsers in `ScoreAddPrototype`. `fused_regions=true` implies this pass, because fused regions execute the specialized commands; an explicit `FC_SCORE_ADD_PROTOTYPE=false` environment override still wins for diagnostics. |
+| `fused_regions` | boolean | `false` | Enables contiguous command fusing, context modifier folding, scoreboard condition/store interception, block/entity predicates, and storage data mutations. This also enables the specialization pass even when `score_add` is `false`. |
 | `selective_macros` | boolean | `true` | Enables selective extraction of declared macro parameter keys directly from entity custom data and storage targets, bypassing full NBT compound serialization. |
 | `tiered_bytecode` | boolean | `false` | Enables the ASM hidden class bytecode compilation backend for hot function regions. |
 | `tiered_threshold` | integer | `5` | The number of times a region executes via interpreted fusion before automatically compiling to unrolled JVM bytecode (active only when `tiered_bytecode` is `true`). |
@@ -87,3 +87,9 @@ The compiler determines its active configuration through a clear hierarchy:
    - Active on production servers when environment variables are omitted.
 3. **Built-in Production Defaults (Fallback):**
    - Applied if the configuration file is unreadable or absent (`enabled=false`, `score_add=false`, `fused_regions=false`, `selective_macros=true`, `tiered_bytecode=false`).
+
+`fused_regions=true` implies the scoreboard specialization pass in the disk
+configuration, so `score_add=false` does not disable specialization while
+fusion is active. A focused probe can still force the specialization off by
+setting `FC_SCORE_ADD_PROTOTYPE=false`; that combination exercises fusion with
+vanilla scoreboard command execution and is not a production mode.

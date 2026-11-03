@@ -17,7 +17,11 @@
    Retained PERF-011 selective-macro campaigns report `screening_only` with 3-5 pairs and confidence below the declared `0.95` target. README/current-state overstate these as production gains.
 
 3. **Fused-region performance claim lacks a real workload.**  
-   No screened datapack has adjacent eligible fused commands. The fused evidence is a static fixture plus compatibility traces, not real-world endpoint gain evidence.
+   No screened datapack had a runtime-confirmed adjacent eligible fused
+   workload at audit time. A 2026-11-03 static screen later found candidate runs
+   in Blastback, Vein Miner, and Simple Timer, but none has runtime activation
+   or performance evidence. The fused evidence remains a static fixture plus
+   compatibility traces, not real-world endpoint gain evidence.
 
 4. **Bytecode claims need scope control.**  
    Opt-in bytecode remains slower than fused on the static fixture. Metaspace no-leak evidence is bounded to the 25-cycle/injected-failure runs and should stay labeled as such.

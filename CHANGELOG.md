@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+- Make `fused_regions` imply the scoreboard specialization pass and make the
+  `score_add` disk flag effective when fusion is off. Previously
+  `CompilerConfig.isScoreAddEnabled()` was dead code: `score_add=false` was
+  ignored because the runtime default followed the master `enabled` switch.
+  `FC_SCORE_ADD_PROTOTYPE=false` remains an explicit diagnostic override.
+- Add `--adds-per-tick` to the PERF-016 sustained runner so the contiguous
+  eligible block can be scaled without editing the checked-in fixture; the
+  generated workload function is hash-recorded in the report.
+- Add `scripts/screen_adjacent_regions.py`, a static tick-reachability screen
+  for adjacent eligible runs in pinned datapacks, and record the screen of all
+  19 pinned packs. The screen finds candidate runs in Blastback's generated
+  block-state reader (32 adjacent `execute if block ... run scoreboard players
+  set` commands per state table), Vein Miner's family detection (145 adjacent
+  parsed candidates plus a one-time 19-add `@s` initialization), and Simple
+  Timer's 36-command tick display/clock chain. Runtime activation and
+  performance for these packs remain unmeasured; the screen is not proof that
+  every command specializes.
+- Complete three PERF-016 confirmatory campaigns on
+  `tests/fixtures/function_compiler_fused_sustained`: Fabric at 5,000
+  adds/active tick (10 pairs, median −19.72%, interval −30.30% to −12.90%),
+  Fabric at a generated 20,000 adds/active tick (12 pairs, median −12.48%,
+  interval −33.09% to +77.44%), and Lithium + Bellows 1.1.3 at 5,000
+  adds/active tick (10 pairs, median −22.16%, interval −86.39% to −12.12%).
+  Every arm passed exact workload parity and exact one-region-per-active-tick
+  activation, and every interval overlaps the pre-declared 15% minimum gain, so
+  all three are inconclusive and `fused_regions` stays disabled by default.
+- Diagnose the 20,000-add campaign's wide interval: it is workspace noise, not
+  a compiler effect. The same fixture on the mod-free 26.3 server measures
+  6.0–7.3 ms per window with GC pauses of ~1.5 ms every ~2.6 s, while the
+  campaign's own mod-free vanilla reference arm measured 27.1 ms during the
+  campaign and 6.4 ms in a quieter window. Injecting eight CPU-bound processes
+  reproduces the inflated windows (5,000 adds: 2.2 → 3.6 ms; 20,000 adds:
+  6.5 → 19.6 ms), and the host keeps only 39 MB of free swap, so other
+  tenants' page-fault bursts also land directly in the measurement. Add
+  `scripts/diagnose_perf016_host_noise.py` so the workspace's noise floor can
+  be measured before a campaign and contention can be reproduced on demand; a
+  host-quietness gate becomes a prerequisite for any attempt to separate from
+  −15%.
+
 - Run the pinned Engineering Auditor v1.5.0 pass-close review (119 findings:
   1 high, 97 medium, 21 low; 6 production, 113 tooling) and record per-finding
   dispositions in `docs/research/engineering-auditor-review-2026-10-29.md`,

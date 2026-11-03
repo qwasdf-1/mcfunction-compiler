@@ -61,8 +61,11 @@ queue-head advancement. A native 6×6×6 event exercises two hot-path sites.
 One instrumented run recorded 4,212 `vm:detection/ray_step` additions and
 1,952 `vm:queue/drain` additions. This is 6,164 observed specialized callbacks
 across two function entries in that run; it is not a percentage of all command
-dispatches. The pack contains no adjacent eligible pair, so it cannot measure
-the fused or bytecode region paths.
+dispatches. The pack contains no adjacent eligible pair in the direct-entry
+scan, so it cannot measure the fused or bytecode region paths. A 2026-11-03
+static screen later found adjacent parsed candidates in the family-detection
+and mined-stat functions, but runtime confirmation and performance remain
+unmeasured.
 
 A separate aligned 4×4×4 callback-accounting diagnostic on Lithium counted
 8,238 ordinary leaf callbacks in one native mining event: 7,116 generic and
@@ -97,7 +100,8 @@ Raw profiles, manifests, and exact pins remain under the ignored local
 Dynamic Lights and Spawn Animations establish real recurring and bursty
 function workloads, respectively, but neither supplies eligible ScoreAdd work
 for these prototypes. Vein Miner supplies eligible direct ScoreAdd work but is
-event-triggered and has no eligible adjacent pair. Therefore the current
+event-triggered. A 2026-11-03 static screen later found adjacent candidates in
+several packs, but none has runtime confirmation. Therefore the current
 evidence includes a real-pack direct-ScoreAdd comparison, but no real-pack
 fused/bytecode comparison and no demonstrated real-world optimization gain.
 

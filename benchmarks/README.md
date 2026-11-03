@@ -98,7 +98,7 @@ generation.
 | RW-08 | [Bigger Every Kill](https://modrinth.com/datapack/bigger-every-kill) 1.0.0 | Rejected: exact archive fails official 26.3 registry loading because its advancement JSON has the wrong `conditions.entity` shape. Do not profile until an upstream fix is available. |
 | RW-09 | [Blastback](https://modrinth.com/datapack/blastback/version/dMtA8r0n) Hotfix 3 | Its 1-TNT event still fails the restoration gate after a 180-second profile plus a five-minute drain. A separate no-TNT dispatcher profile now passes two same-stack Fabric compiler-off/ScoreAdd pairs and compiles one ScoreAdd in `erb:runtime_tick`; this only validates a light recurring path and is not event-workload evidence. |
 | RW-10 | [Datapack Function Library](https://modrinth.com/datapack/datapack-function-library) 5.1.0 | Exact 26.1–26.3 artifact pinned for screening. It ships with no tick tag and no direct literal fake-holder ScoreAdd entry, so it is not an active optimizer workload without a host datapack. |
-| RW-11 | [Vein Miner](https://modrinth.com/datapack/vein_miner) 5.3.0 (`vein_miner`, underscore) | Pinned 26.3 archive with three direct fake-holder ScoreAdd sites. Native 6×6×6 mining passes five randomized compiler-off/ScoreAdd pairs on Fabric, Lithium, and Lithium+Moonrise 1.2.1. None shows a reliable gain; Bellows-containing compiler-off runs fail workload integrity and are excluded as comparisons. The similarly named [VeinMiner](https://modrinth.com/datapack/veinminer) project is separate; its V1 datapack is not the PERF-011 target and has no direct fake-holder ScoreAdd site. No adjacent pair exists for fused/bytecode coverage. See [PERF-011 evidence](../docs/research/real-world-profile-targets.md#vein-miner-530-native-trigger-eligibility-and-profile-pilot). |
+| RW-11 | [Vein Miner](https://modrinth.com/datapack/vein_miner) 5.3.0 (`vein_miner`, underscore) | Pinned 26.3 archive with three direct fake-holder ScoreAdd sites. Native 6×6×6 mining passes five randomized compiler-off/ScoreAdd pairs on Fabric, Lithium, and Lithium+Moonrise 1.2.1. None shows a reliable gain; Bellows-containing compiler-off runs fail workload integrity and are excluded as comparisons. The similarly named [VeinMiner](https://modrinth.com/datapack/veinminer) project is separate; its V1 datapack is not the PERF-011 target and has no direct fake-holder ScoreAdd site. A 2026-11-03 static screen found 145 adjacent parsed candidates in `vm:detection/acquire_target`, but runtime specialization and fused/bytecode performance remain unmeasured. See [PERF-011 evidence](../docs/research/real-world-profile-targets.md#vein-miner-530-native-trigger-eligibility-and-profile-pilot). |
 
 Run the Dynamic Lights harness with python3 scripts/run_dynamic_lights_profile.py.
 It pins the server, datapack, Spark agent, and selected mod jars by hash,
@@ -182,8 +182,11 @@ samples for `ServerFunctionManager.execute` were lower in both ScoreAdd arms
 (104/152 ms) than their controls (160/168 ms), but two short captures are only
 a reason to repeat, not a performance decision. A separate instrumented
 diagnostic counted 340 executions of that compiled entry, matching the
-`#tick_id` delta; its timing is excluded from comparisons. No adjacent region
-is eligible for fusion. See [PERF-010 results](../docs/research/real-world-profile-targets.md).
+`#tick_id` delta; its timing is excluded from comparisons. A 2026-11-03 static
+screen found adjacent candidate runs in the archive's generated block-state
+reader (32 `execute if block ... run scoreboard players set` commands per state
+table), reached from `erb:capture/store` during capture scans; runtime
+specialization and performance remain unmeasured. See [PERF-010 results](../docs/research/real-world-profile-targets.md).
 
 The Blastback diagnostic runner is `python3 scripts/run_blastback_profile.py`.
 For the no-event dispatch pilot, use `--tnt-count 0 --compiler-mode off` or
@@ -224,8 +227,11 @@ callback diagnostic now counts generic and optimized ordinary leaf callbacks:
 one aligned 4×4×4 Lithium event counted 7,116 generic and 1,122 optimized
 callbacks (8,238 total), with the optimized count matching the independent
 ScoreAdd execution counter. Callback wrappers perturb execution, so these runs
-are not performance comparisons. No adjacent eligible pair exists for
-real-world fused/bytecode measurement. Compiler-off Vein Miner controls on
+are not performance comparisons. A 2026-11-03 static screen found adjacent
+candidates in `vm:detection/acquire_target` (145 parsed commands),
+`vm:detection/verify_mined_stat` (59), and a one-time 19-add `@s` initialization
+in `vm:player/register`; none has runtime-confirmed specialization or a
+measured fused/bytecode comparison. Compiler-off Vein Miner controls on
 Bellows 1.1.2, Lithium+Bellows, and Lithium+Bellows+Moonrise 1.2.0 fail native
 workload integrity: mining starts, but the queue advances only once, 0/63 or
 0/215 ore blocks are processed, the ore remains, and the operation marker is
@@ -335,7 +341,8 @@ profiles. Incendium stays excluded unless its upstream AI project restriction
 is resolved.
 ## PERF-016: sustained adjacent-eligible fused-region active-tick fixture
 
-No screened datapack contains an adjacent eligible region for the fused engine, so
+The 2026-11-03 static screen found adjacent candidate runs in pinned packs, but
+none has runtime-confirmed specialization or a measured real-world gain, so
 `tests/fixtures/function_compiler_fused_sustained` supplies the controlled workload:
 a pristine block of 5,000 contiguous `scoreboard players add #fused fc_fused 1` lines
 that runs once per enabled active tick. The runner generates only tick instrumentation
@@ -350,23 +357,55 @@ activation diagnostic that must count exactly one executed fused region per acti
 tick, and counterbalanced same-stack compiler-off/candidate pairs with no Spark and
 no compiler counters or timers.
 
-The confirmatory 10-pair Fabric campaign pre-declared a 15% minimum gain. All ten
-pairs passed exact workload parity at 5,000 adds per active tick. The primary metric's
-median paired change is −19.72% with a 97.85% exact interval of −30.30% to −12.90%, so
-it overlaps the threshold and the campaign decision is **inconclusive**; the raw active
-tick average median is −16.53% and the P95 median −18.63% as context. The 5-pair
-screening pilot (single-window design) had a −22.86% median with a −86.55% to 0.00%
-interval and is retained as screening only. Full results, gates, limitations, and next
-actions are in
+Three confirmatory campaigns are complete, each pre-declaring a 15% minimum gain.
+All passed exact workload parity and exact region activation (one executed region per
+active tick), and all are **inconclusive** because the interval overlaps the threshold.
+
+| Campaign | Stack | Adds per active tick | Pairs | Primary median | Exact interval | Coverage |
+|---|---|---:|---:|---:|---|---:|
+| confirmatory | Fabric | 5,000 | 10 | −19.72% | −30.30% to −12.90% | 97.85% |
+| confirmatory | Fabric | 20,000 (`--adds-per-tick`, generated and hash-recorded) | 12 | −12.48% | −33.09% to +77.44% | 96.14% |
+| confirmatory | Lithium + Bellows 1.1.3 | 5,000 | 10 | −22.16% | −86.39% to −12.12% | 97.85% |
+
+Scaling to a 20,000-add block did not separate the interval from −15%; it widened it,
+because per-arm cost became bimodal at roughly four times the tick workload (four of
+twelve pairs contained a 20–27 ms arm producing +4.7% to +143.2% reversals). A follow-up
+diagnosis traced that reversals to host CPU contention and page-fault bursts acting on a
+CPU-bound block, not to the compiler: the campaign's own mod-free vanilla reference arm
+measured 27.1 ms in that run and 6.4 ms on the same fixture and jar in a quieter window,
+and the same machinery in a quieter window produced tight 9.3–12.6 ms windows and a
+−21.9% pair. See the
+[variance diagnosis section](PERF-016-sustained-fused-region-active-tick.md#6-variance-diagnosis-of-the-20000-add-block-2026-11-03)
+of the report. The 5,000-add block remains the better instrument on this host, and a
+host-quietness gate is a prerequisite for any future attempt to separate from −15%.
+Run `python3 scripts/diagnose_perf016_host_noise.py --adds-per-tick 5000` (add `--load 8`
+to reproduce contention) to measure the workspace's noise floor before a campaign.
+
+The `lb113` campaign's first two pairs are
+cold-world artifacts; excluding them as a sensitivity observation leaves a −18.57% median
+with a −32.50% to +3.45% interval, still inconclusive. The 5-pair screening pilot had a
+−22.86% median with a −86.55% to 0.00% interval and is retained as screening only. Full
+results, gates, limitations, and next actions are in
 [`PERF-016-sustained-fused-region-active-tick.md`](PERF-016-sustained-fused-region-active-tick.md).
 `fused_regions` stays disabled by default.
 
 Reproduce with:
 
 ```sh
+# Fabric, checked-in 5,000-add block
 FC_GRADLE_OFFLINE=true python3 scripts/run_fused_region_sustained.py \
   --stack fabric --pairs 10 --phase confirmatory \
   --minimum-gain-percent 15 --seed 26871041
+
+# Fabric, generated 20,000-add block
+FC_GRADLE_OFFLINE=true python3 scripts/run_fused_region_sustained.py \
+  --stack fabric --pairs 12 --phase confirmatory \
+  --adds-per-tick 20000 --seed 26871042
+
+# Lithium + Bellows 1.1.3, 5,000 adds per active tick
+FC_GRADLE_OFFLINE=true python3 scripts/run_fused_region_sustained.py \
+  --stack lb113 --pairs 10 --phase confirmatory \
+  --adds-per-tick 5000 --seed 26871043
 ```
 
 ## Compiler optimization A/B
@@ -569,8 +608,9 @@ stable defining classloader identity and about 1.03 MiB maximum metaspace
 growth. See [Minecraft 26.3 internals](../docs/research/26.3-internals.md) for
 reload details. Keep every optimization disabled pending remaining parity,
 allocation, timer calibration, and fallback/compatibility gates. PERF-011
-provides a native real-datapack ScoreAdd workload, but no screened pack has an
-adjacent eligible pair for real-world fused or bytecode region measurements.
+provides a native real-datapack ScoreAdd workload. The 2026-11-03 static screen
+found adjacent candidates, but none has runtime-confirmed specialization or a
+measured real-world fused/bytecode comparison.
 
 ### Remaining optimization comparisons
 
@@ -579,8 +619,9 @@ randomized sets; PERF-004 adds a five-trial-per-arm bytecode comparison. Remaini
 gates are timer-overhead calibration, allocation, broader parity across the
 supported input domain, and selected compatibility
 profiles. PERF-011's Vein Miner campaign exercises a reachable direct ScoreAdd
-in a native datapack event, but shows no reliable gain and has no adjacent
-eligible pair for real-world fused/bytecode comparison. Keep warmup, server
+in a native datapack event and shows no reliable gain. A 2026-11-03 static
+screen found adjacent candidates for a future fused/bytecode comparison, but
+none has runtime activation or performance evidence yet. Keep warmup, server
 settings, world state, operation count, and
 measurement instrumentation matched across arms. Report independent-run
 variation, allocations, reload costs, and fallback coverage before describing

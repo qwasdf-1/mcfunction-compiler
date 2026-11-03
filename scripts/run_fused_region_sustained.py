@@ -74,18 +74,28 @@ def adjacent_adds_per_tick() -> int:
 ADDS_PER_TICK = adjacent_adds_per_tick()
 
 
-def generated_files() -> dict[str, str]:
+def generated_files(adds_per_tick: int = ADDS_PER_TICK) -> dict[str, str]:
     """Generate the tick instrumentation that gates and counts the fixture workload.
 
     The pristine contiguous add block stays untouched inside
     `function_compiler_fused_sustained:tick`; the generated wrapper only counts
     ticks and conditionally invokes it, mirroring the sustained macro fixture's
-    enable gate.
+    enable gate. When ``--adds-per-tick`` requests a larger block, a generated
+    workload function supplies it instead.
     """
+    if adds_per_tick == ADDS_PER_TICK:
+        workload_function = "function_compiler_fused_sustained:tick"
+        files: dict[str, str] = {}
+    else:
+        workload_function = "function_compiler_fused_sustained:tick_scaled"
+        files = {
+            "data/function_compiler_fused_sustained/function/tick_scaled.mcfunction":
+                "".join(f"{ADD_COMMAND}\n" for _ in range(adds_per_tick))
+        }
     instrumented = (
         "scoreboard players add #server_ticks fc_fused 1\n"
         "execute if score #enabled fc_fused matches 1 run "
-        "function function_compiler_fused_sustained:tick\n"
+        f"function {workload_function}\n"
         "execute if score #enabled fc_fused matches 1 run "
         "scoreboard players add #active_ticks fc_fused 1\n"
     )
@@ -93,16 +103,19 @@ def generated_files() -> dict[str, str]:
         "replace": True,
         "values": ["function_compiler_fused_sustained:tick_instrumented"],
     }
-    return {
-        "data/function_compiler_fused_sustained/function/tick_instrumented.mcfunction": instrumented,
-        "data/minecraft/tags/function/tick.json": json.dumps(tag, indent=2) + "\n",
-    }
+    files.update(
+        {
+            "data/function_compiler_fused_sustained/function/tick_instrumented.mcfunction": instrumented,
+            "data/minecraft/tags/function/tick.json": json.dumps(tag, indent=2) + "\n",
+        }
+    )
+    return files
 
 
-def generated_hashes() -> dict[str, str]:
+def generated_hashes(adds_per_tick: int = ADDS_PER_TICK) -> dict[str, str]:
     return {
         relative: hashlib.sha256(contents.encode("utf-8")).hexdigest()
-        for relative, contents in generated_files().items()
+        for relative, contents in generated_files(adds_per_tick).items()
     }
 
 
@@ -258,11 +271,12 @@ def prepare_workdir(
     server_port: int,
     rcon_port: int,
     password: str,
+    adds_per_tick: int = ADDS_PER_TICK,
 ) -> Path:
     world = work / "world"
     datapack_dir = world / "datapacks" / FIXTURE.name
     shutil.copytree(FIXTURE, datapack_dir)
-    for relative, contents in generated_files().items():
+    for relative, contents in generated_files(adds_per_tick).items():
         setup_path = datapack_dir / relative
         setup_path.parent.mkdir(parents=True, exist_ok=True)
         setup_path.write_text(contents, encoding="utf-8")
@@ -382,6 +396,7 @@ def run_arm(
     packet_ids: PacketIds,
     output_dir: Path,
     diagnostic: bool = False,
+    adds_per_tick: int = ADDS_PER_TICK,
 ) -> dict[str, object]:
     work = RUN_ROOT / f"fused-{run_id}-{arm_name}"
     if work.exists():
@@ -396,6 +411,7 @@ def run_arm(
         server_port=server_port,
         rcon_port=rcon_port,
         password=password,
+        adds_per_tick=adds_per_tick,
     )
     log_path = output_dir / f"{arm_name}.server.log"
     log_handle = log_path.open("wb")
@@ -468,11 +484,11 @@ def run_arm(
         fused_total = score(rcon, "#fused")
         server_ticks = score(rcon, "#server_ticks")
         ticks = score(rcon, "#active_ticks")
-        expected_adds = ticks * ADDS_PER_TICK
+        expected_adds = ticks * adds_per_tick
         if fused_total != expected_adds:
             raise RuntimeError(
                 f"Workload integrity failed: active_ticks={ticks}, fused={fused_total}, "
-                f"expected fused={expected_adds} ({ADDS_PER_TICK} adds per active tick)"
+                f"expected fused={expected_adds} ({adds_per_tick} adds per active tick)"
             )
         activation = None
         if diagnostic:
@@ -489,7 +505,7 @@ def run_arm(
                     f"expected executed={expected_regions}"
                 )
             score_add_executed = read_status_counts(status_after, "score_add_executed")
-            expected_region_adds = ticks * ADDS_PER_TICK
+            expected_region_adds = ticks * adds_per_tick
             if mode == "fused" and score_add_executed < expected_region_adds:
                 raise RuntimeError(
                     f"Specialized commands did not execute inside the region: "
@@ -515,7 +531,7 @@ def run_arm(
             "server_ticks": server_ticks,
             "adds_applied": fused_total,
             "adds_per_active_tick": fused_total / ticks,
-            "expected_adds_per_active_tick": ADDS_PER_TICK,
+            "expected_adds_per_active_tick": adds_per_tick,
             "exact_workload_integrity": fused_total == expected_adds,
             "workload_tick_average_ms": round(
                 active_timings["tick_average_ms"] - post_idle_timings["tick_average_ms"], 6
@@ -575,6 +591,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stack", choices=STACK_CHOICES, default=DEFAULT_STACK)
     parser.add_argument("--pairs", type=int, default=5)
     parser.add_argument("--seed", type=int, default=26871041)
+    parser.add_argument(
+        "--adds-per-tick",
+        type=int,
+        default=None,
+        help=(
+            "size of the contiguous eligible add block; defaults to the checked-in "
+            f"fixture's {ADDS_PER_TICK} adds"
+        ),
+    )
     parser.add_argument("--phase", choices=("screening", "confirmatory"), default="screening")
     parser.add_argument(
         "--minimum-gain-percent",
@@ -589,11 +614,14 @@ def parse_args() -> argparse.Namespace:
         parser.error("confirmatory campaigns require at least six pairs")
     if args.minimum_gain_percent <= 0:
         parser.error("--minimum-gain-percent must be positive")
+    if args.adds_per_tick is not None and args.adds_per_tick < 2:
+        parser.error("--adds-per-tick must be at least 2 (fusion requires adjacent pairs)")
     return args
 
 
 def main() -> int:
     args = parse_args()
+    adds_per_tick = args.adds_per_tick if args.adds_per_tick is not None else ADDS_PER_TICK
     server_jar = locate_official_server_jar()
     if sha256(server_jar) != SERVER_JAR_SHA256:
         raise RuntimeError(f"Minecraft 26.3 server hash mismatch: {server_jar}")
@@ -624,7 +652,7 @@ def main() -> int:
         "mods": mods,
         "fixture": str(FIXTURE.relative_to(ROOT)),
         "fixture_sha256": fixture_hashes,
-        "generated_sha256": generated_hashes(),
+        "generated_sha256": generated_hashes(adds_per_tick),
         "runner_sha256": sha256(Path(__file__).resolve()),
         "candidate": "fused-interpreted",
         "metric": "workload_tick_average_ms",
@@ -639,7 +667,7 @@ def main() -> int:
         "pairs_requested": args.pairs,
         "random_seed": args.seed,
         "configuration": {
-            "adjacent_eligible_adds_per_active_tick": ADDS_PER_TICK,
+            "adjacent_eligible_adds_per_active_tick": adds_per_tick,
             "fused_regions_per_active_tick": FUSED_REGIONS_PER_ACTIVE_TICK,
             "warmup_active_ticks": WARMUP_ACTIVE_TICKS,
             "measurement_windows_per_arm": MEASUREMENT_WINDOWS,
@@ -667,6 +695,7 @@ def main() -> int:
         server_jar=server_jar,
         packet_ids=packet_ids,
         output_dir=output_dir,
+        adds_per_tick=adds_per_tick,
     )
     report["vanilla_reference"] = vanilla
     report["arms"].append(vanilla)
@@ -683,6 +712,7 @@ def main() -> int:
         packet_ids=packet_ids,
         output_dir=output_dir,
         diagnostic=True,
+        adds_per_tick=adds_per_tick,
     )
     report["activation_diagnostic"] = diagnostic
     report["arms"].append(diagnostic)
@@ -709,6 +739,7 @@ def main() -> int:
                 server_jar=server_jar,
                 packet_ids=packet_ids,
                 output_dir=output_dir,
+                adds_per_tick=adds_per_tick,
             )
             pair_arms[label] = arm
             report["arms"].append(arm)

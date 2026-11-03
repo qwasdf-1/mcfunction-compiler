@@ -8,9 +8,9 @@ This index maps curated feature documentation to status and component owners.
 |---|---|---|
 | [`command-quota-and-scheduler.md`](../reference/features/command-quota-and-scheduler.md) | Verified semantic baseline across all 10 runtime modes. | Command Quota and Scheduler (`ExecutionContext`) |
 | [`emitted-bytecode.md`](../reference/features/emitted-bytecode.md) | Opt-in / Experimental Tiered JIT Backend (Milestone 2 Verified). | Emitted ASM Bytecode Regions & Tiered JIT Engine |
-| [`fused-regions.md`](../reference/features/fused-regions.md) | Disabled by default; experimental. Semantic matrices, quota/trace parity, and static-fixture timings pass, but no screened datapack supplies an adjacent-eligible region, so the real-world performance gate remains open. | Fused Interpreted Regions (`FusedRegionPrototype`) |
+| [`fused-regions.md`](../reference/features/fused-regions.md) | Disabled by default; experimental. Semantic matrices, quota/trace parity, and static-fixture timings pass. A 2026-11-03 static screen found adjacent candidate runs in pinned packs, but none has runtime-confirmed specialization or a measured real-world gain, so the performance gate remains open. | Fused Interpreted Regions (`FusedRegionPrototype`) |
 | [`lifecycle-and-reload.md`](../reference/features/lifecycle-and-reload.md) | Verified across all 10 runtime modes. | Datapack Lifecycle and Reload Semantics |
-| [`scoreboard-specialization.md`](../reference/features/scoreboard-specialization.md) | Production implementation verified; promoted in v1.0. | Scoreboard Specialization (`ScoreAddPrototype`) |
+| [`scoreboard-specialization.md`](../reference/features/scoreboard-specialization.md) | Experimental and disabled by default. Differential fixtures and runtime matrices cover the specialized commands, but the standalone pass and the fused-region engine remain off pending a real-workload performance gate. | Scoreboard Specialization (`ScoreAddPrototype`) |
 | [`selective-macro-arguments.md`](../reference/features/selective-macro-arguments.md) | Supported — promoted to default-enabled (`selective_macros: true`); see the [promotion table](../../../README.md#promotion-status-current-evidence). | Selective Macro Arguments (`SelectiveMacroArgumentPrototype`) |
 
 ## Repo-Wide Inventory

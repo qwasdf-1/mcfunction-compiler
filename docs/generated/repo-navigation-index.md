@@ -119,14 +119,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `method wrapperEnabled()`:7
   - `method traceEnabled()`:11
   - `method scoreAddPrototypeEnabled()`:15
-  - `method scoreAddMetricsEnabled()`:19
-  - `method scoreAddTimingEnabled()`:23
-  - `method fusedRegionPrototypeEnabled()`:27
-  - `method bytecodeRegionPrototypeEnabled()`:31
-  - `method bytecodeCompileFailureEnabled()`:35
-  - `method functionTimingEnabled()`:39
-  - `method commandCallbackMetricsEnabled()`:43
-  - `method commandCallbackMetricsAllQueues()`:47
+  - `method scoreAddMetricsEnabled()`:22
+  - `method scoreAddTimingEnabled()`:26
+  - `method fusedRegionPrototypeEnabled()`:30
+  - `method bytecodeRegionPrototypeEnabled()`:34
+  - `method bytecodeCompileFailureEnabled()`:38
+  - `method functionTimingEnabled()`:42
+  - `method commandCallbackMetricsEnabled()`:46
+  - `method commandCallbackMetricsAllQueues()`:50
 - [`src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java`](../../src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java):
   - `class ProbeFunctionWrapper`:19
   - `method removeEldestEntry()`:25
@@ -277,6 +277,15 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def local_doc_tokens()`:49
   - `def document_paths()`:67
   - `def main()`:80
+- [`scripts/diagnose_perf016_host_noise.py`](../../scripts/diagnose_perf016_host_noise.py):
+  - `def proc_faults()`:65
+  - `def proc_swap_kb()`:78
+  - `def host_major_faults()`:88
+  - `def memory_pressure()`:98
+  - `def load_average()`:105
+  - `def start_load()`:112
+  - `def stop_load()`:124
+  - `def gc_pause_summary()`:135
 - [`scripts/doc_hygiene/doc_links.py`](../../scripts/doc_hygiene/doc_links.py):
   - `def rel()`:16
   - `def active_doc_files()`:20
@@ -372,11 +381,11 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def sha256()`:54
   - `def adjacent_adds_per_tick()`:62
   - `def generated_files()`:77
-  - `def generated_hashes()`:102
-  - `def reserve_ports()`:109
-  - `def wait_for_rcon()`:125
-  - `def connect_player_when_ready()`:141
-  - `def score()`:169
+  - `def generated_hashes()`:115
+  - `def reserve_ports()`:122
+  - `def wait_for_rcon()`:138
+  - `def connect_player_when_ready()`:154
+  - `def score()`:182
 - [`scripts/run_macro_perf_benchmark.py`](../../scripts/run_macro_perf_benchmark.py):
   - `def run_benchmark_for_mode()`:33
   - `def main()`:122
@@ -461,6 +470,15 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def stats_int()`:121
   - `def stats_provider_classes()`:128
   - `def _selective_macro_provider_class_delta()`:145
+- [`scripts/screen_adjacent_regions.py`](../../scripts/screen_adjacent_regions.py):
+  - `def sha256_bytes()`:70
+  - `def classify()`:74
+  - `class FunctionRecord`:91
+  - `def parse_tag_entries()`:98
+  - `def reachable_from()`:113
+  - `def runs_for()`:139
+  - `def flush()`:148
+  - `def screen_pack()`:177
 - [`scripts/summarize_campaign.py`](../../scripts/summarize_campaign.py):
   - `def _metric()`:10
   - `def main()`:20

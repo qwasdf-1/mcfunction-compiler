@@ -13,7 +13,10 @@ public final class ProbeConfiguration {
     }
 
     public static boolean scoreAddPrototypeEnabled() {
-        return readBoolean("FC_SCORE_ADD_PROTOTYPE", CompilerConfig.isEnabled());
+        return readBoolean(
+                "FC_SCORE_ADD_PROTOTYPE",
+                CompilerConfig.isScoreAddEnabled() || fusedRegionPrototypeEnabled()
+        );
     }
 
     public static boolean scoreAddMetricsEnabled() {

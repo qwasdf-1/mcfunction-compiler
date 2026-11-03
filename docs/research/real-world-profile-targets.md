@@ -301,8 +301,10 @@ results. Spark values are inclusive weighted samples for
 | 2 | compiler off `20261028T135812Z-b103e8` / ScoreAdd `20261028T135918Z-7ef021` | 461 / 461 | 168 / 152 ms | 50 / 48 |
 
 The ScoreAdd arm compiled exactly one command in `erb:runtime_tick`; 71 literal
-fake-holder ScoreAdd commands were compiled across the full archive. The fused
-prototype found no adjacent eligible region. The manager sample was lower in
+fake-holder ScoreAdd commands were compiled across the full archive. The
+original direct-entry scan found no adjacent eligible region; a 2026-11-03
+static screen later found 32-command block-state tables in the generated
+reader, but runtime specialization remains unmeasured. The manager sample was lower in
 both pairs, which is a signal to repeat on more workloads, not enough evidence
 to enable ScoreAdd: there are only two short captures, the measured function
 loop is lightweight, and post-profile MSPT is a noisy 100-tick sample. Exact
@@ -363,9 +365,11 @@ The archive has 76 functions. It contains three direct literal fake-holder
 ScoreAdd sites: `vm:player/register` increments `#next_id`,
 `vm:detection/ray_step` increments `#ray`, and `vm:queue/drain` increments
 `#head`. The active native mining path reaches the ray-step and queue-drain
-entries. Static screening found no adjacent eligible command pair in the
-archive, so this candidate does not supply a fused-region or bytecode-region
-workload.
+entries. The earlier direct-entry scan found no adjacent eligible pair; a
+2026-11-03 static screen found 145 adjacent parsed candidates in
+`vm:detection/acquire_target` and 59 in `vm:detection/verify_mined_stat`, so
+the archive is a static fused candidate, but runtime specialization and
+performance remain unmeasured.
 
 The repeatable driver is `scripts/run_veinminer_profile.py`. It pins the
 datapack, official 26.3 server, and Spark hashes; creates a deterministic ore
@@ -774,10 +778,12 @@ startup on Bellows' `MoonriseEntityLookupMixin`: its `EntityLookup.entityById`
 shadow is missing from the pinned Moonrise target, so no datapack workload
 comparison was run there.
 
-No adjacent eligible region exists in Vein Miner, so it does not provide
-fused/bytecode real-workload coverage. Its queue is drained after mining and
-idle between events, making this a player-triggered traversal burst rather
-than continuous idle tick load.
+A 2026-11-03 static screen found 145 adjacent parsed candidates in Vein Miner's
+`vm:detection/acquire_target` and 59 in `vm:detection/verify_mined_stat`, so it
+is a static fused candidate even though runtime specialization and performance
+remain unmeasured. Its queue is drained after mining and idle between events,
+making this a player-triggered traversal burst rather than continuous idle tick
+load.
 
 The original 15 ScoreAdd pairs cover Fabric, Fabric+Lithium, and
 Fabric+Lithium+Moonrise 1.2.1; none demonstrates a reliable gain. The new

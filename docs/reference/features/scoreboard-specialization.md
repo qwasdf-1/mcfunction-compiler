@@ -1,7 +1,7 @@
 # Scoreboard Specialization (`ScoreAddPrototype`)
 
-**Status:** Production implementation verified; promoted in v1.0.  
-**Configuration Key:** Controlled via `"fused_regions": true` (in `config/function-compiler.json`)  
+**Status:** Experimental and disabled by default. Differential fixtures and runtime matrices cover the specialized commands, but the standalone pass and the fused-region engine remain off pending a real-workload performance gate.  
+**Configuration Key:** `"score_add": false` enables the standalone pass on an enabled wrapper. `"fused_regions": true` also enables this pass because fused regions execute the specialized commands; an explicit `FC_SCORE_ADD_PROTOTYPE=false` environment override still wins for diagnostics.  
 **Owner Classes:** [`ScoreAddPrototype.java`](../../../src/main/java/dev/functioncompiler/ScoreAddPrototype.java), [`ScoreAddCommand.java`](../../../src/main/java/dev/functioncompiler/ScoreAddCommand.java), [`ScoreOperationCommand.java`](../../../src/main/java/dev/functioncompiler/ScoreOperationCommand.java), [`ScoreResetCommand.java`](../../../src/main/java/dev/functioncompiler/ScoreResetCommand.java), [`ScoreConditionCommand.java`](../../../src/main/java/dev/functioncompiler/ScoreConditionCommand.java), [`ScoreStoreCommand.java`](../../../src/main/java/dev/functioncompiler/ScoreStoreCommand.java)  
 **Test IDs:** [`SCORE-001`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L21) through [`SCORE-015`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv#L91)
 
@@ -63,4 +63,4 @@ The specialized path guarantees exact observable parity with mod-free vanilla:
 
 ## 4. Performance & Integration
 
-Across isolated trials, single specialized commands produce modest gains because scheduler overhead dominates individual commands. However, when grouped into contiguous fused regions ([`PERF-012`](../../../benchmarks/PERF-012-macro-region-compilation.md)), contiguous scoreboard mutations achieve **90.9% queue reduction** and a **+37.17% median speedup**.
+Across isolated trials, single specialized commands produce modest gains because scheduler overhead dominates individual commands. However, when grouped into contiguous fused regions ([`PERF-012`](../../../benchmarks/PERF-012-macro-region-compilation.md)), contiguous scoreboard mutations achieve **90.9% queue reduction** and a **+37.17% median speedup**. These are controlled static and macro fixtures, not real-datapack evidence; the real-workload performance gate remains open and both flags stay off by default.

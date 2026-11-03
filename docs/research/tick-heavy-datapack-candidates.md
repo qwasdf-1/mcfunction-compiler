@@ -23,7 +23,11 @@ through +24.37%; ScoreAdd has a +3.60% slower median and a range through
 native Vein Miner control both pass. Five selective-macro pairs show a −20.11%
 median event-completion change (93.75% interval −36.67% to +7.01%); screening
 only. Bellows 1.1.3 + Moonrise 1.2.1 still fails server startup on a Bellows
-Mixin shadow mismatch.
+Mixin shadow mismatch. A 2026-11-03 static screen of all 19 pinned archives
+found adjacent candidate runs that the earlier direct-entry scan missed,
+including Vein Miner's family-detection if-chains and Blastback's generated
+block-state tables. The screen is static candidate evidence only: none of those
+packs has runtime-confirmed fused specialization or measured performance.
 
 This audit separates continuous tick load from event-triggered command bursts.
 They test different compiler behavior and should not be combined into one
@@ -39,7 +43,7 @@ itself establish function-execution cost.
 | [Bigger Every Kill](https://modrinth.com/datapack/bigger-every-kill) 1.0.0 | Rejected on exact 26.3 runtime load despite its project page listing support | The archive has a global non-player tick scan, stale-score guard, and storage-argument function, but the official server rejects its advancement JSON during registry loading (`conditions.entity` has the wrong shape). | Do not profile this artifact. Reconsider only after an upstream 26.3-compatible release is published; keep its pin as a compatibility finding, not a runnable workload. |
 | [Blastback](https://modrinth.com/datapack/blastback/version/dMtA8r0n) Hotfix 3 | Exact 26.3 artifact loads. Its 1-TNT event still fails restoration validation; a separate no-TNT dispatcher pilot passes two paired Fabric compiler-off/ScoreAdd profiles. | The archive contains 21,318 functions and about 269,000 non-comment command lines. Its tick tag enters one dispatcher, which increments `#tick_id` through a literal fake-holder ScoreAdd on every dispatch. The publisher describes capture, restoration, verification, and cleanup pumps that stop when idle. | The no-TNT pilot verifies one compiled `erb:runtime_tick` ScoreAdd, exact `#tick_id` deltas in both profile pairs, and 340 specialized-entry executions in a separate instrumented diagnostic. It is a lightweight path pilot, not a heavy event workload or performance decision. The 1-TNT event still leaves 3,273 saved-block markers, a restore job, and protected-item state after a 180-second capture plus a five-minute drain; its 17×17×17 source volume differs from the untouched template. Keep the event profile deferred. |
 | [Tschipcraft Spawn Animations](https://modrinth.com/datapack/spawn-animations) 1.11.6 | Exact artifact loaded on 26.3; one short all-thread burst pilot completed | In the pilot, 24 zombies remained present, six were in the active animation state at profile start, and none remained active after six seconds. The Server thread tree contained 47 thread nodes and 288 ms weighted in `ServerFunctionManager.execute`. | Valid path pilot for a transient spawn burst; not a stable cost estimate. The six-second sample was mostly idle by its end. Add repeated controlled waves before comparison runs. See [PERF-010 evidence](real-world-profile-targets.md#spawn-animations-burst-pilot-and-other-screening). |
-| [Vein Miner](https://modrinth.com/datapack/vein_miner) 5.3.0 | Exact 26.3 datapack release pinned; GPL-3.0-only; 76 functions, 147 archive entries | The archive has three direct literal fake-holder ScoreAdd sites: `vm:player/register` (`#next_id`), `vm:detection/ray_step` (`#ray`), and `vm:queue/drain` (`#head`). The native 6×6×6 survival-player mining event completes 215 blocks and advances `#head` 1,952 times. An instrumented run also records 4,212 `#ray` additions, for 6,164 observed callbacks across the two event hot-path entries. Five-pair campaigns on Fabric, Fabric+Lithium, and Fabric+Lithium+Moonrise 1.2.1 match exact workload state. No adjacent eligible pair exists in the archive. | Selected and validated as the real event-driven direct-ScoreAdd workload on three supported test stacks. Fabric shows no reliable gain (−0.19% completion and +0.31% weighted function samples). Lithium and Lithium+Moonrise medians trend slower (+12.47%/+12.46% and +19.98%/+21.62%), but ranges are wide and cross zero; neither proves a stable regression or gain. The Moonrise campaign included a temporary dormant diagnostic mixin, so it is directional evidence. Compiler-off controls on Bellows 1.1.2 and Lithium+Bellows 1.1.2 fail native workload integrity (0/63 each); Lithium+Bellows+Moonrise 1.2.0 fails (0/215). These are datapack/mod workload failures, not compiler comparisons or general proof that Bellows breaks functions. Keep ScoreAdd disabled. Bellows-only 1.1.3 passes the pinned native 4×4×4 fixture; Lithium+Bellows 1.1.3 passes 6×6×6 (215/215). Five-pair no-Spark screens on Lithium+Bellows 1.1.3 pass exact parity for selective macro and ScoreAdd. Selective macro has a −18.83% median event-completion change but a −20.62% to +24.37% interval; ScoreAdd has a +3.60% slower median and a −2.04% to +91.11% interval. Both are screening only, not promotion evidence. Bellows 1.1.3 + Moonrise 1.2.0 passes the native Vein Miner 6×6×6 control and a five-pair selective-macro screen with exact workload parity; its −20.11% median completion change has a 93.75% interval from −36.67% to +7.01%, so remains screening evidence. Bellows 1.1.3 + Moonrise 1.2.1 fails startup on a missing `EntityLookup.entityById` shadow. An opt-in 4×4×4 Lithium callback diagnostic counted 7,116 generic and 1,122 optimized leaf callbacks (8,238 total); the optimized count matched the independent ScoreAdd counter. This single instrumented event is attribution data, not performance evidence. Artifact SHA-256: `fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e`. |
+| [Vein Miner](https://modrinth.com/datapack/vein_miner) 5.3.0 | Exact 26.3 datapack release pinned; GPL-3.0-only; 76 functions, 147 archive entries | The archive has three direct literal fake-holder ScoreAdd sites: `vm:player/register` (`#next_id`), `vm:detection/ray_step` (`#ray`), and `vm:queue/drain` (`#head`). The native 6×6×6 survival-player mining event completes 215 blocks and advances `#head` 1,952 times. An instrumented run also records 4,212 `#ray` additions, for 6,164 observed callbacks across the two event hot-path entries. Five-pair campaigns on Fabric, Fabric+Lithium, and Fabric+Lithium+Moonrise 1.2.1 match exact workload state. A 2026-11-03 static screen found four tick-reachable literal-score runs (the longest is 19 `@s` adds in the one-time `vm:player/register` initialization) plus 145 adjacent parsed candidates in `vm:detection/acquire_target`, mainly block-family and block-state if-chains, and 59 in `vm:detection/verify_mined_stat`. Those are static fused candidates, not runtime-confirmed specialization. | Selected and validated as the real event-driven direct-ScoreAdd workload on three supported test stacks. Fabric shows no reliable gain (−0.19% completion and +0.31% weighted function samples). Lithium and Lithium+Moonrise medians trend slower (+12.47%/+12.46% and +19.98%/+21.62%), but ranges are wide and cross zero; neither proves a stable regression or gain. The Moonrise campaign included a temporary dormant diagnostic mixin, so it is directional evidence. Compiler-off controls on Bellows 1.1.2 and Lithium+Bellows 1.1.2 fail native workload integrity (0/63 each); Lithium+Bellows+Moonrise 1.2.0 fails (0/215). These are datapack/mod workload failures, not compiler comparisons or general proof that Bellows breaks functions. Keep ScoreAdd disabled. Bellows-only 1.1.3 passes the pinned native 4×4×4 fixture; Lithium+Bellows 1.1.3 passes 6×6×6 (215/215). Five-pair no-Spark screens on Lithium+Bellows 1.1.3 pass exact parity for selective macro and ScoreAdd. Selective macro has a −18.83% median event-completion change but a −20.62% to +24.37% interval; ScoreAdd has a +3.60% slower median and a −2.04% to +91.11% interval. Both are screening only, not promotion evidence. Bellows 1.1.3 + Moonrise 1.2.0 passes the native Vein Miner 6×6×6 control and a five-pair selective-macro screen with exact workload parity; its −20.11% median completion change has a 93.75% interval from −36.67% to +7.01%, so remains screening evidence. Bellows 1.1.3 + Moonrise 1.2.1 fails startup on a missing `EntityLookup.entityById` shadow. An opt-in 4×4×4 Lithium callback diagnostic counted 7,116 generic and 1,122 optimized leaf callbacks (8,238 total); the optimized count matched the independent ScoreAdd counter. This single instrumented event is attribution data, not performance evidence. Artifact SHA-256: `fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e`. |
 | [VeinMiner by Miraculixx](https://modrinth.com/datapack/veinminer) | Exact 26.3 datapack archive pinned; AGPL-3.0-only | This is a separate, older datapack artifact from the selected `vein_miner` 5.3.0 project. Its `1.3.6` archive has a 28-function tick-reachable graph but no direct literal fake-holder ScoreAdd commands. The user reports it works with Lithium+Bellows 1.1.2, while 5.3.0 stalls; the only visible difference noted was that 1.3.6 mined the vein in one tick while 5.3.0 spread work across ticks. | Retain as a negative eligibility finding; it is a compatibility cross-check, not a direct parity comparator. Do not substitute its mod build. Artifact SHA-256: `d0575fadca3fe41c8630e3748e7234a3f46c6280c9e9e4776710c7c6d2b1d605`. |
 | [Incendium Legacy](https://modrinth.com/datapack/incendium/versions) | 26.3 artifact is listed | Modrinth's hosting guide flags Incendium's command-based gameplay features; the project is also a large Nether world-generation pack. | Excluded from this AI-assisted project unless Stardust Labs grants permission: its [license](https://github.com/Stardust-Labs-MC/license) explicitly prohibits using its works to test or debug AI systems. |
 
@@ -121,7 +125,7 @@ shapes. They do not currently add another eligible fake-holder ScoreAdd path.
 |---|---|---|
 | [Hostile Mobs Improve Over Time](https://modrinth.com/datapack/hostile-mobs-improve-over-time) 2.3 | The exact 26.3 zip has a recurring one-second schedule plus per-player and entity ability work. The live paths contain no direct literal fake-holder additions; an otherwise eligible-looking `global.mcfunction` is not referenced by the archive's load, tick, or scheduled function paths. License is ARR. | A useful future selector, nested-call, and player-scaling profile after a dedicated setup/validation fixture is built. Keep the archive local and do not treat its unreachable `global` function as optimizer coverage. SHA-256: `605a72ceee727a04dd8d524a8a2ceb9eb8d0e893e5dc4ad805419ccbe9191b6b`. |
 | [Better Days Display](https://modrinth.com/datapack/better-days-display/) 1.2 | Exact 26.3 archive with 124 functions and a per-player tick loop. Its timer additions are player-targeted and only run on a day change or active countdown; no direct literal fake-holder add appears in the scanned functions. | A per-player tick-scaling profile candidate, but no current ScoreAdd/fused coverage. SHA-256: `19c5fcfaba9fca2ab7b01606105e8612aab172eaadf978c6615fb3d1b666730e`. |
-| [Simple Timer](https://modrinth.com/datapack/simple-timer1) 1.2 | Exact 26.3 archive with a 51-line tick function that updates a shared scoreboard timer and sends actionbar output. Scoreboard adds sit inside `execute` commands, so they do not match the current direct-entry prototype; license is ARR. | A compact command-loop control, not a large-scale pack or current optimization target. SHA-256: `54bc3dc9fa195f8356758dfd24446c0f052c4cec544027f40dcfbe75ca96f8e8`. |
+| [Simple Timer](https://modrinth.com/datapack/simple-timer1) 1.2 | Exact 26.3 archive with a 51-line tick function that updates a shared scoreboard timer and sends actionbar output. The tick function contains a 36-command tick-reachable run of `execute if score ... run` scoreboard adds and title output; both the score and title parsers are part of the current specialization pass, but the run has not been runtime-confirmed or profiled. License is ARR. | A compact command-loop control, not a large-scale pack or current optimization target. SHA-256: `54bc3dc9fa195f8356758dfd24446c0f052c4cec544027f40dcfbe75ca96f8e8`. |
 | [Dynamic Torches](https://modrinth.com/datapack/dynamic-torches) 5.4 | Exact 26.3 archive with a tick entry that scans and tags entity classes, creates/removes light markers, and performs block checks. It has no direct literal fake-holder addition. | A smaller dynamic-light alternative for a future entity-scaling profile; it does not cover the current ScoreAdd specialization. SHA-256: `0bbc23c4fafa8fb76aa60ef02140d39e6e5306c9c0b5322391dbe4815eb03594`. |
 | [Longer Days Datapack, Day and Night Length](https://modrinth.com/datapack/longer-days-datapack) | The pinned archive named Day Night Length has five functions and an active tick tag. Its small time-query loop has no eligible fake-holder add. | A lightweight control, not a tick-heavy target. SHA-256: `2d489be4a35711ebed9cf5ffdd72fabe56aa2f065d19e6cfaa9d8f133803e49a`. |
 | [Player Health Indicator](https://modrinth.com/datapack/show-player-health) 2.4.0 | Its 26.3 archive registers a load function but no tick function tag. | Exclude from continuous tick profiles. SHA-256: `2e93052aa77e2dd0f646fb8cb4041f6ef74470513e7ebd446a1e0abe7d3fb5db`. |
@@ -139,11 +143,13 @@ event bursts are separate result groups.
 
 ## Additional source screening for optimizer eligibility
 
-The exact matcher used by the current ScoreAdd prototype requires a direct
-`scoreboard players add` command with one literal fake-player target beginning
-with `#`, an objective, and an integer amount. A fused or bytecode region needs
-at least two such commands adjacent in one function. A project-level claim of
-tick cost or an eligible-looking command in an unreachable helper is not enough.
+The fused pass groups any adjacent entries whose parsed command implements
+`FusableCommand`. That includes the score mutations and operations exercised by
+PERF-016 as well as score conditions/stores, context modifiers, block/entity
+predicates, storage operations, title/effect/setblock/state-machine wrappers,
+and leaf calls. The static screen approximates only a subset of that family, so
+a run it does not flag can still fuse and a flagged run can still fail to
+parse. Runtime activation is the only confirmation.
 
 Two additional 26.3 leads were source-screened on 2026-10-28:
 
@@ -156,6 +162,34 @@ The source scan found D Better Schedule as one additional static candidate,
 with a reachable but one-time-per-player `#UID` addition. Its exact release
 archive has not yet been pinned or runtime-checked. For repeatable active
 ScoreAdd profiling, Vein Miner remains the validated workload and Blastback
-remains the lightweight dispatcher example. The scanned archives and source
-have no adjacent eligible pair, so the fused/bytecode real-datapack gate
-remains open. Do not replace that gate with a synthetic sidecar.
+remains the lightweight dispatcher example.
+
+## Static adjacent-region screen (2026-11-03)
+
+`scripts/screen_adjacent_regions.py` scans every pinned archive under
+`references/real-world`, follows `#minecraft:tick` and `#minecraft:load` call
+and tag closures, and reports three tiers: direct literal score mutations,
+wider parsed candidates, and leaf function calls. The generated report for the
+19 pinned packs is
+[`adjacent-regions-20261103T010423Z.md`](../../build/reports/datapack-screening/adjacent-regions-20261103T010423Z.md).
+The screen covers 27,762 functions; 5 packs contain a tick-reachable literal
+score run (10 runs total), and the wider candidate tier reports 7,692 tick runs.
+
+| Pack | Tick-reachable functions | Literal tick runs | Parsed tick runs | Max parsed tick run | Main candidate shape |
+|---|---:|---:|---:|---:|---|
+| Blastback Hotfix 3 | 11,231 | 3 | 7,580 | 32 | `read_state/minecraft/*/root` block-state tables: 32 adjacent `execute if block ... run scoreboard players set @s erb.state N` commands |
+| Vein Miner 5.3.0 | 55 | 4 | 31 | 145 | `detection/acquire_target` block-family/state if-chains; `verify_mined_stat` has 59; `player/register` has a one-time 19-add `@s` initialization |
+| Simple Timer 1.2 | 3 | 0 | 3 | 36 | tick display/clock chain of `execute if score ... run scoreboard players add` and `run title` |
+| Better Days Display 1.2 | 50 | 1 | 11 | 34 | day-bar/display update chain |
+| Everything Clings 1.0.0 | 3 | 0 | 2 | 6 | position `data get`/score-store chain |
+
+These are candidate shapes, not proof of runtime specialization. Blastback's
+32-command state table is reached from `erb:capture/store` through
+`erb_generated:read/root` for each restorable block during radius-8 capture
+scans; its earlier 1-TNT restoration failure still blocks that event profile.
+Vein Miner's family detection runs per scanned block during the validated
+mining event, and Simple Timer's chain runs on each active tick. Runtime
+activation counts and a matched compiler-off/candidate comparison are still
+required before any of them can support a real-world fusion claim. The
+fused/bytecode real-datapack gate therefore remains open; do not replace it
+with a synthetic sidecar.

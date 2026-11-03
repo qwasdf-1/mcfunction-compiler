@@ -9,10 +9,11 @@ bytecode backend. Defaults and promotions must track the measured evidence in
 Selective macro extraction is the only optimization with real-event confirmatory
 parity and performance promotion evidence (-22.34% on Fabric, -22.06% on
 Lithium; Belows is supported but less stable). Fused region prototype code is
-present, but it has no adjacent eligible real-world workload and remains
-disabled by default. Tiered bytecode is present but opt-in; the bounded reload
-and Metaspace evidence only supports continued experimentation, not blanket
-production claims.
+present and a 2026-11-03 static screen found adjacent candidate runs in pinned
+packs, but no candidate has runtime-confirmed specialization or a measured
+real-world gain; it remains disabled by default. Tiered bytecode is present but
+opt-in; the bounded reload and Metaspace evidence only supports continued
+experimentation, not blanket production claims.
 
 ## Verified
 
@@ -349,7 +350,11 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   one compiled `erb:runtime_tick` command. `ServerFunctionManager.execute`
   weighted samples were lower in both optimized captures, but two short runs
   are not enough to make a performance claim. The no-TNT scenario still has
-  one active group, and the fused prototype has no eligible adjacent region.
+  one active group. A 2026-11-03 static screen found adjacent candidate runs in
+  the archive's generated block-state reader (32 `execute if block ... run
+  scoreboard players set` commands per state table), reached from
+  `erb:capture/store` during capture scans; runtime specialization and
+  performance remain unmeasured.
 - Earlier CPU profiles used a `Server thread` filter that resolved to an empty
   thread set in standalone-agent runs. Those files have metadata and health
   metrics, not CPU call trees. The runner now samples all threads and rejects
@@ -519,9 +524,10 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   exact 5.25-million score. Fused was faster in both randomized sets, but this
   is still evidence for one static 5,000-command fixture; timer-overhead
   calibration, allocation/reload costs, and broader semantic gates remain open.
-  Vein Miner now supplies a real native-trigger workload for direct ScoreAdd,
-  but no screened datapack has an adjacent eligible pair for real-world fused
-  or bytecode measurement. Keep it disabled.
+  Vein Miner now supplies a real native-trigger workload for direct ScoreAdd.
+  A 2026-11-03 static screen found adjacent candidate runs in several pinned
+  packs, but none has runtime-confirmed specialization or a measured real-world
+  fused/bytecode comparison. Keep it disabled.
   See the [PERF-003 timing report](../benchmarks/README.md#perf-003-server-thread-queue-timing).
 - The pinned Dynamic Lights 1.4.6 pack has no literal fake-holder `#` ScoreAdd
   commands, so the current fused prototype has no eligible work in that
@@ -539,9 +545,11 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   by one in the Lithium pair; Spark samples move both directions. These short
   captures are path coverage, not a performance decision. The scenario has one
   active group and does not
-  cover the TNT restoration event, which still fails its integrity gate. The
-  fused prototype has no adjacent eligible region in Blastback. Keep both
-  prototypes disabled pending broader workload, compatibility, and P0 gates.
+  cover the TNT restoration event, which still fails its integrity gate. A
+  2026-11-03 static screen found a 32-command adjacent candidate in the
+  archive's generated block-state reader, but runtime specialization and
+  performance remain unmeasured. Keep both prototypes disabled pending broader
+  workload, compatibility, and P0 gates.
 - A pinned [Vein Miner 5.3.0 26.3 datapack](research/tick-heavy-datapack-candidates.md)
   supplies a native, event-driven ScoreAdd workload. An isolated vanilla 26.3
   server used the pack's crouch-and-break trigger: the ray tracker selected
@@ -558,9 +566,12 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   the pack counter. Generic callback accounting is verified on the native
   4×4×4 event. The later Lithium+Bellows 1.1.3 native event and ScoreAdd screen
   also pass workload and activation checks, with no reliable performance gain.
-  The pack has no adjacent eligible region for fused/bytecode testing. The
-  direct-ScoreAdd workload is covered on Fabric, Fabric+Lithium,
-  Fabric+Lithium+Moonrise 1.2.1, and Lithium+Bellows 1.1.3.
+  A 2026-11-03 static screen found 145 adjacent parsed candidates in
+  `vm:detection/acquire_target` plus a one-time 19-add `@s` initialization, so
+  the archive is a static fused candidate even though runtime specialization
+  and performance are unmeasured. The direct-ScoreAdd workload is covered on
+  Fabric, Fabric+Lithium, Fabric+Lithium+Moonrise 1.2.1, and Lithium+Bellows
+  1.1.3.
 - The Vein Miner native-trigger campaign also ran five randomized 6×6×6 pairs
   on Fabric + Lithium 0.26.2. All ten arms completed 215 work items, advanced
   `#head` by 1,952, removed the ore, and ended with no operation markers; each
@@ -906,9 +917,10 @@ Moonrise diagnostic mixin mean neither establishes a reliable causal
 regression. No tested Vein Miner stack shows a real-world ScoreAdd speedup. The
 direct-ScoreAdd workload and Vein Miner callback-accounting requirements are
 satisfied on the existing stacks, including the new Bellows 1.1.3 native event
-and ScoreAdd screen; neither prototype shows a reliable gain on this stack. No screened
-datapack has an adjacent eligible pair, so real-world fused/bytecode region
-measurements remain unavailable. Keep ScoreAdd disabled and pause expansion of
+and ScoreAdd screen; neither prototype shows a reliable gain on this stack. A
+2026-11-03 static screen found adjacent candidates in several pinned packs, but
+none has runtime-confirmed specialization or a measured real-world
+fused/bytecode comparison. Keep ScoreAdd disabled and pause expansion of
 that optimization until profiling identifies a costly target.
 PERF-005/006 show parity on controlled selector/NBT fixtures but no compiler
 sample reduction. Continue backend comparisons only on workloads with eligible

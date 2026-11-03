@@ -53,8 +53,10 @@ datapack still does not produce equivalent output on that stack. Vein Miner
 pairs show no reliable gain, while five Fabric+Lithium and five
 Fabric+Lithium+Moonrise pairs trend slower by median with wide ranges; none
 demonstrates a reliable gain. The latter campaign included a temporary dormant
-diagnostic mixin in both arms. It has no adjacent eligible pair for fused or
-bytecode regions. Compiler-off Vein Miner fails workload integrity on the
+diagnostic mixin in both arms. A 2026-11-03 static screen found adjacent
+candidate runs in the pack's family detection, but they have no runtime
+activation or performance evidence, so fused and bytecode regions remain
+unmeasured in a real pack. Compiler-off Vein Miner fails workload integrity on the
 tested Bellows-containing stacks, so those are not valid compiler comparisons;
 use another workload for Bellows compatibility profiling. Call-path analysis
 of all 15 valid compiler-off captures points to repeated `with entity @s data`

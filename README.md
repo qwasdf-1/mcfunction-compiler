@@ -18,7 +18,7 @@ The **Fused Region Engine** groups consecutive eligible commands into single unr
 - **Entity & Block Predicates:** Inlined evaluation of `execute if/unless entity @s` and `execute if/unless block <pos> <block>`.
 - **Storage Operations:** Direct in-memory mutation for `data modify storage ... set value` and `data remove storage`.
 
-`fused_regions` remains disabled by default: its semantic matrices and static-fixture timings pass, but no screened datapack supplies an adjacent-eligible region, so its real-world performance gate is still open (see the promotion table below).
+`fused_regions` remains disabled by default: its semantic matrices and static-fixture timings pass, and a 2026-11-03 static screen found adjacent candidate runs in pinned packs, but none has runtime-confirmed specialization or a measured real-world gain, so its performance gate is still open (see the promotion table below).
 
 ### 2. Selective Macro Arguments (Default: Enabled)
 Dynamic macro functions (`function <name> with ...`) traditionally trigger full NBT compound serialization on every call. The **Selective Macro Prototype** inspects the function template and extracts only the targeted keys (e.g., `amount`, `x`, `y`, `z`) directly from compound tags or storage targets:

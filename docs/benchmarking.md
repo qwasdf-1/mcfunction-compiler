@@ -114,9 +114,10 @@ Pin the exact archive and SHA-256. Confirm that the selected datapack function
 actually reaches the candidate path, then verify native work before comparing
 compiler modes. Prefer one or more workloads that exercise the mechanism under
 different call structures. Do not add unrelated packs just to increase the
-count. For example, Vein Miner is useful for entity-data macro arguments but
-has no adjacent eligible ScoreAdd pair, so it cannot establish fused-region or
-bytecode performance.
+count. For example, Vein Miner is useful for entity-data macro arguments; a
+2026-11-03 static screen found adjacent candidate runs in its family detection,
+but they have no runtime activation or performance evidence, so it cannot yet
+establish fused-region or bytecode performance.
 
 ### Mod-stack workload
 
@@ -276,8 +277,9 @@ Fabric campaign passed exact workload parity and exact region activation, but
 its −19.72% median workload-attributable tick-average change has a 97.85%
 interval of −30.30% to −12.90% that overlaps the preselected 15% minimum, so
 it is inconclusive rather than qualifying. It is one synthetic workload on one
-stack, and no screened datapack has an adjacent eligible region. Emitted
-bytecode has semantic and reload-retention evidence but no real-workload
+stack. A 2026-11-03 static screen found adjacent candidates in several pinned
+packs, but none has runtime-confirmed specialization or performance evidence.
+Emitted bytecode has semantic and reload-retention evidence but no real-workload
 performance result. Keep ScoreAdd, fused interpretation, and emitted bytecode
 disabled while their relevant workload and confirmatory performance gates remain
 open.
