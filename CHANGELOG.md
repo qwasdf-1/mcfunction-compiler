@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Run the first real-workload fused-region campaign (PERF-017) on the pinned
+  Vein Miner 6x6x6 native event: ten counterbalanced pairs with exact workload
+  parity (215/215 blocks, 1,952 `#head` increments), symmetric un-instrumentated
+  arms, and confirmed activation (105 regions compiled; a separate metrics-on
+  diagnostic measured 303 region executions and 16,833 specialized commands per
+  event). The paired event-completion median is **+0.69%** with a 97.85% exact
+  interval of **-3.92% to +2.74%**, decision `does_not_meet_threshold`. The
+  fused engine is demonstrably active on a real datapack and produces no
+  measurable gain there, so the fused-region real-world gate is closed rather
+  than open and `fused_regions` remains disabled by default. Promotion would
+  need a workload whose hot path is dominated by successful runs of specialized
+  commands, which the current screen has not identified.
+
 - Make `fused_regions` imply the scoreboard specialization pass and make the
   `score_add` disk flag effective when fusion is off. Previously
   `CompilerConfig.isScoreAddEnabled()` was dead code: `score_add=false` was

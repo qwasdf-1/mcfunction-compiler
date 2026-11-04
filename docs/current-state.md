@@ -896,6 +896,16 @@ stays disabled by default. The 5-pair screening pilot (single-window design)
 had a −22.86% median and a −86.55% to 0.00% interval and is retained as
 screening only. Full evidence, gates, limitations, and next actions:
 [PERF-016 report](../benchmarks/PERF-016-sustained-fused-region-active-tick.md).
+PERF-017 is the first real-datapack fused-region measurement, on the pinned
+Vein Miner 6×6×6 native event: ten counterbalanced pairs with exact workload
+parity (215/215 blocks, 1,952 `#head` increments) and confirmed activation (105
+regions compiled; a separate metrics-on diagnostic measured 303 region
+executions and 16,833 specialized commands per event). The paired
+event-completion median is +0.69% with a 97.85% exact interval from −3.92% to
++2.74%, so the fused engine delivers no measurable gain on this workload and
+the decision is `does_not_meet_threshold`. The fused-region real-world gate
+therefore stays open, and `fused_regions` remains disabled by default. See
+[PERF-017 report](../benchmarks/PERF-017-veinminer-fused-region-campaign.md).
 Bellows 1.1.2's compiler-off Vein Miner workload fails on Bellows,
 Lithium+Bellows, and Lithium+Bellows+Moonrise 1.2.0. On Bellows 1.1.3,
 Bellows-only 4×4×4 and Lithium+Bellows 6×6×6 native controls pass. A separate

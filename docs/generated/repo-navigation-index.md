@@ -459,17 +459,17 @@ This navigation index summarizes key code symbols across Java source and Python 
 - [`scripts/run_veinminer_campaign.py`](../../scripts/run_veinminer_campaign.py):
   - `def tick_metrics()`:38
   - `def profile_summary()`:52
-  - `def make_report()`:93
-  - `def main()`:356
+  - `def make_report()`:97
+  - `def main()`:370
 - [`scripts/run_veinminer_profile.py`](../../scripts/run_veinminer_profile.py):
-  - `def free_port()`:68
-  - `def wait_for_rcon()`:74
-  - `def read_score()`:93
-  - `def read_score_or_zero()`:101
-  - `def count_entities()`:110
-  - `def stats_int()`:121
-  - `def stats_provider_classes()`:128
-  - `def _selective_macro_provider_class_delta()`:145
+  - `def free_port()`:74
+  - `def wait_for_rcon()`:80
+  - `def read_score()`:99
+  - `def read_score_or_zero()`:107
+  - `def count_entities()`:116
+  - `def stats_int()`:127
+  - `def stats_provider_classes()`:134
+  - `def _selective_macro_provider_class_delta()`:151
 - [`scripts/screen_adjacent_regions.py`](../../scripts/screen_adjacent_regions.py):
   - `def sha256_bytes()`:70
   - `def classify()`:74

@@ -277,9 +277,14 @@ Fabric campaign passed exact workload parity and exact region activation, but
 its −19.72% median workload-attributable tick-average change has a 97.85%
 interval of −30.30% to −12.90% that overlaps the preselected 15% minimum, so
 it is inconclusive rather than qualifying. It is one synthetic workload on one
-stack. A 2026-11-03 static screen found adjacent candidates in several pinned
-packs, but none has runtime-confirmed specialization or performance evidence.
-Emitted bytecode has semantic and reload-retention evidence but no real-workload
+stack. The real-workload measurement now exists: `PERF-017` ran ten
+counterbalanced pairs on the pinned Vein Miner 6×6×6 native event with exact
+parity and confirmed region activation (303 region executions and 16,833
+specialized commands per event in the diagnostic), and the paired
+event-completion median is +0.69% with a 97.85% interval of −3.92% to +2.74% —
+decision `does_not_meet_threshold`. Fused regions are active on a real
+datapack and produce no measurable gain there. Emitted bytecode has semantic and
+reload-retention evidence but no real-workload
 performance result. Keep ScoreAdd, fused interpretation, and emitted bytecode
 disabled while their relevant workload and confirmatory performance gates remain
 open.
