@@ -49,3 +49,38 @@ In addition to datapack resource reloads, the compiler supports live configurati
 - **Command:** `/functioncompiler reload` triggers [`CompilerConfig.reload()`](../../../src/main/java/dev/functioncompiler/CompilerConfig.java).
 - **Behavior:** Reads `config/function-compiler.json` from disk, atomically updating active optimization toggles (`fused_regions`, `selective_macros`, `tiered_bytecode`, `tiered_threshold`) and namespace exclusion sets.
 - **Safety:** Ongoing function executions finish cleanly; newly dispatched or instantiated functions immediately observe updated compilation rules.
+
+## 6. Datapack Coverage Report
+
+Every successful function-library load (the initial load and each `/reload`) emits
+**one consolidated coverage report** to the server log at INFO level, from
+[`FunctionCoverageReport.java`](../../../src/main/java/dev/functioncompiler/FunctionCoverageReport.java).
+The report is emitted by attaching to the completion of
+`ServerFunctionLibrary.reload`, which finishes only after every datapack's
+functions have been built, so a load with thousands of functions produces four
+log lines rather than one per function.
+
+**Example** (six-function Vein Miner-scale synthetic pack plus the mod's own
+probe functions):
+
+```text
+[main/INFO] (function_compiler) Function coverage: 228 functions loaded, 185 covered (81.1%), 3 namespace(s)
+[main/INFO] (function_compiler) Function coverage: namespace excluded_ns -> 2 functions, 1 covered (50.0%)
+[main/INFO] (function_compiler) Function coverage: namespace function_compiler_probe -> 223 functions, 182 covered (81.6%)
+[main/INFO] (function_compiler) Function coverage: namespace function_compiler_fused_sustained -> 3 functions, 2 covered (66.7%)
+```
+
+**Definitions.**
+- **Loaded** is every function the load produced, counted in
+  `FunctionBuilder.build` ({@link dev.functioncompiler.mixin.FunctionBuilderMixin}).
+- **Covered** is a function with at least one command that the specialization
+  pass actually compiled, counted at the specialization site in
+  {@link dev.functioncompiler.ProbeMetrics#scoreAddCompiled}. A function that is
+  wrapped but whose commands all fall back to vanilla is *not* covered; a
+  function whose namespace is on `excluded_namespaces` is wrapped but not
+  covered.
+- **One row per namespace**, not per archive. A datapack normally owns one
+  namespace, so the rows read as one datapack each; two packs that deliberately
+  share a namespace are reported together, and the total row is unaffected.
+- The report is emitted only when the wrapper is enabled, and it resets its
+  counters after emitting, so each load reports its own function set.

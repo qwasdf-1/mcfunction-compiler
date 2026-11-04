@@ -27,6 +27,13 @@ public final class ProbeMetrics {
             new ConcurrentHashMap<>();
     private static final ConcurrentMap<Identifier, AtomicLong> SCORE_ADD_TIMED_BY_FUNCTION =
             new ConcurrentHashMap<>();
+    // Per-namespace datapack coverage counters. A datapack normally owns one
+    // namespace, so the namespace is the practical grouping for the load
+    // report; see FunctionCoverageReport.
+    private static final ConcurrentMap<String, AtomicLong> FUNCTIONS_BY_NAMESPACE =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, AtomicLong> COVERED_FUNCTIONS_BY_NAMESPACE =
+            new ConcurrentHashMap<>();
     // Timed command callbacks run on the Minecraft server thread. These
     // test-only counters avoid adding atomic operations to the measured path.
     private static long SCORE_ADD_TIMED_CALLS;
@@ -82,9 +89,48 @@ public final class ProbeMetrics {
 
     public static void scoreAddCompiled(Identifier functionId) {
         SCORE_ADD_COMPILED.incrementAndGet();
-        SCORE_ADD_COMPILED_BY_FUNCTION
-                .computeIfAbsent(functionId, ignored -> new AtomicLong())
+        AtomicLong perFunction = SCORE_ADD_COMPILED_BY_FUNCTION
+                .computeIfAbsent(functionId, ignored -> new AtomicLong());
+        if (perFunction.get() == 0L) {
+            // First specialized command for this function: the function is covered.
+            functionCovered(functionId.getNamespace());
+        }
+        perFunction.incrementAndGet();
+    }
+
+    /** Records a function built during datapack load, grouped by namespace. */
+    public static void functionLoaded(String namespace) {
+        FUNCTIONS_BY_NAMESPACE
+                .computeIfAbsent(namespace, ignored -> new AtomicLong())
                 .incrementAndGet();
+    }
+
+    /** Records that at least one command in a function was specialized. */
+    public static void functionCovered(String namespace) {
+        COVERED_FUNCTIONS_BY_NAMESPACE
+                .computeIfAbsent(namespace, ignored -> new AtomicLong())
+                .incrementAndGet();
+    }
+
+    public static void resetCoverageCounters() {
+        FUNCTIONS_BY_NAMESPACE.clear();
+        COVERED_FUNCTIONS_BY_NAMESPACE.clear();
+    }
+
+    public static java.util.Map<String, Long> functionsByNamespace() {
+        java.util.Map<String, Long> snapshot = new java.util.LinkedHashMap<>();
+        FUNCTIONS_BY_NAMESPACE.entrySet().stream()
+                .sorted(java.util.Map.Entry.comparingByKey())
+                .forEach(entry -> snapshot.put(entry.getKey(), entry.getValue().get()));
+        return snapshot;
+    }
+
+    public static java.util.Map<String, Long> coveredFunctionsByNamespace() {
+        java.util.Map<String, Long> snapshot = new java.util.LinkedHashMap<>();
+        COVERED_FUNCTIONS_BY_NAMESPACE.entrySet().stream()
+                .sorted(java.util.Map.Entry.comparingByKey())
+                .forEach(entry -> snapshot.put(entry.getKey(), entry.getValue().get()));
+        return snapshot;
     }
 
     public static long scoreAddsCompiled() {

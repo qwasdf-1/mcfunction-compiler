@@ -1,6 +1,7 @@
 package dev.functioncompiler.mixin;
 
 import dev.functioncompiler.ProbeConfiguration;
+import dev.functioncompiler.ProbeMetrics;
 import dev.functioncompiler.ProbeFunctionWrapper;
 import net.minecraft.commands.functions.CommandFunction;
 import net.minecraft.commands.functions.MacroFunction;
@@ -18,6 +19,12 @@ abstract class FunctionBuilderMixin {
             Identifier id,
             CallbackInfoReturnable<CommandFunction<?>> callback
     ) {
+        // Count every function the datapack load produces, grouped by namespace,
+        // so FunctionCoverageReport can report totals once per reload.
+        if (id != null) {
+            ProbeMetrics.functionLoaded(id.getNamespace());
+        }
+
         if (!ProbeConfiguration.wrapperEnabled()) {
             return;
         }
@@ -28,6 +35,9 @@ abstract class FunctionBuilderMixin {
                 || ProbeConfiguration.scoreAddTimingEnabled()
                 || ProbeConfiguration.commandCallbackMetricsEnabled());
         if (built instanceof PlainTextFunction<?> || compileMacroExpansion) {
+            // "Covered" is counted where the specialization actually happens
+            // (ProbeMetrics.scoreAddCompiled), not here: a wrapped function in an
+            // excluded namespace is wrapped but not covered.
             callback.setReturnValue(wrap(built));
         }
     }
