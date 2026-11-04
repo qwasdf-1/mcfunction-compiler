@@ -176,6 +176,12 @@ Two further observations, recorded because they explain the shape rather than ex
 
 The pre-declared consequence therefore stands: **this campaign is recorded as inconclusive, `fused_regions` remains disabled by default, and no further attempt at this design is made on the basis of a new seed.** Any subsequent campaign would need a new pre-declaration whose rationale is a *variance* reduction (for example a materially stricter host gate, or a quieter host), since the observed obstacle is per-pair spread around a consistent ~−20% effect rather than a missing effect.
 
+#### Accidental replication (recorded for completeness, not as a planned campaign)
+
+A follow-up attempt was launched on 2026-11-04 with the same seed 26873001 by mistake: a script edit updated the gate's log line to announce a different campaign but failed to update the command it executed, so this runner ran again instead of the intended new one. It is recorded here rather than silently discarded, because the honest treatment of a mistake that produced data is to state what it was.
+
+The result: median **−18.93%** with an exact interval of **−22.43% to −13.27%** at 97.87% coverage, exact parity, decision inconclusive (report `fabric-confirmatory-16pairs-20261104T040739762667Z`). Two of its pairs were positive (+10.0% and +17.5%), more contamination than the pre-declared run. Taken with the pre-declared campaign it makes the mechanism effect look consistent — two independent host windows at the same seed give medians of −20.72% and −18.93% and intervals that both straddle −15% — which strengthens the "consistent ~−20% effect, blocked by per-pair spread" reading without changing the decision. It is not counted as a separate campaign for the purposes of the §5 table, and no conclusion rests on it.
+
 ### 5.3 Lithium + Bellows 1.1.3, 5,000 adds per active tick (10 pairs)
 
 The first mod-stack confirmatory run for this fixture. The stack passed the same gates as Fabric: exact workload integrity in all arms, exact activation (94 compiled, 673 executed, one per active tick), and exact parity in every pair.
