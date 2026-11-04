@@ -277,10 +277,14 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
         off_result = next(
             result for result in arms.values() if result["compiler_mode"] == "off"
         )
+        # The fused candidate runs the profile runner's symmetric "fused-timed"
+        # mode, so the arm's recorded compiler_mode is the profile mode, not the
+        # campaign candidate name.
+        candidate_profile_mode = "fused-timed" if args.candidate == "fused" else args.candidate
         candidate_result = next(
             result
             for result in arms.values()
-            if result["compiler_mode"] == args.candidate
+            if result["compiler_mode"] == candidate_profile_mode
         )
         pair["off"] = off_result
         pair[args.candidate] = candidate_result
