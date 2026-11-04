@@ -71,6 +71,9 @@ This navigation index summarizes key code symbols across Java source and Python 
 - [`src/main/java/dev/functioncompiler/FunctionCompilerMod.java`](../../src/main/java/dev/functioncompiler/FunctionCompilerMod.java):
   - `class FunctionCompilerMod`:15
   - `method onInitialize()`:35
+- [`src/main/java/dev/functioncompiler/FunctionCoverageReport.java`](../../src/main/java/dev/functioncompiler/FunctionCoverageReport.java):
+  - `class FunctionCoverageReport`:17
+  - `method logReloadReport()`:21
 - [`src/main/java/dev/functioncompiler/FusableCommand.java`](../../src/main/java/dev/functioncompiler/FusableCommand.java):
   - `class FusableCommand`:9
 - [`src/main/java/dev/functioncompiler/FusedRegionPrototype.java`](../../src/main/java/dev/functioncompiler/FusedRegionPrototype.java):
@@ -137,17 +140,17 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `method originalFallbackRetained()`:145
 - [`src/main/java/dev/functioncompiler/ProbeMetrics.java`](../../src/main/java/dev/functioncompiler/ProbeMetrics.java):
   - `class ProbeMetrics`:9
-  - `method wrapperCreated()`:59
-  - `method wrapperInstantiated()`:63
-  - `method wrappersCreated()`:67
-  - `method wrapperInstantiations()`:71
-  - `method probeFunctionParsed()`:75
-  - `method probeFunctionParseCount()`:79
-  - `method scoreAddCompiled()`:83
-  - `method scoreAddsCompiled()`:90
-  - `method scoreAddsCompiled()`:94
-  - `method scoreAddExecuted()`:99
-  - `method scoreAddsExecuted()`:106
+  - `method wrapperCreated()`:66
+  - `method wrapperInstantiated()`:70
+  - `method wrappersCreated()`:74
+  - `method wrapperInstantiations()`:78
+  - `method probeFunctionParsed()`:82
+  - `method probeFunctionParseCount()`:86
+  - `method scoreAddCompiled()`:90
+  - `method functionLoaded()`:102
+  - `method functionCovered()`:109
+  - `method resetCoverageCounters()`:115
+  - `method scoreAddsCompiled()`:136
 - [`src/main/java/dev/functioncompiler/ProbeRuntimeTrace.java`](../../src/main/java/dev/functioncompiler/ProbeRuntimeTrace.java):
   - `class ProbeRuntimeTrace`:3
   - `method enabled()`:9
@@ -238,8 +241,8 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `@Mixin(ExecutionContext)`:21
   - `class ExecutionContextMixin`:22
 - [`src/main/java/dev/functioncompiler/mixin/FunctionBuilderMixin.java`](../../src/main/java/dev/functioncompiler/mixin/FunctionBuilderMixin.java):
-  - `@Mixin(FunctionBuilder")`:14
-  - `class FunctionBuilderMixin`:15
+  - `@Mixin(FunctionBuilder")`:15
+  - `class FunctionBuilderMixin`:16
 - [`src/main/java/dev/functioncompiler/mixin/FunctionCommandInvoker.java`](../../src/main/java/dev/functioncompiler/mixin/FunctionCommandInvoker.java):
   - `@Mixin(FunctionCommand)`:11
   - `class FunctionCommandInvoker`:12
@@ -258,6 +261,9 @@ This navigation index summarizes key code symbols across Java source and Python 
 - [`src/main/java/dev/functioncompiler/mixin/SelectiveMacroArgumentsMixin.java`](../../src/main/java/dev/functioncompiler/mixin/SelectiveMacroArgumentsMixin.java):
   - `@Mixin(FunctionCommand$2")`:18
   - `class SelectiveMacroArgumentsMixin`:19
+- [`src/main/java/dev/functioncompiler/mixin/ServerFunctionLibraryMixin.java`](../../src/main/java/dev/functioncompiler/mixin/ServerFunctionLibraryMixin.java):
+  - `@Mixin(ServerFunctionLibrary)`:26
+  - `class ServerFunctionLibraryMixin`:27
 
 ## Key Tooling Scripts (`scripts/`)
 

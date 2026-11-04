@@ -225,19 +225,23 @@ flowchart TD
 
 1. **User Configuration (`config/function-compiler.json`):**
    - Implemented [`CompilerConfig.java`](../../../src/main/java/dev/functioncompiler/CompilerConfig.java) with auto-creation and dynamic hot reloading.
-   - Default-on production toggles:
-     - `fused_regions`: `true`
-     - `selective_macros`: `true`
-     - `tiered_bytecode`: `false` (opt-in experimental)
-     - `tiered_threshold`: `5`
-     - `excluded_namespaces`: `[]` (per-datapack granular opt-out)
+   - **Actual shipped defaults** (verified 2026-11-04):
+     `enabled=false`, `score_add=false`, `fused_regions=false`,
+     `selective_macros=true` (the one promoted optimization),
+     `tiered_bytecode=false`, `tiered_threshold=5`, `excluded_namespaces=[]`.
 2. **Diagnostics & User Admin Commands:**
    - Implemented `/functioncompiler status`, `/functioncompiler metrics`, and `/functioncompiler reload` in [`ProbeCommands.java`](../../../src/main/java/dev/functioncompiler/ProbeCommands.java) and [`ProbeStatus.java`](../../../src/main/java/dev/functioncompiler/ProbeStatus.java).
    - Real-time reporting of fused regions executed, selective macro bindings, live hidden classes, and queue step reductions.
-3. **Release Promotion:**
-   - Promoted Fused Region Interpretation and Selective Macro Arguments to default-enabled production status.
-   - Verified 100% exact differential parity against vanilla across the full test matrix with zero regressions.
-   - Updated documentation ([`README.md`](../../../README.md), [`docs/current-state.md`](../../current-state.md)).
+3. **Release Promotion (corrected):**
+   - **Selective Macro Arguments is the only promoted optimization** — real-event
+     confirmatory campaigns cleared the 15% gate on Fabric (−22.34%) and Lithium
+     (−22.06%).
+   - Fused Region Interpretation was **never promoted** and its real-workload
+     campaign is negative: PERF-017, Vein Miner 6×6×6, ten pairs, median +0.69%,
+     97.85% interval −3.92% to +2.74%, decision `does_not_meet_threshold`.
+   - "100% exact differential parity across the full test matrix" is **not
+     established**: 18 of 98 matrix cases are recorded partial, so parity is
+     proven for the enumerated families only (see §6, step 1).
 
 ---
 
@@ -248,3 +252,76 @@ An optimization pass is promoted to default-on status if and only if:
 2. **Memory Invariant:** Zero monotonic Metaspace growth across 25+ datapack reload cycles and 10,000+ distinct macro invocations.
 3. **Performance Gate:** Statistically verified $\ge 15\%$ median latency reduction or $\ge 50\%$ queue step reduction on targeted workloads with zero regression on cold functions.
 4. **Third-Party Safety:** Zero mixin conflicts, verifier errors, or double-execution bugs on the pinned compatibility matrix (Lithium + Moonrise + Bellows).
+
+---
+
+## 6. Authoritative v1 Target and Plan (2026-11-04)
+
+This section supersedes the status claims above and is the definition of what
+v1 means. It was set by decision on 2026-11-04 after the PERF-017 negative
+result: **v1 must be correct, must have explicitly enumerated coverage, and must
+not make anything slower than vanilla.**
+
+### 6.1 The three gates
+
+| Gate | Definition | Passes today |
+|---|---|---|
+| **Correctness gate** | 100% exact differential parity against mod-free vanilla for every enumerated family in the coverage table — state, return values, quota events, error traces, and `/debug function` events | **Partial**: 18 of 98 matrix cases are recorded partial |
+| **Coverage gate** | Every supported (family, argument shape, fallback condition) has one matrix row; nothing is called "supported" without one; the per-namespace coverage report is the runtime evidence | **Open**: the table is not enumerated yet |
+| **No-regression gate** | For every default-on optimization, the 95% exact paired interval for its primary metric excludes a *slowdown* of vanilla on the same workload. This is a floor, not a promotion target | **Open**: fused +0.69% (−3.92% to +2.74%) does not exclude zero |
+
+A **promotion gate** (≥15% median gain or ≥50% queue-step reduction, as in §5)
+remains the way an optimization becomes *default-on*. The three gates above are
+the way the release becomes *shippable*; an optimization that passes all three
+but not the promotion gate ships **off by default and documented as
+experimental**.
+
+### 6.2 Coverage table requirement
+
+The coverage specification must be an **exact per-family oracle table**, one row
+per (family, argument shape, fallback condition), each with its own matrix case
+id and runtime arm. The families to enumerate are the ones the specialization
+pass actually implements:
+
+| Family group | Must enumerate per row |
+|---|---|
+| Scoreboard mutations | `add`/`set`/`remove` × holder (`#...`, `@s`, literal player) × amount (literal, negative, overflow edges) |
+| Scoreboard operations | all 9 operators × (absent source, absent target) × holder combinations |
+| Score conditions/stores | comparison ops, range matches, `store result/success score` around each specialized op |
+| Storage | `data modify/remove/get storage` × compound/array/primitive values |
+| Predicates | entity selector shapes, block predicate shapes, item predicates, unloaded-chunk fallback |
+| Context modifiers | `as`/`at`/`positioned`/`rotated`/`anchored` chains and their ordering |
+| State-machine commands | `title`, `bossbar`, `effect`, `setblock`, gameplay/item commands (each currently covered by a parser) |
+| Leaf/tail-call | leaf function inlining, tail-call loop compaction |
+| Macro arguments | each provider (entity, storage, block-entity) × key presence/absence × wrong-type × nested paths |
+| Fused regions | adjacency sizes, region boundaries (unrecognized command, `return`, quota exhaustion), nested regions |
+| Bytecode backend | tiered threshold behaviour, cold-function opt-out, compile-failure fallback |
+
+### 6.3 Discrete steps to v1
+
+1. **Close the partial P0 cases** (reload/lifecycle edges, callback and error
+   corners, selector breadth). Prerequisite for the correctness gate.
+2. **Author the coverage table** (§6.2) and add one matrix row per cell, with
+   the runtime arm named. This replaces every "supported" claim with a row.
+3. **Add the no-regression gate to the runners** so every campaign reports it
+   alongside the promotion decision; record it for ScoreAdd, fused, bytecode and
+   selective macro on their best available workloads.
+4. **Fused regions**: keep the engine, keep it off by default, and record
+   honestly that the real-workload result is negative. Either find a workload
+   whose hot path is dominated by successful specialized runs, or document the
+   mechanism as measured-but-unpromoted. Do not re-run the negative design.
+5. **Bytecode/tiered JIT**: implement to the point of a *measured* win over
+   fused interpretation on a declared workload (PERF-009 currently shows it
+   slower), including the cold-function opt-out policy, with the Metaspace
+   invariants already established.
+6. **Extract the engine-agnostic harness** (oracle harness, mod-stack matrix,
+   paired statistics and the host gate) into a sibling project, with its own
+   version pinning, once steps 1–3 have stabilised.
+
+### 6.4 What v1.0 is allowed to claim
+
+- Default-on: `selective_macros` only, with its recorded promotion.
+- Off by default and documented as experimental: everything else, with the
+  measured numbers reported as they are, including the negative ones.
+- The mod ships inert until an operator enables it (`enabled=false`), so an
+  opt-in alpha/beta is a defensible release posture today.
