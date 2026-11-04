@@ -28,6 +28,19 @@
   Every arm passed exact workload parity and exact one-region-per-active-tick
   activation, and every interval overlaps the pre-declared 15% minimum gain, so
   all three are inconclusive and `fused_regions` stays disabled by default.
+- Complete the pre-declared 16-pair PERF-016 campaign on Fabric at 20,000
+  generated adds per active tick (seed 26873001, threshold 15%, parameters
+  committed before the first arm). All sixteen pairs were negative with a
+  −20.72% primary median, but the exact interval is −32.23% to −12.26% at
+  97.87% coverage, so it does not clear the pre-declared minimum gain and the
+  recorded decision is inconclusive; `fused_regions` stays disabled. The
+  interval stayed wide because of per-pair spread rather than contaminated
+  arms — the binding values are pairs 3 and 10, neither of them slow — and
+  because sixteen pairs at 97.87% coverage select wider order-statistic ranks
+  than twelve at 96.14%. Per the pre-declared consequence, no further attempt
+  at this design is made on a seed re-roll; any next campaign needs a new
+  pre-declaration whose rationale reduces variance.
+
 - Re-run the 20,000-add Fabric confirmatory campaign (12 pairs, seed 26872001)
   behind a host-quietness gate, and record it as the fourth PERF-016 campaign.
   All twelve pairs were negative and no arm landed in the noisy run's 20–27 ms

@@ -367,6 +367,7 @@ active tick), and all are **inconclusive** because the interval overlaps the thr
 | confirmatory | Fabric | 20,000 (`--adds-per-tick`, generated and hash-recorded) | 12 | −12.48% | −33.09% to +77.44% | 96.14% |
 | confirmatory | Lithium + Bellows 1.1.3 | 5,000 | 10 | −22.16% | −86.39% to −12.12% | 97.85% |
 | confirmatory, **quiet-window re-run** | Fabric | 20,000 | 12 | **−18.43%** | **−20.18% to −14.95%** | 96.14% |
+| confirmatory, **pre-declared 16-pair** | Fabric | 20,000 | 16 | **−20.72%** | −32.23% to −12.26% | 97.87% |
 
 Scaling to a 20,000-add block did not separate the interval from −15% in the first
 attempt; it widened it, because per-arm cost became bimodal at roughly four times the
@@ -379,7 +380,11 @@ fixture and jar in a quieter window. A gated re-run of the same design then prod
 0 of 24 arms above the 16 ms median-window line (against 7 of 24 in the noisy run),
 confirming the diagnosis — while still leaving the interval's upper edge 0.05 percentage
 points above the threshold, so it remains inconclusive under the decision rule as
-written. See the
+written. A pre-declared 16-pair follow-up (threshold, pair count, and seed committed
+before its first arm) then gave all sixteen pairs negative with a −20.72% median, but a
+−32.23% to −12.26% interval — the obstacle is per-pair spread around a consistent
+~−20% effect, not the effect itself, so the recorded decision stays inconclusive and no
+further attempt is made on a seed re-roll. See the
 [variance diagnosis section](PERF-016-sustained-fused-region-active-tick.md#6-variance-diagnosis-of-the-20000-add-block-2026-11-03)
 of the report. The 5,000-add block remains the better instrument on this host, and a
 host-quietness gate is a prerequisite for any future attempt to separate from −15%.
