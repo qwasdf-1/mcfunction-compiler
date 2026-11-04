@@ -61,8 +61,14 @@ MODE_OPTIONS = (
     "score-add",
     "score-add-instrumented",
     "fused",
+    "fused-timed",
     "selective-macro",
 )
+
+# Modes that substitute a compiled instantiation for the original entry list:
+# the wrapper then reports delegates_original=false while retaining the
+# original parsed action as a fallback.
+SUBSTITUTES_COMPILATION = {"fused", "fused-timed", "bytecode-emitted"}
 
 
 def free_port() -> int:
@@ -414,6 +420,7 @@ def main() -> int:
                 "score-add",
                 "score-add-instrumented",
                 "fused",
+                "fused-timed",
             }
             environment.update(
                 {
@@ -422,7 +429,9 @@ def main() -> int:
                     "FC_SCORE_ADD_METRICS": str(
                         args.compiler_mode in {"score-add-instrumented", "fused"}
                     ).lower(),
-                    "FC_FUSED_REGION_PROTOTYPE": str(args.compiler_mode == "fused").lower(),
+                    "FC_FUSED_REGION_PROTOTYPE": str(
+                        args.compiler_mode in {"fused", "fused-timed"}
+                    ).lower(),
                     "FC_COMMAND_CALLBACK_METRICS": str(callback_metrics_enabled).lower(),
                     "FC_COMMAND_CALLBACK_METRICS_ALL_QUEUES": str(
                         callback_metrics_enabled
@@ -474,11 +483,16 @@ def main() -> int:
         compiler_status = None
         if args.stack != "vanilla":
             compiler_status = rcon.command("function_compiler_probe status")
+            # Fused and bytecode modes substitute a compiled instantiation for the
+            # original entry list, so delegates_original is false for them; the
+            # original parsed action must still be retained as a fallback.
+            substitutes_compilation = args.compiler_mode in SUBSTITUTES_COMPILATION
             for invariant in (
                 "FC_PROBE present=true",
                 f"wrapped={str(compiler_probe_active).lower()}",
                 "tag_same_instance=true",
-                "delegates_original=true",
+                f"delegates_original={str(not substitutes_compilation).lower()}",
+                "original_fallback_retained=true",
             ):
                 if invariant not in compiler_status:
                     raise RuntimeError(f"Compiler probe failed {invariant}: {compiler_status!r}")
@@ -891,6 +905,48 @@ def main() -> int:
                     or bool(selective_macro_argument_calls_delta)
                 )
             ),
+            "fused_regions_compiled": (
+                stats_int(compiler_status_after, "fused_regions_compiled")
+                if compiler_status_after is not None
+                else None
+            ),
+            "fused_regions_executed_delta": (
+                stats_int(compiler_status_after, "fused_regions_executed")
+                - stats_int(compiler_status_before, "fused_regions_executed")
+                if compiler_status_after is not None
+                and compiler_status_before is not None
+                else None
+            ),
+            "score_add_executed_delta": (
+                stats_int(compiler_status_after, "score_add_executed")
+                - stats_int(compiler_status_before, "score_add_executed")
+                if compiler_status_after is not None
+                and compiler_status_before is not None
+                else None
+            ),
+            "valid_fused_timed_profile": (
+                args.compiler_mode == "fused-timed"
+                and compiler_status_after is not None
+                and stats_int(compiler_status_after, "fused_regions_compiled") > 0
+                and stats_int(compiler_status_after, "score_add_compiled") > 0
+                and "fused_region_prototype_enabled=true" in compiler_status_after
+                and "score_add_metrics_enabled=false" in compiler_status_after
+                and head_after_capture > head_before
+            ),
+            "valid_fused_profile": (
+                args.compiler_mode == "fused"
+                and compiler_status_after is not None
+                and compiler_status_before is not None
+                and stats_int(compiler_status_after, "fused_regions_compiled") > 0
+                and stats_int(compiler_status_after, "fused_regions_executed")
+                - stats_int(compiler_status_before, "fused_regions_executed")
+                > 0
+                and stats_int(compiler_status_after, "score_add_executed")
+                - stats_int(compiler_status_before, "score_add_executed")
+                > 0
+                and head_after_capture > head_before
+                and (not capture_spark or bool(thread_nodes))
+            ),
         }
         manifest_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         if not result["valid_native_workload"]:
@@ -906,6 +962,14 @@ def main() -> int:
         if args.compiler_mode == "selective-macro" and not result["valid_selective_macro_profile"]:
             raise RuntimeError(
                 f"Selective macro profile gate failed: {json.dumps(result, indent=2)}"
+            )
+        if args.compiler_mode == "fused" and not result["valid_fused_profile"]:
+            raise RuntimeError(
+                f"Fused profile activation gate failed: {json.dumps(result, indent=2)}"
+            )
+        if args.compiler_mode == "fused-timed" and not result["valid_fused_timed_profile"]:
+            raise RuntimeError(
+                f"Fused timed profile gate failed: {json.dumps(result, indent=2)}"
             )
 
         bot.assert_connected()

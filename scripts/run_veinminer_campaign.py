@@ -60,6 +60,10 @@ def profile_summary(
         "valid_native_workload": result["valid_native_workload"],
         "valid_score_add_profile": result["valid_score_add_profile"],
         "valid_selective_macro_profile": result["valid_selective_macro_profile"],
+        "valid_fused_timed_profile": result.get("valid_fused_timed_profile"),
+        "fused_regions_compiled": result.get("fused_regions_compiled"),
+        "fused_regions_executed_delta": result.get("fused_regions_executed_delta"),
+        "score_add_executed_delta": result.get("score_add_executed_delta"),
         "selective_macro_argument_calls_delta": result[
             "selective_macro_argument_calls_delta"
         ],
@@ -199,13 +203,17 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
                 f"pair {repetition}/{args.pairs}: starting {args.stack} {mode} side={args.side}",
                 flush=True,
             )
+            # The fused candidate runs a symmetric, un-instrumented timing arm
+            # (metrics off in both arms). Its activation is proven separately by
+            # the metrics-on `fused` diagnostic, not by the timing arms.
+            profile_mode = "fused-timed" if mode == "fused" else mode
             command = [
                 sys.executable,
                 str(PROFILE_RUNNER),
                 "--stack",
                 args.stack,
                 "--compiler-mode",
-                mode,
+                profile_mode,
                 "--side",
                 str(args.side),
                 "--capture-timeout",
@@ -250,6 +258,8 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
             result = profile["results"]
             if not result["valid_native_workload"]:
                 raise RuntimeError(f"Native workload gate failed in {mode}: {result}")
+            if mode == "fused" and not result["valid_fused_timed_profile"]:
+                raise RuntimeError(f"Fused candidate arm gate failed: {result['run_id']}")
             if mode == "score-add" and not result["valid_score_add_profile"]:
                 raise RuntimeError(f"ScoreAdd compile gate failed: {result}")
             if mode == "selective-macro" and not result["valid_selective_macro_profile"]:
@@ -365,7 +375,11 @@ def main() -> int:
         default="fabric",
     )
     parser.add_argument("--side", type=int, choices=(4, 5, 6, 8), default=6)
-    parser.add_argument("--candidate", choices=("score-add", "selective-macro"), default="score-add")
+    parser.add_argument(
+        "--candidate",
+        choices=("score-add", "selective-macro", "fused"),
+        default="score-add",
+    )
     parser.add_argument("--pairs", type=int)
     parser.add_argument("--seed", type=int, default=26871028)
     parser.add_argument("--capture-timeout", type=int, default=60)
