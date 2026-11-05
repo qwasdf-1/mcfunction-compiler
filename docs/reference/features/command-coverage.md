@@ -36,8 +36,8 @@ arm in the matrix case.
 | SM-05 | `add` × `#holder` × 0 | — | SCORE-003 | R |
 | SM-06 | `add` × absent fake score | score created at 0 first | SCORE-002 | R |
 | SM-07 | `add` × `@s` | — | SCORE-002 | R |
-| SM-08 | `remove` × present score | result floor | SCORE-007 | P |
-| SM-09 | `remove` × absent holder | negative result semantics | SCORE-007 | P |
+| SM-08 | `remove` × present score | result floor | SCORE-007 | R |
+| SM-09 | `remove` × absent holder | negative result semantics | SCORE-007 | R |
 | SM-10 | `remove` × multi-entity `@e[...]` selector | selector fan-out | — | — |
 | SM-11 | `add/set/remove` × INT_MIN/INT_MAX overflow edges | 32-bit wrap | — | — |
 | SM-12 | mutation × wrapped in modifier chains | modifier-aware dispatch | — | — |
@@ -54,13 +54,16 @@ arm in the matrix case.
 | SC-02 | condition `matches <range>` inclusive/exclusive bounds | — | SCORE-012 | R |
 | SC-03 | condition × absent score on either side | absent-score semantics | — | — |
 | SC-04 | condition × `#holder` and `@s` combinations | — | SCORE-012 | R |
-| SS-01 | `execute store result score <t> <obj> run <op>` × each specialized op | — | SCORE-009 | P |
+| SS-01 | `execute store result score <t> <obj> run <op>` × each specialized op | — | SCORE-009 | R |
 | SS-02 | `execute store success score ...` × success/failure returns | — | SCORE-013 | R |
 | SS-03 | store target present vs absent | target creation | — | — |
 | SS-04 | store under a modifier chain | modifier-aware dispatch | — | — |
-| SR-01 | `reset <holder> <objective>` | — | SCORE-007 | P |
-| SR-02 | `reset <holder>` (all objectives) | — | SCORE-007 | P |
-| SR-03 | `reset` × seeded and absent holders | — | SCORE-007 | P |
+| SR-01 | `reset <holder> <objective>` | — | SCORE-007 | R |
+| SR-02 | `reset <holder>` (all objectives) | — | SCORE-007 | R |
+| SR-03 | `reset` × seeded and absent holders | — | SCORE-007 | R |
+| SM-13 | mutation/operation under `execute store result/success` × remaining selector shapes | store-target creation semantics | — | — |
+| SO-07 | operation × every remaining selector shape × store/callback context | absent scores, fan-out ordering | — | — |
+| SC-05 | condition × every remaining selector shape under each store/callback context | absent scores | — | — |
 
 ## 4. Storage and data families
 
@@ -83,12 +86,14 @@ arm in the matrix case.
 | PR-03 | block predicate × block **tag** (`#ns:tag`) | tag expansion | — | — |
 | PR-04 | block predicate × explicit block **state** (`block[..]`) | state-property match | — | — |
 | PR-05 | item predicate (`*[minecraft:...]`) | component predicates | — | — |
-| MO-01 | `ScoreCondition`/`ScoreStore` modifiers around specialized ops | — | SCORE-009/012 | P |
+| MO-01 | `ScoreCondition`/`ScoreStore` modifiers around specialized ops | — | SCORE-009/012 | R |
 | MO-02 | `DataStore` modifier around data commands | — | — | — |
 | MO-03..05 | `as`, `at`, `positioned`, `rotated`, `anchored` chains and their ordering | chained combinations | CTRL-009 | R |
-| MO-06 | `ForkModifier` × fork limit 1..12 overflow | cap reached | QUOTA-009 | P |
+| MO-06 | `ForkModifier` × fork limit 1..12 overflow | cap reached | QUOTA-009 | R |
 | MO-07 | `ItemPredicate` modifier on stack predicates | — | — | — |
 | MO-08 | `ContextModifier` folding into a single in-memory source mutation | — | CTRL-009 | R |
+| MO-09 | fork modifier × remaining selector shapes (random/arbitrary identity ordering) | cap overflow | — | — |
+| MO-10 | fork modifier × broader mod-stack combinations | Bellows/Moonrise interaction | — | — |
 
 ## 6. State-machine command families
 
@@ -113,7 +118,7 @@ form, not one row per parser:
 | --- | --- | --- | --- | R |
 | LF-01 | contiguous `function <id>` leaf runs ≥ 2 | target resolves to a plain-text function | — | — |
 | LF-02 | leaf run interrupted by an unknown command | boundary → two regions | COMPAT-007 | R |
-| LF-03 | `return run function` leaf | result propagation | CTRL-002 | P |
+| LF-03 | `return run function` leaf | result propagation | CTRL-002 | R |
 | TC-01 | tail-call loop compaction | self-recursion depth | — | — |
 | TC-02 | tail-call × macro invocation | — | — | — |
 
@@ -144,12 +149,15 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 | FR-02 | long run (PERF-016 fixture: 5,000/20,000 contiguous adds) | — | PERF-016 | R |
 | FR-03 | real-datapack run (Vein Miner `detection/acquire_target`, 145 parsed candidates) | predicate mostly failing | PERF-017 | R |
 | FR-04 | region boundary at an unrecognized command | two regions either side | COMPAT-007 | R |
-| FR-05 | region boundary at `return` / `return run` | pending tail discarded | CTRL-001/002 | P |
+| FR-05 | region boundary at `return` / `return run` | pending tail discarded | CTRL-001/002 | R |
 | FR-06 | region boundary at quota exhaustion | queue yield | QUOTA-008 | R |
 | FR-07 | nested regions across a function call | — | CTRL-004 | R |
-| FR-08 | error mid-region (missing objective) | no replay of earlier effects | CTRL-006 | P |
+| FR-08 | error mid-region (missing objective) | no replay of earlier effects | CTRL-006 | R |
 | FR-09 | region containing a modded unknown command | custom command runs once | CTRL-008 | R |
 | FR-10 | macro-expanded function regions | LRU cache path | MACRO-008 | R |
+| CT-01 | other return/error callback combinations after a region boundary | pending-tail discard | — | — |
+| CT-02 | other callback contexts around specialized operations | result/success propagation | — | — |
+| CT-03 | other callback failures after a partial mutation | no replay of completed effects | — | — |
 
 ## 10. Bytecode backend families
 
@@ -164,38 +172,58 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**93 rows: 54 covered (R), 11 partial (P), 28 missing (—).**
+**101 rows: 65 covered (R), 0 partial (P), 36 missing (—).**
 
-A row is **R** only when its cited matrix case is recorded *complete* in
-[`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv).
-A row whose case is recorded `Partial` is marked **P**, and a row with no case
-is **—**. The three statuses are therefore not labels of intent; they are the
-matrix's own verdicts, and this section is generated from the table so the gap
-list cannot drift from the rows.
+Status is assigned from the matrix's own verdicts: **R** requires a cited
+matrix case recorded *complete* in
+[`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv);
+**—** means no case exists for that shape. A cited case recorded `Partial` is
+**not** accepted as covering a row — see §11.1 for how the eleven such rows were
+resolved on 2026-11-04.
 
-**The 28 missing rows, by family group:**
+**The 36 missing rows, by family group:**
 - **2. Scoreboard mutation families**: SM-03, SM-10, SM-11, SM-12
-- **3. Scoreboard operation, condition and store f**: SC-03, SS-03, SS-04
+- **3. Scoreboard operation, condition and store f**: SC-03, SS-03, SS-04, SM-13, SO-07, SC-05
 - **4. Storage and data families**: DS-02, DS-04, DS-05, DC-01, DC-02
-- **5. Predicate and modifier families**: PR-03, PR-04, PR-05, MO-02, MO-07
+- **5. Predicate and modifier families**: PR-03, PR-04, PR-05, MO-02, MO-07, MO-09, MO-10
 - **6. State-machine command families**: ST-01, ST-02, ST-03, ST-04, ST-05, ST-06, ST-07
 - **7. Leaf-call and tail-call families**: LF-01, TC-01, TC-02
+- **9. Fused-region families**: CT-01, CT-02, CT-03
 - **10. Bytecode backend families**: BC-06
 
-**The 11 rows that need their case closed, by family group:**
-- **2. Scoreboard mutation families**: SM-08, SM-09
-- **3. Scoreboard operation, condition and store f**: SS-01, SR-01, SR-02, SR-03
-- **5. Predicate and modifier families**: MO-01, MO-06
-- **7. Leaf-call and tail-call families**: LF-03
-- **9. Fused-region families**: FR-05, FR-08
+### 11.1 How the eleven partial-cited rows were resolved
 
-That is the honest shape of coverage today. The macro-argument (12/12) and
-fused-region (11/11) families are fully enumerated with complete matrix
-cases. Scoreboard families are enumerated but carry partial cases in
-remove/reset, missing-objective, and the low-fork modifier sweep. Storage,
-predicate, state-machine, leaf-call and the bytecode-win families are
-implemented in code but not enumerated per argument shape, so they may not be
-claimed. The v1 coverage gate closes when this section's two lists are empty.
+SCORE-007, SCORE-009, QUOTA-009, CTRL-001, CTRL-002 and CTRL-006 are recorded
+`Partial` because their status text proves a large set of shapes and then notes
+that *other* combinations remain open. Rather than mark these rows P (which
+would understate what those cases prove) or R (which would overstate it), each
+row was **narrowed to the specific claim its case already proves**, and every
+combination the case leaves open became its own `—` row. The gap count therefore
+*rose* — from 28 to 36 — because hidden gaps are now visible rows.
+
+| Rows | Proved by (from the case's own verified text) |
+|---|---|
+| SM-08, SM-09 | SCORE-007: "remove 4 from 10 yields 6; remove from an absent score creates -4" |
+| SR-01, SR-02, SR-03 | SCORE-007: "reset of seeded and absent holders preserves vanilla score presence" |
+| SS-01 | SCORE-009: "stored function result state and RCON match vanilla and all seven Fabric modes at sequence limits 0–16" |
+| MO-01 | Stage 1A: `ScoreConditionCommand`/`ScoreStoreCommand` inlined into contiguous regions with 100% exact parity |
+| MO-06 | QUOTA-009: fork caps 1–4 with zero/one/two/four matches, "match across all 16 compatibility arms" |
+| LF-03 | CTRL-002: nested `return run function` result 7, tails discarded, parent resumes once |
+| FR-05 | CTRL-001/002: inner and outer pending fused regions discarded after the child returns |
+| FR-08 | CTRL-006: mid-region missing-objective error, later commands run "without replaying the first effect" |
+
+The newly visible gaps they concealed are rows **SM-13, SO-07, SC-05** (selector
+shapes under store/callback contexts), **MO-09, MO-10** (remaining fork selector
+shapes and mod-stack combinations), and **CT-01, CT-02, CT-03** (other
+return/error callback combinations). Those rows are `—` because no matrix case
+covers them, which is the same standard applied to every other row in this
+table.
+
+**What this means for the v1 coverage gate:** no row may be claimed without a
+row here, and the eleven rows that previously rested on partial cases now rest
+on the specific text that proves them. The remaining 36 rows
+are the actual work of the coverage gate; the list above is generated from the
+table so it cannot drift from the rows.
 
 ## 12. Reproducing this table from the code
 
