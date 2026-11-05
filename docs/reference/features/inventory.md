@@ -78,5 +78,6 @@ These handlers replace specific Brigadier command shapes after parsing. They ret
 - [Selective Macro Arguments](selective-macro-arguments.md): Fast-path argument extraction for entity and storage macros.
 - [Emitted ASM Bytecode](emitted-bytecode.md): Parameterized hidden classes, `CONSTRUCTOR_CACHE`, tiered JIT engine, and Metaspace lifecycle.
 - [Literal Scoreboard Specialization](scoreboard-specialization.md): Integer arithmetic and operation optimization.
+- [Command Coverage Table](command-coverage.md): Per-family enumeration of every supported command shape, argument form, and fallback condition, with its matrix row; the v1 coverage contract.
 - [Command Quota and Scheduler](command-quota-and-scheduler.md): 26.3 `ExecutionContext`, fork/sequence limits, frame discards.
 - [Lifecycle and Datapack Reload](lifecycle-and-reload.md): Load tags, tick tags, concurrent publication, and rollback.

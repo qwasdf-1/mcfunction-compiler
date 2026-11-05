@@ -6,6 +6,7 @@ This index maps curated feature documentation to status and component owners.
 
 | Document | Status | Description |
 |---|---|---|
+| [`command-coverage.md`](../reference/features/command-coverage.md) | Authoritative enumeration of what the specialization pass covers, per the v1 coverage gate in [`v1-production-roadmap.md §6`](../../v1/plans/v1-production-roadmap.md) | Specialization Coverage Table |
 | [`command-quota-and-scheduler.md`](../reference/features/command-quota-and-scheduler.md) | Verified semantic baseline across all 10 runtime modes. | Command Quota and Scheduler (`ExecutionContext`) |
 | [`emitted-bytecode.md`](../reference/features/emitted-bytecode.md) | Opt-in / Experimental Tiered JIT Backend (Milestone 2 Verified). | Emitted ASM Bytecode Regions & Tiered JIT Engine |
 | [`fused-regions.md`](../reference/features/fused-regions.md) | Disabled by default; experimental. Semantic matrices, quota/trace parity, and static-fixture timings pass. A 2026-11-03 static screen found adjacent candidate runs in pinned packs, but none has runtime-confirmed specialization or a measured real-world gain, so the performance gate remains open. | Fused Interpreted Regions (`FusedRegionPrototype`) |
