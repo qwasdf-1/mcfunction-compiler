@@ -151,3 +151,30 @@
   `execute store ... storage` (MO-02) stays open because the node arity that
   parser expects is unconfirmed - writing a fixture for it would produce a test
   that cannot load.
+- Close nine more coverage rows with differential fixtures, and fix a
+  load-time defect they found. Four fixtures (`score_holder_and_overflow`,
+  `score_condition_absent`, `score_store_targets`, `leaf_and_tail_runs` plus
+  three leaf helpers) run across mod-free vanilla 26.3 and the full ten-arm
+  Fabric matrix with exact score-sequence parity, adding matrix cases
+  SCORE-016..019 and closing SM-03, SM-11, SC-03, SC-05, SS-03, SS-04, LF-01,
+  TC-01 and DS-05. Coverage table now 101 rows: 78 covered, 0 partial, 23
+  missing.
+
+- Fix a datapack-load crash found while building those fixtures.
+  `ScoreAddPrototype.resolveStaticHolder` resolved a holder name before
+  checking that it begins with `#`, and resolving a literal *player-name*
+  holder consults the server's player list, which is null during a datapack
+  load. `scoreboard players set FCFused <objective> N` therefore threw an NPE
+  that failed the entire function load in every compiled arm, while vanilla
+  loaded it fine. All seven call sites now decline any holder that does not
+  begin with `#` before resolving, so the literal holder stays on the vanilla
+  path; the new fixture proves both the fallback and the 32-bit INT wrap.
+
+- Two process findings recorded rather than hidden. `score_store_targets`
+  first used `scoreboard players get` as its inner command and produced an
+  all-zero sequence in every arm, i.e. an oracle that can never fail; it was
+  rebuilt around a data command with a known result value. And the storage
+  batch's write-up claimed five closed rows when only four had closed, because
+  a text edit searched for a string that did not occur and silently no-op'd;
+  the coverage table's numbers are now regenerated from the table itself rather
+  than edited by hand.

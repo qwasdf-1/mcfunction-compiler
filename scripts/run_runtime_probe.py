@@ -62,6 +62,10 @@ DIRECT_FIXTURES = (
     "storage_value_shapes",
     "storage_copy_paths",
     "storage_store_and_errors",
+    "score_holder_and_overflow",
+    "score_condition_absent",
+    "score_store_targets",
+    "leaf_and_tail_runs",
 )
 EXTENDED_QUOTA_FIXTURES = frozenset(
     {
@@ -74,6 +78,10 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
         "storage_value_shapes",
         "storage_copy_paths",
         "storage_store_and_errors",
+        "score_holder_and_overflow",
+        "score_condition_absent",
+        "score_store_targets",
+        "leaf_and_tail_runs",
         "quota_recursive_compiled",
         "quota_change_limit",
     }
@@ -110,6 +118,39 @@ EXPECTED_SCORES = {
     # 507 from quota 13 (list[1]=50 times weight 10). The third read's fold
     # lands beyond the 0-16 sweep, so the string member is exercised but not
     # observed; see docs/reference/features/command-coverage.md.
+    # Observed on the mod-free vanilla arm. The literal player-name holder
+    # FCFused reads back 4, and 4 + INT_MAX wraps to -2147483645; the later
+    # chain shows INT_MIN - 1 also wrapping. SM-03 + SM-11.
+    "score_holder_and_overflow": {
+        0: 0, 1: 0, 2: 0, 3: 4, 4: 4, 5: 4,
+        6: -2147483645, 7: -2147483645, 8: 3, 9: 3,
+        **{quota: -2147483646 for quota in range(10, 17)},
+    },
+    # Observed on the mod-free vanilla arm. `matches 0..` on an absent score
+    # is false (adds nothing), `unless matches 1..` is true (adds 10). The
+    # actor-scoped condition contributes nothing because no actor with the
+    # fc_cond_actor tag exists in this arm, which is itself the parity signal.
+    # SC-03 + SC-05.
+    "score_condition_absent": {
+        **{quota: 0 for quota in range(0, 8)},
+        **{quota: 10 for quota in range(8, 17)},
+    },
+    # Observed on the mod-free vanilla arm. The store into the initially absent
+    # #fresh_store holder writes 5 (the data value), and the actor-scoped store
+    # contributes nothing because the fc_cond_actor tag has no actor in this
+    # arm - which is the SS-04 parity signal. SS-03 + SS-04.
+    "score_store_targets": {
+        **{quota: 0 for quota in range(0, 6)},
+        **{quota: 5 for quota in range(6, 10)},
+        **{quota: 10 for quota in range(10, 17)},
+    },
+    # Observed on the mod-free vanilla arm: two contiguous leaf calls, then a
+    # tail-call run that adds 10 and calls one further leaf. LF-01 + TC-01.
+    "leaf_and_tail_runs": {
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0,
+        6: 6, 7: 8, 8: 10, 9: 12, 10: 24, 11: 36,
+        12: 109, 13: 135, 14: 161, 15: 187, 16: 213,
+    },
     "storage_value_shapes": {
         **{quota: 0 for quota in range(0, 7)},
         **{quota: 7 for quota in range(7, 13)},

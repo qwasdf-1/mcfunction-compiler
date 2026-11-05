@@ -170,9 +170,9 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `class ExecutableCompiler`:141
   - `class SingleModifierParser`:188
   - `class ModifierParser`:281
-  - `class ParsedCondition`:533
-  - `class ParsedStore`:546
-  - `class ParsedTarget`:554
+  - `class ParsedCondition`:539
+  - `class ParsedStore`:552
+  - `class ParsedTarget`:560
 - [`src/main/java/dev/functioncompiler/ScoreConditionCommand.java`](../../src/main/java/dev/functioncompiler/ScoreConditionCommand.java):
   - `class ScoreConditionCommand`:17
   - `class Operator`:18
@@ -428,14 +428,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def run_in_server_session()`:146
   - `def _get_selective_macro_count()`:188
 - [`scripts/run_runtime_probe.py`](../../scripts/run_runtime_probe.py):
-  - `def configure_probe_ports()`:89
-  - `class RconClient`:228
-  - `def __init__()`:229
-  - `def close()`:237
-  - `def command()`:240
-  - `def _request()`:248
-  - `def _read_exact()`:261
-  - `def prepare_server_files()`:271
+  - `def configure_probe_ports()`:97
+  - `class RconClient`:269
+  - `def __init__()`:270
+  - `def close()`:278
+  - `def command()`:281
+  - `def _request()`:289
+  - `def _read_exact()`:302
+  - `def prepare_server_files()`:312
 - [`scripts/run_score_add_ab.py`](../../scripts/run_score_add_ab.py):
   - `class PortBindError`:79
   - `def sha256()`:83

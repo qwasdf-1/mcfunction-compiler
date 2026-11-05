@@ -420,7 +420,9 @@ public final class ScoreAddPrototype {
 
         String targetText = extractNodeText(context, "target");
         boolean isTargetSelf = "@s".equals(targetText);
-        ScoreHolder targetHolder = isTargetSelf ? null : resolveStaticHolder(targetResult, context.getSource());
+        ScoreHolder targetHolder = isTargetSelf
+                ? null
+                : resolveStaticHolder(targetResult, context.getSource(), extractNodeText(context, "targets"));
         if (!isTargetSelf && targetHolder == null) {
             return null;
         }
@@ -473,7 +475,9 @@ public final class ScoreAddPrototype {
 
         String sourceText = extractNodeText(context, "source");
         boolean isSourceSelf = "@s".equals(sourceText);
-        ScoreHolder sourceHolder = isSourceSelf ? null : resolveStaticHolder(sourceResult, context.getSource());
+        ScoreHolder sourceHolder = isSourceSelf
+                ? null
+                : resolveStaticHolder(sourceResult, context.getSource(), extractNodeText(context, "source"));
         if (!isSourceSelf && sourceHolder == null) {
             return null;
         }
@@ -522,7 +526,9 @@ public final class ScoreAddPrototype {
 
         String targetText = extractNodeText(context, "targets");
         boolean isTargetSelf = "@s".equals(targetText);
-        ScoreHolder targetHolder = isTargetSelf ? null : resolveStaticHolder(targetsResult, context.getSource());
+        ScoreHolder targetHolder = isTargetSelf
+                ? null
+                : resolveStaticHolder(targetsResult, context.getSource(), extractNodeText(context, "targets"));
         if (!isTargetSelf && targetHolder == null) {
             return null;
         }
@@ -582,7 +588,7 @@ public final class ScoreAddPrototype {
         boolean isSelfSelector = "@s".equals(targetText);
         ScoreHolder holder = null;
         if (!isSelfSelector) {
-            holder = resolveStaticHolder(targetResult, context.getSource());
+            holder = resolveStaticHolder(targetResult, context.getSource(), targetText);
             if (holder == null) {
                 return false;
             }
@@ -629,7 +635,9 @@ public final class ScoreAddPrototype {
 
         String targetText = extractNodeText(context, "targets");
         boolean isTargetSelf = "@s".equals(targetText);
-        ScoreHolder targetHolder = isTargetSelf ? null : resolveStaticHolder(targetsResult, context.getSource());
+        ScoreHolder targetHolder = isTargetSelf
+                ? null
+                : resolveStaticHolder(targetsResult, context.getSource(), extractNodeText(context, "targets"));
         if (!isTargetSelf && targetHolder == null) {
             return false;
         }
@@ -686,11 +694,15 @@ public final class ScoreAddPrototype {
 
         String targetText = extractNodeText(context, "targets");
         boolean isTargetSelf = "@s".equals(targetText);
-        ScoreHolder targetHolder = isTargetSelf ? null : resolveStaticHolder(targetsResult, context.getSource());
+        ScoreHolder targetHolder = isTargetSelf
+                ? null
+                : resolveStaticHolder(targetsResult, context.getSource(), extractNodeText(context, "targets"));
 
         String sourceText = extractNodeText(context, "source");
         boolean isSourceSelf = "@s".equals(sourceText);
-        ScoreHolder sourceHolder = isSourceSelf ? null : resolveStaticHolder(sourceResult, context.getSource());
+        ScoreHolder sourceHolder = isSourceSelf
+                ? null
+                : resolveStaticHolder(sourceResult, context.getSource(), extractNodeText(context, "source"));
 
         if ((!isTargetSelf && targetHolder == null) || (!isSourceSelf && sourceHolder == null)) {
             return false;
@@ -747,8 +759,17 @@ public final class ScoreAddPrototype {
 
     private static ScoreHolder resolveStaticHolder(
             ScoreHolderArgument.Result targetResult,
-            CommandSourceStack source
+            CommandSourceStack source,
+            String holderText
     ) {
+        // Only literal fake holders (`#...`) are specialized. A literal
+        // player-name holder must be declined *before* resolving the name:
+        // resolving one consults the server's player list, which is null while
+        // a datapack is loading, and that lookup previously threw an NPE that
+        // failed the whole function load.
+        if (holderText == null || !holderText.startsWith("#")) {
+            return null;
+        }
         if (targetResult instanceof ScoreHolderArgument.SelectorResult) {
             return null;
         }

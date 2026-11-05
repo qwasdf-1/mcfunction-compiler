@@ -31,7 +31,7 @@ arm in the matrix case.
 | --- | --- | --- | --- | R |
 | SM-01 | `scoreboard players set` × `#holder` literal | objective missing | SCORE-001 | R |
 | SM-02 | `scoreboard players set` × `@s` self-selector | executed without an entity context | SCORE-001 | R |
-| SM-03 | `set` with a literal player-name holder | name absent from the scoreboard | — | — |
+| SM-03 | `set` with a literal player-name holder | name absent from the scoreboard | SCORE-016 | R |
 | SM-04 | `scoreboard players add` × `#holder` × positive literal | — | SCORE-003 | R |
 | SM-05 | `add` × `#holder` × 0 | — | SCORE-003 | R |
 | SM-06 | `add` × absent fake score | score created at 0 first | SCORE-002 | R |
@@ -39,7 +39,7 @@ arm in the matrix case.
 | SM-08 | `remove` × present score | result floor | SCORE-007 | R |
 | SM-09 | `remove` × absent holder | negative result semantics | SCORE-007 | R |
 | SM-10 | `remove` × multi-entity `@e[...]` selector | selector fan-out | — | — |
-| SM-11 | `add/set/remove` × INT_MIN/INT_MAX overflow edges | 32-bit wrap | — | — |
+| SM-11 | `add/set/remove` × INT_MIN/INT_MAX overflow edges | 32-bit wrap | SCORE-016 | R |
 | SM-12 | mutation × wrapped in modifier chains | modifier-aware dispatch | — | — |
 
 ## 3. Scoreboard operation, condition and store families
@@ -52,18 +52,18 @@ arm in the matrix case.
 | SO-06 | `operation` × `#...` wildcard target | multi-target fan-out | SCORE-005 | R |
 | SC-01 | condition `if score <a> <op> <b>` × each comparison op | — | SCORE-012 | R |
 | SC-02 | condition `matches <range>` inclusive/exclusive bounds | — | SCORE-012 | R |
-| SC-03 | condition × absent score on either side | absent-score semantics | — | — |
+| SC-03 | condition × absent score on either side | absent-score semantics | SCORE-017 | R |
 | SC-04 | condition × `#holder` and `@s` combinations | — | SCORE-012 | R |
 | SS-01 | `execute store result score <t> <obj> run <op>` × each specialized op | — | SCORE-009 | R |
 | SS-02 | `execute store success score ...` × success/failure returns | — | SCORE-013 | R |
-| SS-03 | store target present vs absent | target creation | — | — |
-| SS-04 | store under a modifier chain | modifier-aware dispatch | — | — |
+| SS-03 | store target present vs absent | target creation | SCORE-018 | R |
+| SS-04 | store under a modifier chain | modifier-aware dispatch | SCORE-018 | R |
 | SR-01 | `reset <holder> <objective>` | — | SCORE-007 | R |
 | SR-02 | `reset <holder>` (all objectives) | — | SCORE-007 | R |
 | SR-03 | `reset` × seeded and absent holders | — | SCORE-007 | R |
 | SM-13 | mutation/operation under `execute store result/success` × remaining selector shapes | store-target creation semantics | — | — |
 | SO-07 | operation × every remaining selector shape × store/callback context | absent scores, fan-out ordering | — | — |
-| SC-05 | condition × every remaining selector shape under each store/callback context | absent scores | — | — |
+| SC-05 | condition × every remaining selector shape under each store/callback context | absent scores | SCORE-017 | R |
 
 ## 4. Storage and data families
 
@@ -73,7 +73,7 @@ arm in the matrix case.
 | DS-02 | `data modify storage` × compound/array/primitive values | numeric compound + array-indexed members | DATA-002 | R |
 | DS-03 | `data remove storage` | — | DATA-001 | R |
 | DS-04 | `data get storage` on an absent storage path | command failure, no store applied | DATA-004 | R |
-| DS-05 | `execute store result/success` around a data command | — | — | — |
+| DS-05 | `execute store result/success score` around a data command | failing read leaves the store unapplied | DATA-004, SCORE-018 | R |
 | DC-01 | `data modify storage A p set from storage B p` (`DataCopyCommand`) | absent source path | DATA-003 | R |
 | DC-02 | nested path copy with array indices | copied container read back | DATA-003 | R |
 
@@ -116,10 +116,10 @@ form, not one row per parser:
 
 | Row | Family × argument shape | Fallback condition | Matrix |
 | --- | --- | --- | --- | R |
-| LF-01 | contiguous `function <id>` leaf runs ≥ 2 | target resolves to a plain-text function | — | — |
+| LF-01 | contiguous `function <id>` leaf runs ≥ 2 | target resolves to a plain-text function | SCORE-019 | R |
 | LF-02 | leaf run interrupted by an unknown command | boundary → two regions | COMPAT-007 | R |
 | LF-03 | `return run function` leaf | result propagation | CTRL-002 | R |
-| TC-01 | tail-call loop compaction | self-recursion depth | — | — |
+| TC-01 | tail-call loop compaction | self-recursion depth | SCORE-019 | R |
 | TC-02 | tail-call × macro invocation | — | — | — |
 
 ## 8. Macro argument families
@@ -234,21 +234,51 @@ mechanism their oracle needs:
 | MO-09, MO-10 | Fork selector identity for random/arbitrary ordering; harness records effects, not identities | Partially available |
 | BC-06 | A paired performance campaign, not a fixture | Requires a campaign |
 
-### 11.3 What the first storage batch closed
+### 11.3 How the rows were closed, in batches
 
-Three fixtures were added (`storage_value_shapes`, `storage_copy_paths`,
-`storage_store_and_errors`), registered in `DIRECT_FIXTURES` and
-`EXTENDED_QUOTA_FIXTURES`, and run across mod-free vanilla plus all nine Fabric
-runtime modes with exact score-sequence parity. They closed **DS-02, DS-04,
-DS-05, DC-01, DC-02** (matrix cases DATA-002, DATA-003, DATA-004) and moved the
-missing count from 36 to **32**.
+Two batches of differential fixtures have been run across mod-free vanilla 26.3
+and the full ten-arm Fabric matrix with exact score-sequence parity. Each batch
+is recorded with what it closed, and each batch's claims are regenerated from
+the table rather than typed by hand.
 
-Two honest limits recorded in the case statuses: the string member and the
-post-removal list read are *exercised* by the fixtures but their folds land
-beyond the 0–16 quota sweep, so they are not observed; and MO-02 stays `—`
-pending syntax confirmation. Observed sequences: `storage_value_shapes` 0 → 0,
-7 → 7, 13 → 507; `storage_copy_paths` 0 → 0, 8 → 33, 14 → 143;
-`storage_store_and_errors` 0 → 0, 7 → 5.
+**Batch 1 - storage (matrix cases DATA-002/003/004).** Fixtures
+`storage_value_shapes`, `storage_copy_paths`, `storage_store_and_errors`.
+Closed **DS-02, DS-04, DC-01, DC-02** (36 missing → 31).
+
+**Batch 2 - scoreboard, holders, leaf/tail (matrix cases SCORE-016..019).**
+Fixtures `score_holder_and_overflow`, `score_condition_absent`,
+`score_store_targets`, `leaf_and_tail_runs` plus the `leaf_score_a`,
+`leaf_score_b` and `leaf_tail_a` helpers. Closed **SM-03, SM-11, SC-03, SC-05,
+SS-03, SS-04, LF-01, TC-01, DS-05** (23 missing).
+
+**Defect found and fixed while building batch 2.** The
+`score_holder_and_overflow` fixture uses a literal player-name holder
+(`FCFused`), and every Fabric arm failed the whole function load with
+`NullPointerException: Cannot invoke "...MinecraftServer.getPlayerList()"
+because "server" is null`: `ScoreAddPrototype.resolveStaticHolder` resolved a
+holder name before checking that it begins with `#`, and resolving a literal
+player name consults the player list, which is null while a datapack loads.
+All seven call sites now decline non-`#` holders before resolving, so the
+literal holder stays on the vanilla path. The fixture proves both the fallback
+and the 32-bit INT wrap. This is the kind of defect the coverage table exists to
+find: a shape that "works" in vanilla and takes down the compiled path.
+
+**Correction recorded.** The storage batch's write-up initially claimed it also
+closed DS-05. It did not: the row's text was `execute store result/success around
+a data command`, the edit searched for `run <op>`, the search silently matched
+nothing, and the row stayed `—` while the count arithmetic (36 − 5 = 31)
+contradicted the recorded 32. DS-05 is closed in batch 2 instead, cited to
+DATA-004 and SCORE-018. The rule applied to this document: §11's numbers are
+regenerated from the table, never edited by hand.
+
+**What batch 2 could not close, and why.** `score_store_targets` first used
+`scoreboard players get` as its inner command and produced an all-zero sequence
+in every arm - an oracle that can never fail, which is worse than a failing test.
+It was rebuilt around a data command with a known result value. SM-10, SM-12,
+SM-13, SO-07, MO-02, MO-07, MO-09, MO-10, ST-01..07, TC-02, CT-01..03 and BC-06
+remain open for the reasons in the table and in the feasibility classification
+above.
+
 
 ## 12. Reproducing this table from the code
 
@@ -261,31 +291,3 @@ grep -rl "implements FusableCommand" src/main/java/dev/functioncompiler/*.java
 # runtime coverage for a given load
 grep "Function coverage" path/to/server.log
 ```
-### 11.2 How each missing row can be closed (oracle feasibility)
-
-Closing a row means running a differential case whose oracle can *observe* the
-effect. The project's existing oracle is the scoreboard counter folded through
-`EXPECTED_SCORES` in [`run_runtime_probe.py`](../../../scripts/run_runtime_probe.py),
-swept over quotas 0–7 across vanilla and nine Fabric modes. Rows are classified
-by the mechanism their oracle needs, and the classification is the reason
-step 2 of the v1 plan decomposes into three very different kinds of work.
-
-| Row(s) | Oracle mechanism | Status of that mechanism |
-|---|---|---|
-| SM-03, SM-10, SM-11, SM-12, SM-13, SC-03, SS-03, SS-04, SO-07, SC-05, DC-01, DC-02, DS-05 | **Scoreboard oracle** — existing infrastructure, new fixtures and expected-score entries only | **Available** |
-| DS-02, DS-04, MO-02 | **Storage oracle** — `execute store result score #x ... run data get storage <path>` folds storage state into the existing scoreboard oracle | **Available**, pattern precedent: DATA-001 and `storage_modify_fused.mcfunction` |
-| PR-03, PR-04, PR-05, ST-03, ST-04, ST-06 | **World/entity query oracle** — `execute if block/entity` + entity-NBT checks folded into scoreboard counters, as `track_c_state_machine.mcfunction` already does for tags and teleports | **Available**, same pattern |
-| ST-02 (`bossbar`) | **Command feedback oracle** — `bossbar get <id> value/players/...` prints the bar's server-side state through RCON | **Available**, but a new oracle type for this harness |
-| ST-01 (`title`), ST-05 (`playsound`/`particle`), ST-07 | **No server-side oracle** — these produce client packets only; RCON cannot observe actionbar content, titles, sounds, or particles | **Not closable with the current harness.** Requires either a packet-capturing bot, or an explicit documented contract: specialization is proven by *delegation* (the wrapper replaces the command object with one that performs the same call) rather than by differential observation |
-| MO-09, MO-10 | **Fork selector identity oracle** — compares selected actor identities across arms; the existing fork fixtures compare *effects*, not identities for random/arbitrary ordering | **Partially available**: the harness records identities for `nearest` but explicitly not for `random`/`arbitrary` |
-| CT-01, CT-02, CT-03, LF-01, TC-01, TC-02 | **Scoreboard + trace oracle** — existing `/debug function` trace comparison and score folding | **Available**, new fixtures only |
-| BC-06 | **Paired campaign**, not a differential fixture — needs the bytecode backend to beat fused interpretation on a declared workload | **Requires a new campaign** (a performance gate, not a correctness row) |
-
-**Consequence for the coverage gate:** the three client-side-only rows
-(ST-01, ST-05, and the generic ST-07 to the extent it covers them) cannot be
-closed by differential observation at all. The honest v1 claim for them is
-"specialization delegates to the original command object, so the wrapped
-command performs the identical call", which is a *code-level* guarantee that
-the harness cannot falsify. Either the v1 contract accepts that class of
-guarantee with an explicit label, or those rows are dropped from the claimable
-surface. That is a decision for the v1 plan, not something a fixture can settle.
