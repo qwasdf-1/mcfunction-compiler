@@ -38,9 +38,9 @@ arm in the matrix case.
 | SM-07 | `add` × `@s` | — | SCORE-002 | R |
 | SM-08 | `remove` × present score | result floor | SCORE-007 | R |
 | SM-09 | `remove` × absent holder | negative result semantics | SCORE-007 | R |
-| SM-10 | `remove` × multi-entity `@e[...]` selector | selector fan-out | — | — |
+| SM-10 | `remove` × multi-entity `@e[...]` selector | selector fan-out | SCORE-020 | R |
 | SM-11 | `add/set/remove` × INT_MIN/INT_MAX overflow edges | 32-bit wrap | SCORE-016 | R |
-| SM-12 | mutation × wrapped in modifier chains | modifier-aware dispatch | — | — |
+| SM-12 | mutation × wrapped in modifier chains | modifier-aware dispatch | SCORE-023 | R |
 
 ## 3. Scoreboard operation, condition and store families
 
@@ -61,8 +61,8 @@ arm in the matrix case.
 | SR-01 | `reset <holder> <objective>` | — | SCORE-007 | R |
 | SR-02 | `reset <holder>` (all objectives) | — | SCORE-007 | R |
 | SR-03 | `reset` × seeded and absent holders | — | SCORE-007 | R |
-| SM-13 | mutation/operation under `execute store result/success` × remaining selector shapes | store-target creation semantics | — | — |
-| SO-07 | operation × every remaining selector shape × store/callback context | absent scores, fan-out ordering | — | — |
+| SM-13 | mutation/operation under `execute store result/success` × remaining selector shapes | store-target creation semantics | SCORE-021 | R |
+| SO-07 | operation × every remaining selector shape × store/callback context | absent scores, fan-out ordering | SCORE-022 | R |
 | SC-05 | condition × every remaining selector shape under each store/callback context | absent scores | SCORE-017 | R |
 
 ## 4. Storage and data families
@@ -172,14 +172,12 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**101 rows: 82 covered (R), 0 partial (P), 19 missing (—).**
+**101 rows: 86 covered (R), 0 partial (P), 15 missing (—).**
 
 Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **—** means no case exists for that shape.
 
-**The 19 missing rows, by family group:**
+**The 15 missing rows, by family group:**
 
-- **2. Scoreboard mutation families**: SM-10, SM-12
-- **3. Scoreboard operation, condition and store f**: SM-13, SO-07
 - **5. Predicate and modifier families**: MO-02, MO-09, MO-10
 - **6. State-machine command families**: ST-01, ST-02, ST-03, ST-04, ST-05, ST-06, ST-07
 - **7. Leaf-call and tail-call families**: TC-02
@@ -223,7 +221,7 @@ mechanism their oracle needs:
 
 | Row(s) | Oracle mechanism | Status |
 |---|---|---|
-| SM-03, SM-10, SM-11, SM-12, SM-13, SC-03, SS-03, SS-04, SO-07, SC-05, CT-01, CT-02, CT-03, LF-01, TC-01, TC-02 | Scoreboard oracle, new fixtures only | Available |
+| SM-03, SM-11, SM-12, SC-03, SS-03, SS-04, SC-05, CT-01, CT-02, CT-03, TC-01, TC-02 | Scoreboard oracle, new fixtures only | Available (closed by batches 2-4 for the rows shown cited) |
 | ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Available |
 | ST-02 (`bossbar`) | `bossbar get` feedback through RCON | Available, new oracle type |
 | **ST-01 (`title`), ST-05 (`playsound`/`particle`/`stopsound`), ST-07** | **None — client packets only, RCON cannot observe them** | **Not closable differentially.** Requires either a packet-capturing bot, or an explicit documented delegation contract as the claim |
@@ -233,7 +231,7 @@ mechanism their oracle needs:
 
 ### 11.3 How the rows were closed, in batches
 
-Three batches of differential fixtures have been run across mod-free vanilla 26.3
+Four batches of differential fixtures have been run across mod-free vanilla 26.3
 and the full ten-arm Fabric matrix with exact score-sequence parity. Each batch
 is recorded with what it closed, and each batch's claims are regenerated from
 the table rather than typed by hand.
@@ -325,6 +323,34 @@ are the first candidates for a second item-predicate fixture if command-quota
 headroom is found. SM-10, SM-12, SM-13, SO-07, MO-02, MO-09, MO-10, ST-01..07,
 TC-02, CT-01..03 and BC-06 remain open as before.
 
+
+**Batch 4 - selector-shaped scoreboard rows (matrix cases SCORE-020..023).**
+Fixtures `score_selector_mutation`, `score_selector_store`,
+`score_selector_operation`, `score_modifier_dispatch`. Closed **SM-10, SM-13,
+SO-07, SM-12** (19 missing -> 15).
+
+These four rows are the shapes the compiler *declines*: every operand is an
+entity selector rather than a `#` fake holder, so the specialized path bails out
+and vanilla runs the command. The claim a row makes here is therefore about the
+fallback, not about an inlined evaluator, and the oracle is that the compiled
+arm's folded per-entity effects match vanilla exactly.
+
+These fixtures are invoked by name from `run_scoreboard_semantics` rather than
+from the `DIRECT_FIXTURES` quota sweep, for two reasons. First, the row's claim
+is semantic fan-out, which does not need a sequence-limit sweep. Second, a
+fold over four actors costs the whole command budget a predicate fixture spends
+on eight cases, so a sweep-run fixture of these shapes could only carry one
+observation. Each function performs its own mutations *and* its own per-entity
+fold into one fake holder (`#mutation_sum`, `#store_sum`, `#operation_sum`,
+`#modifier_sum`), so the console side only reads a score and the specialized
+commands always execute inside the compiled function.
+
+Every expectation was derived arithmetically before it was run - four actors at
+a known seeded value, a known removal, and so on - and the vanilla arm then
+confirmed each one exactly: 20, 20, 5636 and 60020. That ordering matters: a
+fixture whose expectations are discovered by reading a failure message can be
+made to pass by fitting the failure, whereas a derived expectation that the
+server then confirms is a claim about behaviour rather than about the harness.
 
 ## 12. Reproducing this table from the code
 

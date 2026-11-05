@@ -3905,6 +3905,65 @@ def run_scoreboard_semantics(client: RconClient, mode: str) -> dict[str, object]
             f"{expected_selector_operation_target}/7"
         )
 
+    # SM-10 / SM-13 / SO-07 / SM-12, the selector-shape rows that the compiler
+    # declines and must therefore fall back on exactly. Each check invokes a
+    # datapack function that performs the mutation and folds the per-entity
+    # effect into one fake holder, so the Fabric arms execute it through the
+    # compiled path while vanilla runs it directly, and the folded sum is only
+    # reachable if the fallback fans out exactly as vanilla does.
+    actor_selector = f"@e[type={ACTOR_TYPE},tag={ACTOR_TAG}]"
+
+    command(
+        "selector_mutation_reset",
+        f"scoreboard players reset {actor_selector} {OBJECTIVE}",
+    )
+    command(
+        "selector_mutation_function",
+        "function function_compiler_probe:score_selector_mutation",
+    )
+    mutation_fanout_sum = score("selector_mutation_sum", "#mutation_sum")
+    if mutation_fanout_sum != 20:
+        raise RuntimeError(
+            f"{mode} multi-entity mutation did not fan out as vanilla does: "
+            f"sum={mutation_fanout_sum}; expected 20 (four seeded actors lose 3 "
+            f"across the whole selector, then two of them lose 4 more)"
+        )
+
+    command("selector_store_function", "function function_compiler_probe:score_selector_store")
+    store_fanout_sum = score("selector_store_sum", "#store_sum")
+    if store_fanout_sum != 20:
+        raise RuntimeError(
+            f"{mode} execute store with a selector target did not fan out as "
+            f"vanilla does: sum={store_fanout_sum}; expected 20 (the store writes "
+            f"the result 5 into each of four actors, creating each score)"
+        )
+
+    command(
+        "selector_operation_function",
+        "function function_compiler_probe:score_selector_operation",
+    )
+    operation_fanout_sum = score("selector_operation_sum", "#operation_sum")
+    if operation_fanout_sum != 5636:
+        raise RuntimeError(
+            f"{mode} scoreboard operation with a selector target did not fan out "
+            f"as vanilla does: sum={operation_fanout_sum}; expected 5636 "
+            f"(4*14=56 for the added fan-out, then 4*9=36 for the creation onto "
+            f"absent targets, folded one place apart)"
+        )
+
+    command(
+        "modifier_dispatch_function",
+        "function function_compiler_probe:score_modifier_dispatch",
+    )
+    modifier_dispatch_sum = score("modifier_dispatch_sum", "#modifier_sum")
+    if modifier_dispatch_sum != 60020:
+        raise RuntimeError(
+            f"{mode} mutation in a modifier chain did not dispatch per actor: "
+            f"sum={modifier_dispatch_sum}; expected 60020 (a per-actor condition "
+            f"counts 2 of 4 actors, an `at @s` chain adds 100 each, and the "
+            f"negated condition counts the other 2)"
+        )
+
     command("wildcard_seed_one", f"scoreboard players set #wild_one {OBJECTIVE} 11")
     command("wildcard_seed_two", f"scoreboard players set #wild_two {OBJECTIVE} -3")
     command("wildcard_other_objective", "scoreboard objectives add fc_other dummy")

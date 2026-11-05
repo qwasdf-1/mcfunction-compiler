@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Close four more coverage rows with selector-shaped scoreboard fixtures, all
+  verified across mod-free vanilla 26.3 and the full ten-arm Fabric matrix.
+  Four fixtures (`score_selector_mutation`, `score_selector_store`,
+  `score_selector_operation`, `score_modifier_dispatch`) are invoked by name
+  from `run_scoreboard_semantics`, each performing its own mutations and its own
+  per-entity fold into one fake holder. Matrix cases SCORE-020..023; rows
+  closed: SM-10 (multi-entity selector fan-out, including a limited selector),
+  SM-13 (execute store with a selector target, creating each score), SO-07
+  (operation fan-out onto a selector target and onto absent targets), SM-12
+  (mutation in a modifier chain with a per-actor condition). Coverage table now
+  101 rows: 86 covered, 0 partial, 15 missing.
+
+- Record that these four rows are shapes the compiler *declines*, so their claim
+  is about the fallback rather than an inlined evaluator, and that their
+  expectations are derived arithmetically before the run confirms them rather
+  than fitted to a failure message. Every derived expectation was confirmed
+  exactly by the vanilla arm: 20, 20, 5636 and 60020.
+
 - Close four more coverage rows with differential predicate fixtures, and fix
   a silent defect the batch first exposed in the harness rather than in the
   compiler. Four fixtures (`predicate_block_tag`, `predicate_block_state`,
