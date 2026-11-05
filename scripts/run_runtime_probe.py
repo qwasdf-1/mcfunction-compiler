@@ -4520,6 +4520,143 @@ def run_scoreboard_semantics(client: RconClient, mode: str) -> dict[str, object]
     return observations
 
 
+def run_delegation_contract(client: RconClient, mode: str) -> dict[str, object]:
+    """Check the "stays on the vanilla path" claims by measurement.
+
+    Two classes of coverage rows rest on delegation rather than on a
+    differential oracle: the selector-shaped scoreboard rows, which the compiler
+    declines because every operand is an entity selector, and the
+    client-packet-only command families, which have no server-side observable
+    effect at all. Prose is not a checkable claim, so the mod exposes per
+    function specialization counters on `function_compiler_probe status` and this
+    function asserts on them.
+
+    The measurement is held accountable by a control, and the gate is the
+    control's own reading rather than a configuration flag. If the control's
+    *compiled* counter is nonzero, the measurement is live and the declined
+    fixtures must read zero in both directions; if it is zero, this arm
+    specializes nothing, so a zero reading elsewhere would be meaningless and
+    the arm is recorded as not exercising the contract. Counting compiled
+    commands in the arm's own configuration would under-check it: `instrument-only`
+    runs with the scoreboard-prototype flag off yet still compiles specialized
+    commands, and its contract matters just as much as the others'.
+
+    The control's *executed* counter is additionally gated on the metrics flag,
+    because that counter is only wired when instrumentation is enabled.
+    """
+
+    observations: dict[str, object] = {}
+    if mode == "mod-free-vanilla":
+        observations["status_available"] = False
+        return observations
+    observations["status_available"] = True
+
+    before = client.command("function_compiler_probe status")
+    metrics_enabled = " score_add_metrics_enabled=true" in before
+    observations["score_add_metrics_enabled"] = metrics_enabled
+    control_compiled_before = status_counter(before, "delegation_control_compiled")
+    control_executed_before = status_counter(before, "delegation_control_executed")
+    observations["control_compiled"] = control_compiled_before
+    observations["control_executed_before"] = control_executed_before
+    # The contract is only exercisable where something in this arm specializes.
+    measurement_live = control_compiled_before >= 1
+    observations["measurement_live"] = measurement_live
+    if not measurement_live:
+        observations["counter_checks_skipped"] = (
+            "no specialized command was compiled in this arm, so a zero "
+            "reading on the declined fixtures would prove nothing"
+        )
+
+    control_response = client.command(
+        "function function_compiler_probe:score_delegation_positive"
+    )
+    after_control = client.command("function_compiler_probe status")
+    control_executed_after = status_counter(after_control, "delegation_control_executed")
+    observations["control_executed_after"] = control_executed_after
+    if measurement_live and metrics_enabled:
+        if control_executed_after <= control_executed_before:
+            raise RuntimeError(
+                f"{mode} delegation control did not execute a specialized "
+                f"command: {control_executed_before} -> {control_executed_after}, "
+                f"response={control_response!r}"
+            )
+
+    if measurement_live:
+        selector_compiled = status_counter(
+            after_control, "delegation_selector_compiled"
+        )
+        selector_executed = status_counter(
+            after_control, "delegation_selector_executed"
+        )
+        client_packet_compiled = status_counter(
+            after_control, "delegation_client_packet_compiled"
+        )
+        client_packet_executed = status_counter(
+            after_control, "delegation_client_packet_executed"
+        )
+        if (
+            selector_compiled
+            or selector_executed
+            or client_packet_compiled
+            or client_packet_executed
+        ):
+            raise RuntimeError(
+                f"{mode} a delegation-contract fixture was specialized: "
+                f"selector={selector_compiled}/{selector_executed}, "
+                f"client_packet={client_packet_compiled}/{client_packet_executed}"
+            )
+
+    selector_response = client.command(
+        "function function_compiler_probe:score_selector_declined"
+    )
+    client_packet_response = client.command(
+        "function function_compiler_probe:state_machine_client_packet"
+    )
+    after = client.command("function_compiler_probe status")
+    observations.update(
+        {
+            "selector_compiled": status_counter(after, "delegation_selector_compiled"),
+            "selector_executed": status_counter(after, "delegation_selector_executed"),
+            "client_packet_compiled": status_counter(
+                after, "delegation_client_packet_compiled"
+            ),
+            "client_packet_executed": status_counter(
+                after, "delegation_client_packet_executed"
+            ),
+            "selector_response": selector_response,
+            "client_packet_response": client_packet_response,
+        }
+    )
+    for label, response in (
+        ("selector", selector_response),
+        ("client_packet", client_packet_response),
+    ):
+        if not response.startswith("Running function "):
+            raise RuntimeError(
+                f"{mode} delegation-contract {label} fixture was not invoked: "
+                f"{response!r}"
+            )
+        if "Unknown" in response or "Incorrect" in response:
+            raise RuntimeError(
+                f"{mode} delegation-contract {label} fixture was rejected: "
+                f"{response!r}"
+            )
+    if measurement_live and (
+        observations["selector_compiled"]
+        or observations["selector_executed"]
+        or observations["client_packet_compiled"]
+        or observations["client_packet_executed"]
+    ):
+        raise RuntimeError(
+            f"{mode} a delegation-contract fixture was specialized after "
+            f"invocation: selector={observations['selector_compiled']}/"
+            f"{observations['selector_executed']}, "
+            f"client_packet={observations['client_packet_compiled']}/"
+            f"{observations['client_packet_executed']}"
+        )
+    return observations
+
+
 def run_control_flow_fallback_cases(
     client: RconClient, mode: str, server_root: Path
 ) -> dict[str, object]:
@@ -5496,6 +5633,7 @@ def run_mode(
         fork_limit_fixture = run_fork_limit_fixture(client, mode)
         fork_order_fixture = run_fork_order_fixture(client, mode)
         scoreboard_semantics = run_scoreboard_semantics(client, mode)
+        delegation_contract = run_delegation_contract(client, mode)
         control_flow_fallback_cases = run_control_flow_fallback_cases(
             client, mode, RUN_DIR
         )
@@ -5851,6 +5989,7 @@ def run_mode(
             "fork_limit_fixture": fork_limit_fixture,
             "fork_order_fixture": fork_order_fixture,
             "scoreboard_semantics": scoreboard_semantics,
+            "delegation_contract": delegation_contract,
             "score_add_prototype_metrics": score_add_metrics,
             "fused_region_metrics": fused_region_metrics,
             "bytecode_region_metrics": bytecode_region_metrics,
@@ -5907,6 +6046,7 @@ def run_vanilla_reference(
             fork_limit_fixture = run_fork_limit_fixture(client, "mod-free-vanilla")
             fork_order_fixture = run_fork_order_fixture(client, "mod-free-vanilla")
             scoreboard_semantics = run_scoreboard_semantics(client, "mod-free-vanilla")
+            delegation_contract = run_delegation_contract(client, "mod-free-vanilla")
             control_flow_fallback_cases = run_control_flow_fallback_cases(
                 client, "mod-free-vanilla", server_dir
             )
@@ -6172,6 +6312,7 @@ def run_vanilla_reference(
                 "fork_limit_fixture": fork_limit_fixture,
                 "fork_order_fixture": fork_order_fixture,
                 "scoreboard_semantics": scoreboard_semantics,
+                "delegation_contract": delegation_contract,
                 "control_flow_fallback_cases": control_flow_fallback_cases,
                 "command_callback_metric_fixture": callback_metric_fixture,
                 "lifecycle_initial": lifecycle_initial,

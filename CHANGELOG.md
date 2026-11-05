@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+- Close the last three client-packet-only coverage rows by **delegation contract**
+  rather than by a differential oracle, which does not exist for them. `title`,
+  `playsound`/`particle`/`stopsound` and the generic state-machine wrapper
+  around them produce client packets only, so RCON cannot observe their effects.
+  Accepted per the v1 plan as an explicit delegation claim, matrix case
+  STATE-001; rows closed: ST-01, ST-05, ST-07. The table now records 89 covered,
+  0 partial, 12 missing.
+
+- Turn that contract into a measurement rather than prose.
+  `function_compiler_probe status` now reports per-function specialization
+  counters for three fixtures, asserted by a new `run_delegation_contract` pass
+  in every runtime arm: a control fixture whose counters must be nonzero (so a
+  zero reading on the others is evidence, not a broken counter), a
+  selector-operand fixture, and the client-packet fixture, both of which must
+  read zero in the compiled and executed directions. This is the falsifiable
+  form of the claim batch 4 merely asserted - that the compiler declines
+  entity-selector operands. Verified: 5 of 8 arms compile something (control=4)
+  and report zero for both declined fixtures; `wrapper-off`/`wrapper-on` compile
+  nothing and are recorded as not exercising the contract.
+
+- Add `tests/test_delegation_contract_fixtures.py`, which checks the contract's
+  wiring statically because the runtime check cannot: the status command must
+  declare and report exactly the fixtures it checks, each fixture file must
+  exist, the control must contain a specializable shape so its counter can move,
+  the declined fixture must contain no fake holder at all, and the client-packet
+  fixture must contain only client-packet commands. A renamed or emptied fixture
+  would otherwise read zero and the contract would pass while proving nothing.
+
+- Three findings recorded rather than smoothed over. (1) The contract check's
+  first version failed on `wrapper-off`, which specializes nothing: an arm whose
+  counters are all zero cannot be asked to prove a nonzero control. (2) The
+  second version, gated on the `FC_SCORE_ADD_PROTOTYPE` flag, would have skipped
+  `instrument-only`, which runs with the flag off yet still compiles four
+  specialized commands - so the gate is the control's own reading, not the
+  configuration. (3) The static test caught an ambiguous line in the declined
+  fixture: a fake-holder target with a selector source, which the compiler
+  declines only because of the source, so the fixture would have proven less
+  than it claimed.
+
 - Close four more coverage rows with selector-shaped scoreboard fixtures, all
   verified across mod-free vanilla 26.3 and the full ten-arm Fabric matrix.
   Four fixtures (`score_selector_mutation`, `score_selector_store`,

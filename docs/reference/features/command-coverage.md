@@ -104,13 +104,13 @@ form, not one row per parser:
 
 | Row | Family × argument shape | Fallback condition | Matrix |
 | --- | --- | --- | --- | R |
-| ST-01 | `title @a actionbar/title/subtitle/clear` × text and JSON component | — | — | — |
+| ST-01 | `title @a actionbar/title/subtitle/clear` × text and JSON component | — | STATE-001 | R |
 | ST-02 | `bossbar add/set/remove/get <id> ...` | unknown bar | — | — |
 | ST-03 | `effect give/clear <target> <effect> ...` | amplifier/duration edges | — | — |
 | ST-04 | `setblock <pos> <block>[state] [mode]` | out-of-world | — | — |
-| ST-05 | `playsound <sound> ...`, `particle ...`, `stopsound` | volume/pitch edges | — | — |
+| ST-05 | `playsound <sound> ...`, `particle ...`, `stopsound` | volume/pitch edges | STATE-001 | R |
 | ST-06 | gameplay item commands (`item replace/modify`) | slot edges | — | — |
-| ST-07 | generic state-machine wrapper for the command set above | unrecognized command → vanilla | — | — |
+| ST-07 | generic state-machine wrapper for the command set above | unrecognized command → vanilla | STATE-001 | R |
 
 ## 7. Leaf-call and tail-call families
 
@@ -172,14 +172,14 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**101 rows: 86 covered (R), 0 partial (P), 15 missing (—).**
+**101 rows: 89 covered (R), 0 partial (P), 12 missing (—).**
 
 Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **—** means no case exists for that shape.
 
-**The 15 missing rows, by family group:**
+**The 12 missing rows, by family group:**
 
 - **5. Predicate and modifier families**: MO-02, MO-09, MO-10
-- **6. State-machine command families**: ST-01, ST-02, ST-03, ST-04, ST-05, ST-06, ST-07
+- **6. State-machine command families**: ST-02, ST-03, ST-04, ST-06
 - **7. Leaf-call and tail-call families**: TC-02
 - **9. Fused-region families**: CT-01, CT-02, CT-03
 - **10. Bytecode backend families**: BC-06
@@ -224,14 +224,14 @@ mechanism their oracle needs:
 | SM-03, SM-11, SM-12, SC-03, SS-03, SS-04, SC-05, CT-01, CT-02, CT-03, TC-01, TC-02 | Scoreboard oracle, new fixtures only | Available (closed by batches 2-4 for the rows shown cited) |
 | ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Available |
 | ST-02 (`bossbar`) | `bossbar get` feedback through RCON | Available, new oracle type |
-| **ST-01 (`title`), ST-05 (`playsound`/`particle`/`stopsound`), ST-07** | **None — client packets only, RCON cannot observe them** | **Not closable differentially.** Requires either a packet-capturing bot, or an explicit documented delegation contract as the claim |
+| **ST-01 (`title`), ST-05 (`playsound`/`particle`/`stopsound`), ST-07** | **None — client packets only, RCON cannot observe them** | **Closable only by delegation contract**, accepted as the v1 claim for these rows (matrix case STATE-001; see §11.3 batch 5). Differential closure would require a packet-capturing bot, which is a separate decision |
 | MO-02 | `execute store result/success storage <id> <path> run ...`; the 26.3 node arity this parser expects is not yet confirmed | **Blocked on syntax confirmation** (the row is `—` until a fixture parses) |
 | MO-09, MO-10 | Fork selector identity for random/arbitrary ordering; harness records effects, not identities | Partially available |
 | BC-06 | A paired performance campaign, not a fixture | Requires a campaign |
 
 ### 11.3 How the rows were closed, in batches
 
-Four batches of differential fixtures have been run across mod-free vanilla 26.3
+Five batches of differential fixtures and one delegation contract have been run across mod-free vanilla 26.3
 and the full ten-arm Fabric matrix with exact score-sequence parity. Each batch
 is recorded with what it closed, and each batch's claims are regenerated from
 the table rather than typed by hand.
@@ -351,6 +351,61 @@ confirmed each one exactly: 20, 20, 5636 and 60020. That ordering matters: a
 fixture whose expectations are discovered by reading a failure message can be
 made to pass by fitting the failure, whereas a derived expectation that the
 server then confirms is a claim about behaviour rather than about the harness.
+
+
+**Batch 5 - the delegation rows (matrix case STATE-001).** The three
+client-packet rows were closed not by a differential oracle, which does not
+exist for them, but by a **delegation contract** the v1 plan accepts for this
+class: the families are not specialized, and they are forwarded to vanilla
+without error. Rows closed: **ST-01, ST-05, ST-07** (15 missing → 12).
+
+A prose contract is not a checkable claim, so the contract was turned into a
+measurement. `function_compiler_probe status` now reports per-function
+specialization counters for three fixtures, and `run_delegation_contract`
+asserts on them in every runtime arm:
+
+* `score_delegation_positive` is the **control**. Its counters must be nonzero
+  (`control_compiled=4` in every arm that specializes), so a zero reading on a
+  declined fixture is evidence that the compiler refused it rather than an
+  artifact of a counter that cannot move. Its *executed* counter must move
+  across an invocation, which covers the other direction.
+* `score_selector_declined` contains only selector-operand scoreboard commands
+  and must read zero in both directions. This is the falsifiable form of the
+  claim batch 4's write-up had merely asserted: that the compiler declines
+  entity-selector operands.
+* `state_machine_client_packet` contains only `title`, `playsound`, `particle`
+  and `stopsound`, and must read zero in both directions.
+
+**What the contract does not claim, and why that is stated rather than omitted.**
+The command *effects* - the text shown, the sound's volume and pitch, the
+particle count, the channel a stop-sound empties - are client packets and stay
+unverified. Closing these rows is a decision to accept a delegation claim for
+this class, not a claim about those semantics.
+
+**The control caught a defect in the check itself, twice.** The first version
+gated the counter half on the `FC_SCORE_ADD_PROTOTYPE` configuration flag and
+therefore failed on `wrapper-off`, which specializes nothing at all: an arm
+whose counters are all zero cannot be asked to prove a nonzero control. The
+second version gated on the flag being *off* and would have skipped
+`instrument-only`, which runs with the flag off yet still compiles four
+specialized commands in the control. The gate is therefore the control's own
+reading: if the control compiles something, the measurement is live and the
+declined fixtures must read zero; if it compiles nothing, the arm is recorded
+as not exercising the contract. Both `wrapper-off` and `wrapper-on` are
+recorded that way, which is the honest description - a contract that cannot be
+checked is not the same as a contract that holds.
+
+**A silent-disarm guard, because the runtime check cannot see this.**
+`tests/test_delegation_contract_fixtures.py` checks the wiring statically: the
+status command must declare and report exactly the fixtures the probe checks,
+each declared fixture file must exist, the control must contain a fake-holder
+shape so its counter *can* move, the declined fixture must contain no fake
+holder at all so its refusal does not depend on which operand the compiler
+checks first, and the client-packet fixture must contain only client-packet
+commands. A renamed or emptied fixture would otherwise read zero and the
+contract would "pass" while proving nothing. Its first run also caught an
+ambiguous line in the declined fixture itself: a fake-holder target with a
+selector source, which the compiler declines only because of the source.
 
 ## 12. Reproducing this table from the code
 

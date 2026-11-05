@@ -26,6 +26,12 @@ final class ProbeStatus {
             "function_compiler_lifecycle", "macro_add");
     private static final Identifier LIFECYCLE_MACRO_PAIR = Identifier.fromNamespaceAndPath(
             "function_compiler_lifecycle", "macro_pair");
+    private static final Identifier DELEGATION_CONTROL = Identifier.fromNamespaceAndPath(
+            "function_compiler_probe", "score_delegation_positive");
+    private static final Identifier DELEGATION_SELECTOR = Identifier.fromNamespaceAndPath(
+            "function_compiler_probe", "score_selector_declined");
+    private static final Identifier DELEGATION_CLIENT_PACKET = Identifier.fromNamespaceAndPath(
+            "function_compiler_probe", "state_machine_client_packet");
 
     private ProbeStatus() {
     }
@@ -94,6 +100,18 @@ final class ProbeStatus {
                 + " score_add_compiled_lifecycle_probe=" + ProbeMetrics.scoreAddsCompiled(LIFECYCLE_PROBE)
                 + " score_add_compiled_lifecycle_macro_add=" + ProbeMetrics.scoreAddsCompiled(LIFECYCLE_MACRO)
                 + " score_add_compiled_lifecycle_macro_pair=" + ProbeMetrics.scoreAddsCompiled(LIFECYCLE_MACRO_PAIR)
+                // Delegation-contract fixtures: these functions contain only shapes
+                // the specialized path must decline, so their per-function
+                // specialization counters are the falsifiable form of the "stays
+                // on the vanilla path" claim. A nonzero value means a command in
+                // that function was specialized, which would need its own
+                // semantic gate before the contract could be relied on.
+                + " delegation_control_compiled=" + ProbeMetrics.scoreAddsCompiled(DELEGATION_CONTROL)
+                + " delegation_control_executed=" + ProbeMetrics.scoreAddsExecuted(DELEGATION_CONTROL)
+                + " delegation_selector_compiled=" + ProbeMetrics.scoreAddsCompiled(DELEGATION_SELECTOR)
+                + " delegation_selector_executed=" + ProbeMetrics.scoreAddsExecuted(DELEGATION_SELECTOR)
+                + " delegation_client_packet_compiled=" + ProbeMetrics.scoreAddsCompiled(DELEGATION_CLIENT_PACKET)
+                + " delegation_client_packet_executed=" + ProbeMetrics.scoreAddsExecuted(DELEGATION_CLIENT_PACKET)
                 + " score_add_executed=" + ProbeMetrics.scoreAddsExecuted()
                 + " score_add_executed_lifecycle_macro_add=" + ProbeMetrics.scoreAddsExecuted(LIFECYCLE_MACRO)
                 + " score_add_executed_lifecycle_macro_pair=" + ProbeMetrics.scoreAddsExecuted(LIFECYCLE_MACRO_PAIR)
