@@ -66,6 +66,10 @@ DIRECT_FIXTURES = (
     "score_condition_absent",
     "score_store_targets",
     "leaf_and_tail_runs",
+    "predicate_block_tag",
+    "predicate_block_state",
+    "predicate_item_stack",
+    "predicate_item_modifier",
 )
 EXTENDED_QUOTA_FIXTURES = frozenset(
     {
@@ -82,6 +86,10 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
         "score_condition_absent",
         "score_store_targets",
         "leaf_and_tail_runs",
+        "predicate_block_tag",
+        "predicate_block_state",
+        "predicate_item_stack",
+        "predicate_item_modifier",
         "quota_recursive_compiled",
         "quota_change_limit",
     }
@@ -150,6 +158,48 @@ EXPECTED_SCORES = {
         0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0,
         6: 6, 7: 8, 8: 10, 9: 12, 10: 24, 11: 36,
         12: 109, 13: 135, 14: 161, 15: 187, 16: 213,
+    },
+    # Observed on the mod-free vanilla arm. PR-03: tag predicates fold to the
+    # same branch outcomes in every arm, and the run stabilises at 89 (= the
+    # declared 1,0,1,1,0,0,1) from quota 14, so every case executes.
+    "predicate_block_tag": {
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0,
+        5: 64, 6: 64, 7: 64, 8: 80, 9: 80,
+        10: 88, 11: 88, 12: 88, 13: 88,
+        14: 89, 15: 89, 16: 89,
+    },
+    # Observed on the mod-free vanilla arm. PR-04: partial, full, wrong-value
+    # and conjunction state predicates fold to the same branch outcomes in every
+    # arm, and the run stabilises at 163 (= the declared 1,0,1,0,0,0,1,1) from
+    # quota 14, so every case executes.
+    "predicate_block_state": {
+        0: 0, 1: 0, 2: 0, 3: 0,
+        4: 128, 5: 128, 6: 128, 7: 160, 8: 160, 9: 160, 10: 160, 11: 160,
+        12: 162, 13: 162, 14: 163, 15: 163, 16: 163,
+    },
+    # Observed on the mod-free vanilla arm. PR-05: id, item tag, wildcard
+    # component presence, component equality and mismatch, an empty slot and a
+    # count range all fold to the same branch outcomes in every arm. The run
+    # stabilises at 185 (= the declared 1,0,1,1,1,0,0,1) from quota 16, so every
+    # case executes; a twelve-case first draft left three cases unexecuted.
+    "predicate_item_stack": {
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0,
+        5: 128, 6: 128, 7: 128,
+        8: 160, 9: 160, 10: 176, 11: 176, 12: 184,
+        13: 184, 14: 184, 15: 184, 16: 185,
+    },
+    # Observed on the mod-free vanilla arm. MO-07: the item predicate as an
+    # execute modifier, behind an `unless`, in a conjunction with a block
+    # predicate, and in a conjunction whose second conjunct fails. The run
+    # stabilises at 13 (= the declared 1,1,0,1) from quota 12, so every case
+    # executes; item-predicate lines and two-predicate chains cost noticeably
+    # more quota than plain scoreboard lines, which is why the fixture is four
+    # cases rather than the nine its first draft had.
+    "predicate_item_modifier": {
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0,
+        5: 8, 6: 8, 7: 8,
+        8: 12, 9: 12, 10: 12, 11: 12,
+        12: 13, 13: 13, 14: 13, 15: 13, 16: 13,
     },
     "storage_value_shapes": {
         **{quota: 0 for quota in range(0, 7)},

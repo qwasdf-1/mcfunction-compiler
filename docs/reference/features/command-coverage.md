@@ -83,14 +83,14 @@ arm in the matrix case.
 | --- | --- | --- | --- | R |
 | PR-01 | `execute if/unless entity @s` | zero/multiple matches | PRED-001 | R |
 | PR-02 | `execute if/unless block <pos> <block>` | unloaded chunk → vanilla fallback | PRED-002 | R |
-| PR-03 | block predicate × block **tag** (`#ns:tag`) | tag expansion | — | — |
-| PR-04 | block predicate × explicit block **state** (`block[..]`) | state-property match | — | — |
-| PR-05 | item predicate (`*[minecraft:...]`) | component predicates | — | — |
+| PR-03 | block predicate × block **tag** (`#ns:tag`) | tag expansion | PRED-003 | R |
+| PR-04 | block predicate × explicit block **state** (`block[..]`) | state-property match | PRED-004 | R |
+| PR-05 | item predicate (`*[minecraft:...]`) | component predicates | PRED-005 | R |
 | MO-01 | `ScoreCondition`/`ScoreStore` modifiers around specialized ops | — | SCORE-009/012 | R |
 | MO-02 | `DataStore` modifier around data commands | — | — | — |
 | MO-03..05 | `as`, `at`, `positioned`, `rotated`, `anchored` chains and their ordering | chained combinations | CTRL-009 | R |
 | MO-06 | `ForkModifier` × fork limit 1..12 overflow | cap reached | QUOTA-009 | R |
-| MO-07 | `ItemPredicate` modifier on stack predicates | — | — | — |
+| MO-07 | `ItemPredicate` modifier on stack predicates | — | PRED-006 | R |
 | MO-08 | `ContextModifier` folding into a single in-memory source mutation | — | CTRL-009 | R |
 | MO-09 | fork modifier × remaining selector shapes (random/arbitrary identity ordering) | cap overflow | — | — |
 | MO-10 | fork modifier × broader mod-stack combinations | Bellows/Moonrise interaction | — | — |
@@ -172,20 +172,17 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**101 rows: 69 covered (R), 0 partial (P), 32 missing (—).**
+**101 rows: 82 covered (R), 0 partial (P), 19 missing (—).**
 
-Status is assigned from the matrix's own verdicts: **R** requires a cited
-matrix case recorded *complete* in
-[`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv);
-**—** means no case exists for that shape.
+Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **—** means no case exists for that shape.
 
-**The 32 missing rows, by family group:**
-- **2. Scoreboard mutation families**: SM-03, SM-10, SM-11, SM-12
-- **3. Scoreboard operation, condition and store f**: SC-03, SS-03, SS-04, SM-13, SO-07, SC-05
-- **4. Storage and data families**: DS-05
-- **5. Predicate and modifier families**: PR-03, PR-04, PR-05, MO-02, MO-07, MO-09, MO-10
+**The 19 missing rows, by family group:**
+
+- **2. Scoreboard mutation families**: SM-10, SM-12
+- **3. Scoreboard operation, condition and store f**: SM-13, SO-07
+- **5. Predicate and modifier families**: MO-02, MO-09, MO-10
 - **6. State-machine command families**: ST-01, ST-02, ST-03, ST-04, ST-05, ST-06, ST-07
-- **7. Leaf-call and tail-call families**: LF-01, TC-01, TC-02
+- **7. Leaf-call and tail-call families**: TC-02
 - **9. Fused-region families**: CT-01, CT-02, CT-03
 - **10. Bytecode backend families**: BC-06
 
@@ -227,7 +224,7 @@ mechanism their oracle needs:
 | Row(s) | Oracle mechanism | Status |
 |---|---|---|
 | SM-03, SM-10, SM-11, SM-12, SM-13, SC-03, SS-03, SS-04, SO-07, SC-05, CT-01, CT-02, CT-03, LF-01, TC-01, TC-02 | Scoreboard oracle, new fixtures only | Available |
-| PR-03, PR-04, PR-05, ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Available |
+| ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Available |
 | ST-02 (`bossbar`) | `bossbar get` feedback through RCON | Available, new oracle type |
 | **ST-01 (`title`), ST-05 (`playsound`/`particle`/`stopsound`), ST-07** | **None — client packets only, RCON cannot observe them** | **Not closable differentially.** Requires either a packet-capturing bot, or an explicit documented delegation contract as the claim |
 | MO-02 | `execute store result/success storage <id> <path> run ...`; the 26.3 node arity this parser expects is not yet confirmed | **Blocked on syntax confirmation** (the row is `—` until a fixture parses) |
@@ -236,7 +233,7 @@ mechanism their oracle needs:
 
 ### 11.3 How the rows were closed, in batches
 
-Two batches of differential fixtures have been run across mod-free vanilla 26.3
+Three batches of differential fixtures have been run across mod-free vanilla 26.3
 and the full ten-arm Fabric matrix with exact score-sequence parity. Each batch
 is recorded with what it closed, and each batch's claims are regenerated from
 the table rather than typed by hand.
@@ -278,6 +275,55 @@ It was rebuilt around a data command with a known result value. SM-10, SM-12,
 SM-13, SO-07, MO-02, MO-07, MO-09, MO-10, ST-01..07, TC-02, CT-01..03 and BC-06
 remain open for the reasons in the table and in the feasibility classification
 above.
+
+**Batch 3 - predicate selectors (matrix cases PRED-003..006).** Fixtures
+`predicate_block_tag`, `predicate_block_state`, `predicate_item_stack`,
+`predicate_item_modifier`. Closed **PR-03, PR-04, PR-05, MO-07** (23 missing →
+19).
+
+**How the 26.3 syntax was confirmed before these fixtures were written.** Three
+shapes here were new to the project: a block predicate naming a tag, a block
+predicate naming a state, and an item predicate. Each was confirmed against the
+vanilla server's own parser in a scratch server before a fixture was written -
+one function per candidate syntax, booted from the pinned
+`minecraft-server.jar`, with each candidate's load failure or score reported
+individually. That pass recorded one syntax fact that a guess would have gotten
+wrong: a count *range* in an item predicate is not `[count=1..]` and not
+`[count=2..3]` (both fail to parse), nor `[count~1..]`; the range form is an SNBT
+object, `[count={"min":1,"max":3}]`. It also showed that the entity-target form
+of these predicates was not usable in the scratch world (a summoned armor stand
+was not selectable), which is why the item fixtures use a chest-container target.
+
+**The truncation defect this batch found in its own fixtures - and in the
+harness's ability to see it.** The quota sweep runs a fixture across
+`maxCommandSequenceLength` 0-16, and an `execute if items` line costs noticeably
+more of that budget than a block predicate, with a two-predicate chain costing
+more again. The first drafts of `predicate_block_tag`, `predicate_item_stack`
+and `predicate_item_modifier` were therefore too long: the run charged out
+mid-function and their later cases never executed in *any* arm. This is a
+different failure from the all-zero oracle in batch 2 but the same class: part
+of the fixture cannot fail, so it only looks like coverage.
+
+It is also invisible to the value comparison alone. A truncated tail of cases
+that take no branch produces exactly the same score as an executed tail, so the
+observed map matched a shortened fixture just as happily as a complete one. The
+fixture now guards against this structurally: **the final case of every fixture
+must be a branch that is taken**, so its weight is an unconditional completion
+signal, and `tests/test_runtime_probe_oracle_health.py` enforces that
+invariant, that each fixture's declared full-run value is reached at the top
+quota, that no map is constant or all-zero, and that a fixture registered in
+`DIRECT_FIXTURES` is never silently skipped (the runner returns early when
+`EXPECTED_SCORES` has no entry, so a missing entry is a fixture that can never
+fail).
+
+**What batch 3 could not close, and why.** The item fixtures are four cases and
+eight, not the nine and twelve their first drafts had, because the command quota
+will not carry more inside the 0-16 sweep; the shapes dropped (a negated
+component term, a second count-range mismatch, a chain whose first conjunct
+fails, an item predicate behind a zero-match `as` selector in both polarities)
+are the first candidates for a second item-predicate fixture if command-quota
+headroom is found. SM-10, SM-12, SM-13, SO-07, MO-02, MO-09, MO-10, ST-01..07,
+TC-02, CT-01..03 and BC-06 remain open as before.
 
 
 ## 12. Reproducing this table from the code

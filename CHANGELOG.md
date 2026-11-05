@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+- Close four more coverage rows with differential predicate fixtures, and fix
+  a silent defect the batch first exposed in the harness rather than in the
+  compiler. Four fixtures (`predicate_block_tag`, `predicate_block_state`,
+  `predicate_item_stack`, `predicate_item_modifier`) run across mod-free vanilla
+  26.3 and the full ten-arm Fabric matrix with exact score-sequence parity,
+  adding matrix cases PRED-003..006 and closing PR-03, PR-04, PR-05 and MO-07.
+  Coverage table now 101 rows: 82 covered, 0 partial, 19 missing.
+
+- Add `tests/test_runtime_probe_oracle_health.py`, which checks the runtime
+  probe's oracle table instead of a running server. It enforces that every
+  registered fixture has an expectation (the runner returns early when
+  `EXPECTED_SCORES` has no entry, so a missing entry is a fixture that can never
+  fail), that no map is constant or all-zero, that each fixture's declared
+  full-run value is reached at the top quota, and that the final case of each
+  fixture is a branch that is taken.
+
+- Record the truncation defect this batch found in its own fixtures. The quota
+  sweep runs each fixture across `maxCommandSequenceLength` 0-16, and an
+  `execute if items` line plus a two-predicate chain costs noticeably more of
+  that budget than a block predicate, so the first drafts of three fixtures
+  charged out mid-run and left their later cases unexecuted in every arm. That
+  failure is invisible to the value comparison alone: a truncated tail of
+  cases that take no branch scores the same as an executed tail. Every fixture
+  now ends with a taken branch so its weight is an unconditional completion
+  signal, and the new test enforces it.
+
+- Note a 26.3 syntax fact confirmed against the vanilla parser rather than
+  assumed: a count *range* in an item predicate is not `[count=1..]` or
+  `[count=2..3]` (both fail to parse), nor `[count~1..]`; the range form is an
+  SNBT object, `[count={"min":1,"max":3}]`.
+
 - Run the first real-workload fused-region campaign (PERF-017) on the pinned
   Vein Miner 6x6x6 native event: ten counterbalanced pairs with exact workload
   parity (215/215 blocks, 1,952 `#head` increments), symmetric un-instrumentated
