@@ -134,3 +134,20 @@
   negative tag constraints, and furthest `limit=1`; all seven arms pass.
 - Verify Bellows `home_radius` modification/removal against vanilla alongside
   `home_pos`; all seven arms match, so the adapter stays scoped to `home_pos`.
+- Add the first differential fixtures for the v1 coverage table and close five
+  rows. Three new fixtures in the probe pack (`storage_value_shapes`,
+  `storage_copy_paths`, `storage_store_and_errors`) are registered in
+  `DIRECT_FIXTURES` and `EXTENDED_QUOTA_FIXTURES` and were run across mod-free
+  vanilla 26.3 plus all nine Fabric runtime modes with exact score-sequence
+  parity, adding matrix cases DATA-002/003/004. Coverage table now 101 rows:
+  69 covered, 0 partial, 32 missing (was 28 before the partial-cited rows were
+  narrowed, and 36 before this batch).
+
+  Three findings recorded rather than papered over. The 26.3 `execute store
+  result score` syntax rejects a scale argument, so the fixtures build their
+  positional checksum with `scoreboard players operation` weights instead. The
+  string member and the post-removal list read are exercised but their folds
+  land beyond the 0-16 quota sweep, so they are not observed. And
+  `execute store ... storage` (MO-02) stays open because the node arity that
+  parser expects is unconfirmed - writing a fixture for it would produce a test
+  that cannot load.

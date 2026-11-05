@@ -428,14 +428,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def run_in_server_session()`:146
   - `def _get_selective_macro_count()`:188
 - [`scripts/run_runtime_probe.py`](../../scripts/run_runtime_probe.py):
-  - `def configure_probe_ports()`:83
-  - `class RconClient`:197
-  - `def __init__()`:198
-  - `def close()`:206
-  - `def command()`:209
-  - `def _request()`:217
-  - `def _read_exact()`:230
-  - `def prepare_server_files()`:240
+  - `def configure_probe_ports()`:89
+  - `class RconClient`:228
+  - `def __init__()`:229
+  - `def close()`:237
+  - `def command()`:240
+  - `def _request()`:248
+  - `def _read_exact()`:261
+  - `def prepare_server_files()`:271
 - [`scripts/run_score_add_ab.py`](../../scripts/run_score_add_ab.py):
   - `class PortBindError`:79
   - `def sha256()`:83

@@ -70,12 +70,12 @@ arm in the matrix case.
 | Row | Family × argument shape | Fallback condition | Matrix |
 | --- | --- | --- | --- | R |
 | DS-01 | `data modify storage` × set value | — | DATA-001 | R |
-| DS-02 | `data modify storage` × compound/array/primitive values | — | — | — |
+| DS-02 | `data modify storage` × compound/array/primitive values | numeric compound + array-indexed members | DATA-002 | R |
 | DS-03 | `data remove storage` | — | DATA-001 | R |
-| DS-04 | `data get storage` | malformed path | — | — |
+| DS-04 | `data get storage` on an absent storage path | command failure, no store applied | DATA-004 | R |
 | DS-05 | `execute store result/success` around a data command | — | — | — |
-| DC-01 | storage → scoreboard data copy (`DataCopyCommand`) | — | — | — |
-| DC-02 | nested path copy with array indices | — | — | — |
+| DC-01 | `data modify storage A p set from storage B p` (`DataCopyCommand`) | absent source path | DATA-003 | R |
+| DC-02 | nested path copy with array indices | copied container read back | DATA-003 | R |
 
 ## 5. Predicate and modifier families
 
@@ -172,19 +172,17 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**101 rows: 65 covered (R), 0 partial (P), 36 missing (—).**
+**101 rows: 69 covered (R), 0 partial (P), 32 missing (—).**
 
 Status is assigned from the matrix's own verdicts: **R** requires a cited
 matrix case recorded *complete* in
 [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv);
-**—** means no case exists for that shape. A cited case recorded `Partial` is
-**not** accepted as covering a row — see §11.1 for how the eleven such rows were
-resolved on 2026-11-04.
+**—** means no case exists for that shape.
 
-**The 36 missing rows, by family group:**
+**The 32 missing rows, by family group:**
 - **2. Scoreboard mutation families**: SM-03, SM-10, SM-11, SM-12
 - **3. Scoreboard operation, condition and store f**: SC-03, SS-03, SS-04, SM-13, SO-07, SC-05
-- **4. Storage and data families**: DS-02, DS-04, DS-05, DC-01, DC-02
+- **4. Storage and data families**: DS-05
 - **5. Predicate and modifier families**: PR-03, PR-04, PR-05, MO-02, MO-07, MO-09, MO-10
 - **6. State-machine command families**: ST-01, ST-02, ST-03, ST-04, ST-05, ST-06, ST-07
 - **7. Leaf-call and tail-call families**: LF-01, TC-01, TC-02
@@ -215,15 +213,42 @@ combination the case leaves open became its own `—` row. The gap count therefo
 The newly visible gaps they concealed are rows **SM-13, SO-07, SC-05** (selector
 shapes under store/callback contexts), **MO-09, MO-10** (remaining fork selector
 shapes and mod-stack combinations), and **CT-01, CT-02, CT-03** (other
-return/error callback combinations). Those rows are `—` because no matrix case
-covers them, which is the same standard applied to every other row in this
-table.
+return/error callback combinations).
 
-**What this means for the v1 coverage gate:** no row may be claimed without a
-row here, and the eleven rows that previously rested on partial cases now rest
-on the specific text that proves them. The remaining 36 rows
-are the actual work of the coverage gate; the list above is generated from the
-table so it cannot drift from the rows.
+### 11.2 How each missing row can be closed (oracle feasibility)
+
+Closing a row means running a differential case whose oracle can *observe* the
+effect. The project's existing oracle is the scoreboard counter folded through
+`EXPECTED_SCORES` in [`run_runtime_probe.py`](../../../scripts/run_runtime_probe.py),
+swept over quotas across vanilla and nine Fabric modes, with `EXTENDED_QUOTA_FIXTURES`
+extending a fixture to 0–16 so longer fixtures fit. Rows are classified by the
+mechanism their oracle needs:
+
+| Row(s) | Oracle mechanism | Status |
+|---|---|---|
+| SM-03, SM-10, SM-11, SM-12, SM-13, SC-03, SS-03, SS-04, SO-07, SC-05, CT-01, CT-02, CT-03, LF-01, TC-01, TC-02 | Scoreboard oracle, new fixtures only | Available |
+| PR-03, PR-04, PR-05, ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Available |
+| ST-02 (`bossbar`) | `bossbar get` feedback through RCON | Available, new oracle type |
+| **ST-01 (`title`), ST-05 (`playsound`/`particle`/`stopsound`), ST-07** | **None — client packets only, RCON cannot observe them** | **Not closable differentially.** Requires either a packet-capturing bot, or an explicit documented delegation contract as the claim |
+| MO-02 | `execute store result/success storage <id> <path> run ...`; the 26.3 node arity this parser expects is not yet confirmed | **Blocked on syntax confirmation** (the row is `—` until a fixture parses) |
+| MO-09, MO-10 | Fork selector identity for random/arbitrary ordering; harness records effects, not identities | Partially available |
+| BC-06 | A paired performance campaign, not a fixture | Requires a campaign |
+
+### 11.3 What the first storage batch closed
+
+Three fixtures were added (`storage_value_shapes`, `storage_copy_paths`,
+`storage_store_and_errors`), registered in `DIRECT_FIXTURES` and
+`EXTENDED_QUOTA_FIXTURES`, and run across mod-free vanilla plus all nine Fabric
+runtime modes with exact score-sequence parity. They closed **DS-02, DS-04,
+DS-05, DC-01, DC-02** (matrix cases DATA-002, DATA-003, DATA-004) and moved the
+missing count from 36 to **32**.
+
+Two honest limits recorded in the case statuses: the string member and the
+post-removal list read are *exercised* by the fixtures but their folds land
+beyond the 0–16 quota sweep, so they are not observed; and MO-02 stays `—`
+pending syntax confirmation. Observed sequences: `storage_value_shapes` 0 → 0,
+7 → 7, 13 → 507; `storage_copy_paths` 0 → 0, 8 → 33, 14 → 143;
+`storage_store_and_errors` 0 → 0, 7 → 5.
 
 ## 12. Reproducing this table from the code
 

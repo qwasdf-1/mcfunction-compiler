@@ -59,6 +59,9 @@ DIRECT_FIXTURES = (
     "quota_recursive",
     "quota_recursive_compiled",
     "quota_change_limit",
+    "storage_value_shapes",
+    "storage_copy_paths",
+    "storage_store_and_errors",
 )
 EXTENDED_QUOTA_FIXTURES = frozenset(
     {
@@ -68,6 +71,9 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
         "quota_nested_return_inner",
         "quota_nested_return_outer",
         "quota_recursive",
+        "storage_value_shapes",
+        "storage_copy_paths",
+        "storage_store_and_errors",
         "quota_recursive_compiled",
         "quota_change_limit",
     }
@@ -100,6 +106,31 @@ def configure_probe_ports() -> None:
 
 EXPECTED_SCORES = {
     "quota_empty": {quota: 0 for quota in QUOTAS},
+    # Observed on the mod-free vanilla arm: 7 from quota 7 (state.count), then
+    # 507 from quota 13 (list[1]=50 times weight 10). The third read's fold
+    # lands beyond the 0-16 sweep, so the string member is exercised but not
+    # observed; see docs/reference/features/command-coverage.md.
+    "storage_value_shapes": {
+        **{quota: 0 for quota in range(0, 7)},
+        **{quota: 7 for quota in range(7, 13)},
+        **{quota: 507 for quota in range(13, 17)},
+    },
+    # Observed on the mod-free vanilla arm: 33 from quota 8 (copied
+    # target.inner[2]), then 143 from quota 14 (target2=11 times weight 10).
+    # The removed-element read's fold lands beyond the 0-16 sweep.
+    "storage_copy_paths": {
+        **{quota: 0 for quota in range(0, 8)},
+        **{quota: 33 for quota in range(8, 14)},
+        **{quota: 143 for quota in range(14, 17)},
+    },
+    # Observed on the mod-free vanilla arm: 5 from quota 7 (a successful read
+    # of valid), then unchanged. Both absent-path reads leave the score
+    # untouched, which is the DS-04/DS-05 oracle: a specialization that let a
+    # failing read write a value would show up here.
+    "storage_store_and_errors": {
+        **{quota: 0 for quota in range(0, 7)},
+        **{quota: 5 for quota in range(7, 17)},
+    },
     "quota_one": {0: 0, 1: 0, **{quota: 1 for quota in range(2, 8)}},
     "quota_three": {0: 0, 1: 0, 2: 1, 3: 2, **{quota: 3 for quota in range(4, 8)}},
     "quota_execute_four": {
