@@ -240,7 +240,7 @@ grep "Function coverage" path/to/server.log
 
 Closing a row means running a differential case whose oracle can *observe* the
 effect. The project's existing oracle is the scoreboard counter folded through
-`EXPECTED_SCORES` in [`run_runtime_probe.py`](../../../../scripts/run_runtime_probe.py),
+`EXPECTED_SCORES` in [`run_runtime_probe.py`](../../../scripts/run_runtime_probe.py),
 swept over quotas 0–7 across vanilla and nine Fabric modes. Rows are classified
 by the mechanism their oracle needs, and the classification is the reason
 step 2 of the v1 plan decomposes into three very different kinds of work.
