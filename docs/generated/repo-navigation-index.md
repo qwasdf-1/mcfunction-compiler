@@ -319,7 +319,8 @@ This navigation index summarizes key code symbols across Java source and Python 
 - [`scripts/paired_benchmark_analysis.py`](../../scripts/paired_benchmark_analysis.py):
   - `def _median_interval()`:10
   - `def paired_percent_changes()`:33
-  - `def summarize_paired_changes()`:59
+  - `def no_regression_decision()`:59
+  - `def summarize_paired_changes()`:86
 - [`scripts/run_bellows_selector_nbt_benchmark.py`](../../scripts/run_bellows_selector_nbt_benchmark.py):
   - `def sha256()`:84
   - `def generate_profile_packet_ids()`:92
@@ -466,7 +467,7 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def tick_metrics()`:38
   - `def profile_summary()`:52
   - `def make_report()`:97
-  - `def main()`:370
+  - `def main()`:380
 - [`scripts/run_veinminer_profile.py`](../../scripts/run_veinminer_profile.py):
   - `def free_port()`:74
   - `def wait_for_rcon()`:80

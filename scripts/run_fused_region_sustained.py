@@ -799,10 +799,18 @@ def main() -> int:
         ),
     }
     report["performance_decision"] = report["analysis"]["workload_tick_average_ms"]["decision"]
+    report["no_regression_decision"] = report["analysis"]["workload_tick_average_ms"][
+        "no_regression_decision"
+    ]
     report["all_pairs_exact_parity"] = all(pair["exact_parity_with_vanilla"] for pair in report["pairs"])
     report["status"] = "complete"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"status": report["status"], "analysis": report["analysis"], "report": str(report_path)}, indent=2))
+    print(
+        f"performance_decision={report['performance_decision']} "
+        f"no_regression_decision={report['no_regression_decision']}",
+        flush=True,
+    )
     return 0
 
 

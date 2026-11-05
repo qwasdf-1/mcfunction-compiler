@@ -108,6 +108,17 @@ selected for this stack and size the paired sample from the screening spread;
 the 95% exact median interval must support at least that gain. Do not treat a
 short smoke or a post-workload tick query as a promotion result.
 
+### The no-regression floor
+
+Every paired campaign, whatever its phase or threshold, also reports a
+**no-regression decision** computed from the same exact interval:
+`no_regression_holds` when the interval lies entirely at or below zero (a
+slowdown of the candidate is excluded), `regression_proven` when it lies
+entirely above zero, and `indeterminate` when it straddles zero. Negative
+change is faster, so this is the floor an optimization has to clear to be
+default-on, independently of whether it also meets a promotion threshold. The
+two gates can disagree, and both are reported.
+
 ### Real datapack workload
 
 Pin the exact archive and SHA-256. Confirm that the selected datapack function

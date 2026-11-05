@@ -357,12 +357,22 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
             "server_function_manager_execute_weighted_ms",
         )
     }
-    report["performance_decision"] = report["paired_median_deltas"][
-        args.primary_metric
-    ]["decision"]
+    primary_summary = report["paired_median_deltas"][args.primary_metric]
+    report["performance_decision"] = primary_summary["decision"]
+    # The v1 no-regression floor: the same exact interval must lie at or below
+    # zero, i.e. a slowdown of the candidate is excluded. Reported for every
+    # campaign alongside the promotion decision, including screening runs that
+    # declare no threshold.
+    report["no_regression_decision"] = primary_summary["no_regression_decision"]
     report["status"] = "complete"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(f"campaign complete: {report_path}", flush=True)
+    print(
+        f"performance_decision={report['performance_decision']} "
+        f"no_regression_decision={report['no_regression_decision']} "
+        f"primary_metric={args.primary_metric}",
+        flush=True,
+    )
     print(json.dumps(report["paired_median_deltas"], indent=2), flush=True)
     return report
 

@@ -268,7 +268,7 @@ not make anything slower than vanilla.**
 |---|---|---|
 | **Correctness gate** | 100% exact differential parity against mod-free vanilla for every enumerated family in the coverage table — state, return values, quota events, error traces, and `/debug function` events | **Partial**: 18 of 98 matrix cases are recorded partial |
 | **Coverage gate** | Every supported (family, argument shape, fallback condition) has one matrix row; nothing is called "supported" without one; the per-namespace coverage report is the runtime evidence | **Open**: the table is not enumerated yet |
-| **No-regression gate** | For every default-on optimization, the 95% exact paired interval for its primary metric excludes a *slowdown* of vanilla on the same workload. This is a floor, not a promotion target | **Open**: fused +0.69% (−3.92% to +2.74%) does not exclude zero |
+| **No-regression gate** | For every default-on optimization, the 95% exact paired interval for its primary metric excludes a *slowdown* of vanilla on the same workload. This is a floor, not a promotion target | **Implemented and reported by both campaign runners** (2026-11-04). Retro-applied to the recorded campaigns: on the mechanism fixture the floor **holds** in every clean confirmatory campaign (5k 10-pair, 20k re-run, both 16-pair, lb113); on the real Vein Miner workload (PERF-017) it is **indeterminate** — +0.69% median, interval −3.92% to +2.74%, which cannot exclude a slowdown |
 
 A **promotion gate** (≥15% median gain or ≥50% queue-step reduction, as in §5)
 remains the way an optimization becomes *default-on*. The three gates above are

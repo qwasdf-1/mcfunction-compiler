@@ -56,6 +56,33 @@ def paired_percent_changes(
     return changes
 
 
+def no_regression_decision(
+    ci_low_percent: float | None, ci_high_percent: float | None, pair_count: int
+) -> str:
+    """Decide whether a paired campaign proves the candidate is not slower.
+
+    Negative change is faster, so "no regression" means the same exact interval
+    that bounds the promotion claim must lie at or below zero. This is a floor
+    every default-on optimization has to clear, independently of whether it
+    also meets the promotion threshold:
+
+    * `no_regression_holds` — the whole interval is at or below zero, so a
+      slowdown of the candidate against the baseline is excluded.
+    * `regression_proven` — the whole interval is above zero.
+    * `indeterminate` — the interval straddles zero: the campaign cannot rule a
+      slowdown in or out, which is the outcome a noisy campaign produces.
+    """
+    if pair_count < 2:
+        return "insufficient_pairs"
+    if ci_low_percent is None or ci_high_percent is None:
+        return "insufficient_pairs"
+    if ci_high_percent <= 0.0:
+        return "no_regression_holds"
+    if ci_low_percent > 0.0:
+        return "regression_proven"
+    return "indeterminate"
+
+
 def summarize_paired_changes(
     changes: list[float],
     *,
@@ -66,7 +93,9 @@ def summarize_paired_changes(
 
     The exact sign/order-statistic interval is distribution-free for the median
     paired change. Its achieved coverage is discrete, so the actual value is
-    reported instead of being rounded up to the requested confidence.
+    reported instead of being rounded up to the requested confidence. The
+    result also carries a `no_regression_decision` computed from the same
+    interval, which is the v1 floor for any default-on optimization.
     """
     if not changes:
         return {
@@ -79,7 +108,9 @@ def summarize_paired_changes(
             "ci_low_percent": None,
             "ci_high_percent": None,
             "ci_method": "exact sign/order-statistic interval for median paired percent change",
+            "minimum_gain_percent": minimum_gain_percent,
             "decision": "insufficient_pairs",
+            "no_regression_decision": "insufficient_pairs",
         }
     if not 0.0 < confidence < 1.0:
         raise ValueError("confidence must be between 0 and 1")
@@ -114,4 +145,5 @@ def summarize_paired_changes(
         "interval_order": order,
         "minimum_gain_percent": minimum_gain_percent,
         "decision": decision,
+        "no_regression_decision": no_regression_decision(ci_low, ci_high, len(changes)),
     }
