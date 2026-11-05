@@ -236,3 +236,31 @@ grep -rl "implements FusableCommand" src/main/java/dev/functioncompiler/*.java
 # runtime coverage for a given load
 grep "Function coverage" path/to/server.log
 ```
+### 11.2 How each missing row can be closed (oracle feasibility)
+
+Closing a row means running a differential case whose oracle can *observe* the
+effect. The project's existing oracle is the scoreboard counter folded through
+`EXPECTED_SCORES` in [`run_runtime_probe.py`](../../../../scripts/run_runtime_probe.py),
+swept over quotas 0–7 across vanilla and nine Fabric modes. Rows are classified
+by the mechanism their oracle needs, and the classification is the reason
+step 2 of the v1 plan decomposes into three very different kinds of work.
+
+| Row(s) | Oracle mechanism | Status of that mechanism |
+|---|---|---|
+| SM-03, SM-10, SM-11, SM-12, SM-13, SC-03, SS-03, SS-04, SO-07, SC-05, DC-01, DC-02, DS-05 | **Scoreboard oracle** — existing infrastructure, new fixtures and expected-score entries only | **Available** |
+| DS-02, DS-04, MO-02 | **Storage oracle** — `execute store result score #x ... run data get storage <path>` folds storage state into the existing scoreboard oracle | **Available**, pattern precedent: DATA-001 and `storage_modify_fused.mcfunction` |
+| PR-03, PR-04, PR-05, ST-03, ST-04, ST-06 | **World/entity query oracle** — `execute if block/entity` + entity-NBT checks folded into scoreboard counters, as `track_c_state_machine.mcfunction` already does for tags and teleports | **Available**, same pattern |
+| ST-02 (`bossbar`) | **Command feedback oracle** — `bossbar get <id> value/players/...` prints the bar's server-side state through RCON | **Available**, but a new oracle type for this harness |
+| ST-01 (`title`), ST-05 (`playsound`/`particle`), ST-07 | **No server-side oracle** — these produce client packets only; RCON cannot observe actionbar content, titles, sounds, or particles | **Not closable with the current harness.** Requires either a packet-capturing bot, or an explicit documented contract: specialization is proven by *delegation* (the wrapper replaces the command object with one that performs the same call) rather than by differential observation |
+| MO-09, MO-10 | **Fork selector identity oracle** — compares selected actor identities across arms; the existing fork fixtures compare *effects*, not identities for random/arbitrary ordering | **Partially available**: the harness records identities for `nearest` but explicitly not for `random`/`arbitrary` |
+| CT-01, CT-02, CT-03, LF-01, TC-01, TC-02 | **Scoreboard + trace oracle** — existing `/debug function` trace comparison and score folding | **Available**, new fixtures only |
+| BC-06 | **Paired campaign**, not a differential fixture — needs the bytecode backend to beat fused interpretation on a declared workload | **Requires a new campaign** (a performance gate, not a correctness row) |
+
+**Consequence for the coverage gate:** the three client-side-only rows
+(ST-01, ST-05, and the generic ST-07 to the extent it covers them) cannot be
+closed by differential observation at all. The honest v1 claim for them is
+"specialization delegates to the original command object, so the wrapped
+command performs the identical call", which is a *code-level* guarantee that
+the harness cannot falsify. Either the v1 contract accepts that class of
+guarantee with an explicit label, or those rows are dropped from the claimable
+surface. That is a decision for the v1 plan, not something a fixture can settle.
