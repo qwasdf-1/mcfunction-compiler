@@ -392,10 +392,16 @@ coverage on the pinned stack, not general support for every mod path.
 Run `20261102T235411` passed all 21 arms and added the NBT-predicate selector
 cases (`nbt={Silent:1b}` and `nbt={Glowing:1b}` in a `dx/dy/dz` box) to the
 selected matrix: every arm reports the same selected identities and ordering and
-`compatibility_parity_pass = true` (report
-`build/reports/compatibility-probe/20261102T235411.results.json`). No previously
+`compatibility_parity_pass = true`. No previously
 recorded selector, NBT, scoreboard, callback-failure, or low-fork observation
 changed; the only differing entity-NBT dumps contain per-run UUID values.
+
+The raw report for a given run id is written to
+`build/reports/compatibility-probe/<run id>.results.json` by
+`scripts/run_compatibility_probe.py`, which regenerates it. Those per-run files
+are generated output and are cleaned once their outcome is recorded here, as the
+project guide requires, so the run id and its recorded verdict above are the
+durable citation rather than the file itself.
 
 For the focused macro behavior differential, run:
 

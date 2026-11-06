@@ -6,10 +6,18 @@
 **Authority Plan:** [`docs/v1/plans/v1-production-validation-and-benchmarking-plan.md`](../../v1/plans/v1-production-validation-and-benchmarking-plan.md)  
 **Parent Hub:** [`README.md`](README.md)  
 **Primary Campaign Repositories:**  
-- Confirmatory 23-Pair LB Campaign: [`build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lb113-selective-macro-23pairs-seed26871037-20261029T161947Z.json`](../../../build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lb113-selective-macro-23pairs-seed26871037-20261029T161947Z.json)  
-- Full Production LBM Stack Campaign: [`build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lbm113120-selective-macro-5pairs-seed26871036-20261029T153147Z.json`](../../../build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lbm113120-selective-macro-5pairs-seed26871036-20261029T153147Z.json)  
-- Lithium 0.26.2 Campaign: [`build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lithium-selective-macro-5pairs-seed26871028-20261029T030040Z.json`](../../../build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lithium-selective-macro-5pairs-seed26871028-20261029T030040Z.json)  
-- Plain Fabric Campaign: [`build/benchmarks/PERF-011-veinminer/campaigns/vein-6-fabric-selective-macro-5pairs-seed26871028-20261029T024610Z.json`](../../../build/benchmarks/PERF-011-veinminer/campaigns/vein-6-fabric-selective-macro-5pairs-seed26871028-20261029T024610Z.json)
+- Confirmatory 23-Pair LB Campaign: `build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lb113-selective-macro-23pairs-seed26871037-20261029T161947Z.json`  
+- Full Production LBM Stack Campaign: `build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lbm113120-selective-macro-5pairs-seed26871036-20261029T153147Z.json`  
+- Lithium 0.26.2 Campaign: `build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lithium-selective-macro-5pairs-seed26871028-20261029T030040Z.json`  
+- Plain Fabric Campaign: `build/benchmarks/PERF-011-veinminer/campaigns/vein-6-fabric-selective-macro-5pairs-seed26871028-20261029T024610Z.json`
+
+These campaign files are generated output written by the paired-benchmark
+runner, and each filename embeds its **pre-declared seed and pair count**. They
+are deliberately not re-run to "refresh" them: re-running would re-roll seeds on
+designs that are already decided, which the project rules forbid without a new
+pre-declared rationale. The recorded medians, intervals and decisions below are
+therefore the durable citation, and the raw campaign files are cleaned once
+recorded.
 
 ---
 

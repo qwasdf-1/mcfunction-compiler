@@ -57,6 +57,33 @@
   mod-free-vanilla). Batch 6 quotes the count from the run actually made - all
   ten arms - rather than the phrase inherited from earlier rows.
 
+- Clean generated build output once batch 6's evidence was recorded: probe
+  reports and their temporary worlds under `build/reports/`, raw campaign output
+  under `build/benchmarks/`, and the dev-run world under `run/`. The offline
+  dependency cache (`.gradle-user-home`) and the compiled jar are kept, so the
+  next runtime arm still builds offline. This freed roughly 200 MB.
+
+- That cleanup was **too aggressive**, and the correction is recorded rather than
+  hidden. Eleven maintained-documentation links pointed into the deleted trees:
+  the exotic and redteam probe reports, the extreme-stress and memory-load
+  artifacts, the datapack screening report, and four PERF-011 campaign files
+  whose filenames embed pre-declared seeds. The repo's own doc-hygiene test
+  failed on the first link, which is how it surfaced. Those citations are now
+  durable prose naming the regenerating script, with the recorded verdicts kept
+  as the citation; the PERF-011 note explicitly says the seeded campaign files
+  must not be re-run to refresh them, because that would re-roll seeds on designs
+  that are already decided. The architecture header now points at
+  `docs/verification.md` instead of a dated report file, and
+  `docs/verification.md` records where a compatibility-probe report is written
+  and why the run id, not the file, is the durable reference.
+
+- Refresh the v1 gate-status column in `docs/v1/plans/v1-production-roadmap.md`
+  §6, which was dated 2026-11-04 and quoted two numbers batch 6 changed: the
+  matrix is now 117 cases with 70 recorded complete and 19 partial (not 18 of
+  98), and the coverage gate is now quantified - the table is enumerated (101
+  rows: 91 covered, 1 partial, 9 missing), with the nine uncited rows and the
+  partial row named.
+
 - Close the last three client-packet-only coverage rows by **delegation contract**
   rather than by a differential oracle, which does not exist for them. `title`,
   `playsound`/`particle`/`stopsound` and the generic state-machine wrapper
