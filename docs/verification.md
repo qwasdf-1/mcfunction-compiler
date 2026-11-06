@@ -317,7 +317,11 @@ keeps the Gradle server launches on cached dependencies. Fabric classes, logs, a
 are written under ignored `build/` and `run/`; the vanilla world is created in a
 temporary directory and removed automatically. Capture durable findings in
 maintained research notes, then remove stale generated output when the
-investigation is complete.
+investigation is complete. Paths such as `build/reports/runtime-probe/results.json`
+name where a run writes its raw output while it is retained; they are not
+permanent files. The durable citation is the recorded verdict in the matrix and
+reference docs plus the script that regenerates the artifact
+(`scripts/run_runtime_probe.py` for the runtime probe).
 
 For the selector, Bellows NBT, and nested-callback compatibility matrix, run:
 
