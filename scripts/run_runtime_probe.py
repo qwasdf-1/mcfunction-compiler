@@ -73,6 +73,10 @@ DIRECT_FIXTURES = (
     "state_effect_edges",
     "state_setblock_edges",
     "state_item_slot_edges",
+    "tc02_tail_macro",
+    "ct01_return_after_boundary",
+    "ct02_store_specialized",
+    "ct03_failure_after_mutation",
 )
 EXTENDED_QUOTA_FIXTURES = frozenset(
     {
@@ -96,6 +100,10 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
         "state_effect_edges",
         "state_setblock_edges",
         "state_item_slot_edges",
+        "tc02_tail_macro",
+        "ct01_return_after_boundary",
+        "ct02_store_specialized",
+        "ct03_failure_after_mutation",
         "quota_recursive_compiled",
         "quota_change_limit",
     }
@@ -234,6 +242,47 @@ EXPECTED_SCORES = {
         0: 0, 1: 0, 2: 0, 3: 0, 4: 0,
         5: 64, 6: 64, 7: 64, 8: 96, 9: 96, 10: 96,
         11: 112, 12: 112, 13: 113, 14: 113, 15: 113, 16: 113,
+    },
+    # Observed on the mod-free vanilla arm. TC-02: a plain frame tail-calls a
+    # macro function, which tail-calls a second macro function, which tail-calls
+    # a plain leaf. The cumulative score is 1 from the caller, +10 from the
+    # first macro argument, +20 from the second, and +100 from the leaf; each
+    # frame contributes exactly once and the run stabilises at 131 from quota 9.
+    "tc02_tail_macro": {
+        0: 0, 1: 0, 2: 0, 3: 1, 4: 1, 5: 11, 6: 11, 7: 31, 8: 31,
+        9: 131, 10: 131, 11: 131, 12: 131, 13: 131, 14: 131, 15: 131,
+        16: 131,
+    },
+    # Observed on the mod-free vanilla arm. CT-01: an outer frame adds 1, crosses
+    # a `say` boundary, adds 10 and 20, then `return run function` calls a child
+    # that adds 100, crosses its own boundary, adds 200, and returns 7. Both
+    # pending tails (+100 outer, +1000 child) are discarded, so the run
+    # stabilises at 331 from quota 9. The response at quotas 10-16 also carries
+    # the child's `returned 7`, which the command-response comparison covers.
+    "ct01_return_after_boundary": {
+        0: 0, 1: 0, 2: 1, 3: 1, 4: 11, 5: 31, 6: 31, 7: 131, 8: 131,
+        9: 331, 10: 331, 11: 331, 12: 331, 13: 331, 14: 331, 15: 331,
+        16: 331,
+    },
+    # Observed on the mod-free vanilla arm. CT-02: a `data get` result (7) and an
+    # accepted `setblock` success (1) are stored and folded as bits 1,1 = 3. The
+    # data branch lands at quota 9 (+2) and the setblock branch at quota 11
+    # (+1); the run stabilises at 3 from quota 11. A store that wrote success
+    # for the data get would read 1 and leave the map at 1; a setblock that was
+    # not preceded by the air reset would read 0 and leave it at 2.
+    "ct02_store_specialized": {
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0,
+        9: 2, 10: 2, 11: 3, 12: 3, 13: 3, 14: 3, 15: 3, 16: 3,
+    },
+    # Observed on the mod-free vanilla arm. CT-03: the parent adds 1, a macro
+    # callee adds 10, fails on a missing objective, adds 10 again, the parent
+    # adds 100, adds 1000, invokes a macro with a missing key (which contributes
+    # nothing), and adds 10000. The run stabilises at 11121 from quota 10, so
+    # both completed macro effects and both parent effects apply exactly once.
+    "ct03_failure_after_mutation": {
+        0: 0, 1: 0, 2: 0, 3: 1, 4: 1, 5: 11, 6: 11, 7: 21, 8: 121,
+        9: 1121, 10: 11121, 11: 11121, 12: 11121, 13: 11121, 14: 11121,
+        15: 11121, 16: 11121,
     },
     "storage_value_shapes": {
         **{quota: 0 for quota in range(0, 7)},

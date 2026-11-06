@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+- Close the four remaining new-fixture coverage rows - `TC-02` (tail call
+  through a macro invocation) and `CT-01`/`CT-02`/`CT-03` (callback and
+  region-boundary cases) - with four differential fixtures verified across
+  mod-free vanilla 26.3 and all nine Fabric runtime modes (ten arms) with exact
+  per-quota score parity. `tc02_tail_macro` chains a plain frame into two macro
+  frames and a plain leaf, all in tail position; `ct01_return_after_boundary`
+  discards a pending tail on both sides of a `return run function`;
+  `ct02_store_specialized` stores a `data get` result and an accepted
+  `setblock` success; `ct03_failure_after_mutation` proves a runtime error
+  inside a macro callee and a missing-key expansion failure do not replay
+  completed effects. Matrix cases TC-02 and CT-01..03; rows closed: TC-02,
+  CT-01, CT-02, CT-03. No default-on status changed and no performance claim is
+  made - this batch is correctness and coverage only.
+
+- Three measured findings changed the fixtures. `setblock` reports success 0 for
+  an unchanged block ("Could not set the block"), so `ct02_store_specialized`
+  resets the position to air before every store; without that reset, later quota
+  iterations would assert the unchanged-block failure path. An `effect give`
+  store under `execute store success` did not fit the 0-16 sweep (32 of its
+  declared 48 by quota 16), so the second CT-02 case uses the
+  accepted-`setblock` side, which complements ST-04's refused-`setblock` case
+  instead of repeating it. A macro invocation with a missing key fails at
+  expansion before any line of the callee runs, and a runtime command error
+  inside a macro callee aborts neither the callee's remaining lines nor the
+  caller; the CT-03 map records both.
+
+- Correct the coverage table's generated row count. Every section separator ends
+  in `R`, and the earlier closers counted those nine lines as data rows, so the
+  batch-6 report said 101 rows / 91 covered / 9 missing where the table actually
+  held 92 / 82 / 9. The same nine-line inflation affects the earlier changelog
+  entries that say "101 rows" - each is nine too high in total, with the nine
+  extra counted as covered. Those entries are left as recorded history rather
+  than rewritten. The batch-7 closer excludes and normalises the separators; §11
+  now reports **92 rows: 86 covered (R), 1 partial (P), 5 missing (—)**. The
+  five remaining rows are MO-02, MO-09, MO-10, ST-02 and BC-06; the partial row
+  is ST-06's `item modify`.
+
 - Close the state-machine command rows with three differential fixtures verified
   across mod-free vanilla 26.3 and all nine Fabric runtime modes (ten arms
   including vanilla) with exact score-sequence parity. `state_effect_edges`

@@ -1,5 +1,5 @@
 # Coverage rows LF-01 (two or more contiguous plain-function leaf calls) and
-# TC-01/TC-02 (a tail-call run whose final command is another function call).
+# TC-01 (a tail-call run whose final command is another function call).
 # The two leaf calls are contiguous, so a leaf parser that groups them can
 # fuse the pair; the tail-call chain then walks one further level.
 function function_compiler_probe:leaf_score_a

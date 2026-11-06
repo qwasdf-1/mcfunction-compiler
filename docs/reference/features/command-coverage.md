@@ -28,7 +28,7 @@ arm in the matrix case.
 ## 2. Scoreboard mutation families
 
 | Row | Family × argument shape | Fallback condition | Matrix |
-| --- | --- | --- | --- | R |
+| --- | --- | --- | --- |
 | SM-01 | `scoreboard players set` × `#holder` literal | objective missing | SCORE-001 | R |
 | SM-02 | `scoreboard players set` × `@s` self-selector | executed without an entity context | SCORE-001 | R |
 | SM-03 | `set` with a literal player-name holder | name absent from the scoreboard | SCORE-016 | R |
@@ -45,7 +45,7 @@ arm in the matrix case.
 ## 3. Scoreboard operation, condition and store families
 
 | Row | Family × argument shape | Fallback condition | Matrix |
-| --- | --- | --- | --- | R |
+| --- | --- | --- | --- |
 | SO-01..03 | `operation` × each of the 9 operators (`= += -= *= /= %= < > ><`) | absent source / absent target | SCORE-010 | R |
 | SO-04 | `operation` × `@s` source and/or target | self-selector resolution | SCORE-010 | R |
 | SO-05 | `operation` × divide/remainder by zero | syntax error, target preserved | SCORE-010 | R |
@@ -68,7 +68,7 @@ arm in the matrix case.
 ## 4. Storage and data families
 
 | Row | Family × argument shape | Fallback condition | Matrix |
-| --- | --- | --- | --- | R |
+| --- | --- | --- | --- |
 | DS-01 | `data modify storage` × set value | — | DATA-001 | R |
 | DS-02 | `data modify storage` × compound/array/primitive values | numeric compound + array-indexed members | DATA-002 | R |
 | DS-03 | `data remove storage` | — | DATA-001 | R |
@@ -80,7 +80,7 @@ arm in the matrix case.
 ## 5. Predicate and modifier families
 
 | Row | Family × argument shape | Fallback condition | Matrix |
-| --- | --- | --- | --- | R |
+| --- | --- | --- | --- |
 | PR-01 | `execute if/unless entity @s` | zero/multiple matches | PRED-001 | R |
 | PR-02 | `execute if/unless block <pos> <block>` | unloaded chunk → vanilla fallback | PRED-002 | R |
 | PR-03 | block predicate × block **tag** (`#ns:tag`) | tag expansion | PRED-003 | R |
@@ -103,7 +103,7 @@ Each of these has a dedicated parser today (`TitleParser`, `BossbarParser`,
 form, not one row per parser:
 
 | Row | Family × argument shape | Fallback condition | Matrix |
-| --- | --- | --- | --- | R |
+| --- | --- | --- | --- |
 | ST-01 | `title @a actionbar/title/subtitle/clear` × text and JSON component | — | STATE-001 | R |
 | ST-02 | `bossbar add/set/remove/get <id> ...` | unknown bar | — | — |
 | ST-03 | `effect give/clear <target> <effect> ...` | amplifier/duration edges | STATE-002 | R |
@@ -115,12 +115,12 @@ form, not one row per parser:
 ## 7. Leaf-call and tail-call families
 
 | Row | Family × argument shape | Fallback condition | Matrix |
-| --- | --- | --- | --- | R |
+| --- | --- | --- | --- |
 | LF-01 | contiguous `function <id>` leaf runs ≥ 2 | target resolves to a plain-text function | SCORE-019 | R |
 | LF-02 | leaf run interrupted by an unknown command | boundary → two regions | COMPAT-007 | R |
 | LF-03 | `return run function` leaf | result propagation | CTRL-002 | R |
 | TC-01 | tail-call loop compaction | self-recursion depth | SCORE-019 | R |
-| TC-02 | tail-call × macro invocation | — | — | — |
+| TC-02 | tail-call × macro invocation | — | TC-02 | R |
 
 ## 8. Macro argument families
 
@@ -128,7 +128,7 @@ One row per provider × key state. Existing rows prove the covered shapes; the
 wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 | Row | Family × argument shape | Fallback condition | Matrix |
-| --- | --- | --- | --- | R |
+| --- | --- | --- | --- |
 | MA-01 | inline `add` value | — | MACRO-002 | R |
 | MA-02 | inline `pair` compound | — | MACRO-002 | R |
 | MA-03 | `with storage <path> <nbt>` provider | storage path changes between calls | MACRO-003 | R |
@@ -144,7 +144,7 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 ## 9. Fused-region families
 
 | Row | Family × argument shape | Fallback condition | Matrix |
-| --- | --- | --- | --- | R |
+| --- | --- | --- | --- |
 | FR-01 | run of exactly 2 adjacent fusable commands | — | CTRL-004 | R |
 | FR-02 | long run (PERF-016 fixture: 5,000/20,000 contiguous adds) | — | PERF-016 | R |
 | FR-03 | real-datapack run (Vein Miner `detection/acquire_target`, 145 parsed candidates) | predicate mostly failing | PERF-017 | R |
@@ -155,14 +155,14 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 | FR-08 | error mid-region (missing objective) | no replay of earlier effects | CTRL-006 | R |
 | FR-09 | region containing a modded unknown command | custom command runs once | CTRL-008 | R |
 | FR-10 | macro-expanded function regions | LRU cache path | MACRO-008 | R |
-| CT-01 | other return/error callback combinations after a region boundary | pending-tail discard | — | — |
-| CT-02 | other callback contexts around specialized operations | result/success propagation | — | — |
-| CT-03 | other callback failures after a partial mutation | no replay of completed effects | — | — |
+| CT-01 | other return/error callback combinations after a region boundary | pending-tail discard | CT-01 | R |
+| CT-02 | other callback contexts around specialized operations | result/success propagation | CT-02 | R |
+| CT-03 | other callback failures after a partial mutation | no replay of completed effects | CT-03 | R |
 
 ## 10. Bytecode backend families
 
 | Row | Family × argument shape | Fallback condition | Matrix |
-| --- | --- | --- | --- | R |
+| --- | --- | --- | --- |
 | BC-01 | emitted region for a hot function ≥ tiered threshold (K=5) | — | PERF-013 | R |
 | BC-02 | cold function below threshold | opt-out policy | PERF-009 | R |
 | BC-03 | injected compile failure | original queue entries retained | PERF-014 | R |
@@ -172,16 +172,14 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**101 rows: 91 covered (R), 1 partial (P), 9 missing (—).**
+**92 rows: 86 covered (R), 1 partial (P), 5 missing (—).**
 
 Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **P** requires a cited case recorded *Partial*, which proves some of the row and names the rest; **—** means no case exists for that shape.
 
-**The 9 missing rows, by family group:**
+**The 5 missing rows, by family group:**
 
 - **5. Predicate and modifier families**: MO-02, MO-09, MO-10
 - **6. State-machine command families**: ST-02
-- **7. Leaf-call and tail-call families**: TC-02
-- **9. Fused-region families**: CT-01, CT-02, CT-03
 - **10. Bytecode backend families**: BC-06
 
 ### 11.1 How the eleven partial-cited rows were resolved
@@ -321,7 +319,8 @@ component term, a second count-range mismatch, a chain whose first conjunct
 fails, an item predicate behind a zero-match `as` selector in both polarities)
 are the first candidates for a second item-predicate fixture if command-quota
 headroom is found. SM-10, SM-12, SM-13, SO-07, MO-02, MO-09, MO-10, ST-01..07,
-TC-02, CT-01..03 and BC-06 remain open as before.
+TC-02, CT-01..03 and BC-06 remained open at that point; later batches close
+TC-02 and CT-01..03.
 
 
 **Batch 4 - selector-shaped scoreboard rows (matrix cases SCORE-020..023).**
@@ -413,7 +412,8 @@ all ten arms with exact score-sequence parity. Closed **ST-03** and **ST-04**;
 **ST-06** is closed for `item replace` and recorded **P**, because `item modify`
 needs a confirmed item-modifier id from the 26.3 `minecraft:item_modifier`
 registry and neither a vanilla modifier type nor a datapack-defined one could be
-confirmed. 91 covered, 1 partial, 9 missing.
+confirmed. 82 covered, 1 partial, 9 missing (the earlier 91/1/9 figure counted
+the table's nine separator lines as rows; batch 7 corrects the generator).
 
 **Five behaviours were read from the server rather than assumed, and each one
 changed the fixture.** (1) An entity's active effects live at `active_effects`
@@ -453,6 +453,49 @@ corrections: the default runtime matrix is **eight** arms, and the full set is
 **ten** (nine Fabric modes plus vanilla), so the batch-6 claims quote the count
 from the run that was actually made; and `EXPECTED_SCORES` is regenerated from
 the runner's failure message, never typed.
+
+**Batch 7 - tail-call/macro and callback rows (matrix cases TC-02, CT-01..03).**
+Fixtures `tc02_tail_macro` (with `tc02_macro_a`, `tc02_macro_b`, `tc02_leaf`),
+`ct01_return_after_boundary` (with `ct01_child_return`),
+`ct02_store_specialized`, and `ct03_failure_after_mutation` (with
+`ct03_macro_runtime_fail`, `ct03_macro_missing`), run in all ten arms with exact
+score-sequence parity. Closed **TC-02, CT-01, CT-02, CT-03**. The table is now
+92 rows: 86 covered, 1 partial, 5 missing.
+
+TC-02 chains a plain frame into a macro function, into a second macro function,
+into a plain leaf, with every call in tail position; the score 1 + 10 + 20 + 100
+= 131 proves each frame contributed once. CT-01 puts a `say` boundary between two
+regions in both the parent and the `return run function` child, and both pending
+tails are discarded; the command response at quotas 10-16 also carries
+`returned 7`, which is compared byte-for-byte with vanilla. CT-02 stores a
+`data get` result (7) and an accepted `setblock` success (1), folded as the
+declared 1,1 = 3. CT-03 mutates +1 and +10, fails inside a macro callee on a
+missing objective, mutates +10 again, then invokes a macro whose argument
+compound lacks a declared key; the completed effects apply once, the failed
+expansion contributes nothing, and the caller continues.
+
+**Two 26.3 behaviours were measured rather than assumed.** `setblock` reports
+success 0 for an unchanged block ("Could not set the block"), measured directly,
+so CT-02 resets the position to air before every store; without the reset later
+quota iterations would assert the unchanged-block failure path. A macro
+invocation with a missing key fails at expansion, before any line of the callee
+runs, and a runtime command error inside a macro callee aborts neither the
+callee's remaining lines nor the caller.
+
+**The quota budget, not the semantics, chose CT-02's second case.** An
+`effect give` store under `execute store success` did not fit the 0-16 sweep (32
+of its declared 48 by quota 16), so the second case uses the
+accepted-`setblock` side, which complements ST-04's refused-`setblock` case
+rather than repeating it.
+
+**The §11 row count was inflated by the table's own separators.** Every section
+separator ends in `R`, and the earlier generator counted those nine lines as
+data rows, so it reported 101/91/9 where the table held 92/82/9 after batch 6.
+Batch 7's closer excludes and normalises the separators, and the current
+92/86/1/5 figure is generated from the table rather than typed. No default-on
+status changed and no performance claim is made in this batch; it is a
+correctness and coverage measurement, and all ten arms matched vanilla on every
+new map.
 
 ## 12. Reproducing this table from the code
 
