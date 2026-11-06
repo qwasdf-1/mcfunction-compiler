@@ -2,6 +2,61 @@
 
 ## Unreleased
 
+- Close the state-machine command rows with three differential fixtures verified
+  across mod-free vanilla 26.3 and all nine Fabric runtime modes (ten arms
+  including vanilla) with exact score-sequence parity. `state_effect_edges`
+  reads the entity's own active effects, `state_setblock_edges` reads block
+  states back with `execute if block`, and `state_item_slot_edges` reads the
+  probe player's inventory with `execute if items`. Matrix cases STATE-002..004;
+  rows closed: ST-03 and ST-04 outright, ST-06 for `item replace` with
+  `item modify` recorded as still untested, because no 26.3 item-modifier id
+  could be confirmed - neither `minecraft:set_lore` nor a datapack-defined
+  `function_compiler_probe:probe_item_modifier`. The coverage table is now 101
+  rows: 91 covered, 1 partial, 9 missing, and §11 is regenerated from the table
+  rather than typed. The `P` entry is the first in the table's history, so §11's
+  legend now explains what a recorded `Partial` proves.
+
+- Five 26.3 behaviours were read from the server rather than assumed, and each
+  one changed a fixture. An entity's active effects live at `active_effects` in
+  snake case as `{duration, show_icon, amplifier, id}`; the pre-1.20.5 path
+  `ActiveEffects[0].Amplifier` matches nothing. That list is **sorted by effect
+  id**, not ordered by application, so the first effect fixture read two effects
+  from one list and one of its digits was validated by the sort order rather
+  than by a correct read - the fixture now keeps exactly one effect active at a
+  time. The amplifier is a **signed byte**, so the command's maximum amplifier
+  of 255 reads back as -1, which the fixture asserts. `effect give` refuses to
+  **shorten** an active effect's duration as well as its amplifier, so a
+  truncated sweep's leftover is harmless only because it is identical; a focused
+  probe produced 80 against a longer-duration leftover and the fixture header
+  now says so. A refused out-of-world `setblock` does **not** abort the rest of
+  the function and `execute store success score` around it writes 0, which makes
+  the refusal observable in a scoreboard, while `execute if block` at the same
+  position aborts the command with an error and cannot be used as a negative
+  predicate. The `effect clear` case is asserted with `execute unless data` on a
+  path that no longer resolves.
+
+- The quota budget, not the semantics, decided the effect fixture's shape.
+  Clearing between cases left the last case unexecuted by quota 16 - the failure
+  mode the oracle-health test exists to catch - so reading the amplifier and the
+  duration from the same effect back to back removed a whole clear-and-give
+  group and brought the final case in at quota 13. Charge is not uniform across
+  lines: a two-predicate or `execute store` line costs more than a plain
+  scoreboard line, so a long fixture silently drops its tail.
+
+- A duplicate dict key silently overrode an encoded oracle. Encoding
+  `state_effect_edges` added a second entry below the one it was meant to
+  replace; Python keeps the last value in a dict literal, so the stale map stayed
+  in effect and every arm failed against expectations nobody had updated. The
+  loaded-module health checks could not see this, because importing had already
+  collapsed the duplicate. `tests/test_runtime_probe_oracle_health.py` now
+  parses the script with `ast` and fails on a repeated fixture key, verified
+  against an injected duplicate.
+
+- Correct the runtime-arm count recorded in the test matrix. The default matrix
+  is **eight** arms; the full set is **ten** (nine Fabric modes plus
+  mod-free-vanilla). Batch 6 quotes the count from the run actually made - all
+  ten arms - rather than the phrase inherited from earlier rows.
+
 - Close the last three client-packet-only coverage rows by **delegation contract**
   rather than by a differential oracle, which does not exist for them. `title`,
   `playsound`/`particle`/`stopsound` and the generic state-machine wrapper

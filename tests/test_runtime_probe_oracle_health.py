@@ -21,9 +21,11 @@ friction: a new untestable case should be a decision, not an accident.
 
 from __future__ import annotations
 
+import ast
 import re
 import sys
 import unittest
+from collections import Counter
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
@@ -94,6 +96,32 @@ class OracleRegistryTests(unittest.TestCase):
         )
         orphans = sorted(set(EXPECTED_SCORES) - set(DIRECT_FIXTURES) - orphan_exempt)
         self.assertEqual(orphans, [], "oracle defined for an unregistered fixture")
+
+
+class OracleTableSyntaxTests(unittest.TestCase):
+    def test_expectation_table_has_no_duplicate_fixture_key(self) -> None:
+        # A repeated key in a dict literal is not an error in Python: the last
+        # value wins and the earlier one is silently discarded. While encoding
+        # the batch-6 state rows, an edit added a second `state_effect_edges`
+        # entry below the one it was meant to replace, so the stale map stayed
+        # in effect and every arm failed against expectations nobody had
+        # updated. Loaded-module inspection cannot see this, because the import
+        # already collapsed the duplicate; the source has to be parsed.
+        source = (SCRIPTS_DIR / "run_runtime_probe.py").read_text()
+        table = None
+        for node in ast.walk(ast.parse(source)):
+            if isinstance(node, ast.Assign):
+                names = [t.id for t in node.targets if isinstance(t, ast.Name)]
+                if "EXPECTED_SCORES" in names and isinstance(node.value, ast.Dict):
+                    table = node.value
+        self.assertIsNotNone(table, "EXPECTED_SCORES not found as a dict literal")
+        counts = Counter(
+            key.value
+            for key in table.keys
+            if isinstance(key, ast.Constant)
+        )
+        duplicated = sorted(name for name, n in counts.items() if n > 1)
+        self.assertEqual(duplicated, [], "fixture appears more than once")
 
 
 class OracleShapeTests(unittest.TestCase):

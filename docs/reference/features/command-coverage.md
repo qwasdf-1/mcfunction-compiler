@@ -106,10 +106,10 @@ form, not one row per parser:
 | --- | --- | --- | --- | R |
 | ST-01 | `title @a actionbar/title/subtitle/clear` × text and JSON component | — | STATE-001 | R |
 | ST-02 | `bossbar add/set/remove/get <id> ...` | unknown bar | — | — |
-| ST-03 | `effect give/clear <target> <effect> ...` | amplifier/duration edges | — | — |
-| ST-04 | `setblock <pos> <block>[state] [mode]` | out-of-world | — | — |
+| ST-03 | `effect give/clear <target> <effect> ...` | amplifier/duration edges | STATE-002 | R |
+| ST-04 | `setblock <pos> <block>[state] [mode]` | out-of-world | STATE-003 | R |
 | ST-05 | `playsound <sound> ...`, `particle ...`, `stopsound` | volume/pitch edges | STATE-001 | R |
-| ST-06 | gameplay item commands (`item replace/modify`) | slot edges | — | — |
+| ST-06 | gameplay item commands (`item replace/modify`) | slot edges for `item replace`; `item modify` untested - no confirmed 26.3 item-modifier id | STATE-004 | P |
 | ST-07 | generic state-machine wrapper for the command set above | unrecognized command → vanilla | STATE-001 | R |
 
 ## 7. Leaf-call and tail-call families
@@ -172,14 +172,14 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**101 rows: 89 covered (R), 0 partial (P), 12 missing (—).**
+**101 rows: 91 covered (R), 1 partial (P), 9 missing (—).**
 
-Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **—** means no case exists for that shape.
+Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **P** requires a cited case recorded *Partial*, which proves some of the row and names the rest; **—** means no case exists for that shape.
 
-**The 12 missing rows, by family group:**
+**The 9 missing rows, by family group:**
 
 - **5. Predicate and modifier families**: MO-02, MO-09, MO-10
-- **6. State-machine command families**: ST-02, ST-03, ST-04, ST-06
+- **6. State-machine command families**: ST-02
 - **7. Leaf-call and tail-call families**: TC-02
 - **9. Fused-region families**: CT-01, CT-02, CT-03
 - **10. Bytecode backend families**: BC-06
@@ -222,7 +222,7 @@ mechanism their oracle needs:
 | Row(s) | Oracle mechanism | Status |
 |---|---|---|
 | SM-03, SM-11, SM-12, SC-03, SS-03, SS-04, SC-05, CT-01, CT-02, CT-03, TC-01, TC-02 | Scoreboard oracle, new fixtures only | Available (closed by batches 2-4 for the rows shown cited) |
-| ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Available |
+| ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Closed by batch 6; ST-03 and ST-04 are R, ST-06 is P on `item modify` |
 | ST-02 (`bossbar`) | `bossbar get` feedback through RCON | Available, new oracle type |
 | **ST-01 (`title`), ST-05 (`playsound`/`particle`/`stopsound`), ST-07** | **None — client packets only, RCON cannot observe them** | **Closable only by delegation contract**, accepted as the v1 claim for these rows (matrix case STATE-001; see §11.3 batch 5). Differential closure would require a packet-capturing bot, which is a separate decision |
 | MO-02 | `execute store result/success storage <id> <path> run ...`; the 26.3 node arity this parser expects is not yet confirmed | **Blocked on syntax confirmation** (the row is `—` until a fixture parses) |
@@ -231,7 +231,7 @@ mechanism their oracle needs:
 
 ### 11.3 How the rows were closed, in batches
 
-Five batches of differential fixtures and one delegation contract have been run across mod-free vanilla 26.3
+Six batches of differential fixtures and one delegation contract have been run across mod-free vanilla 26.3
 and the full ten-arm Fabric matrix with exact score-sequence parity. Each batch
 is recorded with what it closed, and each batch's claims are regenerated from
 the table rather than typed by hand.
@@ -406,6 +406,53 @@ commands. A renamed or emptied fixture would otherwise read zero and the
 contract would "pass" while proving nothing. Its first run also caught an
 ambiguous line in the declined fixture itself: a fake-holder target with a
 selector source, which the compiler declines only because of the source.
+
+**Batch 6 - state-machine command rows (matrix cases STATE-002..004).** Fixtures
+`state_effect_edges`, `state_setblock_edges`, `state_item_slot_edges`, run in
+all ten arms with exact score-sequence parity. Closed **ST-03** and **ST-04**;
+**ST-06** is closed for `item replace` and recorded **P**, because `item modify`
+needs a confirmed item-modifier id from the 26.3 `minecraft:item_modifier`
+registry and neither a vanilla modifier type nor a datapack-defined one could be
+confirmed. 91 covered, 1 partial, 9 missing.
+
+**Five behaviours were read from the server rather than assumed, and each one
+changed the fixture.** (1) An entity's active effects live at `active_effects`
+in snake case, as `{duration, show_icon, amplifier, id}`; the pre-1.20.5 path
+`ActiveEffects[0].Amplifier` matches nothing. (2) The list is **sorted by effect
+id**, not ordered by application: with speed and slowness active, slowness is
+index 0 whichever was given first. The first effect draft read both effects from
+one list and one of its digits was validated by that sort order rather than by a
+correct read, so the fixture now keeps one effect active at a time. (3) The
+amplifier is a **signed byte**, so the command's maximum amplifier of 255 reads
+back as -1; the fixture asserts -1, because that is what the entity holds. (4)
+`effect give` refuses to **shorten** an active effect's duration as well as its
+amplifier, so a truncated sweep's leftover is harmless only because it is
+identical - the header says so in those words after a focused probe produced 80
+against a longer-duration leftover. (5) A refused out-of-world `setblock` does
+**not** abort the rest of the function, and `execute store success score` around
+it writes 0, which makes the refusal observable in a scoreboard; but `execute if
+block` at the same position aborts the command with an error and cannot be used
+as a negative predicate there. The `effect clear` case is asserted with
+`execute unless data` on a path that no longer resolves, so the claim is "the
+element is gone" rather than "it holds a value I chose".
+
+**The quota budget, not the semantics, decided the fixture's shape.** Clearing
+between cases left the final case unexecuted by quota 16, which is the failure
+mode the oracle-health test exists to catch: reading two fields from one effect
+back to back removed a whole clear-and-give group and brought the last case in at
+quota 13.
+
+**A duplicate dict key silently overrode an encoded oracle, and now cannot.**
+Encoding the new map added a second `state_effect_edges` entry below the one it
+replaced. Python keeps the last value in a dict literal, so the stale map stayed
+in effect and every arm failed against expectations nobody had updated; the
+loaded-module health checks could not see this, because the import had already
+collapsed the duplicate. `tests/test_runtime_probe_oracle_health.py` now parses
+the source with `ast` and fails on a repeated fixture key. Two further
+corrections: the default runtime matrix is **eight** arms, and the full set is
+**ten** (nine Fabric modes plus vanilla), so the batch-6 claims quote the count
+from the run that was actually made; and `EXPECTED_SCORES` is regenerated from
+the runner's failure message, never typed.
 
 ## 12. Reproducing this table from the code
 

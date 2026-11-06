@@ -70,6 +70,9 @@ DIRECT_FIXTURES = (
     "predicate_block_state",
     "predicate_item_stack",
     "predicate_item_modifier",
+    "state_effect_edges",
+    "state_setblock_edges",
+    "state_item_slot_edges",
 )
 EXTENDED_QUOTA_FIXTURES = frozenset(
     {
@@ -90,6 +93,9 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
         "predicate_block_state",
         "predicate_item_stack",
         "predicate_item_modifier",
+        "state_effect_edges",
+        "state_setblock_edges",
+        "state_item_slot_edges",
         "quota_recursive_compiled",
         "quota_change_limit",
     }
@@ -200,6 +206,34 @@ EXPECTED_SCORES = {
         5: 8, 6: 8, 7: 8,
         8: 12, 9: 12, 10: 12, 11: 12,
         12: 13, 13: 13, 14: 13, 15: 13, 16: 13,
+    },
+    # Observed on the mod-free vanilla arm. ST-03: the signed-byte amplifier
+    # read-back (-1 for the command's 255), the seconds-to-ticks duration edge
+    # (600 seconds stored as 12000 ticks), and `effect clear` asserted with
+    # `execute unless data`. The run stabilises at 112 (= the declared 1,1,1)
+    # from quota 13, so every case executes. The three cases come from one
+    # effect given once, because the quota sweep charges each command and the
+    # list of active effects is sorted by effect id, so reading two effects
+    # from one list would assert index positions rather than the values.
+    "state_effect_edges": {
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0,
+        6: 64, 7: 64, 8: 64, 9: 64,
+        10: 96, 11: 96, 12: 96,
+        13: 112, 14: 112, 15: 112, 16: 112,
+    },
+    "state_setblock_edges": {
+        0: 0, 1: 0, 2: 0, 3: 0,
+        4: 64, 5: 64, 6: 64, 7: 96, 8: 96, 9: 96, 10: 96,
+        11: 112, 12: 112, 13: 112, 14: 112, 15: 112, 16: 113,
+    },
+    # Observed on the mod-free vanilla arm. ST-06: a plain stack in hotbar.0, a
+    # counted stack in hotbar.8, the offhand slot, and an empty slot that must
+    # not match. The run stabilises at 113 (= the declared 1,1,1,1) from quota
+    # 13, so every case executes.
+    "state_item_slot_edges": {
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0,
+        5: 64, 6: 64, 7: 64, 8: 96, 9: 96, 10: 96,
+        11: 112, 12: 112, 13: 113, 14: 113, 15: 113, 16: 113,
     },
     "storage_value_shapes": {
         **{quota: 0 for quota in range(0, 7)},
