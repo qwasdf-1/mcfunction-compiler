@@ -175,6 +175,20 @@ public final class ScoreAddPrototype {
     private static List<Object> parseModifiers(List<CommandContext<CommandSourceStack>> modifiers) {
         List<Object> result = new ArrayList<>();
         for (CommandContext<CommandSourceStack> mod : modifiers) {
+            // 26.3 measured chain shape: the `run` literal redirects to the
+            // dispatcher root with a null redirect modifier, so Brigadier's
+            // ContextChain carries a trailing no-op modifier stage whose only
+            // node is `run` for every `execute ... run ...` command. Vanilla
+            // charges no quota debit for that stage and it transforms no
+            // source; the executable is its child context. Skipping it is what
+            // lets single-modifier chains compile at all. Any other stage that
+            // no parser accepts still declines the whole chain, and because
+            // every modifier parser requires the leading `execute` node, a
+            // second real modifier stage still declines here — only
+            // single-stage chains compile.
+            if (nodeNames(mod).equals(List.of("run"))) {
+                continue;
+            }
             Object parsed = parseSingleModifier(mod);
             if (parsed == null) {
                 return null;

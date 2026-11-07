@@ -32,6 +32,15 @@ final class ProbeStatus {
             "function_compiler_probe", "score_selector_declined");
     private static final Identifier DELEGATION_CLIENT_PACKET = Identifier.fromNamespaceAndPath(
             "function_compiler_probe", "state_machine_client_packet");
+    // MO-02 fixtures. Their dedicated DataStore compile counters are the
+    // falsifiable form of "the DataStore modifier specialized": each fixture
+    // has exactly two `execute store ... storage` lines, so a parser that
+    // declined them leaves the count at zero. Reloads may recompile the
+    // function, so the assertion is a lower bound rather than an equality.
+    private static final Identifier MO02_RESULT = Identifier.fromNamespaceAndPath(
+            "function_compiler_probe", "mo02_store_result");
+    private static final Identifier MO02_FAILURES = Identifier.fromNamespaceAndPath(
+            "function_compiler_probe", "mo02_store_failures");
 
     private ProbeStatus() {
     }
@@ -112,6 +121,8 @@ final class ProbeStatus {
                 + " delegation_selector_executed=" + ProbeMetrics.scoreAddsExecuted(DELEGATION_SELECTOR)
                 + " delegation_client_packet_compiled=" + ProbeMetrics.scoreAddsCompiled(DELEGATION_CLIENT_PACKET)
                 + " delegation_client_packet_executed=" + ProbeMetrics.scoreAddsExecuted(DELEGATION_CLIENT_PACKET)
+                + " data_store_compiled_mo02_result=" + ProbeMetrics.dataStoresCompiled(MO02_RESULT)
+                + " data_store_compiled_mo02_failures=" + ProbeMetrics.dataStoresCompiled(MO02_FAILURES)
                 + " score_add_executed=" + ProbeMetrics.scoreAddsExecuted()
                 + " score_add_executed_lifecycle_macro_add=" + ProbeMetrics.scoreAddsExecuted(LIFECYCLE_MACRO)
                 + " score_add_executed_lifecycle_macro_pair=" + ProbeMetrics.scoreAddsExecuted(LIFECYCLE_MACRO_PAIR)

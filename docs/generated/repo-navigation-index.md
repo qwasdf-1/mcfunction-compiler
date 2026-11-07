@@ -50,7 +50,7 @@ This navigation index summarizes key code symbols across Java source and Python 
 - [`src/main/java/dev/functioncompiler/DataStoreCommand.java`](../../src/main/java/dev/functioncompiler/DataStoreCommand.java):
   - `class DataStoreCommand`:24
   - `class NumericType`:25
-  - `method run()`:87
+  - `method run()`:88
 - [`src/main/java/dev/functioncompiler/DataStoreParser.java`](../../src/main/java/dev/functioncompiler/DataStoreParser.java):
   - `class DataStoreParser`:10
   - `class ParsedDataStore`:11
@@ -59,10 +59,12 @@ This navigation index summarizes key code symbols across Java source and Python 
 - [`src/main/java/dev/functioncompiler/EntityRelation.java`](../../src/main/java/dev/functioncompiler/EntityRelation.java):
   - `class EntityRelation`:15
 - [`src/main/java/dev/functioncompiler/ExecutionContextBridge.java`](../../src/main/java/dev/functioncompiler/ExecutionContextBridge.java):
-  - `class ExecutionContextBridge`:8
-  - `method push()`:15
-  - `method pop()`:19
-  - `method currentContext()`:29
+  - `class ExecutionContextBridge`:11
+  - `method push()`:18
+  - `method pop()`:22
+  - `method currentContext()`:32
+  - `method chargeInlinedModifierStages()`:57
+  - `method inlinedInnerRunnable()`:78
 - [`src/main/java/dev/functioncompiler/ForkModifierParser.java`](../../src/main/java/dev/functioncompiler/ForkModifierParser.java):
   - `class ForkModifierParser`:12
   - `class CandidateResolver`:14
@@ -140,17 +142,17 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `method originalFallbackRetained()`:145
 - [`src/main/java/dev/functioncompiler/ProbeMetrics.java`](../../src/main/java/dev/functioncompiler/ProbeMetrics.java):
   - `class ProbeMetrics`:9
-  - `method wrapperCreated()`:66
-  - `method wrapperInstantiated()`:70
-  - `method wrappersCreated()`:74
-  - `method wrapperInstantiations()`:78
-  - `method probeFunctionParsed()`:82
-  - `method probeFunctionParseCount()`:86
-  - `method scoreAddCompiled()`:90
-  - `method functionLoaded()`:102
-  - `method functionCovered()`:109
-  - `method resetCoverageCounters()`:115
-  - `method scoreAddsCompiled()`:136
+  - `method wrapperCreated()`:71
+  - `method wrapperInstantiated()`:75
+  - `method wrappersCreated()`:79
+  - `method wrapperInstantiations()`:83
+  - `method probeFunctionParsed()`:87
+  - `method probeFunctionParseCount()`:91
+  - `method scoreAddCompiled()`:95
+  - `method functionLoaded()`:107
+  - `method functionCovered()`:114
+  - `method resetCoverageCounters()`:120
+  - `method scoreAddsCompiled()`:141
 - [`src/main/java/dev/functioncompiler/ProbeRuntimeTrace.java`](../../src/main/java/dev/functioncompiler/ProbeRuntimeTrace.java):
   - `class ProbeRuntimeTrace`:3
   - `method enabled()`:9
@@ -168,11 +170,11 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `method compile()`:42
   - `method compile()`:50
   - `class ExecutableCompiler`:141
-  - `class SingleModifierParser`:188
-  - `class ModifierParser`:281
-  - `class ParsedCondition`:539
-  - `class ParsedStore`:552
-  - `class ParsedTarget`:560
+  - `class SingleModifierParser`:202
+  - `class ModifierParser`:296
+  - `class ParsedCondition`:554
+  - `class ParsedStore`:567
+  - `class ParsedTarget`:575
 - [`src/main/java/dev/functioncompiler/ScoreConditionCommand.java`](../../src/main/java/dev/functioncompiler/ScoreConditionCommand.java):
   - `class ScoreConditionCommand`:17
   - `class Operator`:18
@@ -428,14 +430,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def run_in_server_session()`:146
   - `def _get_selective_macro_count()`:188
 - [`scripts/run_runtime_probe.py`](../../scripts/run_runtime_probe.py):
-  - `def configure_probe_ports()`:119
-  - `class RconClient`:402
-  - `def __init__()`:403
-  - `def close()`:411
-  - `def command()`:414
-  - `def _request()`:422
-  - `def _read_exact()`:435
-  - `def prepare_server_files()`:445
+  - `def configure_probe_ports()`:123
+  - `class RconClient`:425
+  - `def __init__()`:426
+  - `def close()`:434
+  - `def command()`:437
+  - `def _request()`:445
+  - `def _read_exact()`:458
+  - `def prepare_server_files()`:468
 - [`scripts/run_score_add_ab.py`](../../scripts/run_score_add_ab.py):
   - `class PortBindError`:79
   - `def sha256()`:83

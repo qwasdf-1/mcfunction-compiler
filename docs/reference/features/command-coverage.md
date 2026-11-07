@@ -73,7 +73,7 @@ arm in the matrix case.
 | DS-02 | `data modify storage` × compound/array/primitive values | numeric compound + array-indexed members | DATA-002 | R |
 | DS-03 | `data remove storage` | — | DATA-001 | R |
 | DS-04 | `data get storage` on an absent storage path | command failure, no store applied | DATA-004 | R |
-| DS-05 | `execute store result/success score` around a data command | failing read leaves the store unapplied | DATA-004, SCORE-018 | R |
+| DS-05 | `execute store result/success score` around a data command | failing read writes 0 (measured, batch 8; the sweep's own error cases are not observably taken) | DATA-004, SCORE-018, MO-02 | R |
 | DC-01 | `data modify storage A p set from storage B p` (`DataCopyCommand`) | absent source path | DATA-003 | R |
 | DC-02 | nested path copy with array indices | copied container read back | DATA-003 | R |
 
@@ -87,7 +87,7 @@ arm in the matrix case.
 | PR-04 | block predicate × explicit block **state** (`block[..]`) | state-property match | PRED-004 | R |
 | PR-05 | item predicate (`*[minecraft:...]`) | component predicates | PRED-005 | R |
 | MO-01 | `ScoreCondition`/`ScoreStore` modifiers around specialized ops | — | SCORE-009/012 | R |
-| MO-02 | `DataStore` modifier around data commands | — | — | — |
+| MO-02 | `DataStore` modifier around data commands | storage content, exact NBT tag match | MO-02 | R |
 | MO-03..05 | `as`, `at`, `positioned`, `rotated`, `anchored` chains and their ordering | chained combinations | CTRL-009 | R |
 | MO-06 | `ForkModifier` × fork limit 1..12 overflow | cap reached | QUOTA-009 | R |
 | MO-07 | `ItemPredicate` modifier on stack predicates | — | PRED-006 | R |
@@ -172,13 +172,13 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**92 rows: 86 covered (R), 1 partial (P), 5 missing (—).**
+**92 rows: 87 covered (R), 1 partial (P), 4 missing (—).**
 
 Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **P** requires a cited case recorded *Partial*, which proves some of the row and names the rest; **—** means no case exists for that shape.
 
-**The 5 missing rows, by family group:**
+**The 4 missing rows, by family group:**
 
-- **5. Predicate and modifier families**: MO-02, MO-09, MO-10
+- **5. Predicate and modifier families**: MO-09, MO-10
 - **6. State-machine command families**: ST-02
 - **10. Bytecode backend families**: BC-06
 
@@ -223,7 +223,6 @@ mechanism their oracle needs:
 | ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Closed by batch 6; ST-03 and ST-04 are R, ST-06 is P on `item modify` |
 | ST-02 (`bossbar`) | `bossbar get` feedback through RCON | Available, new oracle type |
 | **ST-01 (`title`), ST-05 (`playsound`/`particle`/`stopsound`), ST-07** | **None — client packets only, RCON cannot observe them** | **Closable only by delegation contract**, accepted as the v1 claim for these rows (matrix case STATE-001; see §11.3 batch 5). Differential closure would require a packet-capturing bot, which is a separate decision |
-| MO-02 | `execute store result/success storage <id> <path> run ...`; the 26.3 node arity this parser expects is not yet confirmed | **Blocked on syntax confirmation** (the row is `—` until a fixture parses) |
 | MO-09, MO-10 | Fork selector identity for random/arbitrary ordering; harness records effects, not identities | Partially available |
 | BC-06 | A paired performance campaign, not a fixture | Requires a campaign |
 
@@ -496,6 +495,77 @@ Batch 7's closer excludes and normalises the separators, and the current
 status changed and no performance claim is made in this batch; it is a
 correctness and coverage measurement, and all ten arms matched vanilla on every
 new map.
+
+**Batch 8 - the DataStore modifier row, and the dead modifier pass it exposed
+(matrix case MO-02).** Fixtures `mo02_store_result` and `mo02_store_failures`,
+run in all ten arms with exact score-sequence parity. Closed **MO-02**. The
+table is now 92 rows: 87 covered, 1 partial, 4 missing.
+
+**26.3 syntax and failure semantics, measured not assumed.** The storage-store
+tree is exactly `execute store (result|success) storage <target> <path> <type>
+<scale> run <command>`: the type is one of byte/short/int/long/float/double and
+the scale is a required double; omitting the scale is rejected at `run` with
+"Expected double...", and the scale multiplies (10 × 2.5 = 25.0d). A failing
+`data get` (absent path or no matching entity) throws, vanilla's execute
+framework reports `(success=false, result=0)` to the store callback, and the
+callback writes that value for a **result** store as well as a success store:
+both overwrite the previous content with a zero of the declared type. The
+earlier DS-05 claim that a failing read "leaves the store unapplied" was wrong
+and is corrected in the table, the fixture text and matrix case DATA-004. The
+MO-02 failure fixture carries the falsifiable form: it seeds the path with 9
+and asserts the exact post-failure tags `0L` and `0s`, so a store that skipped
+the write or dropped the type literal fails the match. `DataStoreCommand` was
+fixed to write 0 before rethrowing on any exception, matching vanilla.
+
+**The modifier-specialization pass had never executed.** While closing MO-02,
+a per-function compile counter kept reading zero although score parity held.
+Tracing the parse on 26.3 showed why: every `execute ... run ...` command's
+`ContextChain` carries a trailing no-op modifier stage whose only node is
+`run` (the `run` literal redirects to the dispatcher root with a null redirect
+modifier), and `parseModifiers` requires a parser for every stage. No parser
+accepted `[run]`, so **every** chained command silently declined - the whole
+chained-modifier pass (`ContextModifierCommand`, `ScoreConditionCommand`,
+`ScoreStoreCommand`, `DataStoreCommand`, `PredicateConditionCommand`,
+`InlinedForkingCommand`) had never run at runtime, in this repository's entire
+recorded history. The rows those classes were claimed to cover (MO-01's
+"inlined with 100% exact parity", MO-06's fork caps, CT-02's store context)
+held parity results that a vanilla fallback produces trivially; their
+specialization claims had no runtime evidence. The pass is now enabled by
+skipping the no-op `[run]` stage, and because every modifier parser requires
+the leading `execute` node, a second real modifier stage still declines - only
+single-stage chains compile.
+
+**Vanilla's quota-debit model, derived and matched.** Vanilla charges one
+quota debit per modifier stage carrying a redirect modifier (in
+`BuildContexts`, before the stage's sources resolve) plus one per final source
+(in `ExecuteCommand`). The debit model reproduces four independently measured
+quota maps exactly (the two MO-02 fixtures, `quota_three`, and the four-actor
+`as`/`at` fixture). The compiled chain keeps the per-source debit (the entry
+still queues an `ExecuteCommand` per source), so each inlined command charges
+its own stage debit: store and fork-stage-equivalent commands charge one,
+condition and context-modifier commands charge only when they proceed (a
+failed condition costs exactly one debit in vanilla, because an empty-source
+stage queues no `ExecuteCommand`), and every inner command is gated on the
+remaining quota not having gone negative - the compiled form of vanilla
+stopping the queue before that line. The model also corrected three latent
+defects that had never been exercised: `DataStoreCommand` and
+`ScoreStoreCommand` fired the source result callback manually even though the
+compiled entry still runs through `ExecuteCommand`/`runExecutable`, which
+fires it once (a double fire would double every enclosing callback);
+`ItemPredicateParser`'s evaluator returned the vanilla redirect's post-`unless`
+result while the command applied `unless` again (a double inversion that made
+every `unless items` line never fire); and the `fallbackChain.executeAll`
+fallbacks re-enter the wrapped command itself in a timing-only arm, which is
+why the runtime gates now match the compile gate exactly.
+
+**What this retroactively changed.** All fixtures containing single-stage
+modifier chains (score conditions, score and storage stores, block/entity/item
+predicates, `as @s`/`at @s`) now run through the compiled commands in the six
+compiling arms. The full ten-arm matrix re-verified every one of them against
+the vanilla-measured maps: exact score sequences, command results, `/debug
+function` traces, reload generations and fork limits. No default-on status
+changed (`fused_regions` stays off; PERF-016/017 stand) and no performance
+claim is made in this batch; it is a correctness and coverage measurement.
 
 ## 12. Reproducing this table from the code
 

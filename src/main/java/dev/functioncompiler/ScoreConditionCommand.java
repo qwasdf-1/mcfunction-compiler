@@ -79,8 +79,13 @@ final class ScoreConditionCommand implements FusableCommand {
 
     private int runUntimed(CommandContext<CommandSourceStack> context)
             throws CommandSyntaxException {
+        // The fallback bypasses the execution queue, so it must only run when
+        // nothing that motivated the compile is active; a timing-only or
+        // bytecode-only arm still needs the compiled (quota-exact) path.
         if (!ProbeConfiguration.scoreAddPrototypeEnabled()
-                && !ProbeConfiguration.fusedRegionPrototypeEnabled()) {
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()) {
             return fallbackChain.executeAll(
                     context.getSource(),
                     ExecutionCommandSource.resultConsumer()
@@ -94,6 +99,21 @@ final class ScoreConditionCommand implements FusableCommand {
 
         boolean matched = isConditionMet(source);
         if (unless == matched) {
+            return 0;
+        }
+
+        // Vanilla charges one quota debit for the condition stage (a redirect
+        // modifier) in BuildContexts — but only resolves sources through it,
+        // so a failed condition queues no per-source ExecuteCommand and costs
+        // exactly the stage debit. The compiled chain always pays the
+        // per-source debit (the entry queues an ExecuteCommand for this
+        // command), so the stage debit is charged here, only on a passing
+        // condition, keeping the per-line totals equal in both cases. The
+        // inner command then runs only while the remaining quota has not gone
+        // negative — the compiled form of vanilla stopping the queue before
+        // this line's ExecuteCommand.
+        ExecutionContextBridge.chargeInlinedModifierStages(1);
+        if (!ExecutionContextBridge.inlinedInnerRunnable()) {
             return 0;
         }
 

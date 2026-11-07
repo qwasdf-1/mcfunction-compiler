@@ -27,6 +27,11 @@ public final class ProbeMetrics {
             new ConcurrentHashMap<>();
     private static final ConcurrentMap<Identifier, AtomicLong> SCORE_ADD_TIMED_BY_FUNCTION =
             new ConcurrentHashMap<>();
+    // DataStore modifiers compiled per function. Separate from the ScoreAdd
+    // counter because that one also counts data commands and is incremented
+    // again on every reload, so it cannot isolate this row's specialization.
+    private static final ConcurrentMap<Identifier, AtomicLong> DATA_STORES_COMPILED_BY_FUNCTION =
+            new ConcurrentHashMap<>();
     // Per-namespace datapack coverage counters. A datapack normally owns one
     // namespace, so the namespace is the practical grouping for the load
     // report; see FunctionCoverageReport.
@@ -139,6 +144,17 @@ public final class ProbeMetrics {
 
     public static long scoreAddsCompiled(Identifier functionId) {
         AtomicLong count = SCORE_ADD_COMPILED_BY_FUNCTION.get(functionId);
+        return count == null ? 0 : count.get();
+    }
+
+    public static void dataStoreCompiled(Identifier functionId) {
+        DATA_STORES_COMPILED_BY_FUNCTION
+                .computeIfAbsent(functionId, ignored -> new AtomicLong())
+                .incrementAndGet();
+    }
+
+    public static long dataStoresCompiled(Identifier functionId) {
+        AtomicLong count = DATA_STORES_COMPILED_BY_FUNCTION.get(functionId);
         return count == null ? 0 : count.get();
     }
 

@@ -49,8 +49,13 @@ final class ContextModifierCommand implements FusableCommand {
 
     private int runUntimed(CommandContext<CommandSourceStack> context)
             throws CommandSyntaxException {
+        // The fallback bypasses the execution queue, so it must only run when
+        // nothing that motivated the compile is active; a timing-only or
+        // bytecode-only arm still needs the compiled (quota-exact) path.
         if (!ProbeConfiguration.scoreAddPrototypeEnabled()
-                && !ProbeConfiguration.fusedRegionPrototypeEnabled()) {
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()) {
             return fallbackChain.executeAll(
                     context.getSource(),
                     ExecutionCommandSource.resultConsumer()
@@ -61,8 +66,20 @@ final class ContextModifierCommand implements FusableCommand {
         for (Transformation transformation : transformations) {
             currentSource = transformation.apply(context, currentSource);
             if (currentSource == null) {
+                // Vanilla resolves this stage to no sources: the stage debit
+                // was charged but no per-source ExecuteCommand follows. The
+                // compiled chain always pays the per-source debit, so no stage
+                // charge here keeps the per-line total at one.
                 return 0;
             }
+        }
+
+        // One debit per folded modifier stage, then the same quota gate as the
+        // other inlined commands: the inner command runs only while the
+        // remaining quota has not gone negative.
+        ExecutionContextBridge.chargeInlinedModifierStages(transformations.size());
+        if (!ExecutionContextBridge.inlinedInnerRunnable()) {
+            return 0;
         }
 
         int result = innerCommand.run(context.copyFor(currentSource));

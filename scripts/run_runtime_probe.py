@@ -62,6 +62,8 @@ DIRECT_FIXTURES = (
     "storage_value_shapes",
     "storage_copy_paths",
     "storage_store_and_errors",
+    "mo02_store_result",
+    "mo02_store_failures",
     "score_holder_and_overflow",
     "score_condition_absent",
     "score_store_targets",
@@ -89,6 +91,8 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
         "storage_value_shapes",
         "storage_copy_paths",
         "storage_store_and_errors",
+        "mo02_store_result",
+        "mo02_store_failures",
         "score_holder_and_overflow",
         "score_condition_absent",
         "score_store_targets",
@@ -304,6 +308,25 @@ EXPECTED_SCORES = {
     "storage_store_and_errors": {
         **{quota: 0 for quota in range(0, 7)},
         **{quota: 5 for quota in range(7, 17)},
+    },
+    # Observed on the mod-free vanilla arm. MO-02 first half: a result store
+    # with byte type and scale 2 turns 200 into (byte)400 = -112, then a
+    # success store writes 1s. The run stabilises at 3 (= the declared 1,1)
+    # from quota 10, so both cases execute inside the sweep.
+    "mo02_store_result": {
+        **{quota: 0 for quota in range(0, 6)},
+        **{quota: 2 for quota in range(6, 10)},
+        **{quota: 3 for quota in range(10, 17)},
+    },
+    # Observed on the mod-free vanilla arm. MO-02 second half: a failed data
+    # get reports result 0 and success false, so both a result store (long 2)
+    # and a success store (short 3) overwrite the seed 9 with a zero of the
+    # declared type. The run stabilises at 3 (= the declared 1,1) from quota
+    # 11, so both cases execute inside the sweep.
+    "mo02_store_failures": {
+        **{quota: 0 for quota in range(0, 6)},
+        **{quota: 2 for quota in range(6, 11)},
+        **{quota: 3 for quota in range(11, 17)},
     },
     "quota_one": {0: 0, 1: 0, **{quota: 1 for quota in range(2, 8)}},
     "quota_three": {0: 0, 1: 0, 2: 1, 3: 2, **{quota: 3 for quota in range(4, 8)}},
@@ -5757,6 +5780,41 @@ def run_mode(
             raise RuntimeError(
                 f"{mode} unexpectedly executed a ScoreAdd prototype: {score_add_metrics!r}"
             )
+        # MO-02's fixtures each contain exactly two `execute store ... storage`
+        # lines, and the dedicated counter increments once per compiled
+        # DataStore modifier. Score parity alone cannot prove specialization: a
+        # fallback executes the same vanilla commands. A function is compiled
+        # in every arm whose configuration motivates compilation (ScoreAdd
+        # prototype, timing instrumentation, fused, or bytecode), which is a
+        # superset of expected_prototype, so this assertion keys on the same
+        # disjunction the wrapper compiles under. Reloads may recompile a
+        # function, so a compiling arm is asserted as a lower bound and every
+        # other arm as zero.
+        mo02_expected_compiled = expected_prototype or expected_timing
+        mo02_compiled: dict[str, int] = {}
+        for fixture, key in (
+            ("mo02_store_result", "data_store_compiled_mo02_result"),
+            ("mo02_store_failures", "data_store_compiled_mo02_failures"),
+        ):
+            match = re.search(rf"(?:^|\s){re.escape(key)}=(\d+)", post_execution_status)
+            if match is None:
+                raise RuntimeError(f"{mode} status omitted {key}")
+            mo02_compiled[fixture] = int(match.group(1))
+        for fixture, compiled in mo02_compiled.items():
+            if mo02_expected_compiled and compiled < 2:
+                raise RuntimeError(
+                    f"{mode} {fixture} compiled {compiled} DataStore lines; "
+                    f"expected at least 2"
+                )
+            if not mo02_expected_compiled and compiled != 0:
+                raise RuntimeError(
+                    f"{mode} {fixture} compiled {compiled} DataStore lines in a "
+                    f"non-specializing arm"
+                )
+        data_store_metrics = {
+            "expected_minimum_per_fixture": 2 if mo02_expected_compiled else 0,
+            "compiled_by_fixture": mo02_compiled,
+        }
         fused_compiled_match = re.search(r"fused_regions_compiled=(\d+)", post_execution_status)
         fused_executed_match = re.search(r"fused_regions_executed=(\d+)", post_execution_status)
         if fused_compiled_match is None or fused_executed_match is None:
@@ -6074,6 +6132,7 @@ def run_mode(
             "scoreboard_semantics": scoreboard_semantics,
             "delegation_contract": delegation_contract,
             "score_add_prototype_metrics": score_add_metrics,
+            "data_store_prototype_metrics": data_store_metrics,
             "fused_region_metrics": fused_region_metrics,
             "bytecode_region_metrics": bytecode_region_metrics,
             "score_add_timing_metrics": score_add_timing,

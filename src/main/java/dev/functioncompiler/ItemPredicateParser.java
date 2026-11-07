@@ -36,10 +36,18 @@ final class ItemPredicateParser {
             return null;
         }
 
+        // The vanilla redirect modifier bakes the unless negation into its
+        // pass/fail result (ExecuteCommand.addConditional routes through
+        // expect(ctx, unless, test), which passes when test == unless), so the
+        // evaluator undoes that negation and reports the raw predicate result.
+        // The command's unless flag then applies the inversion exactly once,
+        // matching the raw-argument evaluators in PredicateModifierParser.
+        final boolean negatedRedirect = unless;
         PredicateConditionCommand.PredicateEvaluator evaluator = source -> {
             try {
                 Collection<CommandSourceStack> result = redirect.apply(context.copyFor(source));
-                return result != null && !result.isEmpty();
+                boolean passed = result != null && !result.isEmpty();
+                return negatedRedirect ? !passed : passed;
             } catch (CommandSyntaxException e) {
                 return null;
             }

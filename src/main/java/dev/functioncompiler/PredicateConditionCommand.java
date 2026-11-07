@@ -49,8 +49,13 @@ final class PredicateConditionCommand implements FusableCommand {
 
     private int runUntimed(CommandContext<CommandSourceStack> context)
             throws CommandSyntaxException {
+        // The fallback bypasses the execution queue, so it must only run when
+        // nothing that motivated the compile is active; a timing-only or
+        // bytecode-only arm still needs the compiled (quota-exact) path.
         if (!ProbeConfiguration.scoreAddPrototypeEnabled()
-                && !ProbeConfiguration.fusedRegionPrototypeEnabled()) {
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()) {
             return fallbackChain.executeAll(
                     context.getSource(),
                     ExecutionCommandSource.resultConsumer()
@@ -70,6 +75,16 @@ final class PredicateConditionCommand implements FusableCommand {
         }
 
         if (unless == matched) {
+            return 0;
+        }
+
+        // Same per-line debit accounting as ScoreConditionCommand: a failed
+        // condition costs exactly one debit (vanilla's stage debit; here the
+        // always-paid per-source ExecuteCommand debit), and a passed condition
+        // charges the stage debit before the inner command, gated on the
+        // remaining quota not having gone negative.
+        ExecutionContextBridge.chargeInlinedModifierStages(1);
+        if (!ExecutionContextBridge.inlinedInnerRunnable()) {
             return 0;
         }
 

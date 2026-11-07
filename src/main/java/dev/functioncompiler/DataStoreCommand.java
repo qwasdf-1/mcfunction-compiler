@@ -81,6 +81,7 @@ final class DataStoreCommand implements FusableCommand {
         this.isResult = isResult;
         this.innerCommand = innerCommand;
         this.functionId = functionId;
+        ProbeMetrics.dataStoreCompiled(functionId);
     }
 
     @Override
@@ -98,21 +99,40 @@ final class DataStoreCommand implements FusableCommand {
 
     private int runUntimed(CommandContext<CommandSourceStack> context)
             throws CommandSyntaxException {
+        // The fallback bypasses the execution queue, so it must only run when
+        // nothing that motivated the compile is active; a timing-only or
+        // bytecode-only arm still needs the compiled (quota-exact) path.
         if (!ProbeConfiguration.scoreAddPrototypeEnabled()
-                && !ProbeConfiguration.fusedRegionPrototypeEnabled()) {
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()) {
             return fallbackChain.executeAll(
                     context.getSource(),
                     ExecutionCommandSource.resultConsumer()
             );
         }
 
+        // Vanilla charges one quota debit for the store stage (a redirect
+        // modifier) in BuildContexts before the stage's sources resolve, and
+        // one per final source in ExecuteCommand. The compiled chain keeps the
+        // per-source debit, so this command charges the stage debit here, then
+        // runs the inner command only while the remaining quota has not gone
+        // negative — the compiled form of vanilla stopping the queue before
+        // this line's ExecuteCommand.
+        ExecutionContextBridge.chargeInlinedModifierStages(1);
+        if (!ExecutionContextBridge.inlinedInnerRunnable()) {
+            return 0;
+        }
+
         int result;
         try {
             result = innerCommand.run(context);
         } catch (CommandSyntaxException exception) {
-            if (isResult) {
-                throw exception;
-            }
+            // Vanilla's execute framework reports (success=false, result=0) to
+            // the store callback when the inner command throws, and the store
+            // callback writes that value for a result store as well as a
+            // success store. A result store therefore writes 0 before the
+            // exception propagates; it does not leave the previous value.
             writeStoredValue(context.getSource(), 0);
             throw exception;
         }
@@ -120,11 +140,11 @@ final class DataStoreCommand implements FusableCommand {
         int val = isResult ? result : 1;
         writeStoredValue(context.getSource(), val);
 
-        CommandSourceStack source = context.getSource();
-        if (source.callback() != null) {
-            source.callback().onResult(true, result);
-        }
-
+        // No manual callback fire here: the compiled entry still runs through
+        // ExecuteCommand/ContextChain.runExecutable, whose result consumer
+        // fires the source callback exactly once with this command's return
+        // value — the same single fire vanilla produces. An additional fire
+        // here would double every enclosing callback.
         if (ProbeConfiguration.scoreAddMetricsEnabled()) {
             ProbeMetrics.scoreAddExecuted(functionId);
         }

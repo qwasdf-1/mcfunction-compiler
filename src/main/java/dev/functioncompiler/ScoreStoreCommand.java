@@ -55,8 +55,13 @@ final class ScoreStoreCommand implements FusableCommand {
 
     private int runUntimed(CommandContext<CommandSourceStack> context)
             throws CommandSyntaxException {
+        // The fallback bypasses the execution queue, so it must only run when
+        // nothing that motivated the compile is active; a timing-only or
+        // bytecode-only arm still needs the compiled (quota-exact) path.
         if (!ProbeConfiguration.scoreAddPrototypeEnabled()
-                && !ProbeConfiguration.fusedRegionPrototypeEnabled()) {
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()) {
             return fallbackChain.executeAll(
                     context.getSource(),
                     ExecutionCommandSource.resultConsumer()
@@ -69,6 +74,18 @@ final class ScoreStoreCommand implements FusableCommand {
         Objective objective = scoreboard.getObjective(objectiveName);
         if (target == null || objective == null) {
             return fallbackChain.executeAll(source, ExecutionCommandSource.resultConsumer());
+        }
+
+        // Vanilla charges one quota debit for the store stage (a redirect
+        // modifier) in BuildContexts before the stage's sources resolve, and
+        // one per final source in ExecuteCommand. The compiled chain keeps the
+        // per-source debit, so this command charges the stage debit here, then
+        // runs the inner command only while the remaining quota has not gone
+        // negative — the compiled form of vanilla stopping the queue before
+        // this line's ExecuteCommand.
+        ExecutionContextBridge.chargeInlinedModifierStages(1);
+        if (!ExecutionContextBridge.inlinedInnerRunnable()) {
+            return 0;
         }
 
         int result;
@@ -84,10 +101,11 @@ final class ScoreStoreCommand implements FusableCommand {
         ScoreAccess score = scoreboard.getOrCreatePlayerScore(target, objective);
         score.set(storedValue);
 
-        if (source.callback() != null) {
-            source.callback().onResult(true, result);
-        }
-
+        // No manual callback fire here: the compiled entry still runs through
+        // ExecuteCommand/ContextChain.runExecutable, whose result consumer
+        // fires the source callback exactly once with this command's return
+        // value — the same single fire vanilla produces. An additional fire
+        // here would double every enclosing callback.
         if (ProbeConfiguration.scoreAddMetricsEnabled()) {
             ProbeMetrics.scoreAddExecuted(functionId);
         }

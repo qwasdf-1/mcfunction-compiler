@@ -240,7 +240,7 @@ flowchart TD
      campaign is negative: PERF-017, Vein Miner 6×6×6, ten pairs, median +0.69%,
      97.85% interval −3.92% to +2.74%, decision `does_not_meet_threshold`.
    - "100% exact differential parity across the full test matrix" is **not
-     established**: 19 of 121 matrix cases are recorded partial, so parity is
+     established**: 19 of 122 matrix cases are recorded partial, so parity is
      proven for the enumerated families only (see §6, step 1).
 
 ---
@@ -266,8 +266,8 @@ not make anything slower than vanilla.**
 
 | Gate | Definition | Passes today |
 |---|---|---|
-| **Correctness gate** | 100% exact differential parity against mod-free vanilla for every enumerated family in the coverage table — state, return values, quota events, error traces, and `/debug function` events | **Partial**: 19 of 121 matrix cases are recorded partial (HOOK-001..006/008/009, SCORE-007/009, QUOTA-009, CTRL-001/002/003/005/006/007, PERF-001, STATE-004). Every case recorded *complete* has passed its named runtime arm, and the batch-6 cases STATE-002..004 and batch-7 cases TC-02, CT-01, CT-02, CT-03 passed in all ten arms |
-| **Coverage gate** | Every supported (family, argument shape, fallback condition) has one matrix row; nothing is called "supported" without one; the per-namespace coverage report is the runtime evidence | **Open, and now quantified**: the table is enumerated — 92 rows, 86 covered (R), 1 partial (P), 5 missing (—), all regenerated from the matrix verdicts. The 5 rows with no case are MO-02, MO-09, MO-10, ST-02, BC-06; the partial row is ST-06's `item modify` |
+| **Correctness gate** | 100% exact differential parity against mod-free vanilla for every enumerated family in the coverage table — state, return values, quota events, error traces, and `/debug function` events | **Partial**: 19 of 122 matrix cases are recorded partial (HOOK-001..006/008/009, SCORE-007/009, QUOTA-009, CTRL-001/002/003/005/006/007, PERF-001, STATE-004). Every case recorded *complete* has passed its named runtime arm, and the batch-6 cases STATE-002..004, batch-7 cases TC-02, CT-01, CT-02, CT-03 and batch-8 case MO-02 passed in all ten arms |
+| **Coverage gate** | Every supported (family, argument shape, fallback condition) has one matrix row; nothing is called "supported" without one; the per-namespace coverage report is the runtime evidence | **Open, and now quantified**: the table is enumerated — 92 rows, 87 covered (R), 1 partial (P), 4 missing (—), all regenerated from the matrix verdicts. The 4 rows with no case are MO-09, MO-10, ST-02, BC-06; the partial row is ST-06's `item modify` |
 | **No-regression gate** | For every default-on optimization, the 95% exact paired interval for its primary metric excludes a *slowdown* of vanilla on the same workload. This is a floor, not a promotion target | **Implemented and reported by both campaign runners** (2026-11-04). Retro-applied to the recorded campaigns: on the mechanism fixture the floor **holds** in every clean confirmatory campaign (5k 10-pair, 20k re-run, both 16-pair, lb113); on the real Vein Miner workload (PERF-017) it is **indeterminate** — +0.69% median, interval −3.92% to +2.74%, which cannot exclude a slowdown |
 
 A **promotion gate** (≥15% median gain or ≥50% queue-step reduction, as in §5)

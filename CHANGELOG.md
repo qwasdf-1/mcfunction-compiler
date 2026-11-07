@@ -2,19 +2,47 @@
 
 ## Unreleased
 
-- Close the four remaining new-fixture coverage rows - `TC-02` (tail call
-  through a macro invocation) and `CT-01`/`CT-02`/`CT-03` (callback and
-  region-boundary cases) - with four differential fixtures verified across
-  mod-free vanilla 26.3 and all nine Fabric runtime modes (ten arms) with exact
-  per-quota score parity. `tc02_tail_macro` chains a plain frame into two macro
-  frames and a plain leaf, all in tail position; `ct01_return_after_boundary`
-  discards a pending tail on both sides of a `return run function`;
-  `ct02_store_specialized` stores a `data get` result and an accepted
-  `setblock` success; `ct03_failure_after_mutation` proves a runtime error
-  inside a macro callee and a missing-key expansion failure do not replay
-  completed effects. Matrix cases TC-02 and CT-01..03; rows closed: TC-02,
-  CT-01, CT-02, CT-03. No default-on status changed and no performance claim is
-  made - this batch is correctness and coverage only.
+- Close the `MO-02` coverage row - the `DataStore` modifier around data
+  commands (`execute store result/success storage <id> <path> <type> <scale>`)
+  - with two differential fixtures verified across mod-free vanilla 26.3 and
+  all nine Fabric runtime modes (ten arms) with exact per-quota score parity.
+  A failing `data get` costs about eight quota points, so the success and
+  failure halves are separate fixtures: `mo02_store_result` pins the scale, the
+  `byte` type literal and the NBT tag suffix in one value ((byte)(200*2) =
+  -112), and `mo02_store_failures` pins the measured failure semantics with
+  exact `0L`/`0s` tag matches after seeding the path with 9. Specialization is
+  proven by new dedicated per-function DataStore compile counters in probe
+  status, asserted at least 2 in the six compiling arms and exactly 0 in the
+  rest, because score parity alone is also produced by the vanilla fallback.
+  Matrix case MO-02; row closed: MO-02. The table is now **92 rows: 87 covered
+  (R), 1 partial (P), 4 missing (—)**; the remaining rows are MO-09, MO-10,
+  ST-02 and BC-06, and the partial row is still ST-06's `item modify`. No
+  default-on status changed and no performance claim is made - this batch is
+  correctness and coverage only.
+
+- Enabling that row exposed that the entire chained-modifier specialization
+  pass had never executed at runtime. On 26.3, Brigadier's `ContextChain` gives
+  every `execute ... run ...` command a trailing no-op modifier stage whose
+  only node is `run`, and `parseModifiers` required a parser for every stage;
+  no parser accepted `[run]`, so every chained command silently stayed on the
+  vanilla path - including all the previously recorded `ScoreCondition`/
+  `ScoreStore`/fork/claim rows whose parity a fallback produces trivially. The
+  pass now skips the no-op `[run]` stage (only single-stage chains compile,
+  because every parser requires the leading `execute` node) and charges
+  vanilla's per-stage quota debits: one debit per modifier stage with a
+  redirect modifier plus one per final source, a model that reproduces four
+  independently measured quota maps exactly. The fixes that made the pass exact
+  also corrected three latent, never-exercised defects: `DataStoreCommand` and
+  `ScoreStoreCommand` double-fired the source result callback (the compiled
+  entry's `ExecuteCommand`/`runExecutable` path already fires it once, matching
+  vanilla); `ItemPredicateParser` double-inverted `unless items` (the vanilla
+  redirect already applies the negation), which made every `unless items` line
+  never fire; and the `fallbackChain.executeAll` fallback re-entered the
+  wrapped command itself in a timing-only arm, so the wrapped commands' runtime
+  gates now match the compile gate exactly. `DataStoreCommand` also now writes
+  0 before rethrowing on any exception, matching vanilla's measured store
+  semantics for result as well as success stores. The full ten-arm matrix
+  re-verified every affected fixture against the vanilla-measured maps.
 
 - Three measured findings changed the fixtures. `setblock` reports success 0 for
   an unchanged block ("Could not set the block"), so `ct02_store_specialized`
@@ -27,6 +55,17 @@
   expansion before any line of the callee runs, and a runtime command error
   inside a macro callee aborts neither the callee's remaining lines nor the
   caller; the CT-03 map records both.
+
+- Correct the failing-read store semantics recorded by the storage batch. The
+  earlier claim that a failing read "leaves the store unapplied" (DS-05 row,
+  matrix case DATA-004, fixture header) is contradicted by measurement: vanilla
+  writes 0 for a result store as well as a success store. The claim is
+  corrected in all three places, and because `storage_store_and_errors`'s
+  absent-path folds add 0 whether the store writes or skips, that sweep's later
+  error cases are not observably taken - the falsifiable form of the claim now
+  lives in `mo02_store_failures`. The batch-7 entry below remains as recorded
+  history for its own numbers: §11 now reports 92 rows: 87 covered (R), 1
+  partial (P), 4 missing (—).
 
 - Correct the coverage table's generated row count. Every section separator ends
   in `R`, and the earlier closers counted those nine lines as data rows, so the

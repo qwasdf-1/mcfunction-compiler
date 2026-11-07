@@ -744,6 +744,16 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   100.0% parity on zero matching entities, 4-entity executions (score 40),
   downstream coordinate offsets, upstream `execute store result` (sum 6), and
   quota stopping sweeps (0, 1, 2, 3, 4, 5, 8).
+  **Batch-8 correction (26.3):** this repository's snapshot inherited that
+  claim from upstream verification whose arm vocabulary does not match this
+  repository's ten-arm matrix, and on 26.3 the entire chained-modifier pass —
+  including this command — was dead code until batch 8 (the no-op `[run]`
+  chain stage declined every chained command; see the batch-8 entry in the
+  [coverage table](reference/features/command-coverage.md)). Batch 8 re-verified
+  the fork-limit and fork-order fixtures across all ten arms with the pass
+  enabled; single-stage `as`/`at`/`on` selector forks now compile and run on
+  26.3, while multi-stage chains (a second modifier stage without the leading
+  `execute` node) still decline and remain on the vanilla path.
 - The Exotic Adversarial Red-Team QA campaign evaluates four failure domains
   across six dedicated server arms: `vanilla`, `fabric-on`, `ferritecore`,
   `c2me`, `lbmfc` (Lithium + Bellows + Moonrise + FerriteCore), and
@@ -756,6 +766,25 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   Vector 4 proves zero output leakage or message corruption under output
   suppression and silent command sources. Full details and methodology are
   documented in [exotic-adversarial-probe-report.md](reference/benchmarks/exotic-adversarial-probe-report.md).
+- Batch 8 closed the MO-02 coverage row and enabled the chained-modifier
+  specialization pass, which batch 8 found had never executed on 26.3 (the
+  no-op `[run]` chain stage declined every chained command). Measured on the
+  pinned vanilla server: the 26.3 storage-store tree is
+  `execute store (result|success) storage <target> <path> <type> <scale> run
+  <command>` with a required double scale that multiplies, and a failing
+  `data get` reports `(success=false, result=0)` to the store callback, so a
+  result store writes 0 exactly as a success store does — both overwrite the
+  previous content with a zero of the declared type. Vanilla's quota-debit
+  model is one debit per modifier stage with a redirect modifier plus one per
+  final source; the model reproduces the measured quota maps of
+  `mo02_store_result`, `mo02_store_failures`, `quota_three` and the four-actor
+  `as`/`at` fixture exactly. The two MO-02 fixtures and every other fixture
+  containing single-stage modifier chains match vanilla in all ten arms with
+  exact score sequences, command results, debug traces, reload generations and
+  fork limits, and the dedicated DataStore compile counters read at least 2
+  lines per fixture in the six compiling arms and exactly 0 in vanilla,
+  wrapper-off/on and selective-macro-arguments. See the batch-8 record in the
+  [coverage table](reference/features/command-coverage.md).
 
 ## Limits of this evidence
 
