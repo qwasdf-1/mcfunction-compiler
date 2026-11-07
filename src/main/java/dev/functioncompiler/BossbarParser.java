@@ -25,6 +25,7 @@ final class BossbarParser {
                     new StateMachineCommand(command, functionId),
                     functionId
             );
+            ProbeMetrics.bossbarCompiled(functionId);
             return true;
         }
         return false;

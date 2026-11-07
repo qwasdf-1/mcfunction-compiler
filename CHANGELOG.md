@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- Close the `ST-02` coverage row - the bossbar command family
+  (`bossbar add/set/remove` and `get value|max|players` through the
+  `StateMachineCommand` wrap) - with two differential fixtures verified
+  across mod-free vanilla 26.3 and all nine Fabric runtime modes (ten arms)
+  with exact per-quota score parity. The feasibility note expected a new
+  RCON-feedback oracle type; measurement showed none is needed: bare
+  `bossbar get <id>` is not a valid 26.3 form (the only getters are value,
+  max and players), and each getter returns its value as the command result,
+  so `execute store result score` folds bossbar state into the existing
+  scoreboard oracle. Measured and recorded in the fixtures: `bossbar add`
+  returns result 1 and fails on a duplicate id; `bossbar set value|max`
+  returns the written number when the value changed and 0 with a
+  nothing-changed failure otherwise (so the fixtures re-create fresh-bar
+  defaults every iteration through a bare leading remove); a failing bossbar
+  command does not abort the remaining function lines; `bossbar remove`
+  returns 0 whether or not a bar was removed; and the unknown-bar edge is
+  pinned by a store around a get on an absent bar writing 0 over the
+  previous read's 43. Specialization is proven by new dedicated per-function
+  bossbar compile counters, asserted at the store-chain counts (3 and 4) in
+  the six compiling arms and exactly 0 in the rest; bare bossbar lines are
+  not in the EXECUTE-stage parser list and stay on the vanilla path, like
+  the other state-machine families outside tag/teleport/kill, and the
+  set color/visible/name shapes have no 26.3 getter (client-rendered state),
+  which the closure text scopes explicitly. Matrix case ST-02; row closed:
+  ST-02. The table is now **92 rows: 88 covered (R), 1 partial (P), 3
+  missing (—)**; the remaining rows are MO-09, MO-10 and BC-06, and the
+  partial row is still ST-06's `item modify`. No default-on status changed
+  and no performance claim is made - this batch is correctness and coverage
+  only.
+
 - Close the `MO-02` coverage row - the `DataStore` modifier around data
   commands (`execute store result/success storage <id> <path> <type> <scale>`)
   - with two differential fixtures verified across mod-free vanilla 26.3 and

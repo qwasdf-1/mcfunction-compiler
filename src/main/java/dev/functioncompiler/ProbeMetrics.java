@@ -32,6 +32,11 @@ public final class ProbeMetrics {
     // again on every reload, so it cannot isolate this row's specialization.
     private static final ConcurrentMap<Identifier, AtomicLong> DATA_STORES_COMPILED_BY_FUNCTION =
             new ConcurrentHashMap<>();
+    // Bossbar lines wrapped into StateMachineCommand per function, so the
+    // ST-02 fixtures can prove their bossbar specialization with a counter a
+    // vanilla fallback cannot produce.
+    private static final ConcurrentMap<Identifier, AtomicLong> BOSSBARS_COMPILED_BY_FUNCTION =
+            new ConcurrentHashMap<>();
     // Per-namespace datapack coverage counters. A datapack normally owns one
     // namespace, so the namespace is the practical grouping for the load
     // report; see FunctionCoverageReport.
@@ -155,6 +160,17 @@ public final class ProbeMetrics {
 
     public static long dataStoresCompiled(Identifier functionId) {
         AtomicLong count = DATA_STORES_COMPILED_BY_FUNCTION.get(functionId);
+        return count == null ? 0 : count.get();
+    }
+
+    public static void bossbarCompiled(Identifier functionId) {
+        BOSSBARS_COMPILED_BY_FUNCTION
+                .computeIfAbsent(functionId, ignored -> new AtomicLong())
+                .incrementAndGet();
+    }
+
+    public static long bossbarsCompiled(Identifier functionId) {
+        AtomicLong count = BOSSBARS_COMPILED_BY_FUNCTION.get(functionId);
         return count == null ? 0 : count.get();
     }
 

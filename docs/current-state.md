@@ -785,6 +785,21 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   lines per fixture in the six compiling arms and exactly 0 in vanilla,
   wrapper-off/on and selective-macro-arguments. See the batch-8 record in the
   [coverage table](reference/features/command-coverage.md).
+- Batch 9 closed the ST-02 bossbar row with two differential fixtures
+  (`st02_bossbar_ops`, `st02_bossbar_values`) matching vanilla in all ten
+  arms with exact per-quota score parity, and the dedicated per-function
+  bossbar compile counters reading exactly the store-chain counts (6 and 8,
+  two events per chained line per generation) in the six compiling arms and
+  exactly 0 in vanilla, wrapper-off/on and selective-macro-arguments.
+  Measured on the pinned vanilla server: bare `bossbar get <id>` is not a
+  valid 26.3 form; `bossbar get value|max|players` and
+  `bossbar set value|max` return their values as command results, so the
+  row folded into the existing scoreboard oracle with no new oracle type; a
+  failing bossbar command does not abort the remaining function lines; and a
+  store around a get on an unknown bar writes 0. Bare bossbar lines are not
+  in the EXECUTE-stage parser list and stay on the vanilla path, like the
+  other state-machine families outside tag/teleport/kill. See the batch-9
+  record in the [coverage table](reference/features/command-coverage.md).
 
 ## Limits of this evidence
 

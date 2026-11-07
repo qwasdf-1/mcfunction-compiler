@@ -105,7 +105,7 @@ form, not one row per parser:
 | Row | Family × argument shape | Fallback condition | Matrix |
 | --- | --- | --- | --- |
 | ST-01 | `title @a actionbar/title/subtitle/clear` × text and JSON component | — | STATE-001 | R |
-| ST-02 | `bossbar add/set/remove/get <id> ...` | unknown bar | — | — |
+| ST-02 | `bossbar add/set/remove/get <id> ...` | bossbar state, exact result-value match | ST-02 | R |
 | ST-03 | `effect give/clear <target> <effect> ...` | amplifier/duration edges | STATE-002 | R |
 | ST-04 | `setblock <pos> <block>[state] [mode]` | out-of-world | STATE-003 | R |
 | ST-05 | `playsound <sound> ...`, `particle ...`, `stopsound` | volume/pitch edges | STATE-001 | R |
@@ -172,14 +172,13 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**92 rows: 87 covered (R), 1 partial (P), 4 missing (—).**
+**92 rows: 88 covered (R), 1 partial (P), 3 missing (—).**
 
 Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **P** requires a cited case recorded *Partial*, which proves some of the row and names the rest; **—** means no case exists for that shape.
 
-**The 4 missing rows, by family group:**
+**The 3 missing rows, by family group:**
 
 - **5. Predicate and modifier families**: MO-09, MO-10
-- **6. State-machine command families**: ST-02
 - **10. Bytecode backend families**: BC-06
 
 ### 11.1 How the eleven partial-cited rows were resolved
@@ -221,7 +220,7 @@ mechanism their oracle needs:
 |---|---|---|
 | SM-03, SM-11, SM-12, SC-03, SS-03, SS-04, SC-05, CT-01, CT-02, CT-03, TC-01, TC-02 | Scoreboard oracle, new fixtures only | Available (closed by batches 2-4 for the rows shown cited) |
 | ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Closed by batch 6; ST-03 and ST-04 are R, ST-06 is P on `item modify` |
-| ST-02 (`bossbar`) | `bossbar get` feedback through RCON | Available, new oracle type |
+| ST-02 (`bossbar`) | Folded into the scoreboard: `bossbar get value|max|players` return their values as command results, so `execute store result score` observes them; bare `bossbar get <id>` is not a valid 26.3 form | Available (closed by batch 9 without a new oracle type) |
 | **ST-01 (`title`), ST-05 (`playsound`/`particle`/`stopsound`), ST-07** | **None — client packets only, RCON cannot observe them** | **Closable only by delegation contract**, accepted as the v1 claim for these rows (matrix case STATE-001; see §11.3 batch 5). Differential closure would require a packet-capturing bot, which is a separate decision |
 | MO-09, MO-10 | Fork selector identity for random/arbitrary ordering; harness records effects, not identities | Partially available |
 | BC-06 | A paired performance campaign, not a fixture | Requires a campaign |
@@ -566,6 +565,61 @@ the vanilla-measured maps: exact score sequences, command results, `/debug
 function` traces, reload generations and fork limits. No default-on status
 changed (`fused_regions` stays off; PERF-016/017 stand) and no performance
 claim is made in this batch; it is a correctness and coverage measurement.
+
+**Batch 9 - the bossbar row, closed without the new oracle type its
+feasibility note expected (matrix case ST-02).** Fixtures
+`st02_bossbar_ops` (add/remove lifecycle plus the unknown-bar edge) and
+`st02_bossbar_values` (the set/get property shapes), run in all ten arms with
+exact score-sequence parity, split because a full lifecycle does not fit one
+0-16 quota sweep. Closed **ST-02**. The table is now 92 rows: 88 covered,
+1 partial, 3 missing.
+
+**The feasibility note's new oracle type was not needed.** §11.2 expected the
+row to close through `bossbar get` feedback text parsed from RCON responses.
+Measurement on the pinned vanilla server changed the picture twice over: bare
+`bossbar get <id>` (no property) is not a valid 26.3 form - the only getters
+are `value`, `max` and `players` - and each of those getters returns its value
+as the command *result* (`get value` → the value, `get max` → the max,
+`get players` → the online-player count), so `execute store result score`
+around the getters folds bossbar state into the existing scoreboard oracle.
+The same is true of the setters: `bossbar set value|max <v>` returns the
+written number when the value changed and 0 with a nothing-changed failure
+when it did not. The remaining set shapes (`color`, `visible`, `name`, `style`)
+have no 26.3 getter at all - their state is client-rendered - so they are
+covered by the same nest-host wrap (every `BossBarCommands` command wraps
+identically; the wrap parses no arguments) but their effects are not
+RCON-observable, and the closure text says so.
+
+**26.3 bossbar behaviours, measured not assumed.** All are recorded in the
+fixture headers. `bossbar add` returns result 1 on success and fails with "A
+bossbar already exists with the ID ..." on a duplicate, which makes the
+fixtures non-idempotent across the sweep's repeated iterations; both fixtures
+reset the bar through a bare leading `bossbar remove` instead, relying on the
+measured fact that a failing bossbar command does not abort the remaining
+function lines (verified separately with a throwaway fixture, then removed).
+`bossbar remove` returns result 0 whether or not a bar was removed, and a get
+on an absent bar fails with "No bossbar exists with the ID '<id>'" - the
+row's unknown-bar edge. A store-wrapped failing get reports
+(success=false, result=0) to the store callback, the same measured semantics
+batch 8 recorded for data commands, and the ops fixture's final case pins it:
+after a bare remove, the store around `bossbar get value` must write 0 over
+the previous read's 43, so a store that skipped the write or kept the old
+value fails the match. The sweep maps also re-confirmed batch 8's debit model
+on a new command family: store chains cost 2 debits, bare commands 1, taken
+conditions 2, failed conditions 1, and both fixtures' completion cases land
+at exactly quota 16.
+
+**Bare bossbar lines stay vanilla, by design.** The specialization counters
+(bossbar_compiled_st02_bossbar_ops/_values, added for this row) read exactly
+the store-chain counts: three and four chained lines wrapped (reading 6 and 8,
+the same per-line doubling per generation the DataStore counters show), while
+bare `bossbar` lines never increment. That is not a defect introduced here:
+the EXECUTE-stage parser list does not include `BossbarParser`, nor the other
+state-machine parsers outside `StateMachineParser`'s tag/teleport/kill
+shapes, so bare `title`, `effect`, `setblock` and `bossbar` lines run on the
+vanilla path. The wrap is semantics-preserving by construction, so parity
+holds either way; the fixtures prove the chained shapes specialize, and the
+row's closure text states the bare-line scope.
 
 ## 12. Reproducing this table from the code
 

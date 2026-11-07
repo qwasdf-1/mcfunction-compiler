@@ -64,6 +64,8 @@ DIRECT_FIXTURES = (
     "storage_store_and_errors",
     "mo02_store_result",
     "mo02_store_failures",
+    "st02_bossbar_ops",
+    "st02_bossbar_values",
     "score_holder_and_overflow",
     "score_condition_absent",
     "score_store_targets",
@@ -93,6 +95,8 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
         "storage_store_and_errors",
         "mo02_store_result",
         "mo02_store_failures",
+        "st02_bossbar_ops",
+        "st02_bossbar_values",
         "score_holder_and_overflow",
         "score_condition_absent",
         "score_store_targets",
@@ -327,6 +331,28 @@ EXPECTED_SCORES = {
         **{quota: 0 for quota in range(0, 6)},
         **{quota: 2 for quota in range(6, 11)},
         **{quota: 3 for quota in range(11, 17)},
+    },
+    # Observed on the mod-free vanilla arm. ST-02 first half: bossbar
+    # add/remove lifecycle and the unknown-bar edge. The bare remove makes the
+    # fixture idempotent (a failing remove on an absent bar does not abort);
+    # the add result 1, the value 43 roundtrip and the failing store's 0 land
+    # at quotas 6, 11 and 16, so all three cases execute inside the sweep.
+    "st02_bossbar_ops": {
+        **{quota: 0 for quota in range(0, 6)},
+        **{quota: 1 for quota in range(6, 11)},
+        **{quota: 3 for quota in range(11, 16)},
+        16: 7,
+    },
+    # Observed on the mod-free vanilla arm. ST-02 second half: the set/get
+    # property shapes whose results are the written or read number. The bare
+    # leading remove re-creates fresh-bar defaults every iteration, so both
+    # set results (43, 200) and the players count 0 land at quotas 8, 12 and
+    # 16 - all three cases execute inside the sweep.
+    "st02_bossbar_values": {
+        **{quota: 0 for quota in range(0, 8)},
+        **{quota: 1 for quota in range(8, 12)},
+        **{quota: 3 for quota in range(12, 16)},
+        16: 7,
     },
     "quota_one": {0: 0, 1: 0, **{quota: 1 for quota in range(2, 8)}},
     "quota_three": {0: 0, 1: 0, 2: 1, 3: 2, **{quota: 3 for quota in range(4, 8)}},
@@ -5815,6 +5841,48 @@ def run_mode(
             "expected_minimum_per_fixture": 2 if mo02_expected_compiled else 0,
             "compiled_by_fixture": mo02_compiled,
         }
+        # ST-02's fixtures have three and four store-chained bossbar lines
+        # respectively, and the dedicated counter increments once per compiled
+        # wrap event - twice per chained line per generation, the same
+        # per-line doubling the DataStore counters show (two MO-02 lines read
+        # 4). Bare bossbar lines are not in the EXECUTE-stage parser list, so
+        # they stay on the vanilla path like every other state-machine family
+        # outside tag/teleport/kill; the lower bound therefore keys on the
+        # chain counts. Score parity alone cannot prove bossbar
+        # specialization: the fallback runs the same vanilla commands. The
+        # same disjunction as the DataStore assertion applies (a function is
+        # compiled in every arm whose configuration motivates compilation),
+        # reloads recompile, so compiling arms get a per-fixture lower bound
+        # and every other arm zero.
+        st02_expected_compiled = expected_prototype or expected_timing
+        st02_minimums = {"st02_bossbar_ops": 3, "st02_bossbar_values": 4}
+        st02_compiled: dict[str, int] = {}
+        for fixture, key in (
+            ("st02_bossbar_ops", "bossbar_compiled_st02_bossbar_ops"),
+            ("st02_bossbar_values", "bossbar_compiled_st02_bossbar_values"),
+        ):
+            match = re.search(rf"(?:^|\s){re.escape(key)}=(\d+)", post_execution_status)
+            if match is None:
+                raise RuntimeError(f"{mode} status omitted {key}")
+            st02_compiled[fixture] = int(match.group(1))
+        for fixture, compiled in st02_compiled.items():
+            if st02_expected_compiled and compiled < st02_minimums[fixture]:
+                raise RuntimeError(
+                    f"{mode} {fixture} compiled {compiled} bossbar lines; "
+                    f"expected at least {st02_minimums[fixture]}"
+                )
+            if not st02_expected_compiled and compiled != 0:
+                raise RuntimeError(
+                    f"{mode} {fixture} compiled {compiled} bossbar lines in a "
+                    f"non-specializing arm"
+                )
+        bossbar_metrics = {
+            "expected_minimum_per_fixture": (
+                st02_minimums if st02_expected_compiled
+                else {fixture: 0 for fixture in st02_minimums}
+            ),
+            "compiled_by_fixture": st02_compiled,
+        }
         fused_compiled_match = re.search(r"fused_regions_compiled=(\d+)", post_execution_status)
         fused_executed_match = re.search(r"fused_regions_executed=(\d+)", post_execution_status)
         if fused_compiled_match is None or fused_executed_match is None:
@@ -6133,6 +6201,7 @@ def run_mode(
             "delegation_contract": delegation_contract,
             "score_add_prototype_metrics": score_add_metrics,
             "data_store_prototype_metrics": data_store_metrics,
+            "bossbar_prototype_metrics": bossbar_metrics,
             "fused_region_metrics": fused_region_metrics,
             "bytecode_region_metrics": bytecode_region_metrics,
             "score_add_timing_metrics": score_add_timing,

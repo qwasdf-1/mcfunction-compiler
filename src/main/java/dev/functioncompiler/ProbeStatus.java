@@ -41,6 +41,19 @@ final class ProbeStatus {
             "function_compiler_probe", "mo02_store_result");
     private static final Identifier MO02_FAILURES = Identifier.fromNamespaceAndPath(
             "function_compiler_probe", "mo02_store_failures");
+    // ST-02 fixtures. Their dedicated bossbar compile counters are the
+    // falsifiable form of "the bossbar line specialized": each compiled wrap
+    // event increments once (twice per store-chained line per generation,
+    // the same doubling the DataStore counters show), so a parser that
+    // declined the bossbar family leaves the count at zero. Bare bossbar
+    // lines are not in the EXECUTE-stage parser list and stay vanilla, like
+    // the other state-machine families outside tag/teleport/kill. Reloads
+    // may recompile the function, so the assertion is a lower bound rather
+    // than an equality.
+    private static final Identifier ST02_OPS = Identifier.fromNamespaceAndPath(
+            "function_compiler_probe", "st02_bossbar_ops");
+    private static final Identifier ST02_VALUES = Identifier.fromNamespaceAndPath(
+            "function_compiler_probe", "st02_bossbar_values");
 
     private ProbeStatus() {
     }
@@ -123,6 +136,8 @@ final class ProbeStatus {
                 + " delegation_client_packet_executed=" + ProbeMetrics.scoreAddsExecuted(DELEGATION_CLIENT_PACKET)
                 + " data_store_compiled_mo02_result=" + ProbeMetrics.dataStoresCompiled(MO02_RESULT)
                 + " data_store_compiled_mo02_failures=" + ProbeMetrics.dataStoresCompiled(MO02_FAILURES)
+                + " bossbar_compiled_st02_bossbar_ops=" + ProbeMetrics.bossbarsCompiled(ST02_OPS)
+                + " bossbar_compiled_st02_bossbar_values=" + ProbeMetrics.bossbarsCompiled(ST02_VALUES)
                 + " score_add_executed=" + ProbeMetrics.scoreAddsExecuted()
                 + " score_add_executed_lifecycle_macro_add=" + ProbeMetrics.scoreAddsExecuted(LIFECYCLE_MACRO)
                 + " score_add_executed_lifecycle_macro_pair=" + ProbeMetrics.scoreAddsExecuted(LIFECYCLE_MACRO_PAIR)
