@@ -8,7 +8,6 @@ import dev.functioncompiler.mixin.ExecutionContextAccessor;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.ExecutionCommandSource;
 import net.minecraft.commands.execution.ExecutionContext;
-import net.minecraft.commands.execution.tasks.BuildContexts;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 
@@ -76,8 +75,17 @@ final class InlinedForkingCommand implements FusableCommand {
         }
 
         ExecutionContext<CommandSourceStack> execContext = ExecutionContextBridge.currentContext();
-        if (execContext != null && entities.size() > execContext.forkLimit()) {
-            throw BuildContexts.ERROR_FORK_LIMIT_REACHED.create(execContext.forkLimit());
+        if (execContext != null && entities.size() >= execContext.forkLimit()) {
+            // Vanilla's fork budget includes the parent context: forking N
+            // selected entities needs a limit of N+1. Measured on the pinned
+            // vanilla server for N=1/2/3 in both the direct and the function
+            // path: below N+1 the fork runs no branch (the direct command
+            // reports the fork-limit error strictly below N and reports
+            // nothing at exactly N, which a function cannot distinguish), so
+            // the compiled fork must skip silently rather than fork both
+            // branches - the previous `>` check let a limit of exactly N
+            // execute every branch, one cap earlier than vanilla.
+            return 0;
         }
 
         int total = executeForEntities(context, entities, execContext);

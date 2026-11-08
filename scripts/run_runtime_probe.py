@@ -87,6 +87,9 @@ DIRECT_FIXTURES = (
     "cbx_return_run_fail_child",
     "cbx_nested_fail",
     "cbx_unless_success",
+    "score_op_store_result",
+    "score_op_empty_target",
+    "score_op_store_fail",
 )
 EXTENDED_QUOTA_FIXTURES = frozenset(
     {
@@ -125,6 +128,9 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
         "cbx_return_run_fail_child",
         "cbx_nested_fail",
         "cbx_unless_success",
+        "score_op_store_result",
+        "score_op_empty_target",
+        "score_op_store_fail",
     }
 )
 FORK_LIMITS = tuple(range(1, 13))
@@ -515,6 +521,30 @@ EXPECTED_SCORES = {
         4: 2,
         5: 1002,
         **{quota: 2002 for quota in range(6, 17)},
+    },
+    # Observed on the mod-free vanilla arm. `execute store result` around a
+    # scoreboard operation stores the operation's new target value (12 for
+    # 3*4) and `execute store success` stores 1 for the following +=; the
+    # fold is store_result*10000 + store_success*100 + target = 120116.
+    "score_op_store_result": {
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0,
+        10: 12, 11: 1200, 12: 1200, 13: 1200, 14: 1201, 15: 120100,
+        16: 120116,
+    },
+    # Observed on the mod-free vanilla arm. An operation whose target
+    # selector matches no entity stores 0 through `execute store result`
+    # and leaves the objective untouched; the seeded source holder is
+    # preserved (fold = store*10 + seed = 7).
+    "score_op_empty_target": {
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0,
+        **{quota: 7 for quota in range(11, 17)},
+    },
+    # Observed on the mod-free vanilla arm. A divide-by-zero operation
+    # fails and both callbacks store 0; the target keeps 7 and the
+    # following fold reads 7.
+    "score_op_store_fail": {
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0,
+        11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 7,
     },
 }
 
@@ -1631,11 +1661,16 @@ def run_lifecycle_functions(
     )
     load_member_score = read_score(client, "#load", LIFECYCLE_OBJECTIVE)
     tick_member_score = read_score(client, "#tick", LIFECYCLE_OBJECTIVE)
-    if load_member_score != 1 or tick_member_score != 1:
+    # The load member's trace is deterministic (nothing reloads during the
+    # window), but the tick holder also receives +1 from the live
+    # #minecraft:tick tag between the zeroing and the read, so the tick
+    # count is allowed to be 1 or 2 while the trace text itself - recorded
+    # with the holder zeroed - stays the parity artifact.
+    if load_member_score != 1 or tick_member_score not in (1, 2):
         raise RuntimeError(
             f"{mode} lifecycle member trace changed state: "
             f"load={load_member_score}, tick={tick_member_score}; "
-            "expected 1 and 1"
+            "expected load 1 and tick 1 or 2"
         )
 
     if entity_macro_score != 7:
@@ -5589,7 +5624,116 @@ def run_fork_limit_fixture(client: RconClient, mode: str) -> dict[str, object]:
 
     client.command("gamerule minecraft:max_command_forks 65536")
     client.command(f"gamerule {LEVEL} 65536")
-    return {"match_cases": all_results}
+
+    # Batch 15: the remaining selector shapes for the fork modifier's
+    # selection surface. The world spawn is pinned first because the
+    # `distance=` anchor is the command source at the world spawn, which a
+    # freshly generated world randomizes - without the pin the two distance
+    # shapes are not reproducible across runs (measured: the same fixture
+    # scored 1 in one fresh world and 101 in another).
+    spawn_response = client.command("setworldspawn 0 64 0")
+    if "Set" not in spawn_response or "0" not in spawn_response:
+        raise RuntimeError(
+            f"{mode} could not pin the world spawn: {spawn_response!r}"
+        )
+    for tag in ("fc_fork_type", "fc_fork_outside", "fc_fork_subset"):
+        client.command(f"kill @e[tag={tag}]")
+    for position in ("1 64 0", "3 64 0", "2 64 2"):
+        response = client.command(
+            f"summon minecraft:armor_stand {position} "
+            '{NoGravity:1b,Invisible:1b,Invulnerable:1b,Tags:["fc_fork_type"]}'
+        )
+        if "summoned" not in response.casefold():
+            raise RuntimeError(f"{mode} could not summon type actor: {response!r}")
+    decoy_response = client.command(
+        "summon minecraft:creeper 0 64 5 "
+        '{NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b,'
+        'Tags:["fc_fork_type"]}'
+    )
+    if "summoned" not in decoy_response.casefold():
+        raise RuntimeError(f"{mode} could not summon creeper decoy: {decoy_response!r}")
+    for tag, positions in (
+        ("fc_fork_outside", ("10 64 0", "20 64 0")),
+        ("fc_fork_subset", ("2 64 0", "6 64 0")),
+    ):
+        for position in positions:
+            response = client.command(
+                f"summon minecraft:armor_stand {position} "
+                '{NoGravity:1b,Invisible:1b,Invulnerable:1b,'
+                f'Tags:["{tag}"]}}'
+            )
+            if "summoned" not in response.casefold():
+                raise RuntimeError(
+                    f"{mode} could not summon {tag} actor: {response!r}"
+                )
+    time.sleep(1)
+
+    # Vanilla-observed maps over max_command_forks 1-12:
+    # type filter (two stands, a creeper decoy excluded) forks both stands
+    # from cap 3 (cap 1 the maximum-context error, cap 2 silent truncation);
+    # the all-outside distance shape never matches; the distance subset shape
+    # forks its single matching actor from cap 2.
+    expected_shape_scores = {
+        "quota_fork_type_filter": {
+            1: 1,
+            2: 1,
+            **{cap: 21 for cap in range(3, 13)},
+        },
+        "quota_fork_distance_filter": {cap: 1 for cap in FORK_LIMITS},
+        "quota_fork_distance_subset": {
+            1: 1,
+            **{cap: 101 for cap in range(2, 13)},
+        },
+    }
+    selector_shape_cases: list[dict[str, object]] = []
+    for shape in expected_shape_scores:
+        shape_results: list[dict[str, object]] = []
+        for fork_limit in FORK_LIMITS:
+            fork_response = client.command(
+                f"gamerule minecraft:max_command_forks {fork_limit}"
+            )
+            if str(fork_limit) not in fork_response:
+                raise RuntimeError(
+                    f"Could not set {mode} max_command_forks to {fork_limit} "
+                    f"for the {shape} shape: {fork_response!r}"
+                )
+            client.command(f"gamerule {LEVEL} 64")
+            client.command(f"scoreboard players set {HOLDER} {OBJECTIVE} 0")
+            function_response = client.command(
+                f"function function_compiler_probe:{shape}"
+            )
+            score_response = client.command(
+                f"scoreboard players get {HOLDER} {OBJECTIVE}"
+            )
+            match = re.search(r"has (-?\d+)", score_response)
+            if match is None:
+                raise RuntimeError(
+                    f"Could not parse {mode} {shape} fork limit {fork_limit} "
+                    f"score: {score_response!r}"
+                )
+            score = int(match.group(1))
+            shape_results.append(
+                {
+                    "fork_limit": fork_limit,
+                    "gamerule": fork_response,
+                    "function": function_response,
+                    "score": score,
+                    "score_response": score_response,
+                }
+            )
+        selector_shape_cases.append(
+            {
+                "shape": shape,
+                "runs": shape_results,
+                "scores_by_fork_limit": {
+                    item["fork_limit"]: item["score"] for item in shape_results
+                },
+            }
+        )
+    return {
+        "match_cases": all_results,
+        "selector_shape_cases": selector_shape_cases,
+    }
 
 
 # MO-09 identity actors: three tagged armor stands at distinct positions with
@@ -7706,6 +7850,15 @@ def main() -> int:
             raise RuntimeError(
                 f"{mode_result['mode']} differs from mod-free vanilla for fork limits: "
                 f"{mode_forks} vs {reference_forks}"
+            )
+        mode_shapes = mode_result["fork_limit_fixture"]["selector_shape_cases"]
+        reference_shapes = vanilla_result["fork_limit_fixture"][
+            "selector_shape_cases"
+        ]
+        if mode_shapes != reference_shapes:
+            raise RuntimeError(
+                f"{mode_result['mode']} differs from mod-free vanilla for fork "
+                f"selector shapes: {mode_shapes} vs {reference_shapes}"
             )
 
         if mode_result["fork_order_fixture"] != vanilla_result["fork_order_fixture"]:

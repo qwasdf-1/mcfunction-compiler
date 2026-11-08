@@ -93,8 +93,8 @@ This navigation index summarizes key code symbols across Java source and Python 
 - [`src/main/java/dev/functioncompiler/GameplayCommandParser.java`](../../src/main/java/dev/functioncompiler/GameplayCommandParser.java):
   - `class GameplayCommandParser`:16
 - [`src/main/java/dev/functioncompiler/InlinedForkingCommand.java`](../../src/main/java/dev/functioncompiler/InlinedForkingCommand.java):
-  - `class InlinedForkingCommand`:17
-  - `method run()`:42
+  - `class InlinedForkingCommand`:16
+  - `method run()`:41
 - [`src/main/java/dev/functioncompiler/InlinedFunctionCommand.java`](../../src/main/java/dev/functioncompiler/InlinedFunctionCommand.java):
   - `class InlinedFunctionCommand`:16
   - `method run()`:32
@@ -432,14 +432,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def run_in_server_session()`:146
   - `def _get_selective_macro_count()`:188
 - [`scripts/run_runtime_probe.py`](../../scripts/run_runtime_probe.py):
-  - `def configure_probe_ports()`:138
-  - `class RconClient`:525
-  - `def __init__()`:526
-  - `def close()`:534
-  - `def command()`:537
-  - `def _request()`:545
-  - `def _read_exact()`:558
-  - `def prepare_server_files()`:568
+  - `def configure_probe_ports()`:144
+  - `class RconClient`:555
+  - `def __init__()`:556
+  - `def close()`:564
+  - `def command()`:567
+  - `def _request()`:575
+  - `def _read_exact()`:588
+  - `def prepare_server_files()`:598
 - [`scripts/run_score_add_ab.py`](../../scripts/run_score_add_ab.py):
   - `class PortBindError`:79
   - `def sha256()`:83

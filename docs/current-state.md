@@ -893,6 +893,24 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   1 missing. See the batch-14 record in the
   [coverage table](reference/features/command-coverage.md).
 
+- Batch 15 closed SCORE-007 and QUOTA-009 and fixed the fork-limit defect
+  they exposed. New cells: operations under the execute-store callbacks
+  (`store result` stores the operation's new target value, `store success`
+  stores 1, a zero-match target stores 0, divide-by-zero stores 0 with the
+  target preserved) and three further fork selector shapes (type filter
+  with a same-tagged decoy, all-outside distance filter, filtered distance
+  subset, each swept over caps 1-12). The run found the compiled fork
+  forking one cap early at `limit == selected` - vanilla's fork budget
+  includes the parent context (N entities need N+1; exactly N runs no
+  branch silently) - and `InlinedForkingCommand` now skips silently at
+  `entities >= forkLimit`; the unreachable fork-limit throw and its import
+  were removed. The distance shapes pin the world spawn first because
+  `distance=` anchors at the randomized spawn. All ten arms of the
+  2026-11-08 run match vanilla. Two partial P0 cases remain (PERF-001,
+  STATE-004) plus the BC-06 campaign row; the coverage table is unchanged
+  at 92 rows, 91 R, 0 P, 1 missing. See the batch-15 record in the
+  [coverage table](reference/features/command-coverage.md).
+
 ## Limits of this evidence
 
 The wrapper-off server is a control for the wrapper transformation: it still

@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- Close the last two P0 selector-shape partial cases and fix the fork-limit
+  defect they exposed (batch 15): SCORE-007 and QUOTA-009. Measured on the
+  pinned vanilla 26.3 server first, then asserted in the full ten-arm run
+  of 2026-11-08: scoreboard operations now have execute-store callback
+  coverage (`execute store result` around an operation stores the
+  operation's new target value, `execute store success` stores 1, a
+  zero-match target operation stores 0 and creates nothing, a divide-by-zero
+  operation stores 0 into both callbacks while the target keeps 7); and the
+  fork modifier's selection surface gained a type-filtered selector with a
+  same-tagged decoy, an all-outside distance filter, and a filtered
+  distance subset, each swept over fork caps 1-12 with the arm maps
+  compared exactly against vanilla. While writing these fixtures the run
+  found a shipped-code defect: the compiled fork in
+  `InlinedForkingCommand` checked `entities > forkLimit`, so a fork limit
+  equal to the number of selected entities executed every branch one cap
+  earlier than vanilla. Vanilla's fork budget includes the parent context -
+  measured for N=1/2/3 selected entities in both the direct and the
+  function path: below N the direct command reports the fork-limit error,
+  at exactly N it runs no branch with no feedback, at N+1 or above all
+  branches run - so the compiled fork now returns without forking at
+  `entities >= forkLimit` and the now-unreachable
+  `ERROR_FORK_LIMIT_REACHED` throw and its import were removed. The
+  distance shapes also pin the world spawn first, because the `distance=`
+  anchor is the command source at the randomized world spawn (the same
+  unscoped fixture measured 1 in one fresh world and 101 in another). Only
+  PERF-001 and STATE-004 remain partial, plus the BC-06 campaign row. No
+  default-on status changed; the code change is a correctness fix toward
+  vanilla parity, not an optimization.
+
 - Close five partial P0 matrix cases by measuring the lifecycle-tag edges
   (batch 14): HOOK-002, HOOK-003, HOOK-004, HOOK-006 and HOOK-008. Measured
   on the pinned vanilla 26.3 server first and asserted in the full ten-arm

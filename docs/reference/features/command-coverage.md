@@ -868,6 +868,57 @@ PERF-001, STATE-004) plus the BC-06 campaign row. These five closures amend
 matrix verdicts only - the coverage rows were already R under the §11.1
 narrowing convention.
 
+**Batch 15 - the remaining selector shapes, and the fork-limit defect they
+exposed (SCORE-007, QUOTA-009).** Both cases' shared open end was
+"additional selector shapes / other combinations". Each addition was
+measured on the pinned vanilla 26.3 server first, then asserted in the full
+ten-arm run of 2026-11-08:
+
+1. **Operations under execute-store callbacks** (fixtures
+   `score_op_store_result`, `score_op_empty_target`, `score_op_store_fail`):
+   `execute store result` around a scoreboard operation stores the
+   operation's new target value (12 for 3*4) and `execute store success`
+   stores 1; a zero-match target operation stores 0 and creates nothing; a
+   divide-by-zero operation stores 0 into both callbacks while the target
+   keeps 7. All three sweep 0-16 against the transcribed vanilla maps.
+2. **A type-filtered fork shape** (`quota_fork_type_filter`): two armor
+   stands plus a same-tagged creeper decoy; only the stands fork, with the
+   documented cap boundary (1 error, 2 silent no-fork, 3+ both stands).
+3. **Two distance-filtered fork shapes** (`quota_fork_distance_filter`,
+   `quota_fork_distance_subset`): all-outside (fold 1 at every cap) and a
+   filtered subset (fold 101 from cap 2). The world spawn is pinned first
+   because the `distance=` anchor is the command source at the randomized
+   world spawn - the same unscoped fixture measured 1 in one fresh world
+   and 101 in another, so the pin is part of the fixture's contract.
+
+**The defect this batch found in the compiled fork, and the fix.** The new
+type-filter shape failed in `score-add-on` at fork cap 2: the arm scored 21
+where vanilla scored 1. Four diagnostic variants isolated it: the
+positioned form and the plain-tag form matched, and the divergence
+appeared only for the unpositioned `limit+sort` selector - the shape the
+compiled fork inlines. Measuring vanilla's boundary directly for N=1/2/3
+selected entities in both the direct and function paths pinned the rule:
+vanilla's fork budget includes the parent context, so N entities need a
+limit of N+1; below N the direct command reports the fork-limit error, at
+exactly N it runs no branch with no feedback, and at N+1 or above all
+branches run. `InlinedForkingCommand` checked `entities > forkLimit`, which
+forks every branch at exactly limit==N - one cap early. The fix returns
+without forking at `entities >= forkLimit`, reproducing vanilla's silent
+no-fork case; the unreachable throw of `ERROR_FORK_LIMIT_REACHED` became
+unused and was removed with its import. The positioned form was always
+correct because it stays on the fallback chain. After the fix all four
+diagnostic variants and all three shipped shapes match the vanilla arm in
+every arm, and the divergence could not have surfaced without a shape that
+inlines the fork.
+
+**Result and scope.** All ten arms of the 2026-11-08 run match vanilla for
+the direct fixtures, the selector-shape sweep, and the callback cases;
+SCORE-007 and QUOTA-009 are now recorded *complete*. That leaves **two
+partial P0 cases** (PERF-001, STATE-004) plus the BC-06 campaign row. This
+batch also changed shipped behavior - `InlinedForkingCommand` - and no
+default-on status changed; the change is a correctness fix toward vanilla
+parity, not an optimization.
+
 ## 12. Reproducing this table from the code
 
 ```sh
