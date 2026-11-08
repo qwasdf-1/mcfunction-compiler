@@ -82,6 +82,10 @@ DIRECT_FIXTURES = (
     "ct01_return_after_boundary",
     "ct02_store_specialized",
     "ct03_failure_after_mutation",
+    "cbx_return_run_fail",
+    "cbx_return_run_fail_child",
+    "cbx_nested_fail",
+    "cbx_unless_success",
 )
 EXTENDED_QUOTA_FIXTURES = frozenset(
     {
@@ -116,6 +120,10 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
         "ct03_failure_after_mutation",
         "quota_recursive_compiled",
         "quota_change_limit",
+        "cbx_return_run_fail",
+        "cbx_return_run_fail_child",
+        "cbx_nested_fail",
+        "cbx_unless_success",
     }
 )
 FORK_LIMITS = tuple(range(1, 13))
@@ -455,6 +463,57 @@ EXPECTED_SCORES = {
         3: 1,
         4: 11,
         **{quota: 111 for quota in range(5, 17)},
+    },
+    # Observed on the mod-free vanilla arm. The child's two adds run, its
+    # return fail discards the pending +100 fused tail, and the RCON feedback
+    # reports "returned 0" for the failed function. Matrix cell: plain nested
+    # child outcome = fail (shared with cbx_return_run_fail and cbx_nested_fail).
+    "cbx_return_run_fail_child": {
+        0: 0,
+        1: 0,
+        2: 10,
+        **{quota: 30 for quota in range(3, 17)},
+    },
+    # Observed on the mod-free vanilla arm. The child's +10/+20 run and its
+    # pending +100 tail is discarded; a failed return run ends the parent
+    # frame, so both parent +1000 tail commands are discarded too, and the
+    # RCON feedback reports the parent "returned 0". Matrix cell: return run
+    # around a failing child with pending fused tails on both frames.
+    "cbx_return_run_fail": {
+        0: 0,
+        1: 0,
+        2: 1,
+        3: 1,
+        4: 11,
+        **{quota: 31 for quota in range(5, 17)},
+    },
+    # Observed on the mod-free vanilla arm. The failing child discards only
+    # its own pending +100 tail; the parent's pending +1000 fused tail still
+    # runs once through both additions (2031). Matrix cell: plain nested
+    # call around a failing child with pending fused tails on both frames.
+    "cbx_nested_fail": {
+        0: 0,
+        1: 0,
+        2: 1,
+        3: 1,
+        4: 11,
+        5: 31,
+        6: 1031,
+        **{quota: 2031 for quota in range(7, 17)},
+    },
+    # Observed on the mod-free vanilla arm. The child returns 7, so its
+    # pending +100 tail is discarded and the unless branch is skipped; the
+    # parent's own pending +1000 fused tail still runs once through both
+    # additions (2002). Matrix cell: execute unless function around a child
+    # returning a value, with a resumed parent continuation.
+    "cbx_unless_success": {
+        0: 0,
+        1: 0,
+        2: 1,
+        3: 1,
+        4: 2,
+        5: 1002,
+        **{quota: 2002 for quota in range(6, 17)},
     },
 }
 
@@ -4813,6 +4872,7 @@ def run_control_flow_fallback_cases(
         function: str,
         expected_score: int,
         assert_single_region_for_backend: bool = False,
+        expected_backend_regions: int | None = None,
         store_success_holder: str | None = None,
         expected_store_success: int | None = None,
         store_result_holder: str | None = None,
@@ -4826,7 +4886,12 @@ def run_control_flow_fallback_cases(
             client.command(f"scoreboard players set {store_result_holder} {OBJECTIVE} -1")
         backend_region_metric: str | None = None
         backend_regions_before: int | None = None
-        if assert_single_region_for_backend:
+        expected_backend_region_count = (
+            expected_backend_regions
+            if expected_backend_regions is not None
+            else (1 if assert_single_region_for_backend else None)
+        )
+        if expected_backend_region_count is not None:
             backend_region_metric = {
                 "fused-interpreted": "fused_regions_executed",
                 "bytecode-emitted": "bytecode_regions_executed",
@@ -4880,11 +4945,10 @@ def run_control_flow_fallback_cases(
                 backend_region_metric,
             )
             backend_region_delta = backend_regions_after - backend_regions_before
-            if backend_region_delta != 1:
+            if backend_region_delta != expected_backend_region_count:
                 raise RuntimeError(
                     f"{mode} {function} executed {backend_region_delta} backend "
-                    "regions; expected only the parent's eligible continuation "
-                    "to execute"
+                    f"regions; expected {expected_backend_region_count}"
                 )
             case_result["backend_region_metrics"] = {
                 "counter": backend_region_metric,
@@ -5002,6 +5066,33 @@ def run_control_flow_fallback_cases(
         assert_single_region_for_backend=True,
         store_result_holder="#nested_store_result",
         expected_store_result=0,
+    )
+    # The three cbx cases complete the callback-context x child-outcome matrix.
+    # cbx_return_run_fail: the child's +10/+20 region executes and both pending
+    # tail regions (child and parent) are discarded, so only the child's region
+    # counts. cbx_nested_fail: the child's +10/+20 region executes AND the
+    # parent's +1000/+1000 tail resumes, so two regions count - unlike the
+    # store/if siblings, whose children carry only single adds and no region of
+    # their own. cbx_unless_success: the child returns a value (compile-time
+    # return, one lone add, no region) and the unless branch is skipped, so
+    # only the parent tail region counts.
+    run_case(
+        "return_run_child_fail_discards_fused_tails",
+        "cbx_return_run_fail",
+        31,
+        expected_backend_regions=1,
+    )
+    run_case(
+        "nested_child_fail_resumes_parent_tail",
+        "cbx_nested_fail",
+        2031,
+        expected_backend_regions=2,
+    )
+    run_case(
+        "execute_unless_child_success_skips_branch",
+        "cbx_unless_success",
+        2002,
+        expected_backend_regions=1,
     )
     run_quota_sweep(
         "return_run_nested_exception_quota_sweep",
@@ -6425,6 +6516,30 @@ def run_mode(
                 expected_score=32,
                 expected_command_events=6,
             ),
+            run_debug_trace_fixture(
+                client,
+                mode,
+                RUN_DIR,
+                "function_compiler_probe:cbx_return_run_fail",
+                expected_score=31,
+                expected_command_events=5,
+            ),
+            run_debug_trace_fixture(
+                client,
+                mode,
+                RUN_DIR,
+                "function_compiler_probe:cbx_nested_fail",
+                expected_score=2031,
+                expected_command_events=7,
+            ),
+            run_debug_trace_fixture(
+                client,
+                mode,
+                RUN_DIR,
+                "function_compiler_probe:cbx_unless_success",
+                expected_score=2002,
+                expected_command_events=6,
+            ),
         ]
         time.sleep(1.1)
         debug_traces.append(
@@ -6745,6 +6860,30 @@ def run_vanilla_reference(
                     server_dir,
                     "function_compiler_probe:fused_execute_store_discard_outer",
                     expected_score=32,
+                    expected_command_events=6,
+                ),
+                run_debug_trace_fixture(
+                    client,
+                    "mod-free-vanilla",
+                    server_dir,
+                    "function_compiler_probe:cbx_return_run_fail",
+                    expected_score=31,
+                    expected_command_events=5,
+                ),
+                run_debug_trace_fixture(
+                    client,
+                    "mod-free-vanilla",
+                    server_dir,
+                    "function_compiler_probe:cbx_nested_fail",
+                    expected_score=2031,
+                    expected_command_events=7,
+                ),
+                run_debug_trace_fixture(
+                    client,
+                    "mod-free-vanilla",
+                    server_dir,
+                    "function_compiler_probe:cbx_unless_success",
+                    expected_score=2002,
                     expected_command_events=6,
                 ),
             ]
@@ -7398,6 +7537,9 @@ def main() -> int:
                 "execute_store_result_nested_return_discards_fused_tails",
                 "execute_store_result_return_value_discards_fused_tails",
                 "execute_store_result_return_fail_discards_fused_tails",
+                "return_run_child_fail_discards_fused_tails",
+                "nested_child_fail_resumes_parent_tail",
+                "execute_unless_child_success_skips_branch",
             ):
                 candidate = case.get(case_name)
                 if candidate is not None:

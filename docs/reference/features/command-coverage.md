@@ -228,7 +228,7 @@ mechanism their oracle needs:
 
 ### 11.3 How the rows were closed, in batches
 
-Six batches of differential fixtures and one delegation contract have been run across mod-free vanilla 26.3
+Thirteen batches of differential fixtures and one delegation contract have been run across mod-free vanilla 26.3
 and the full ten-arm Fabric matrix with exact score-sequence parity. Each batch
 is recorded with what it closed, and each batch's claims are regenerated from
 the table rather than typed by hand.
@@ -754,6 +754,61 @@ The row's claim is scoped to the pinned stacks combining Bellows and
 Moonrise, which is the interaction the coverage row names; the remaining
 pinned stacks (c2me, ferritecore, bellows 1.1.2, Moonrise 1.2.1) and any
 unpinned stacks are not claimed for fork semantics.
+
+**Batch 13 - the callback-context x child-outcome matrix, closing the ten
+partial P0 cases that shared one open end (HOOK-001, HOOK-005, HOOK-009,
+CTRL-001/002/003/005/006/007, SCORE-009).** The shared open end was "other
+return/error callback combinations". Rather than tail-chasing combinations, the
+batch enumerated the case oracles as a matrix - the function-callback contexts
+{plain nested, `return run function`, `execute if function`,
+`execute unless function`, `execute store result/success function`} crossed with
+child outcomes {return value, `return fail`, syntax exception} - and found 15 of
+18 cells already had ten-arm fixtures. Three cells were added, each measured on
+the pinned vanilla 26.3 server before any assertion was written, and each
+recording a measured semantic that no earlier fixture had:
+
+1. `cbx_return_run_fail` (+ child `cbx_return_run_fail_child`): a failed
+   `return run` reports `Function ... returned 0`, discards the child's pending
+   fused tail **and ends the parent frame**, so the parent's own pending
+   `+1000` tail is discarded too (score 31; the 0-16 map starts
+   `0,0,1,1,11,31...`; five command events in the trace).
+2. `cbx_nested_fail`: a *plain nested* child that fails discards only its own
+   `+100` tail - the parent's pending `+1000` fused tail resumes once through
+   both additions (score 2031; two executing regions in fused and bytecode,
+   contrasted with the store/if siblings whose lone-add children have no region
+   of their own).
+3. `cbx_unless_success`: a child returning a value discards its pending tail,
+   makes `execute unless function` false so its branch is skipped, and lets the
+   parent's own pending `+1000` region resume (score 2002, six command events).
+
+**Two harness defects this batch found in its own new fixtures, and what fixed
+them.** First, the initial `expected_command_events` gates for the three traces
+were transcribed from the vanilla server's `Traced N command(s)` response,
+which excludes the child's `return fail` command; the harness counts `[C]`
+lines in the trace *file*, so all three gates were off by one until the vanilla
+trace files were read directly. The lesson matches the batch-3 truncation
+finding: the server's own summary is not the measurement - read the artifact.
+Second, the first full run failed in `fused-interpreted` on
+`cbx_nested_fail` executing two backend regions where the sibling cases assert
+one; that was not a compiler defect but a fixture-shape mismatch, and
+`run_case` gained an `expected_backend_regions` parameter so a case may assert
+the measured count instead of only the single-region shape. The arm-parity
+comparison's `backend_region_metrics` strip list gained the three new case
+names, for the same reason the nine siblings are stripped: region counters are
+implementation observations, not vanilla-observable facts, and every fused and
+bytecode arm otherwise mismatched the mod-free vanilla arm on that one key.
+
+**Result and scope.** The full ten-arm run of 2026-11-08 (mod-free vanilla,
+wrapper-off/on, score-add-on, instrument-only, score-add-timed,
+fused-interpreted, bytecode-emitted, bytecode-compile-failure,
+selective-macro-arguments) matched vanilla exactly for direct-function state,
+results, traces, reloads and forks including all four `cbx_*` fixtures, and the
+callback cases are recorded *complete* in the matrix with the earlier cited
+compatibility-arm runs retained. The ten cases above are now recorded complete;
+that leaves nine partial P0 cases (HOOK-002/003/004/006/008, SCORE-007,
+QUOTA-009, PERF-001, STATE-004) and the BC-06 campaign row. Closing these ten
+cases amends matrix verdicts only - the coverage rows were already R under the
+§11.1 narrowing convention.
 
 ## 12. Reproducing this table from the code
 

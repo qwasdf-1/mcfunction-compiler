@@ -850,6 +850,26 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   See the batch-12 record in the
   [coverage table](reference/features/command-coverage.md).
 
+- Batch 13 closed ten partial P0 matrix cases by completing the shared
+  callback-context x child-outcome matrix (HOOK-001, HOOK-005, HOOK-009,
+  SCORE-009 and CTRL-001/002/003/005/006/007). The six function-callback
+  contexts crossed with three child outcomes gave 18 cells, of which 15
+  already had ten-arm fixtures; the three missing cells became fixtures
+  `cbx_return_run_fail`, `cbx_return_run_fail_child`, `cbx_nested_fail` and
+  `cbx_unless_success`, measured on the pinned vanilla 26.3 server first
+  and asserted over the 0-16 sequence-limit sweep with `/debug function`
+  traces in the full ten-arm run of 2026-11-08, which matched vanilla
+  exactly for direct-function state, results, traces, reloads and forks.
+  Measured semantics: a failed `return run` ends the parent frame (score
+  31, both pending tails discarded); a plain nested failing child discards
+  only its own tail (score 2031, two executing regions in fused and
+  bytecode); a value-returning child skips the `execute unless` branch
+  (score 2002). Nine partial P0 cases remain (HOOK-002/003/004/006/008,
+  SCORE-007, QUOTA-009, PERF-001, STATE-004) plus the BC-06 campaign row;
+  the coverage table itself is unchanged at 92 rows, 91 R, 0 P, 1 missing.
+  See the batch-13 record in the
+  [coverage table](reference/features/command-coverage.md).
+
 ## Limits of this evidence
 
 The wrapper-off server is a control for the wrapper transformation: it still

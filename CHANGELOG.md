@@ -2,6 +2,44 @@
 
 ## Unreleased
 
+- Close ten partial P0 matrix cases by completing the shared
+  callback-context x child-outcome matrix (batch 13): HOOK-001, HOOK-005,
+  HOOK-009, SCORE-009 and CTRL-001/002/003/005/006/007. The common open end
+  was "other return/error callback combinations"; the case oracles were
+  enumerated as the six function-callback contexts (plain nested, `return
+  run function`, `execute if function`, `execute unless function`, `execute
+  store result/success function`) crossed with three child outcomes (return
+  value, `return fail`, syntax exception), of which 15 of 18 cells already
+  had ten-arm fixtures. The three missing cells were added as fixtures
+  `function_compiler_probe:cbx_return_run_fail`, `cbx_return_run_fail_child`,
+  `cbx_nested_fail` and `cbx_unless_success`, each asserted over the 0-16
+  sequence-limit sweep with `/debug function` traces and run in the full
+  ten-arm matrix of 2026-11-08 (mod-free vanilla, wrapper-off/on,
+  score-add-on, instrument-only, score-add-timed, fused-interpreted,
+  bytecode-emitted, bytecode-compile-failure, selective-macro-arguments),
+  which matched vanilla exactly for direct-function state, results, traces,
+  reloads and forks including all four fixtures. Measured 26.3 semantics
+  recorded by this batch: a failed `return run` reports `Function ...
+  returned 0`, discards the child's pending fused tail and ends the parent
+  frame, discarding the parent's own pending `+1000` tail (score 31); a
+  plain nested child that fails discards only its own tail while the
+  parent's `+1000` tail resumes once (score 2031, two executing regions in
+  fused and bytecode); and a child returning a value makes `execute unless
+  function` false while the parent's region resumes (score 2002). Two
+  harness defects were found and fixed in the process: the initial trace
+  event-count gates were transcribed from the server's `Traced N
+  command(s)` response, which excludes the child's `return fail`, so the
+  harness now reads the trace file's `[C]` lines directly; and `run_case`
+  gained an `expected_backend_regions` parameter so a case may assert its
+  measured region count instead of only the single-region shape (the
+  sibling cases carry lone-add children and therefore one region). Matrix
+  cases HOOK-001, HOOK-005, HOOK-009, SCORE-009 and
+  CTRL-001/002/003/005/006/007 are now recorded *complete*; that leaves
+  nine partial P0 cases (HOOK-002/003/004/006/008, SCORE-007, QUOTA-009,
+  PERF-001, STATE-004) plus the BC-06 campaign row. No default-on status
+  changed and no performance claim is made - this batch is correctness and
+  coverage only.
+
 - Close the `MO-10` coverage row - the fork modifier under the pinned
   Bellows/Moonrise mod stacks - with a mod-stack probe that runs the full
   fork-order fixture (ordered nearest/furthest identity, the batch-11

@@ -240,7 +240,7 @@ flowchart TD
      campaign is negative: PERF-017, Vein Miner 6×6×6, ten pairs, median +0.69%,
      97.85% interval −3.92% to +2.74%, decision `does_not_meet_threshold`.
    - "100% exact differential parity across the full test matrix" is **not
-     established**: 19 of 125 matrix cases are recorded partial, so parity is
+     established**: 9 of 126 matrix cases are recorded partial, so parity is
      proven for the enumerated families only (see §6, step 1).
 
 ---
@@ -266,7 +266,7 @@ not make anything slower than vanilla.**
 
 | Gate | Definition | Passes today |
 |---|---|---|
-| **Correctness gate** | 100% exact differential parity against mod-free vanilla for every enumerated family in the coverage table — state, return values, quota events, error traces, and `/debug function` events | **Partial**: 19 of 125 matrix cases are recorded partial (HOOK-001..006/008/009, SCORE-007/009, QUOTA-009, CTRL-001/002/003/005/006/007, PERF-001, STATE-004). Every case recorded *complete* has passed its named runtime arm, and the batch-6 cases STATE-002..004, batch-7 cases TC-02, CT-01, CT-02, CT-03, batch-8 case MO-02, batch-9 case ST-02, batch-10 case ST-06 and batch-11 case MO-09 passed in all ten arms, and the batch-12 case MO-10 passed under the pinned bellows113, bellows113-moonrise120 and lbm113120 stacks |
+| **Correctness gate** | 100% exact differential parity against mod-free vanilla for every enumerated family in the coverage table — state, return values, quota events, error traces, and `/debug function` events | **Partial**: 9 of 126 matrix cases are recorded partial (HOOK-002/003/004/006/008, SCORE-007, QUOTA-009, PERF-001, STATE-004). Every case recorded *complete* has passed its named runtime arm, and the batch-6 cases STATE-002..004, batch-7 cases TC-02, CT-01, CT-02, CT-03, batch-8 case MO-02, batch-9 case ST-02, batch-10 case ST-06 and batch-11 case MO-09 passed in all ten arms, the batch-12 case MO-10 passed under the pinned bellows113, bellows113-moonrise120 and lbm113120 stacks, and the batch-13 cases HOOK-001, HOOK-005, HOOK-009, SCORE-009 and CTRL-001/002/003/005/006/007 - the callback-context x child-outcome matrix completed with fixtures cbx_return_run_fail, cbx_return_run_fail_child, cbx_nested_fail and cbx_unless_success - passed in all ten arms |
 | **Coverage gate** | Every supported (family, argument shape, fallback condition) has one matrix row; nothing is called "supported" without one; the per-namespace coverage report is the runtime evidence | **Open, and now quantified**: the table is enumerated — 92 rows, 91 covered (R), 0 partial (P), 1 missing (—), all regenerated from the matrix verdicts. The 1 row with no case is BC-06 |
 | **No-regression gate** | For every default-on optimization, the 95% exact paired interval for its primary metric excludes a *slowdown* of vanilla on the same workload. This is a floor, not a promotion target | **Implemented and reported by both campaign runners** (2026-11-04). Retro-applied to the recorded campaigns: on the mechanism fixture the floor **holds** in every clean confirmatory campaign (5k 10-pair, 20k re-run, both 16-pair, lb113); on the real Vein Miner workload (PERF-017) it is **indeterminate** — +0.69% median, interval −3.92% to +2.74%, which cannot exclude a slowdown |
 
