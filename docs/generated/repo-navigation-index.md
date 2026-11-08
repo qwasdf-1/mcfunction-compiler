@@ -409,6 +409,11 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def _parse_jstat_table()`:115
   - `def query_jstat_gc()`:133
   - `def query_jstat_class()`:138
+- [`scripts/run_perf_001_baseline.py`](../../scripts/run_perf_001_baseline.py):
+  - `def prepare_fixture()`:83
+  - `def run_once()`:99
+  - `def quantile()`:224
+  - `def main()`:244
 - [`scripts/run_perf_1000_functions.py`](../../scripts/run_perf_1000_functions.py):
   - `def mode_wrapper_enabled()`:39
   - `def mode_score_add_enabled()`:43

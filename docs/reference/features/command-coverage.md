@@ -919,6 +919,49 @@ batch also changed shipped behavior - `InlinedForkingCommand` - and no
 default-on status changed; the change is a correctness fix toward vanilla
 parity, not an optimization.
 
+**Batch 16 - the PERF-001 baseline campaign, whose pre-declared gate failed
+on this host (PERF-001 stays partial).** The case's oracle is a
+*reproducible* throughput and profile baseline, so the batch built the
+pre-declared campaign (`scripts/run_perf_001_baseline.py`) and ran it three
+times rather than reporting the exploratory captures as a baseline. Design
+declared before the first arm: seven fresh boots of the pinned,
+hash-verified official 26.3 server over the fixed 5,000-line
+`function_compiler_perf:scoreboard` fixture; per run 350 warmup and 1,000
+measured calls from the RCON client; the score verified exactly per run
+(5,000 * (warmup + measured)); the reproducibility gate pre-declared as a
+run-median coefficient of variation <= 5%; the JFR `profile` capture taken
+on the final run; a declared noise rule (1-minute load average above the
+CPU count marks a run noisy and repeats it once, retaining both results);
+and the design's own rule that a gate failure is recorded data, never a
+reason to rerun with different constants.
+
+Measured results, all retained in the report directory with the server
+logs:
+
+1. Attempt 1 (50 warmup / 300 measured): run medians 1.91, 1.15, 1.17,
+   1.14, 1.32, 2.48, 2.79 ms - CV 0.375, gate failed, host load rose
+   6.4 -> 12.5 during the campaign.
+2. Attempt 2 (same constants): 1.28, 2.89, 1.86, 1.57, 1.40, 1.64, 1.88 ms
+   - CV 0.276, gate failed, load 5.4 -> 14.3.
+3. Attempt 3 (350 warmup / 1,000 measured, declared from the diagnosed
+   variance source - only 50 warmup calls leaves a fresh server's JIT far
+   from tiered-compilation steady state): 0.89, 0.99, 1.97, 1.36, 1.09,
+   3.48, 1.46 ms plus the declared noisy-run repeat at 1.57 ms - CV 0.275,
+   gate failed, load 6.2 -> 16.6.
+
+**What the failures establish.** The host's load climbs during any
+sustained campaign on this machine and the run medians do not track the
+load cleanly, so the between-run variance is not purely contention; and the
+metric is the RCON round trip (transport included), not execution-only
+time. Attempt 3's JIT fix lowered the overall level (medians 0.89-1.5 ms
+excluding two outliers) but the tail did not stabilize. The campaign now
+exits nonzero when its own gate fails, so the negative outcome cannot be
+mistaken for a pass. Recorded next action: rerun the identical pre-declared
+campaign on an idle host or under a tighter declared load precondition, or
+replace the round-trip metric with an execution-adjacent measurement; the
+verified 5.25-million-update workload stays fixed. PERF-001 therefore stays
+*Partial*; no throughput or baseline claim is made.
+
 ## 12. Reproducing this table from the code
 
 ```sh

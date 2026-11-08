@@ -911,6 +911,17 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   at 92 rows, 91 R, 0 P, 1 missing. See the batch-15 record in the
   [coverage table](reference/features/command-coverage.md).
 
+- The batch-16 PERF-001 campaign is recorded as a negative result: three
+  pre-declared seven-run baseline distributions over the fixed 5,000-line
+  fixture all failed their run-median CV <= 5% gate on this host (CV 0.375,
+  0.276, 0.275; host load rising during each campaign; run medians not
+  tracking the load cleanly), and the campaign now exits nonzero on a gate
+  failure. Recorded next action: rerun on an idle host or under a tighter
+  declared load precondition, or replace the RCON round-trip metric with an
+  execution-adjacent measurement. PERF-001 stays partial and no baseline
+  claim is made. See the batch-16 record in the
+  [coverage table](reference/features/command-coverage.md).
+
 ## Limits of this evidence
 
 The wrapper-off server is a control for the wrapper transformation: it still

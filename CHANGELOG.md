@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Run the pre-declared PERF-001 baseline campaign and record its failed
+  gate (batch 16). `scripts/run_perf_001_baseline.py` runs seven fresh boots
+  of the pinned, hash-verified official 26.3 server over the fixed
+  5,000-line scoreboard fixture, verifies each run's exact final score, and
+  gates a pre-declared run-median CV <= 5% with a declared host-noise rule
+  and a JFR profile on the final run. Three campaigns were run and all
+  three failed the gate on this host: CV 0.375 (50 warmup / 300 measured
+  calls), 0.276 (same constants), and 0.275 (350 warmup / 1,000 measured,
+  declared from the diagnosed variance source - 50 warmup calls leaves a
+  fresh server's JIT far from tiered-compilation steady state), with the
+  host load rising 6.4 -> 12.5, 5.4 -> 14.3 and 6.2 -> 16.6 during the
+  campaigns and the run medians not tracking the load cleanly. The
+  campaign now exits nonzero on its own gate failure. Recorded next action:
+  rerun the identical pre-declared campaign on an idle host or under a
+  tighter declared load precondition, or replace the RCON round-trip metric
+  with an execution-adjacent measurement. PERF-001 stays partial and no
+  throughput or baseline claim is made - the negative outcome is recorded
+  data.
+
 - Close the last two P0 selector-shape partial cases and fix the fork-limit
   defect they exposed (batch 15): SCORE-007 and QUOTA-009. Measured on the
   pinned vanilla 26.3 server first, then asserted in the full ten-arm run
