@@ -922,6 +922,20 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   claim is made. See the batch-16 record in the
   [coverage table](reference/features/command-coverage.md).
 
+- Batch 17 closed STATE-004 with the item-modify slot edges using the
+  batch-10 confirmed modifier id (fixture state_item_modify_slot_edges:
+  hotbar.0, hotbar.8 and weapon.offhand read back count=5 after
+  st06_set_count, the cleared slot does not match, and a modify on the
+  empty slot reports "The target does not have slot hotbar.5" without
+  aborting the remaining lines; measured on the pinned vanilla server
+  first and matched in all ten arms of the 2026-11-08 run, map
+  0,0,0,0,0,0,64,64,64,64,96,96,96,96,112,112,112 with the complete fold 113
+  at high quota). Every P0 semantic case is now recorded complete; only
+  PERF-001 remains partial by its failed pre-declared baseline gate. The
+  batch also removed a flaky tick-order key (the ordering fact now comes
+  from a quiet sample). See the batch-17 record in the
+  [coverage table](reference/features/command-coverage.md).
+
 ## Limits of this evidence
 
 The wrapper-off server is a control for the wrapper transformation: it still

@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- Close the last partial P0 semantic case, STATE-004, with the item-modify
+  slot edges (batch 17). The case's remaining half was blocked at recording
+  time on a confirmed 26.3 item-modifier id; batch 10 confirmed the
+  datapack-defined `function_compiler_probe:st06_set_count` (count=5), so
+  the half is now measured. New fixture
+  `state_item_modify_slot_edges` replays the four slot edges (hotbar.0, the
+  last hotbar slot, the offhand slot, and a cleared slot that must not
+  match) through `item modify`, read back with `execute if items` against
+  the probe player: measured on the pinned vanilla 26.3 server first, all
+  three real slots read back count=5 (fold 64+32+16) and the empty slot
+  does not match (+1, fold 113 at high quota), with a modify on the empty
+  slot reporting `The target does not have slot hotbar.5` without aborting
+  the remaining lines; the full ten-arm run of 2026-11-08 matches the
+  0-16 map `0,0,0,0,0,0,64,64,64,64,96,96,96,96,112,112,112` exactly in
+  every arm (the modify half costs more quota than the replace half, so
+  the final +1 case fires only at the high-quota trace). Every P0 semantic
+  case in the matrix is now recorded complete; only PERF-001 remains
+  partial, by its failed pre-declared baseline gate (batch 16). The batch
+  also found and removed a flaky harness key: the tick-order facts raced a
+  real `#minecraft:tick` between two score reads, so the ordering fact now
+  comes from a quiet sample (counter, observer, counter again, accepted
+  only when the counter reads are equal), and the lifecycle comparison's
+  error message now carries the differing keys.
+
 - Run the pre-declared PERF-001 baseline campaign and record its failed
   gate (batch 16). `scripts/run_perf_001_baseline.py` runs seven fresh boots
   of the pinned, hash-verified official 26.3 server over the fixed

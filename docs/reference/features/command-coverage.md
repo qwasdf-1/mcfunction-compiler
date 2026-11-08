@@ -962,6 +962,43 @@ replace the round-trip metric with an execution-adjacent measurement; the
 verified 5.25-million-update workload stays fixed. PERF-001 therefore stays
 *Partial*; no throughput or baseline claim is made.
 
+**Batch 17 - the item-modify slot edges, unblocked by batch 10's confirmed
+modifier id (STATE-004).** The case's recorded open half - `item modify` at
+the slot edges - was blocked at recording time on a confirmed id from the
+26.3 `minecraft:item_modifier` registry. Batch 10 measured that the registry
+ships no built-in modifiers and confirmed the datapack-defined
+`function_compiler_probe:st06_set_count` (count=5), so the half is now
+measured rather than narrowed. Fixture `state_item_modify_slot_edges`
+replays the four slot edges - hotbar.0, the last hotbar slot hotbar.8, the
+offhand slot, and a cleared slot that must not match - through
+`item modify`, read back with `execute if items` against the probe player
+and folded as distinct powers of two. Measured on the pinned vanilla server
+first: all three real slots read back with count=5 (fold 64+32+16) and the
+empty slot does not match (+1, fold 113 at high quota), with a modify on
+the empty slot reporting `The target does not have slot hotbar.5` without
+aborting the remaining function lines - the same failure edge ST-06
+recorded. The modify half costs more quota than the replace half, so its
+0-16 map is `0,0,0,0,0,0,64,64,64,64,96,96,96,96,112,112,112` and the final
++1 case fires only at the high-quota trace. The full ten-arm run of
+2026-11-08 matches that map exactly in every arm.
+
+**A flaky harness key this batch found and replaced.** The first full run
+failed `score-add-timed` on the lifecycle comparison, and the two-arm rerun
+passed: the tick-order facts were taken from two separate score reads, and
+a real `#minecraft:tick` between the reads flipped the recorded boolean
+arm-to-arm. The ordering fact now comes from a *quiet sample* - read
+counter, observer, counter again, accept only when the two counter reads
+are equal - whose content is deterministic in either member order, so the
+fact separates the two orders exactly without racing a tick. The lifecycle
+comparison's error message now carries the differing keys.
+
+**Result and scope.** STATE-004 is recorded *complete*; every P0 semantic
+case in the matrix is now either recorded complete or, for PERF-001,
+recorded partial with its failed pre-declared gate and next action (batch
+16). The coverage table itself is unchanged at **92 rows: 91 covered (R),
+0 partial (P), 1 missing (—)**; the remaining row is BC-06, whose paired
+performance campaign is next.
+
 ## 12. Reproducing this table from the code
 
 ```sh

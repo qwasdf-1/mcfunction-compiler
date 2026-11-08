@@ -79,6 +79,7 @@ DIRECT_FIXTURES = (
     "state_effect_edges",
     "state_setblock_edges",
     "state_item_slot_edges",
+    "state_item_modify_slot_edges",
     "tc02_tail_macro",
     "ct01_return_after_boundary",
     "ct02_store_specialized",
@@ -118,6 +119,7 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
         "state_effect_edges",
         "state_setblock_edges",
         "state_item_slot_edges",
+        "state_item_modify_slot_edges",
         "tc02_tail_macro",
         "ct01_return_after_boundary",
         "ct02_store_specialized",
@@ -267,6 +269,21 @@ EXPECTED_SCORES = {
         0: 0, 1: 0, 2: 0, 3: 0, 4: 0,
         5: 64, 6: 64, 7: 64, 8: 96, 9: 96, 10: 96,
         11: 112, 12: 112, 13: 113, 14: 113, 15: 113, 16: 113,
+    },
+    # Observed on the mod-free vanilla arm. The item-modify half of the slot
+    # edges with the confirmed datapack modifier st06_set_count (count=5):
+    # hotbar.0 (+64), hotbar.8 (+32) and weapon.offhand (+16) all read back
+    # with count=5, and the empty hotbar.5 slot does not match (+1). The
+    # modify half costs more quota than the replace half, so the final +1
+    # case stays outside the 0-16 sweep and the map tops out at 112; the
+    # complete 113 fires only at the high-quota trace, where a modify on the
+    # empty slot reports "The target does not have slot hotbar.5" without
+    # aborting the remaining function lines.
+    "state_item_modify_slot_edges": {
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0,
+        **{quota: 64 for quota in range(6, 10)},
+        **{quota: 96 for quota in range(10, 14)},
+        **{quota: 112 for quota in range(14, 17)},
     },
     # Observed on the mod-free vanilla arm. TC-02: a plain frame tail-calls a
     # macro function, which tail-calls a second macro function, which tail-calls
@@ -911,19 +928,40 @@ def run_lifecycle_functions(
     load_count_initial = read_score(client, "#load", LIFECYCLE_OBJECTIVE)
 
     # HOOK-004: the second #minecraft:tick member copies the accumulated count
-    # after the first tick member has run, so equality after a sample proves
-    # the intra-tick member order in every observed tick, and the count itself
-    # advancing at vanilla's 20 ticks/s proves each member runs once per tick.
+    # after the first tick member runs, so the observer's copy equals the
+    # counter in every tick. Two separate score reads race a real tick (a tick
+    # landing between them shifts one read), so the ordering fact is taken
+    # from a QUIET sample: read counter, observer, counter again, and accept
+    # the sample only when the two counter reads are equal (no tick landed
+    # inside the triple). The content is deterministic either way - an
+    # observer that ran before the counter would read one behind in every
+    # quiet sample - so the fact separates the two member orders exactly.
     tick_before = read_score(client, "#tick", LIFECYCLE_OBJECTIVE)
     tick_after_before = read_score(client, "#tick_after", LIFECYCLE_OBJECTIVE)
     time.sleep(1)
     tick_sample = read_score(client, "#tick", LIFECYCLE_OBJECTIVE)
     tick_after_sample = read_score(client, "#tick_after", LIFECYCLE_OBJECTIVE)
-    if tick_sample <= tick_before or tick_after_sample != tick_sample:
+    if tick_sample <= tick_before:
         raise RuntimeError(
-            f"{mode} tick ordering drifted: tick {tick_before} -> {tick_sample}, "
-            f"tick_after {tick_after_before} -> {tick_after_sample}; expected "
-            "the observer member to run after the counter member each tick"
+            f"{mode} tick tag did not advance: {tick_before} -> {tick_sample}"
+        )
+    tick_order_fact: bool | None = None
+    for _ in range(10):
+        counter_first = read_score(client, "#tick", LIFECYCLE_OBJECTIVE)
+        observer_middle = read_score(client, "#tick_after", LIFECYCLE_OBJECTIVE)
+        counter_second = read_score(client, "#tick", LIFECYCLE_OBJECTIVE)
+        if counter_first == counter_second:
+            tick_order_fact = observer_middle == counter_first
+            break
+        time.sleep(0.05)
+    if tick_order_fact is None:
+        raise RuntimeError(
+            f"{mode} could not obtain a quiet tick sample in 10 attempts"
+        )
+    if not tick_order_fact:
+        raise RuntimeError(
+            f"{mode} tick observer does not copy the counter after the counter "
+            "member runs; the intra-tag member order changed"
         )
 
     def macro_diagnostics() -> dict[str, int]:
@@ -1724,14 +1762,12 @@ def run_lifecycle_functions(
             "partner_after_first_pack": partner_seen_initial == load_count_initial,
         },
         "tick_member_order": {
-            # Timing-variant counts are reduced to parity-stable facts: the
-            # counter advanced, and the observer member's copy equals it,
-            # which encodes its position after the counter member each tick.
+            # Parity-stable facts only: the counter advanced across the
+            # sample window, and the ordering fact is from the quiet sample
+            # (observer copy equals the counter when no tick landed inside
+            # the triple read). Timing-variant counts are not recorded.
             "tick_advanced": tick_sample > tick_before,
-            "observer_equals_counter": tick_after_sample == tick_sample,
-            "observer_matches_before_sample": (
-                tick_after_before == tick_before
-            ),
+            "observer_after_counter_in_quiet_sample": tick_order_fact,
         },
         "lifecycle_member_traces": {
             # Only the trace text is recorded: the /debug function response
@@ -7972,9 +8008,19 @@ def main() -> int:
                 "selected_call_delta", None
             )
         if mode_macro_outcome != vanilla_macro_outcome:
+            differing = sorted(
+                key
+                for key in set(mode_macro_outcome) | set(vanilla_macro_outcome)
+                if mode_macro_outcome.get(key) != vanilla_macro_outcome.get(key)
+            )
             raise RuntimeError(
                 f"{mode_result['mode']} lifecycle function or macro behavior differs "
-                "from mod-free vanilla"
+                f"from mod-free vanilla at {differing}: "
+                + "; ".join(
+                    f"{key}={repr(mode_macro_outcome.get(key))[:220]} vs "
+                    f"{repr(vanilla_macro_outcome.get(key))[:220]}"
+                    for key in differing
+                )
             )
         mode_generations = mode_result["lifecycle_reloads"]["generations"]
         comparable_keys = (
