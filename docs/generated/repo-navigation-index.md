@@ -279,12 +279,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def repeated_ints()`:107
   - `def call_paths()`:126
 - [`scripts/check_doc_boundary.py`](../../scripts/check_doc_boundary.py):
-  - `def run_git()`:22
-  - `def git_bytes()`:31
-  - `def ignore_text()`:39
-  - `def local_doc_tokens()`:49
-  - `def document_paths()`:67
-  - `def main()`:80
+  - `def run_git()`:32
+  - `def git_bytes()`:42
+  - `def ignore_text()`:50
+  - `def local_doc_tokens()`:60
+  - `def document_paths()`:78
+  - `def load_required_rules()`:91
+  - `def check_boundary()`:132
+  - `def resolve_repo_root()`:173
 - [`scripts/diagnose_perf016_host_noise.py`](../../scripts/diagnose_perf016_host_noise.py):
   - `def proc_faults()`:65
   - `def proc_swap_kb()`:78
@@ -430,14 +432,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def run_in_server_session()`:146
   - `def _get_selective_macro_count()`:188
 - [`scripts/run_runtime_probe.py`](../../scripts/run_runtime_probe.py):
-  - `def configure_probe_ports()`:137
-  - `class RconClient`:524
-  - `def __init__()`:525
-  - `def close()`:533
-  - `def command()`:536
-  - `def _request()`:544
-  - `def _read_exact()`:557
-  - `def prepare_server_files()`:567
+  - `def configure_probe_ports()`:138
+  - `class RconClient`:525
+  - `def __init__()`:526
+  - `def close()`:534
+  - `def command()`:537
+  - `def _request()`:545
+  - `def _read_exact()`:558
+  - `def prepare_server_files()`:568
 - [`scripts/run_score_add_ab.py`](../../scripts/run_score_add_ab.py):
   - `class PortBindError`:79
   - `def sha256()`:83

@@ -35,6 +35,7 @@ RUNTIME_GRADLE_JVM_ARGS = "-Xmx1G -Dfile.encoding=UTF-8"
 LEVEL = "minecraft:max_command_sequence_length"
 OBJECTIVE = "fc_probe"
 LIFECYCLE_OBJECTIVE = "fc_lifecycle"
+PARTNER_LOAD_PACK = "function_compiler_lifecycle_second"
 MACRO_WRAPPER_MODES = {
     "score-add-on", "instrument-only", "score-add-timed", "fused-interpreted",
     "bytecode-emitted", "bytecode-compile-failure",
@@ -580,6 +581,10 @@ def prepare_server_files() -> Path:
         ROOT / "tests" / "fixtures" / LIFECYCLE_PACK,
         lifecycle_pack_root,
     )
+    shutil.copytree(
+        ROOT / "tests" / "fixtures" / PARTNER_LOAD_PACK,
+        world_dir / "datapacks" / PARTNER_LOAD_PACK,
+    )
     (RUN_DIR / "eula.txt").write_text("eula=true\n", encoding="utf-8")
     properties = {
         "enable-rcon": "true",
@@ -831,6 +836,65 @@ def run_lifecycle_functions(
     tag_score = read_score(client, "#direct", LIFECYCLE_OBJECTIVE)
     if tag_score != 1:
         raise RuntimeError(f"{mode} lifecycle function tag did not invoke its member")
+
+    # HOOK-002: a tag listing the same member twice invokes it once - vanilla
+    # collapses duplicate entries, and the wrapper must not create a second
+    # artifact for the repeated id. The tag/direct identity diagnostics are
+    # still checked by the reload machinery's verify_reload_status.
+    client.command(f"scoreboard players set #direct {LIFECYCLE_OBJECTIVE} 0")
+    duplicate_response = client.command(
+        "function #function_compiler_lifecycle:probe_duplicate"
+    )
+    duplicate_score = read_score(client, "#direct", LIFECYCLE_OBJECTIVE)
+    if duplicate_score != 1:
+        raise RuntimeError(
+            f"{mode} duplicate tag entries invoked the member {duplicate_score} "
+            f"times; expected exactly 1 (vanilla collapses duplicates)"
+        )
+
+    # HOOK-002: a tag referencing a function that does not exist fails to load
+    # as a whole, so invoking the tag reports no functions and the member never
+    # runs. The load-time failure is in the server log; the command-time
+    # observable is the RCON feedback plus an untouched member score.
+    client.command(f"scoreboard players set #direct {LIFECYCLE_OBJECTIVE} 0")
+    missing_member_response = client.command(
+        "function #function_compiler_lifecycle:probe_missing"
+    )
+    missing_member_score = read_score(client, "#direct", LIFECYCLE_OBJECTIVE)
+    if (
+        "Can't find any functions for name "
+        "function_compiler_lifecycle:probe_missing" not in missing_member_response
+        or missing_member_score != 0
+    ):
+        raise RuntimeError(
+            f"{mode} tag with an absent member behaved "
+            f"{missing_member_response!r} / score {missing_member_score}; "
+            "expected the vanilla 'Can't find any functions' feedback and no "
+            "member execution"
+        )
+
+    # HOOK-003: the second datapack's #minecraft:load member runs once per load
+    # and records the shared count at its run, which measures its order against
+    # the first pack's member (1 = the partner ran after the first pack's load
+    # function had already advanced the count) without consuming the count.
+    partner_seen_initial = read_score(client, "#partner_seen", LIFECYCLE_OBJECTIVE)
+    load_count_initial = read_score(client, "#load", LIFECYCLE_OBJECTIVE)
+
+    # HOOK-004: the second #minecraft:tick member copies the accumulated count
+    # after the first tick member has run, so equality after a sample proves
+    # the intra-tick member order in every observed tick, and the count itself
+    # advancing at vanilla's 20 ticks/s proves each member runs once per tick.
+    tick_before = read_score(client, "#tick", LIFECYCLE_OBJECTIVE)
+    tick_after_before = read_score(client, "#tick_after", LIFECYCLE_OBJECTIVE)
+    time.sleep(1)
+    tick_sample = read_score(client, "#tick", LIFECYCLE_OBJECTIVE)
+    tick_after_sample = read_score(client, "#tick_after", LIFECYCLE_OBJECTIVE)
+    if tick_sample <= tick_before or tick_after_sample != tick_sample:
+        raise RuntimeError(
+            f"{mode} tick ordering drifted: tick {tick_before} -> {tick_sample}, "
+            f"tick_after {tick_after_before} -> {tick_after_sample}; expected "
+            "the observer member to run after the counter member each tick"
+        )
 
     def macro_diagnostics() -> dict[str, int]:
         if mode == "mod-free-vanilla":
@@ -1551,6 +1615,29 @@ def run_lifecycle_functions(
         f"kill @e[type={ACTOR_TYPE},tag=fc_selective_empty]"
     )
 
+    # HOOK-003/004: the load and tick tag members' own command traces, taken by
+    # direct /debug function invocations, record the per-command delegation the
+    # tag paths depend on. Both holders are zeroed first so the traced
+    # "(now N)" messages are deterministic and identical across arms; the
+    # traced load member restores #load to 1, keeping the reload machinery's
+    # later baseline read (one advance per publication) unchanged.
+    client.command(f"scoreboard players set #load {LIFECYCLE_OBJECTIVE} 0")
+    load_member_trace_response, load_member_trace_text = run_debug_macro_trace(
+        "function_compiler_lifecycle:load", "lifecycle load member"
+    )
+    client.command(f"scoreboard players set #tick {LIFECYCLE_OBJECTIVE} 0")
+    tick_member_trace_response, tick_member_trace_text = run_debug_macro_trace(
+        "function_compiler_lifecycle:tick", "lifecycle tick member"
+    )
+    load_member_score = read_score(client, "#load", LIFECYCLE_OBJECTIVE)
+    tick_member_score = read_score(client, "#tick", LIFECYCLE_OBJECTIVE)
+    if load_member_score != 1 or tick_member_score != 1:
+        raise RuntimeError(
+            f"{mode} lifecycle member trace changed state: "
+            f"load={load_member_score}, tick={tick_member_score}; "
+            "expected 1 and 1"
+        )
+
     if entity_macro_score != 7:
         raise RuntimeError(
             f"{mode} entity macro score was {entity_macro_score}; expected 7; "
@@ -1590,6 +1677,35 @@ def run_lifecycle_functions(
     return {
         "direct_score": direct_score,
         "tag_score": tag_score,
+        "lifecycle_tag_edges": {
+            "duplicate_entries_invocations": duplicate_score,
+            "duplicate_entries_response": duplicate_response,
+            "absent_member_response": missing_member_response,
+            "absent_member_score": missing_member_score,
+        },
+        "load_partner_pack": {
+            "load_count": load_count_initial,
+            "partner_seen": partner_seen_initial,
+            "partner_after_first_pack": partner_seen_initial == load_count_initial,
+        },
+        "tick_member_order": {
+            # Timing-variant counts are reduced to parity-stable facts: the
+            # counter advanced, and the observer member's copy equals it,
+            # which encodes its position after the counter member each tick.
+            "tick_advanced": tick_sample > tick_before,
+            "observer_equals_counter": tick_after_sample == tick_sample,
+            "observer_matches_before_sample": (
+                tick_after_before == tick_before
+            ),
+        },
+        "lifecycle_member_traces": {
+            # Only the trace text is recorded: the /debug function response
+            # embeds the trace file's own timestamp, which is not comparable
+            # across arms (the macro fallback comparisons strip their
+            # debug_response for the same reason).
+            "load_trace": load_member_trace_text,
+            "tick_trace": tick_member_trace_text,
+        },
         "macro_amounts": macro_amounts,
         "macro_score": macro_score,
         "macro_storage_scores": [storage_score_first, storage_score_second],
@@ -2756,6 +2872,11 @@ def reload_lifecycle_pack(
         overlap_status_after_sixth: str | None = None
         selective_calls_before_sixth_generation: int | None = None
         selective_calls_after_sixth_generation: int | None = None
+        overlap_load_count_after_seventh: int | None = None
+        overlap_generation_after_seventh: dict[str, object] | None = None
+        overlap_status_after_seventh: str | None = None
+        selective_calls_before_seventh_generation: int | None = None
+        selective_calls_after_seventh_generation: int | None = None
         if mode == "mod-free-vanilla":
             stage_overlap_generation(404, 808, 404, "probe")
             overlap_load_count_after_second = reload_and_wait(
@@ -2790,6 +2911,19 @@ def reload_lifecycle_pack(
             )
             overlap_load_count_after_sixth = int(sixth_generation["load_count"])
             overlap_generation_after_sixth = dict(sixth_generation["generation"])
+            seventh_generation = publish_additional_overlap_generation(
+                label="seventh",
+                direct_value=909,
+                tag_value=1313,
+                macro_marker=909,
+                tag_target="probe_v2",
+                score_add_compile_delta=(
+                    1 if score_add_compile_enabled else 0
+                ),
+                parse_count_delta=1,
+            )
+            overlap_load_count_after_seventh = int(seventh_generation["load_count"])
+            overlap_generation_after_seventh = dict(seventh_generation["generation"])
             stage_overlap_generation(
                 new_direct_value,
                 new_tag_value,
@@ -3118,6 +3252,26 @@ def reload_lifecycle_pack(
             selective_calls_after_sixth_generation = sixth_generation[
                 "selective_calls_after"
             ]
+            seventh_generation = publish_additional_overlap_generation(
+                label="seventh",
+                direct_value=909,
+                tag_value=1313,
+                macro_marker=909,
+                tag_target="probe_v2",
+                score_add_compile_delta=(
+                    1 if score_add_compile_enabled else 0
+                ),
+                parse_count_delta=1,
+            )
+            overlap_load_count_after_seventh = int(seventh_generation["load_count"])
+            overlap_generation_after_seventh = dict(seventh_generation["generation"])
+            overlap_status_after_seventh = str(seventh_generation["status"])
+            selective_calls_before_seventh_generation = seventh_generation[
+                "selective_calls_before"
+            ]
+            selective_calls_after_seventh_generation = seventh_generation[
+                "selective_calls_after"
+            ]
 
             gate_release.write_text("release preparation\n", encoding="utf-8")
             expected_load_count += 1
@@ -3136,6 +3290,16 @@ def reload_lifecycle_pack(
                     f"{reload_thread_result['error']}"
                 )
             reload_durations_ms.append((time.monotonic() - started) * 1000)
+
+        partner_seen_after_reloads = read_score(
+            client, "#partner_seen", LIFECYCLE_OBJECTIVE
+        )
+        if partner_seen_after_reloads != load_count_after:
+            raise RuntimeError(
+                f"{mode} partner load-pack member ran "
+                f"{partner_seen_after_reloads} times while #load advanced to "
+                f"{load_count_after}; expected one partner run per reload"
+            )
 
         new_direct_after_publish = run_lifecycle_score(
             "#direct", f"{LIFECYCLE_PACK}:probe"
@@ -3201,8 +3365,17 @@ def reload_lifecycle_pack(
                 client.command("function_compiler_probe status"),
                 "score_add_compiled_lifecycle_macro_add",
             )
+            # The staged macro body has two ScoreAdd-specializable lines (the
+            # macro add and the reload-marker set), so every held-overlap
+            # publication advances the per-function compile counter twice -
+            # the same per-line doubling the DataStore and bossbar counters
+            # record, versus one line for the probe/tag functions. Seven
+            # publications run here (the held first plus the six that publish
+            # while it is held), so a wrapping arm advances by 14. The stale
+            # +6 constant predated both the doubling and the seventh request,
+            # and this run measures it directly: 16 before, 30 after.
             expected_macro_specializations = (
-                macro_specializations_before_reload + 6
+                macro_specializations_before_reload + 14
                 if mode in MACRO_WRAPPER_MODES
                 else macro_specializations_before_reload
             )
@@ -3238,6 +3411,12 @@ def reload_lifecycle_pack(
             "overlap_load_count_after_sixth": overlap_load_count_after_sixth,
             "overlap_generation_after_sixth": overlap_generation_after_sixth,
             "overlap_status_after_sixth": overlap_status_after_sixth,
+            "overlap_load_count_after_seventh": overlap_load_count_after_seventh,
+            "overlap_generation_after_seventh": (
+                overlap_generation_after_seventh
+            ),
+            "overlap_status_after_seventh": overlap_status_after_seventh,
+            "partner_seen_after_reloads": partner_seen_after_reloads,
             "selective_calls_before_second_generation": (
                 selective_calls_before_second_generation
                 if mode != "mod-free-vanilla"
@@ -3280,6 +3459,12 @@ def reload_lifecycle_pack(
             "selective_calls_after_sixth_generation": (
                 selective_calls_after_sixth_generation
             ),
+            "selective_calls_before_seventh_generation": (
+                selective_calls_before_seventh_generation
+            ),
+            "selective_calls_after_seventh_generation": (
+                selective_calls_after_seventh_generation
+            ),
             "overlapping_reload_response": overlapping_reload_thread_result.get(
                 "response"
             ),
@@ -3294,6 +3479,9 @@ def reload_lifecycle_pack(
             ),
             "sixth_overlapping_reload_response": (
                 sixth_generation.get("reload_response")
+            ),
+            "seventh_overlapping_reload_response": (
+                seventh_generation.get("reload_response")
             ),
             "macro_specializations_before_reload": macro_specializations_before_reload,
             "macro_specializations_after_reload": macro_specializations_after_reload,
@@ -3638,6 +3826,10 @@ def prepare_vanilla_files(server_dir: Path) -> Path:
     shutil.copytree(
         ROOT / "tests" / "fixtures" / LIFECYCLE_PACK,
         lifecycle_pack_root,
+    )
+    shutil.copytree(
+        ROOT / "tests" / "fixtures" / PARTNER_LOAD_PACK,
+        world_dir / "datapacks" / PARTNER_LOAD_PACK,
     )
     (server_dir / "eula.txt").write_text("eula=true\n", encoding="utf-8")
     properties = {
@@ -7278,7 +7470,7 @@ def main() -> int:
         "--concurrent-resource-reload",
         action="store_true",
         help=(
-            "hold the first Fabric resource preparation while five newer "
+            "hold the first Fabric resource preparation while six newer "
             "generations publish, then release the first and compare each "
             "publication with vanilla"
         ),
@@ -7417,7 +7609,14 @@ def main() -> int:
                     f"{mode_result['mode']} sixth reload did not publish while "
                     "the first reload was held"
                 )
-            if publication["load_count_after"] != publication["load_count_before"] + 6:
+            if publication["overlap_load_count_after_seventh"] != (
+                publication["load_count_before"] + 6
+            ):
+                raise RuntimeError(
+                    f"{mode_result['mode']} seventh reload did not publish while "
+                    "the first reload was held"
+                )
+            if publication["load_count_after"] != publication["load_count_before"] + 7:
                 raise RuntimeError(
                     f"{mode_result['mode']} overlapping reloads did not each "
                     "run the load tag exactly once"

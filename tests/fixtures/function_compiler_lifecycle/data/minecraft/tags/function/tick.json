@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "function_compiler_lifecycle:tick"
+    "function_compiler_lifecycle:tick",
+    "function_compiler_lifecycle:tick_order"
   ]
 }

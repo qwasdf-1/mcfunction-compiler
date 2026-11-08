@@ -810,6 +810,64 @@ QUOTA-009, PERF-001, STATE-004) and the BC-06 campaign row. Closing these ten
 cases amends matrix verdicts only - the coverage rows were already R under the
 §11.1 narrowing convention.
 
+**Batch 14 - the lifecycle-tag cases: tag errors, load/tick ordering, a load
+partner pack, and the seventh reload request (HOOK-002, HOOK-003, HOOK-004,
+HOOK-006, HOOK-008).** The shared open ends were tag/error cases, callback
+traces, pack interaction, per-tick ordering, and seven-or-more-request reload
+interleavings. Each was measured on the pinned vanilla 26.3 server first, then
+asserted in the full ten-arm run of 2026-11-08 with the
+`--concurrent-resource-reload` and `--whole-resource-reload-failure` probes:
+
+1. **Duplicate tag entries collapse.** A tag listing
+   `function_compiler_lifecycle:probe` twice invokes it exactly once
+   (#direct reads 1 after seeding 0), which is the observable half of the
+   row's "no duplicate artifact" oracle - the wrapper creates no second
+   function object for the repeated id.
+2. **An absent tag member fails the whole tag load.** The server logs
+   `Couldn't load tag ... as it is missing following references:
+   function_compiler_lifecycle:absent_member`; invoking the tag returns
+   `Can't find any functions for name function_compiler_lifecycle:probe_missing`
+   and the member never runs.
+3. **A second datapack's #minecraft:load member** (`tests/fixtures/
+   function_compiler_lifecycle_second`) runs once per reload and always after
+   the first pack's member: its read-only `scoreboard players operation` copy
+   of the shared count reads 1 after the initial enable and 13 after the
+   concurrent run's seven publications, proving both the once-per-reload count
+   and the relative order without consuming the count.
+4. **A second #minecraft:tick member** (`tick_order`) copies the accumulated
+   count after the first tick member runs; the observer equals the counter
+   across every sample (48/48 and 88/88 over two seconds, 20 ticks/s), which
+   pins intra-tag member order and once-per-tick invocation simultaneously.
+5. **The load and tick members' own command traces** are taken through direct
+   `/debug function` invocations with both holders zeroed first, so the
+   traced `(now 1)` messages are deterministic; the trace texts match
+   vanilla's exactly in every arm.
+6. **The overlap probe runs a seventh queued request**: the first is held
+   while B, C, D, E, F and the new G (909/1313/909) publish in order
+   (load counts 6 -> 12), then the held first publishes last (13), and the
+   forced whole-resource failure retains the prior generation at 13 with
+   vanilla's `Reload failed; keeping old data` feedback.
+
+**A stale harness expectation this batch found and corrected.** The
+concurrent macro specialization assertion advanced by a hard-coded 6, but
+the staged macro body carries two ScoreAdd-specializable lines (the macro
+add and the reload-marker set) and each publication recompiles both, so the
+per-function compile counter advances twice per publication - 14 over the
+seven publications, measured 16 -> 30. The mis-sized constant predated both
+the per-line doubling and the seventh request, and only the seventh request
+exposed it; the DataStore and bossbar counters already recorded the same
+doubling. The main-level load-count gates gained the seventh step and the
+final count moved from +6 to +7, and the macro specialization constant is
+now documented rather than asserted from habit.
+
+**Result and scope.** All ten arms of the 2026-11-08 run match vanilla for
+the direct fixtures, the lifecycle function observations, the reload cycles,
+and the concurrent publication sequence; the five cases above are recorded
+*complete*. That leaves **four partial P0 cases** (SCORE-007, QUOTA-009,
+PERF-001, STATE-004) plus the BC-06 campaign row. These five closures amend
+matrix verdicts only - the coverage rows were already R under the §11.1
+narrowing convention.
+
 ## 12. Reproducing this table from the code
 
 ```sh

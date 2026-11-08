@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "function_compiler_lifecycle:probe",
+    "function_compiler_lifecycle:absent_member"
+  ]
+}

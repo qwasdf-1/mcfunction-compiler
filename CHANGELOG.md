@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- Close five partial P0 matrix cases by measuring the lifecycle-tag edges
+  (batch 14): HOOK-002, HOOK-003, HOOK-004, HOOK-006 and HOOK-008. Measured
+  on the pinned vanilla 26.3 server first and asserted in the full ten-arm
+  run of 2026-11-08 with the `--concurrent-resource-reload` and
+  `--whole-resource-reload-failure` probes: a tag listing the same member
+  twice invokes it exactly once (vanilla collapses duplicate entries, the
+  observable half of the row's no-duplicate-artifact oracle); a tag member
+  naming an absent function fails the whole tag load, so invoking the tag
+  reports `Can't find any functions for name ...` and the member never runs;
+  a second datapack contributing to #minecraft:load runs its member once per
+  reload, always after the first pack's member, recorded by a read-only
+  copy of the shared count; a second #minecraft:tick member copies the
+  accumulated count after the first member, pinning intra-tag order and
+  once-per-tick invocation; the load and tick members' own command traces
+  match vanilla exactly through /debug function with deterministic holders;
+  and the concurrent reload overlap probe now runs a seventh queued request,
+  with the first held while six newer generations publish in order
+  (load counts 6 -> 12) and the held first publishing last (13), the forced
+  whole-resource failure retaining the prior generation at 13. The batch
+  also corrected a stale harness expectation: the concurrent macro
+  specialization count advances 14 rather than the previously asserted 6,
+  because the staged macro body carries two ScoreAdd-specializable lines and
+  each publication recompiles both (the per-line doubling the DataStore and
+  bossbar counters already record); the main-level load-count gates gained
+  the seventh step. Four partial P0 cases remain (SCORE-007, QUOTA-009,
+  PERF-001, STATE-004) plus the BC-06 campaign row. No default-on status
+  changed and no performance claim is made - this batch is correctness and
+  coverage only.
+
 - Close ten partial P0 matrix cases by completing the shared
   callback-context x child-outcome matrix (batch 13): HOOK-001, HOOK-005,
   HOOK-009, SCORE-009 and CTRL-001/002/003/005/006/007. The common open end

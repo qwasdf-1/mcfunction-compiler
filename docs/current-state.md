@@ -870,6 +870,29 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   See the batch-13 record in the
   [coverage table](reference/features/command-coverage.md).
 
+- Batch 14 closed the lifecycle-tag cases HOOK-002, HOOK-003, HOOK-004,
+  HOOK-006 and HOOK-008. Measured on the pinned vanilla server first and
+  asserted in the full ten-arm run of 2026-11-08 with the
+  concurrent-resource-reload and whole-resource-reload-failure probes:
+  duplicate tag entries invoke a member exactly once; a tag member naming
+  an absent function fails the whole tag load (`Can't find any functions
+  for name ...` at invocation, member untouched); a second datapack's
+  #minecraft:load member runs once per reload, always after the first
+  pack's member (read-only count copy: 1 at the initial enable, 13 after
+  seven publications); a second #minecraft:tick member pins intra-tag
+  order (observer copy equals the counter every sample, 20 ticks/s); the
+  load/tick members' own command traces match vanilla; and the overlap
+  probe runs a seventh queued request (load counts 6 -> 12 for the held
+  first plus six publications, 13 after the held first publishes last;
+  the forced whole-resource failure retains the generation at 13). The
+  batch also corrected the concurrent macro specialization expectation
+  from a stale +6 to the measured +14 (two ScoreAdd lines per staged
+  macro body, recompiled twice per publication). Four partial P0 cases
+  remain (SCORE-007, QUOTA-009, PERF-001, STATE-004) plus the BC-06
+  campaign row; the coverage table is unchanged at 92 rows, 91 R, 0 P,
+  1 missing. See the batch-14 record in the
+  [coverage table](reference/features/command-coverage.md).
+
 ## Limits of this evidence
 
 The wrapper-off server is a control for the wrapper transformation: it still
