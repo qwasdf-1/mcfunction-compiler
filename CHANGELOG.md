@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- Close the `MO-10` coverage row - the fork modifier under the pinned
+  Bellows/Moonrise mod stacks - with a mod-stack probe that runs the full
+  fork-order fixture (ordered nearest/furthest identity, the batch-11
+  unordered-sort identity block, the cap sweep, and the
+  candidate-freshness block) with the compiler enabled under three pinned,
+  hash-verified stacks: `bellows113`, `bellows113-moonrise120` and
+  `lbm113120` (lithium + Bellows 1.1.3 + Moonrise 1.2.0), each a fresh
+  Gradle runServer. Every stack passed every fixture assertion, and each
+  stack's recorded fixture result is exactly equal to the mod-free vanilla
+  arm's recorded result from the batch-11 ten-arm run: Bellows's selector
+  instrumentation and Moonrise's entity system rewrite change neither the
+  arbitrary insertion-order resolution nor the random set semantics the
+  fixture observes. The oracle is within-stack direct-vs-function parity -
+  the modded server is its own reference, since a mod may legitimately
+  change entity iteration order; the cross-stack equality is the recorded
+  finding, not the oracle. The row's claim is scoped to the pinned stacks
+  combining Bellows and Moonrise; c2me, ferritecore, bellows 1.1.2,
+  Moonrise 1.2.1 and unpinned stacks are not claimed for fork semantics.
+  Matrix case MO-10; row closed: MO-10. The table is now **92 rows: 91
+  covered (R), 0 partial (P), 1 missing (—)**; the remaining row is BC-06.
+  No default-on status changed and no performance claim is made - this
+  batch is correctness and coverage only.
+
 - Close the `MO-09` coverage row - the fork modifier's remaining selector
   shapes, the unordered sorts `sort=arbitrary` and `sort=random` - with new
   fixtures `mo09_fork_arbitrary_identity` and `mo09_fork_random_identity`

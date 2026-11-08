@@ -835,6 +835,20 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   set. Row closed: the table is now 92 rows, 90 covered, 0 partial,
   2 missing. See the batch-11 record in the
   [coverage table](reference/features/command-coverage.md).
+- Batch 12 closed the MO-10 fork mod-stack row with a probe running the
+  full fork-order fixture, compiler enabled, under three pinned
+  hash-verified stacks (`bellows113`, `bellows113-moonrise120`,
+  `lbm113120`), each a fresh Gradle runServer. Every stack passed every
+  assertion and each stack's recorded fixture result is exactly equal to
+  the mod-free vanilla arm's recorded result from the batch-11 ten-arm
+  run: Bellows's selector instrumentation and Moonrise's entity system
+  rewrite change neither the arbitrary insertion-order resolution nor the
+  random set semantics the fixture observes. The oracle is within-stack
+  direct-vs-function parity (the modded server is its own reference); the
+  claim is scoped to the pinned stacks combining Bellows and Moonrise.
+  Row closed: the table is now 92 rows, 91 covered, 0 partial, 1 missing.
+  See the batch-12 record in the
+  [coverage table](reference/features/command-coverage.md).
 
 ## Limits of this evidence
 

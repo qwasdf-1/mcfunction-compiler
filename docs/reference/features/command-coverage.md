@@ -93,7 +93,7 @@ arm in the matrix case.
 | MO-07 | `ItemPredicate` modifier on stack predicates | — | PRED-006 | R |
 | MO-08 | `ContextModifier` folding into a single in-memory source mutation | — | CTRL-009 | R |
 | MO-09 | fork modifier × remaining selector shapes (random/arbitrary identity ordering) | unordered-sort identity: arbitrary resolves in insertion order, random narrowed to set semantics; cap fallback shared with QUOTA-009 | QUOTA-009 + MO-09 | R |
-| MO-10 | fork modifier × broader mod-stack combinations | Bellows/Moonrise interaction | — | — |
+| MO-10 | fork modifier × broader mod-stack combinations | fork semantics under the pinned Bellows/Moonrise stacks; measured stacks are bellows113, bellows113-moonrise120 and lbm113120 | QUOTA-009 + MO-09 + MO-10 | R |
 
 ## 6. State-machine command families
 
@@ -172,13 +172,12 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**92 rows: 90 covered (R), 0 partial (P), 2 missing (—).**
+**92 rows: 91 covered (R), 0 partial (P), 1 missing (—).**
 
 Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **P** requires a cited case recorded *Partial*, which proves some of the row and names the rest; **—** means no case exists for that shape.
 
-**The 2 missing rows, by family group:**
+**The 1 missing rows, by family group:**
 
-- **5. Predicate and modifier families**: MO-10
 - **10. Bytecode backend families**: BC-06
 
 ### 11.1 How the eleven partial-cited rows were resolved
@@ -203,9 +202,10 @@ combination the case leaves open became its own `—` row. The gap count therefo
 | FR-08 | CTRL-006: mid-region missing-objective error, later commands run "without replaying the first effect" |
 
 The newly visible gaps they concealed are rows **SM-13, SO-07, SC-05** (selector
-shapes under store/callback contexts), **MO-10** (fork mod-stack combinations),
+shapes under store/callback contexts)
 and **CT-01, CT-02, CT-03** (other
-return/error callback combinations). MO-09 was closed by batch 11.
+return/error callback combinations). MO-09 was closed by batch 11 and MO-10
+by batch 12.
 
 ### 11.2 How each missing row can be closed (oracle feasibility)
 
@@ -223,7 +223,7 @@ mechanism their oracle needs:
 | ST-02 (`bossbar`) | Folded into the scoreboard: `bossbar get value|max|players` return their values as command results, so `execute store result score` observes them; bare `bossbar get <id>` is not a valid 26.3 form | Available (closed by batch 9 without a new oracle type) |
 | **ST-01 (`title`), ST-05 (`playsound`/`particle`/`stopsound`), ST-07** | **None — client packets only, RCON cannot observe them** | **Closable only by delegation contract**, accepted as the v1 claim for these rows (matrix case STATE-001; see §11.3 batch 5). Differential closure would require a packet-capturing bot, which is a separate decision |
 | MO-09 | Fork selector identity: `sort=arbitrary` is oracle-able exactly (measured as entity insertion order, stable across invocations, reloads, restarts, and fresh worlds); `sort=random` is non-deterministic by design and is narrowed to per-trial set semantics plus a distinct-pair floor | Available (closed by batch 11 via the swap-chain scoreboard read-back) |
-| MO-10 | Fork semantics under broader pinned mod stacks (Bellows/Moonrise); the modded server is its own reference, so within-stack direct-vs-function parity is the oracle | Not yet exercised: the ten-arm matrix covers only the compiler's own modes; the pinned Bellows/Moonrise jars exist but no fork fixture has run under them |
+| MO-10 | Fork semantics under broader pinned mod stacks (Bellows/Moonrise); the modded server is its own reference, so within-stack direct-vs-function parity is the oracle | Available (closed by batch 12: the full fork fixture passed under bellows113, bellows113-moonrise120 and lbm113120 with each stack's result exactly equal to the mod-free vanilla arm) |
 | BC-06 | A paired performance campaign, not a fixture | Requires a campaign |
 
 ### 11.3 How the rows were closed, in batches
@@ -729,6 +729,31 @@ with at least two distinct pairs, and the deterministic pair {a, c} after
 the kill. The fork modifier has no dedicated compile counter, so
 specialization parity rests on the exact score-state parity of the
 swap-chain read-backs plus the existing ordered-sort fork fixtures.
+
+**Batch 12 - the fork modifier under the pinned Bellows/Moonrise mod stacks,
+closed with a mod-stack probe (matrix case MO-10).** The full fork-order
+fixture - ordered nearest/furthest identity, the batch-11 unordered-sort
+identity block, the cap sweep, and the candidate-freshness block - ran with
+the compiler enabled (wrapper and ScoreAdd prototype flags) under three
+pinned, hash-verified stacks: `bellows113` (Bellows 1.1.3),
+`bellows113-moonrise120` (plus Moonrise 1.2.0) and `lbm113120` (plus
+lithium 0.26.2), each a fresh Gradle `runServer` with the stack jars in the
+run directory. Closed **MO-10**. The table is now 92 rows: 91 covered,
+0 partial, 1 missing.
+
+**Result and scope.** Every stack passed every fixture assertion, and each
+stack's recorded fixture result is exactly equal to the mod-free vanilla
+arm's recorded result from the batch-11 ten-arm run: Bellows's selector
+instrumentation and Moonrise's entity system rewrite change neither the
+arbitrary insertion-order resolution nor the random set semantics this
+fixture observes, and no interaction with the compiled fork appeared. The
+oracle is within-stack direct-vs-function parity - the modded server is its
+own reference - because a mod may legitimately change entity iteration
+order; the cross-stack equality is the recorded finding, not the oracle.
+The row's claim is scoped to the pinned stacks combining Bellows and
+Moonrise, which is the interaction the coverage row names; the remaining
+pinned stacks (c2me, ferritecore, bellows 1.1.2, Moonrise 1.2.1) and any
+unpinned stacks are not claimed for fork semantics.
 
 ## 12. Reproducing this table from the code
 
