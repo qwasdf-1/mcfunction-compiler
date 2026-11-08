@@ -5309,6 +5309,77 @@ def run_fork_limit_fixture(client: RconClient, mode: str) -> dict[str, object]:
     return {"match_cases": all_results}
 
 
+# MO-09 identity actors: three tagged armor stands at distinct positions with
+# distinct scoreboard values, summoned in canonical order a, b, c. The swap
+# chain decoder below reads the fork selection order back from scoreboard
+# state: after two `#fork_order_acc >< @s` branches with the accumulator at
+# the marker, the first forked actor holds the marker, the accumulator holds
+# the second actor's original value, and the second actor holds the first
+# actor's original value.
+FORK_ORDER_ACTOR_VALUES = {
+    "fc_fork_order_a": 2,
+    "fc_fork_order_b": 3,
+    "fc_fork_order_c": 5,
+}
+FORK_ORDER_ACTOR_POSITIONS = {
+    "fc_fork_order_a": "32.5 100 0.5",
+    "fc_fork_order_b": "33.5 100 0.5",
+    "fc_fork_order_c": "34.5 100 0.5",
+}
+FORK_ORDER_MARKER = 100
+
+
+def reset_fork_order_actors(client: RconClient, objective: str, tags: tuple[str, ...]) -> None:
+    client.command(f"scoreboard players set #fork_order_acc {objective} {FORK_ORDER_MARKER}")
+    for tag in tags:
+        client.command(
+            f"scoreboard players set @e[tag={tag},limit=1] {objective} "
+            f"{FORK_ORDER_ACTOR_VALUES[tag]}"
+        )
+
+
+def read_fork_order_scores(
+    client: RconClient, objective: str, tags: tuple[str, ...]
+) -> dict[str, int | None]:
+    scores: dict[str, int | None] = {}
+    for tag in tags:
+        response = client.command(f"scoreboard players get @e[tag={tag},limit=1] {objective}")
+        match = re.search(r"has (-?\d+)", response)
+        scores[tag] = int(match.group(1)) if match else None
+    return scores
+
+
+def decode_fork_order(
+    client: RconClient, objective: str, tags: tuple[str, ...]
+) -> tuple[str, str]:
+    scores = read_fork_order_scores(client, objective, tags)
+    first_candidates = [tag for tag in tags if scores[tag] == FORK_ORDER_MARKER]
+    if len(first_candidates) != 1:
+        raise RuntimeError(f"fork-order decode first pass was ambiguous: {scores!r}")
+    first = first_candidates[0]
+    second_candidates = [
+        tag for tag in tags if tag != first and scores[tag] != FORK_ORDER_ACTOR_VALUES[tag]
+    ]
+    if len(second_candidates) != 1:
+        raise RuntimeError(f"fork-order decode second pass was ambiguous: {scores!r}")
+    second = second_candidates[0]
+    accumulator = read_score(client, "#fork_order_acc", objective)
+    if accumulator != FORK_ORDER_ACTOR_VALUES[second]:
+        raise RuntimeError(
+            f"fork-order decode accumulator was {accumulator}; expected "
+            f"{FORK_ORDER_ACTOR_VALUES[second]} for second actor {second}: {scores!r}"
+        )
+    return (first, second)
+
+
+def fork_order_identity_swap(client: RconClient, objective: str, sort: str) -> str:
+    return client.command(
+        "execute positioned 32 100 0 as "
+        f"@e[type=minecraft:armor_stand,tag=fc_fork_order,sort={sort},limit=2] "
+        f"run scoreboard players operation #fork_order_acc {objective} >< @s {objective}"
+    )
+
+
 def run_fork_order_fixture(client: RconClient, mode: str) -> dict[str, object]:
     objective = "fc_fork_order"
     client.command(f"scoreboard objectives add {objective} dummy")
@@ -5614,6 +5685,224 @@ def run_fork_order_fixture(client: RconClient, mode: str) -> dict[str, object]:
                 }
             )
         sort_summary[sort]["low_cap_cases"] = low_cap_cases
+
+        # MO-09: identity ordering for the unordered sorts. Measured on the
+        # pinned vanilla 26.3 server: sort=arbitrary resolves candidates in
+        # entity insertion (summon) order - (a, b) for the canonical summon
+        # sequence - and that order is stable across repeated invocations,
+        # /reload, a server restart on the same world, and fresh worlds with
+        # different seeds, so it is oracle-able exactly. sort=random is
+        # non-deterministic by design (24 direct trials covered all three
+        # candidate pairs uniformly, every trial exactly two distinct
+        # actors), so only per-trial set semantics are asserted, plus a
+        # distinct-pair floor across trials proving the selection is delegated
+        # to vanilla's randomness rather than pinned by the fork. Both paths
+        # must also re-resolve candidates per execution: killing a selected
+        # actor must change the next invocation's selection.
+        client.command("gamerule minecraft:max_command_forks 64")
+        client.command(f"gamerule {LEVEL} 64")
+        actor_tags = tuple(FORK_ORDER_ACTOR_VALUES)
+        live_candidates = frozenset(actor_tags)
+        if sort == "arbitrary":
+            expected_order = ("fc_fork_order_a", "fc_fork_order_b")
+            identity_orders: list[tuple[str, str]] = []
+            for _ in range(5):
+                reset_fork_order_actors(client, objective, actor_tags)
+                fork_order_identity_swap(client, objective, sort)
+                identity_orders.append(decode_fork_order(client, objective, actor_tags))
+            function_identity_orders: list[tuple[str, str]] = []
+            for _ in range(5):
+                reset_fork_order_actors(client, objective, actor_tags)
+                client.command(
+                    f"function function_compiler_probe:mo09_fork_{sort}_identity"
+                )
+                function_identity_orders.append(
+                    decode_fork_order(client, objective, actor_tags)
+                )
+            if set(identity_orders) != {expected_order}:
+                raise RuntimeError(
+                    f"{mode} {sort} fork identity order was {identity_orders!r}; "
+                    f"expected only {expected_order!r}"
+                )
+            if set(function_identity_orders) != {expected_order}:
+                raise RuntimeError(
+                    f"{mode} {sort} function fork identity order was "
+                    f"{function_identity_orders!r}; expected only {expected_order!r}"
+                )
+            # Cap sweep for the order-sensitive swap: the cap includes the
+            # parent context, so a limit=2 selector needs cap >= 3 to fork
+            # both branches. Cap 1 reports the maximum-context error and cap 2
+            # truncates silently; both leave the state untouched.
+            cap_cases: list[dict[str, object]] = []
+            for fork_limit in (1, 2, 3, 4):
+                client.command(f"gamerule minecraft:max_command_forks {fork_limit}")
+                client.command(f"gamerule {LEVEL} 64")
+                reset_fork_order_actors(client, objective, actor_tags)
+                direct_response = fork_order_identity_swap(client, objective, sort)
+                direct_scores = read_fork_order_scores(client, objective, actor_tags)
+                direct_order = (
+                    decode_fork_order(client, objective, actor_tags)
+                    if fork_limit >= 3
+                    else None
+                )
+                reset_fork_order_actors(client, objective, actor_tags)
+                client.command(
+                    f"function function_compiler_probe:mo09_fork_{sort}_identity"
+                )
+                function_scores = read_fork_order_scores(client, objective, actor_tags)
+                function_order = (
+                    decode_fork_order(client, objective, actor_tags)
+                    if fork_limit >= 3
+                    else None
+                )
+                if fork_limit < 3:
+                    untouched = {
+                        tag: FORK_ORDER_ACTOR_VALUES[tag] for tag in actor_tags
+                    }
+                    if direct_scores != untouched or function_scores != untouched:
+                        raise RuntimeError(
+                            f"{mode} {sort} fork at cap {fork_limit} executed "
+                            f"branches despite the cap: direct={direct_scores!r}, "
+                            f"function={function_scores!r}"
+                        )
+                    overflow_reported = (
+                        "maximum number of contexts (1) reached"
+                        in direct_response.casefold()
+                    )
+                    if fork_limit == 1 and not overflow_reported:
+                        raise RuntimeError(
+                            f"{mode} {sort} direct fork overflow at cap 1 "
+                            f"returned {direct_response!r}; expected the "
+                            "maximum-context error"
+                        )
+                    if fork_limit == 2 and direct_response:
+                        raise RuntimeError(
+                            f"{mode} {sort} direct fork at cap 2 returned "
+                            f"unexpected feedback: {direct_response!r}"
+                        )
+                else:
+                    if direct_order != expected_order:
+                        raise RuntimeError(
+                            f"{mode} {sort} fork order at cap {fork_limit} was "
+                            f"{direct_order!r}; expected {expected_order!r}"
+                        )
+                    if function_order != expected_order:
+                        raise RuntimeError(
+                            f"{mode} {sort} function fork order at cap "
+                            f"{fork_limit} was {function_order!r}; expected "
+                            f"{expected_order!r}"
+                        )
+                cap_cases.append(
+                    {
+                        "max_command_forks": fork_limit,
+                        "direct_overflow_reported": (
+                            "maximum number of contexts (1) reached"
+                            in direct_response.casefold()
+                        ),
+                    }
+                )
+            client.command("gamerule minecraft:max_command_forks 64")
+            client.command(f"gamerule {LEVEL} 64")
+            sort_summary[sort]["identity_cases"] = {
+                "trial_count": len(identity_orders),
+                "identity_order": list(expected_order),
+                "cap_cases": cap_cases,
+            }
+        else:
+            direct_pairs: set[frozenset[str]] = set()
+            function_pairs: set[frozenset[str]] = set()
+            for _ in range(16):
+                reset_fork_order_actors(client, objective, actor_tags)
+                fork_order_identity_swap(client, objective, sort)
+                direct_pairs.add(
+                    frozenset(decode_fork_order(client, objective, actor_tags))
+                )
+                reset_fork_order_actors(client, objective, actor_tags)
+                client.command(
+                    f"function function_compiler_probe:mo09_fork_{sort}_identity"
+                )
+                function_pairs.add(
+                    frozenset(decode_fork_order(client, objective, actor_tags))
+                )
+            for pairs, label in (
+                (direct_pairs, "direct"),
+                (function_pairs, "function"),
+            ):
+                if len(pairs) < 2:
+                    raise RuntimeError(
+                        f"{mode} {sort} {label} fork saw {len(pairs)} distinct "
+                        "candidate pair across 16 trials; expected vanilla's "
+                        "randomness to produce at least 2"
+                    )
+            sort_summary[sort]["identity_cases"] = {
+                "trial_count": 16,
+                "multiple_pairs_observed": True,
+            }
+        # Candidate-list freshness: killing a selected actor must change the
+        # next invocation's selection on both paths. With b dead the
+        # remaining candidates are a and c, so the arbitrary order is exact
+        # and the random pair set is deterministic.
+        client.command("kill @e[type=minecraft:armor_stand,tag=fc_fork_order_b]")
+        post_kill_tags = ("fc_fork_order_a", "fc_fork_order_c")
+        reset_fork_order_actors(client, objective, post_kill_tags)
+        fork_order_identity_swap(client, objective, sort)
+        direct_post_kill = decode_fork_order(client, objective, post_kill_tags)
+        reset_fork_order_actors(client, objective, post_kill_tags)
+        client.command(f"function function_compiler_probe:mo09_fork_{sort}_identity")
+        function_post_kill = decode_fork_order(client, objective, post_kill_tags)
+        expected_post_kill = ("fc_fork_order_a", "fc_fork_order_c")
+        if sort == "arbitrary":
+            if direct_post_kill != expected_post_kill:
+                raise RuntimeError(
+                    f"{mode} {sort} fork did not re-resolve after killing a "
+                    f"selected actor: {direct_post_kill!r}"
+                )
+            if function_post_kill != expected_post_kill:
+                raise RuntimeError(
+                    f"{mode} {sort} function fork did not re-resolve after "
+                    f"killing a selected actor: {function_post_kill!r}"
+                )
+        else:
+            expected_post_kill_pair = frozenset(expected_post_kill)
+            if frozenset(direct_post_kill) != expected_post_kill_pair:
+                raise RuntimeError(
+                    f"{mode} {sort} fork did not re-resolve after killing a "
+                    f"selected actor: {direct_post_kill!r}"
+                )
+            if frozenset(function_post_kill) != expected_post_kill_pair:
+                raise RuntimeError(
+                    f"{mode} {sort} function fork did not re-resolve after "
+                    f"killing a selected actor: {function_post_kill!r}"
+                )
+        sort_summary[sort]["identity_cases"]["post_kill_order"] = sorted(
+            direct_post_kill
+        )
+        # Restore the canonical actor set so later sections and fixtures see
+        # the three actors in summon order a, b, c. For arbitrary the restore
+        # is verified by one direct swap; for random it is verified
+        # transitively by the arbitrary iteration that follows.
+        client.command("kill @e[type=minecraft:armor_stand,tag=fc_fork_order]")
+        for tag in actor_tags:
+            response = client.command(
+                "summon minecraft:armor_stand "
+                f"{FORK_ORDER_ACTOR_POSITIONS[tag]} "
+                f'{{NoGravity:1b,Invisible:1b,Invulnerable:1b,'
+                f'Tags:["fc_fork_order","{tag}"]}}'
+            )
+            if "summoned" not in response.casefold():
+                raise RuntimeError(
+                    f"{mode} could not re-summon fork-order actor {tag}: {response!r}"
+                )
+        reset_fork_order_actors(client, objective, actor_tags)
+        if sort == "arbitrary":
+            reset_fork_order_actors(client, objective, actor_tags)
+            fork_order_identity_swap(client, objective, sort)
+            restored_order = decode_fork_order(client, objective, actor_tags)
+            if restored_order != expected_order:
+                raise RuntimeError(
+                    f"{mode} {sort} fork order after the actor restore was "
+                    f"{restored_order!r}; expected {expected_order!r}"
+                )
 
     client.command("gamerule minecraft:max_command_forks 65536")
     client.command(f"gamerule {LEVEL} 65536")

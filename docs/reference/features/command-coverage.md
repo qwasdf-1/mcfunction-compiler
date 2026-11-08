@@ -92,7 +92,7 @@ arm in the matrix case.
 | MO-06 | `ForkModifier` × fork limit 1..12 overflow | cap reached | QUOTA-009 | R |
 | MO-07 | `ItemPredicate` modifier on stack predicates | — | PRED-006 | R |
 | MO-08 | `ContextModifier` folding into a single in-memory source mutation | — | CTRL-009 | R |
-| MO-09 | fork modifier × remaining selector shapes (random/arbitrary identity ordering) | cap overflow | — | — |
+| MO-09 | fork modifier × remaining selector shapes (random/arbitrary identity ordering) | unordered-sort identity: arbitrary resolves in insertion order, random narrowed to set semantics; cap fallback shared with QUOTA-009 | QUOTA-009 + MO-09 | R |
 | MO-10 | fork modifier × broader mod-stack combinations | Bellows/Moonrise interaction | — | — |
 
 ## 6. State-machine command families
@@ -172,13 +172,13 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**92 rows: 89 covered (R), 0 partial (P), 3 missing (—).**
+**92 rows: 90 covered (R), 0 partial (P), 2 missing (—).**
 
 Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **P** requires a cited case recorded *Partial*, which proves some of the row and names the rest; **—** means no case exists for that shape.
 
-**The 3 missing rows, by family group:**
+**The 2 missing rows, by family group:**
 
-- **5. Predicate and modifier families**: MO-09, MO-10
+- **5. Predicate and modifier families**: MO-10
 - **10. Bytecode backend families**: BC-06
 
 ### 11.1 How the eleven partial-cited rows were resolved
@@ -203,9 +203,9 @@ combination the case leaves open became its own `—` row. The gap count therefo
 | FR-08 | CTRL-006: mid-region missing-objective error, later commands run "without replaying the first effect" |
 
 The newly visible gaps they concealed are rows **SM-13, SO-07, SC-05** (selector
-shapes under store/callback contexts), **MO-09, MO-10** (remaining fork selector
-shapes and mod-stack combinations), and **CT-01, CT-02, CT-03** (other
-return/error callback combinations).
+shapes under store/callback contexts), **MO-10** (fork mod-stack combinations),
+and **CT-01, CT-02, CT-03** (other
+return/error callback combinations). MO-09 was closed by batch 11.
 
 ### 11.2 How each missing row can be closed (oracle feasibility)
 
@@ -222,7 +222,8 @@ mechanism their oracle needs:
 | ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Closed by batch 6 (ST-03, ST-04, and ST-06's `item replace` half) and batch 10 (ST-06's `item modify` half, through a datapack-defined modifier id); all R |
 | ST-02 (`bossbar`) | Folded into the scoreboard: `bossbar get value|max|players` return their values as command results, so `execute store result score` observes them; bare `bossbar get <id>` is not a valid 26.3 form | Available (closed by batch 9 without a new oracle type) |
 | **ST-01 (`title`), ST-05 (`playsound`/`particle`/`stopsound`), ST-07** | **None — client packets only, RCON cannot observe them** | **Closable only by delegation contract**, accepted as the v1 claim for these rows (matrix case STATE-001; see §11.3 batch 5). Differential closure would require a packet-capturing bot, which is a separate decision |
-| MO-09, MO-10 | Fork selector identity for random/arbitrary ordering; harness records effects, not identities | Partially available |
+| MO-09 | Fork selector identity: `sort=arbitrary` is oracle-able exactly (measured as entity insertion order, stable across invocations, reloads, restarts, and fresh worlds); `sort=random` is non-deterministic by design and is narrowed to per-trial set semantics plus a distinct-pair floor | Available (closed by batch 11 via the swap-chain scoreboard read-back) |
+| MO-10 | Fork semantics under broader pinned mod stacks (Bellows/Moonrise); the modded server is its own reference, so within-stack direct-vs-function parity is the oracle | Not yet exercised: the ten-arm matrix covers only the compiler's own modes; the pinned Bellows/Moonrise jars exist but no fork fixture has run under them |
 | BC-06 | A paired performance campaign, not a fixture | Requires a campaign |
 
 ### 11.3 How the rows were closed, in batches
@@ -685,6 +686,49 @@ parser list and stay on the vanilla path, like the other state-machine
 families outside tag/teleport/kill; the fixture's `execute if items`
 conditions go through `ItemPredicateParser` and do not increment the
 item-command counter. The row's closure text states the bare-line scope.
+
+**Batch 11 - the unordered fork selector sorts, closed with measured identity
+semantics (matrix case MO-09).** Fixtures
+`mo09_fork_arbitrary_identity` and `mo09_fork_random_identity` plus an
+identity/freshness block in the harness fork-order fixture runner, run in
+all ten arms with the fork fixture result compared exactly against the
+mod-free vanilla arm. Closed **MO-09**; cap fallback was already under
+QUOTA-009, which the row now cites alongside the new case. The table is now
+92 rows: 90 covered, 0 partial, 2 missing.
+
+**The measurement that pinned the oracle.** The §11.2 note that the harness
+"records effects, not identities" was resolved by making identity observable:
+a two-branch `#fork_order_acc >< @s` swap chain with distinct actor values
+leaves the first forked actor holding the accumulator's marker, the
+accumulator holding the second actor's original value, and the second actor
+holding the first actor's original value, so scoreboard read-back per
+tag-pinned actor decodes the selection order. Measured on the pinned vanilla
+server before the oracle was pinned: `sort=arbitrary` resolves candidates in
+**entity insertion (summon) order**, not position order - a reverse-summon
+control (c, b, a) resolved (c, b) - and that order is stable across repeated
+invocations, `/reload`, a server restart on the same world, and fresh worlds
+with different seeds, which is what makes an exact oracle legitimate.
+`sort=random` is **non-deterministic by design**: 24 direct trials over three
+actors covered all three candidate pairs 8/8/8 with every trial exactly two
+distinct actors, so the row's claim for random is narrowed to per-trial set
+semantics plus a distinct-pair floor across trials (at least 2 distinct
+pairs in 16 trials per path), proving the compiled fork delegates selection
+to vanilla's randomness instead of pinning it.
+
+**What the harness now asserts per arm.** For `sort=arbitrary`: identity
+order (a, b) across 5 direct and 5 function trials; a cap sweep of the swap
+showing the cap includes the parent context - cap 1 reports the
+maximum-context error, cap 2 truncates silently with no feedback, both
+leaving state untouched, and caps 3+ fork both branches in selection order
+(the same boundary QUOTA-009 recorded for the ordered sorts); and
+candidate-list freshness - killing selected actor b must change the next
+invocation's selection to (a, c) on both paths, and killing all actors and
+re-summoning the canonical sequence restores (a, b). For `sort=random`: 16
+direct and 16 function trials each selecting exactly two distinct actors
+with at least two distinct pairs, and the deterministic pair {a, c} after
+the kill. The fork modifier has no dedicated compile counter, so
+specialization parity rests on the exact score-state parity of the
+swap-chain read-backs plus the existing ordered-sort fork fixtures.
 
 ## 12. Reproducing this table from the code
 

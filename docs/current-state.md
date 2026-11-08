@@ -816,6 +816,25 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   STATE-004: the table is now 92 rows, 89 covered, 0 partial, 3 missing.
   See the batch-10 record in the
   [coverage table](reference/features/command-coverage.md).
+- Batch 11 closed the MO-09 unordered fork selector sorts with new fixtures
+  (`mo09_fork_arbitrary_identity`, `mo09_fork_random_identity`) plus an
+  identity/freshness block in the harness fork-order fixture runner,
+  matching vanilla in all ten arms with the fork fixture result compared
+  exactly against the vanilla arm. Measured on the pinned vanilla server
+  before the oracle was pinned: `sort=arbitrary` resolves candidates in
+  entity insertion (summon) order, not position order, and is stable
+  across repeated invocations, `/reload`, a server restart on the same
+  world, and fresh worlds with different seeds, so it is asserted exactly;
+  `sort=random` is non-deterministic by design (24 trials covered all
+  three candidate pairs 8/8/8 with every trial exactly two distinct
+  actors), so the row's claim for it is narrowed to per-trial set
+  semantics plus a distinct-pair floor across 16 trials per path. The
+  fork cap includes the parent context (cap 1 errors, cap 2 truncates
+  silently, caps 3+ fork both branches), and candidate-list freshness is
+  asserted by killing a selected actor and re-summoning the canonical
+  set. Row closed: the table is now 92 rows, 90 covered, 0 partial,
+  2 missing. See the batch-11 record in the
+  [coverage table](reference/features/command-coverage.md).
 
 ## Limits of this evidence
 

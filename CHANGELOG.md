@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+- Close the `MO-09` coverage row - the fork modifier's remaining selector
+  shapes, the unordered sorts `sort=arbitrary` and `sort=random` - with new
+  fixtures `mo09_fork_arbitrary_identity` and `mo09_fork_random_identity`
+  plus an identity/freshness block in the harness fork-order fixture
+  runner, verified across mod-free vanilla 26.3 and all nine Fabric
+  runtime modes (ten arms) with the fork fixture result compared exactly
+  against the vanilla arm. The oracle was pinned by measuring the pinned
+  vanilla server first, and the measurement corrected the §11.2
+  assumption that identity was unobservable: a two-branch
+  `#fork_order_acc >< @s` swap chain with distinct actor values leaves a
+  per-actor scoreboard fingerprint that decodes the selection order.
+  Measured semantics: `sort=arbitrary` resolves candidates in entity
+  insertion (summon) order - not position order, per a reverse-summon
+  control - and is stable across repeated invocations, `/reload`, a
+  server restart on the same world, and fresh worlds with different
+  seeds, so it is asserted exactly (order (a, b) across trials, direct
+  and function paths); `sort=random` is non-deterministic by design
+  (24 trials covered all three candidate pairs 8/8/8, every trial
+  exactly two distinct actors), so the row's claim for it is narrowed to
+  per-trial set semantics plus a distinct-pair floor across trials
+  proving the compiled fork delegates selection to vanilla's randomness.
+  The fork cap includes the parent context: for a limit=2 selector cap 1
+  reports the maximum-context error, cap 2 truncates silently, caps 3+
+  fork both branches - the boundary QUOTA-009 recorded for the ordered
+  sorts. Candidate-list freshness is asserted: killing a selected actor
+  changes the next invocation's selection on both paths, and the
+  canonical re-summon restores the pinned order. Cap fallback for the
+  unordered sorts was already under QUOTA-009, which the row now cites
+  alongside the new case. Matrix case MO-09; row closed: MO-09. The table
+  is now **92 rows: 90 covered (R), 0 partial (P), 2 missing (—)**; the
+  remaining rows are MO-10 and BC-06. No default-on status changed and no
+  performance claim is made - this batch is correctness and coverage
+  only.
+
 - Close the `ST-06` coverage row - the `item modify` half of the gameplay
   item command family - with a differential fixture verified across
   mod-free vanilla 26.3 and all nine Fabric runtime modes (ten arms) with
