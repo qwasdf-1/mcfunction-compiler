@@ -109,7 +109,7 @@ form, not one row per parser:
 | ST-03 | `effect give/clear <target> <effect> ...` | amplifier/duration edges | STATE-002 | R |
 | ST-04 | `setblock <pos> <block>[state] [mode]` | out-of-world | STATE-003 | R |
 | ST-05 | `playsound <sound> ...`, `particle ...`, `stopsound` | volume/pitch edges | STATE-001 | R |
-| ST-06 | gameplay item commands (`item replace/modify`) | slot edges for `item replace`; `item modify` untested - no confirmed 26.3 item-modifier id | STATE-004 | P |
+| ST-06 | gameplay item commands (`item replace/modify`) | slot edges for `item replace`; `item modify` with a confirmed datapack-defined modifier id (vanilla ships none) | STATE-004 + ST-06 | R |
 | ST-07 | generic state-machine wrapper for the command set above | unrecognized command → vanilla | STATE-001 | R |
 
 ## 7. Leaf-call and tail-call families
@@ -172,7 +172,7 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 
 ## 11. Current state of the table
 
-**92 rows: 88 covered (R), 1 partial (P), 3 missing (—).**
+**92 rows: 89 covered (R), 0 partial (P), 3 missing (—).**
 
 Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **P** requires a cited case recorded *Partial*, which proves some of the row and names the rest; **—** means no case exists for that shape.
 
@@ -219,7 +219,7 @@ mechanism their oracle needs:
 | Row(s) | Oracle mechanism | Status |
 |---|---|---|
 | SM-03, SM-11, SM-12, SC-03, SS-03, SS-04, SC-05, CT-01, CT-02, CT-03, TC-01, TC-02 | Scoreboard oracle, new fixtures only | Available (closed by batches 2-4 for the rows shown cited) |
-| ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Closed by batch 6; ST-03 and ST-04 are R, ST-06 is P on `item modify` |
+| ST-03, ST-04, ST-06 | World/entity query oracle (`if block`, entity NBT), folded into the scoreboard | Closed by batch 6 (ST-03, ST-04, and ST-06's `item replace` half) and batch 10 (ST-06's `item modify` half, through a datapack-defined modifier id); all R |
 | ST-02 (`bossbar`) | Folded into the scoreboard: `bossbar get value|max|players` return their values as command results, so `execute store result score` observes them; bare `bossbar get <id>` is not a valid 26.3 form | Available (closed by batch 9 without a new oracle type) |
 | **ST-01 (`title`), ST-05 (`playsound`/`particle`/`stopsound`), ST-07** | **None — client packets only, RCON cannot observe them** | **Closable only by delegation contract**, accepted as the v1 claim for these rows (matrix case STATE-001; see §11.3 batch 5). Differential closure would require a packet-capturing bot, which is a separate decision |
 | MO-09, MO-10 | Fork selector identity for random/arbitrary ordering; harness records effects, not identities | Partially available |
@@ -620,6 +620,71 @@ shapes, so bare `title`, `effect`, `setblock` and `bossbar` lines run on the
 vanilla path. The wrap is semantics-preserving by construction, so parity
 holds either way; the fixtures prove the chained shapes specialize, and the
 row's closure text states the bare-line scope.
+
+**Batch 10 - the `item modify` half of the item row, closed with a confirmed
+datapack-defined modifier id (matrix case ST-06).** Fixture
+`st06_item_modify` plus the modifier
+`data/function_compiler_probe/item_modifier/st06_set_count.json`
+(`function_compiler_probe:st06_set_count`, `set_count 5`), run in all ten
+arms with exact score-sequence parity. Closed **ST-06** together with
+STATE-004, which had verified the `item replace` slot edges in batch 6 and
+left `item modify` blocked on a confirmed id. The table is now 92 rows:
+89 covered, 0 partial, 3 missing.
+
+**The measurement that unblocked the row.** STATE-004 had recorded that
+`minecraft:set_lore` and a datapack-defined id were both "rejected". The
+pinned-server probe resolved why, in three steps. First, the 26.3
+`minecraft:item_modifier` registry ships **no built-in modifiers at all** -
+`minecraft:set_lore` fails with "Can't find element 'minecraft:set_lore' in
+registry 'minecraft:item_modifier'", so no vanilla id ever existed to
+confirm. Second, every id is datapack-defined at
+`data/<namespace>/item_modifier/<name>.json` as a **single JSON object keyed
+by `type`**: the array form fails with "Not a JSON object" and the legacy
+pre-1.20.5 `function` key fails with "No key type" - and both are
+**boot-fatal** ("Failed to load datapacks, can't proceed with server load"),
+which is what had earlier killed the probe server outright rather than
+merely rejecting the id. Third, with a well-formed file the command works:
+`item modify` returns result 1 on success, is idempotent in its result, and
+a store around it writes that result.
+
+**Failure semantics, measured.** A modify on a slot the target does not
+have (an armor stand's `weapon.offhand`) is a runtime failure that reports
+(success=false, result=0) to the store callback and does not abort the
+remaining function lines - the same measured semantics batch 8 recorded for
+data commands and batch 9 for bossbar commands. An id the registry lacks is
+different: it is validated at **command-parse time**, so a function line
+referencing one fails the *function load* with "Can't find element ... in
+registry 'minecraft:item_modifier'" - the unknown-id edge cannot be a
+fixture line, and it is recorded in the fixture header instead. Two more
+read-from-the-server facts went into the probe record: a malformed item
+modifier file is boot-fatal for the whole datapack, and 26.3 mob equipment
+NBT lives at `equipment.mainhand` (no `HandItems`), materialising only once
+an item is placed.
+
+**The fixture and its oracle.** Three cases inside one 0-16 sweep: the
+stored modify result 1 (quota 6), the modifier's observable effect
+`minecraft:diamond[count=5]` read back with `execute if items` (quota 8),
+and the same on a fresh emerald in hotbar.8 (quota 12, the completion
+signal). Every case targets the probe player, whose inventory replaces
+deterministically at the head of each iteration, and the measured quota map
+re-confirmed batch 8's debit model on another new family: bare item
+commands 1, the store chain 2, taken conditions 2. The
+`custom_name` component applied by a `set_name` modifier is observable in
+entity NBT but did not match an `execute if items` component predicate in
+either the canonical string or the SNBT object form, so the fixture reads
+the effect back through `count` instead - a probe finding recorded here
+rather than a fixture claim.
+
+**Specialization scope.** The new dedicated per-function item-command
+compile counter (`item_command_compiled_st06_item_modify`) reads exactly
+the store-chain count - one chained line, reading 2, the same per-line
+doubling per generation the DataStore and bossbar counters show - in the
+six compiling arms, and exactly 0 in wrapper-off/on and
+selective-macro-arguments. Bare `item` lines are not in the EXECUTE-stage
+parser list and stay on the vanilla path, like the other state-machine
+families outside tag/teleport/kill; the fixture's `execute if items`
+conditions go through `ItemPredicateParser` and do not increment the
+item-command counter. The row's closure text states the bare-line scope.
 
 ## 12. Reproducing this table from the code
 

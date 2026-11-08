@@ -142,17 +142,17 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `method originalFallbackRetained()`:145
 - [`src/main/java/dev/functioncompiler/ProbeMetrics.java`](../../src/main/java/dev/functioncompiler/ProbeMetrics.java):
   - `class ProbeMetrics`:9
-  - `method wrapperCreated()`:76
-  - `method wrapperInstantiated()`:80
-  - `method wrappersCreated()`:84
-  - `method wrapperInstantiations()`:88
-  - `method probeFunctionParsed()`:92
-  - `method probeFunctionParseCount()`:96
-  - `method scoreAddCompiled()`:100
-  - `method functionLoaded()`:112
-  - `method functionCovered()`:119
-  - `method resetCoverageCounters()`:125
-  - `method scoreAddsCompiled()`:146
+  - `method wrapperCreated()`:81
+  - `method wrapperInstantiated()`:85
+  - `method wrappersCreated()`:89
+  - `method wrapperInstantiations()`:93
+  - `method probeFunctionParsed()`:97
+  - `method probeFunctionParseCount()`:101
+  - `method scoreAddCompiled()`:105
+  - `method functionLoaded()`:117
+  - `method functionCovered()`:124
+  - `method resetCoverageCounters()`:130
+  - `method scoreAddsCompiled()`:151
 - [`src/main/java/dev/functioncompiler/ProbeRuntimeTrace.java`](../../src/main/java/dev/functioncompiler/ProbeRuntimeTrace.java):
   - `class ProbeRuntimeTrace`:3
   - `method enabled()`:9
@@ -430,14 +430,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def run_in_server_session()`:146
   - `def _get_selective_macro_count()`:188
 - [`scripts/run_runtime_probe.py`](../../scripts/run_runtime_probe.py):
-  - `def configure_probe_ports()`:127
-  - `class RconClient`:451
-  - `def __init__()`:452
-  - `def close()`:460
-  - `def command()`:463
-  - `def _request()`:471
-  - `def _read_exact()`:484
-  - `def prepare_server_files()`:494
+  - `def configure_probe_ports()`:129
+  - `class RconClient`:465
+  - `def __init__()`:466
+  - `def close()`:474
+  - `def command()`:477
+  - `def _request()`:485
+  - `def _read_exact()`:498
+  - `def prepare_server_files()`:508
 - [`scripts/run_score_add_ab.py`](../../scripts/run_score_add_ab.py):
   - `class PortBindError`:79
   - `def sha256()`:83

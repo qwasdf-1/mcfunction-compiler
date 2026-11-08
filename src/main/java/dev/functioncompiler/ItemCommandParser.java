@@ -25,6 +25,7 @@ final class ItemCommandParser {
                     new StateMachineCommand(command, functionId),
                     functionId
             );
+            ProbeMetrics.itemCommandCompiled(functionId);
             return true;
         }
         return false;

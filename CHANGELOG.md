@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+- Close the `ST-06` coverage row - the `item modify` half of the gameplay
+  item command family - with a differential fixture verified across
+  mod-free vanilla 26.3 and all nine Fabric runtime modes (ten arms) with
+  exact per-quota score parity, closing the row together with STATE-004's
+  batch-6 `item replace` slot-edge half. The blocker had been a confirmed
+  modifier id; measurement resolved it in three steps: the 26.3
+  `minecraft:item_modifier` registry ships no built-in modifiers at all
+  (`minecraft:set_lore` fails with "Can't find element ... in registry
+  'minecraft:item_modifier'"); every id is datapack-defined at
+  `data/<namespace>/item_modifier/<name>.json` as a single JSON object
+  keyed by `type`, with the array form and the legacy `function` key both
+  rejected by boot-fatal parse errors (what had earlier killed the probe
+  server rather than merely rejecting the id); and with a well-formed file
+  `item modify` returns result 1 on success, is idempotent in its result,
+  and a store around it writes that result. Measured and recorded: a
+  failing modify (a slot the target does not have) reports
+  (success=false, result=0) to the store callback and does not abort the
+  remaining function lines; an id the registry lacks is validated at
+  command-parse time, so a function line referencing one fails the
+  function load - the unknown-id edge is recorded in the fixture header
+  rather than fixture-able; a malformed modifier file is boot-fatal for
+  the whole datapack; and 26.3 mob equipment NBT lives at
+  `equipment.mainhand` (no `HandItems`), materialising only once an item
+  is placed. Specialization is proven by a new dedicated per-function
+  item-command compile counter reading exactly the store-chain count (2)
+  in the six compiling arms and exactly 0 in wrapper-off/on and
+  selective-macro-arguments; bare item lines stay on the vanilla path and
+  the fixture's `execute if items` conditions go through
+  ItemPredicateParser. Matrix case ST-06; row closed: ST-06. The table is
+  now **92 rows: 89 covered (R), 0 partial (P), 3 missing (—)**; the
+  remaining rows are MO-09, MO-10 and BC-06. No default-on status changed
+  and no performance claim is made - this batch is correctness and
+  coverage only.
+
 - Close the `ST-02` coverage row - the bossbar command family
   (`bossbar add/set/remove` and `get value|max|players` through the
   `StateMachineCommand` wrap) - with two differential fixtures verified

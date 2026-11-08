@@ -54,6 +54,17 @@ final class ProbeStatus {
             "function_compiler_probe", "st02_bossbar_ops");
     private static final Identifier ST02_VALUES = Identifier.fromNamespaceAndPath(
             "function_compiler_probe", "st02_bossbar_values");
+    // The ST-06 modify-half fixture. Its dedicated item-command compile
+    // counter is the falsifiable form of "the item modify line specialized":
+    // each compiled wrap event increments once (twice per store-chained line
+    // per generation, the same doubling the DataStore and bossbar counters
+    // show), so a parser that declined the item family leaves the count at
+    // zero. The fixture has one store-chained item modify line; bare item
+    // lines are not in the EXECUTE-stage parser list and stay vanilla. The
+    // `execute if items` conditions go through ItemPredicateParser, not this
+    // counter. Reloads may recompile, so the assertion is a lower bound.
+    private static final Identifier ST06_ITEM_MODIFY = Identifier.fromNamespaceAndPath(
+            "function_compiler_probe", "st06_item_modify");
 
     private ProbeStatus() {
     }
@@ -138,6 +149,7 @@ final class ProbeStatus {
                 + " data_store_compiled_mo02_failures=" + ProbeMetrics.dataStoresCompiled(MO02_FAILURES)
                 + " bossbar_compiled_st02_bossbar_ops=" + ProbeMetrics.bossbarsCompiled(ST02_OPS)
                 + " bossbar_compiled_st02_bossbar_values=" + ProbeMetrics.bossbarsCompiled(ST02_VALUES)
+                + " item_command_compiled_st06_item_modify=" + ProbeMetrics.itemCommandsCompiled(ST06_ITEM_MODIFY)
                 + " score_add_executed=" + ProbeMetrics.scoreAddsExecuted()
                 + " score_add_executed_lifecycle_macro_add=" + ProbeMetrics.scoreAddsExecuted(LIFECYCLE_MACRO)
                 + " score_add_executed_lifecycle_macro_pair=" + ProbeMetrics.scoreAddsExecuted(LIFECYCLE_MACRO_PAIR)

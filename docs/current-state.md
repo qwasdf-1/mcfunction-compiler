@@ -800,6 +800,22 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   in the EXECUTE-stage parser list and stay on the vanilla path, like the
   other state-machine families outside tag/teleport/kill. See the batch-9
   record in the [coverage table](reference/features/command-coverage.md).
+- Batch 10 closed the ST-06 `item modify` half with a differential fixture
+  (`st06_item_modify`) plus a datapack-defined modifier
+  (`st06_set_count`, `set_count 5`) matching vanilla in all ten arms with
+  exact per-quota score parity, and the dedicated per-function item-command
+  compile counter reading exactly the store-chain count (2) in the six
+  compiling arms and exactly 0 in wrapper-off/on and
+  selective-macro-arguments. Measured on the pinned vanilla server: the
+  26.3 `minecraft:item_modifier` registry ships no built-in modifiers;
+  ids are datapack-defined at `data/<ns>/item_modifier/<name>.json` as a
+  single object keyed by `type` (array and legacy `function` forms are
+  boot-fatal); `item modify` returns result 1 and is idempotent; a failing
+  modify writes 0 to a store and does not abort; and an unknown id fails
+  at command-parse time, failing the function load. Row closed with
+  STATE-004: the table is now 92 rows, 89 covered, 0 partial, 3 missing.
+  See the batch-10 record in the
+  [coverage table](reference/features/command-coverage.md).
 
 ## Limits of this evidence
 

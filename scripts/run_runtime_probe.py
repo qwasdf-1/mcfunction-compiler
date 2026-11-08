@@ -66,6 +66,7 @@ DIRECT_FIXTURES = (
     "mo02_store_failures",
     "st02_bossbar_ops",
     "st02_bossbar_values",
+    "st06_item_modify",
     "score_holder_and_overflow",
     "score_condition_absent",
     "score_store_targets",
@@ -97,6 +98,7 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
         "mo02_store_failures",
         "st02_bossbar_ops",
         "st02_bossbar_values",
+        "st06_item_modify",
         "score_holder_and_overflow",
         "score_condition_absent",
         "score_store_targets",
@@ -353,6 +355,18 @@ EXPECTED_SCORES = {
         **{quota: 1 for quota in range(8, 12)},
         **{quota: 3 for quota in range(12, 16)},
         16: 7,
+    },
+    # Observed on the mod-free vanilla arm. ST-06 second half: item modify
+    # with a confirmed datapack-defined modifier id. The mainhand reset plus
+    # the store around the modify (measured result 1) land case 1 at quota 6;
+    # the diamond[count=5] effect read-back lands case 2 at quota 8; the
+    # hotbar.8 emerald reset, the bare modify and its effect read-back land
+    # case 3 at quota 12, so all three cases execute inside the sweep.
+    "st06_item_modify": {
+        **{quota: 0 for quota in range(0, 6)},
+        **{quota: 1 for quota in range(6, 8)},
+        **{quota: 3 for quota in range(8, 12)},
+        **{quota: 7 for quota in range(12, 17)},
     },
     "quota_one": {0: 0, 1: 0, **{quota: 1 for quota in range(2, 8)}},
     "quota_three": {0: 0, 1: 0, 2: 1, 3: 2, **{quota: 3 for quota in range(4, 8)}},
@@ -5883,6 +5897,45 @@ def run_mode(
             ),
             "compiled_by_fixture": st02_compiled,
         }
+        # ST-06's modify-half fixture has one store-chained item modify line,
+        # and the dedicated counter increments once per compiled wrap event -
+        # twice per chained line per generation, the same per-line doubling
+        # the DataStore and bossbar counters show. Bare item lines are not in
+        # the EXECUTE-stage parser list, so they stay on the vanilla path;
+        # the fixture's `execute if items` conditions go through
+        # ItemPredicateParser and do not increment this counter. Score parity
+        # alone cannot prove item-command specialization: the fallback runs
+        # the same vanilla commands. The same disjunction as the DataStore
+        # assertion applies, reloads recompile, so compiling arms get a
+        # lower bound and every other arm zero.
+        st06_expected_compiled = expected_prototype or expected_timing
+        st06_minimums = {"st06_item_modify": 1}
+        st06_compiled: dict[str, int] = {}
+        for fixture, key in (
+            ("st06_item_modify", "item_command_compiled_st06_item_modify"),
+        ):
+            match = re.search(rf"(?:^|\s){re.escape(key)}=(\d+)", post_execution_status)
+            if match is None:
+                raise RuntimeError(f"{mode} status omitted {key}")
+            st06_compiled[fixture] = int(match.group(1))
+        for fixture, compiled in st06_compiled.items():
+            if st06_expected_compiled and compiled < st06_minimums[fixture]:
+                raise RuntimeError(
+                    f"{mode} {fixture} compiled {compiled} item command lines; "
+                    f"expected at least {st06_minimums[fixture]}"
+                )
+            if not st06_expected_compiled and compiled != 0:
+                raise RuntimeError(
+                    f"{mode} {fixture} compiled {compiled} item command lines in a "
+                    f"non-specializing arm"
+                )
+        item_command_metrics = {
+            "expected_minimum_per_fixture": (
+                st06_minimums if st06_expected_compiled
+                else {fixture: 0 for fixture in st06_minimums}
+            ),
+            "compiled_by_fixture": st06_compiled,
+        }
         fused_compiled_match = re.search(r"fused_regions_compiled=(\d+)", post_execution_status)
         fused_executed_match = re.search(r"fused_regions_executed=(\d+)", post_execution_status)
         if fused_compiled_match is None or fused_executed_match is None:
@@ -6202,6 +6255,7 @@ def run_mode(
             "score_add_prototype_metrics": score_add_metrics,
             "data_store_prototype_metrics": data_store_metrics,
             "bossbar_prototype_metrics": bossbar_metrics,
+            "item_command_prototype_metrics": item_command_metrics,
             "fused_region_metrics": fused_region_metrics,
             "bytecode_region_metrics": bytecode_region_metrics,
             "score_add_timing_metrics": score_add_timing,

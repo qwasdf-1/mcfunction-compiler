@@ -13,10 +13,10 @@
 # predicates used to read the slots back are the same shape the predicate batch
 # validated, so a slot that resolved wrongly would show up as a flipped digit.
 #
-# Not covered here, and recorded as such: `item modify` needs an item-modifier
-# id from the 26.3 `minecraft:item_modifier` registry, and the vanilla types
-# this project could confirm are not those. Closing that half of the row needs a
-# confirmed modifier id, not a guess.
+# Not covered here, and recorded as such at the time: `item modify` needed an
+# item-modifier id from the 26.3 `minecraft:item_modifier` registry. The modify
+# half since closed with a confirmed datapack-defined id - see
+# st06_item_modify, which also records the measured registry semantics.
 item replace entity FCProbe hotbar.5 with air
 item replace entity FCProbe hotbar.0 with minecraft:diamond
 execute if items entity FCProbe hotbar.0 minecraft:diamond run scoreboard players add #fcprobe fc_probe 64

@@ -37,6 +37,11 @@ public final class ProbeMetrics {
     // vanilla fallback cannot produce.
     private static final ConcurrentMap<Identifier, AtomicLong> BOSSBARS_COMPILED_BY_FUNCTION =
             new ConcurrentHashMap<>();
+    // Item commands (item replace/modify) wrapped into StateMachineCommand
+    // per function, so the ST-06 fixture can prove its item-command
+    // specialization with a counter a vanilla fallback cannot produce.
+    private static final ConcurrentMap<Identifier, AtomicLong> ITEM_COMMANDS_COMPILED_BY_FUNCTION =
+            new ConcurrentHashMap<>();
     // Per-namespace datapack coverage counters. A datapack normally owns one
     // namespace, so the namespace is the practical grouping for the load
     // report; see FunctionCoverageReport.
@@ -171,6 +176,17 @@ public final class ProbeMetrics {
 
     public static long bossbarsCompiled(Identifier functionId) {
         AtomicLong count = BOSSBARS_COMPILED_BY_FUNCTION.get(functionId);
+        return count == null ? 0 : count.get();
+    }
+
+    public static void itemCommandCompiled(Identifier functionId) {
+        ITEM_COMMANDS_COMPILED_BY_FUNCTION
+                .computeIfAbsent(functionId, ignored -> new AtomicLong())
+                .incrementAndGet();
+    }
+
+    public static long itemCommandsCompiled(Identifier functionId) {
+        AtomicLong count = ITEM_COMMANDS_COMPILED_BY_FUNCTION.get(functionId);
         return count == null ? 0 : count.get();
     }
 
