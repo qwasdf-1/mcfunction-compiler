@@ -1,7 +1,6 @@
 # Compiler coverage-widening proposal (v0.1)
 
-**Status: proposal for decision; census and attribution complete (batches
-22–23). Nothing in this document ships, and the [v1
+**Status: proposal for decision; decided (batches 22–27). Nothing in this document ships, and the [v1
 roadmap](v1-production-roadmap.md) remains the plan of record. This is the
 scoping work the roadmap's step 4 and the batch-19 performance record called
 for: with every parity case closed and all four mechanisms' gates decided, the
@@ -13,11 +12,12 @@ fire on real packs, the open constraint is tick-time share, and the attribution
 selects H4. H1's runtime fork pool is ~0 on all three profiled packs, while
 Vein Miner's macro-argument construction is 27.4% of sampled wall time / 29.4%
 of active tick time and the existing selective-macro mechanism already covers
-11,701/11,701 calls with zero fallbacks. The remaining question is a
-real-workload selective-macro campaign, not new code; the gate is predeclared
-(event completion at 15%, five screening then ten confirmatory pairs, seed
-26871031), the screening passed at a −30.03% median with its entire exact
-interval beyond the gate, and the predeclared ten-pair confirmatory is next.**
+11,701/11,701 calls with zero fallbacks. The campaign is decided: the
+predeclared confirmatory cleared the real-workload gate (−29.58% median event
+completion, exact 97.85% interval −30.30% to −26.37%, entirely beyond 15%,
+`no_regression_holds`), so coverage widening closes with no new code — H1 is
+dead and the one >15% pool is already covered by a promoted, default-on
+mechanism.**
 
 ## 1. The question
 
@@ -246,20 +246,20 @@ score commands.
    Miner, Spawn Animations, and Dynamic Lights show H1's runtime fork pool at
    0.0–0.2%, while Vein Miner's macro-argument construction is 27.4% wall /
    29.4% active — the only >15% pool. See §3.2.
-3. **H4 campaign (screening passed; confirmatory next).** Run compiler-off vs
-   the shipped selective-macro default on Vein Miner side 6. The gate is event
+3. **H4 campaign (done, batch 27 — gate cleared).** Compiler-off vs the
+   shipped selective-macro default on Vein Miner side 6. The gate was event
    completion (`operation_completion_seconds`) at a 15% minimum median
    reduction with the 95% exact paired interval entirely beyond it; the
-   post-event `tick_average_ms` is reported alongside as corroboration, not as
-   the decision. Design: five screening pairs, then a predeclared ten-pair
+   post-event `tick_average_ms` was reported alongside as corroboration, not
+   as the decision. Design: five screening pairs, then a predeclared ten-pair
    confirmatory campaign, seed 26871031, counterbalanced arms, exact workload
-   parity in every pair. The campaign start enforces the declared
-   quiet-window host gate with per-arm settles and a repeat-once noise rule.
-   A one-time metrics-on activation diagnostic proves the
-   fast path fires; the timing arms are uninstrumented. A negative result is
-   recorded as data and stops coverage widening. The existing mechanism covers
-   11,701/11,701 calls with zero fallbacks, so this is a campaign, not a code
-   extension.
+   parity in every pair, the declared quiet-window host gate with per-arm
+   settles and a repeat-once noise rule, and a one-time metrics-on activation
+   diagnostic. Result: screening median −30.03% (−32.64% to −21.27%);
+   confirmatory **`meets_threshold`, `no_regression_holds`** with median
+   −29.58% and exact 97.85% interval −30.30% to −26.37%, every pair beyond
+   the gate, ~11.7k macro calls intercepted per event with zero fallbacks. No
+   code extension was needed.
 4. **H1 is not pursued.** Runtime forked samples are ~0 on all three profiled
    packs, and the hot Vein Miner path is non-forked. Reopen only if a new
    workload shows a >15% runtime forked-leaf share; then the ten-arm matrix is
@@ -279,5 +279,11 @@ remain the committed work, and any hypothesis here still needs its sizing
 validated against the code, its fixtures written, and its campaign predeclared
 before an implementation change begins. The roadmap's §6.3 step 4 ("find a
 workload whose hot path is dominated by successful specialized runs, or
-document the mechanism as measured-but-unpromoted") stays open until the H4
-real-workload campaign produces a decision.
+document the mechanism as measured-but-unpromoted") is now answered for
+selective macro arguments (batch 27): Vein Miner 5.3.0 side 6 is that
+workload — its tick path is dominated by successful selective-macro runs
+(~11.7k intercepted calls per event, zero fallbacks), and the predeclared
+confirmatory cleared the 15% real-workload gate. No new mechanism is
+warranted by the measured packs, so coverage widening closes here; reopen it
+only with a new workload whose attribution shows a >15% pool that the shipped
+mechanisms do not cover.

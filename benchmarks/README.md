@@ -450,6 +450,35 @@ The entire interval lies beyond the predeclared 15% gate, so the predeclared
 ten-pair confirmatory (same seed, same stack, `--minimum-gain-percent 15`) is
 next; the promotion decision follows that campaign.
 
+The confirmatory ran the same day under the quiet-window gate (observed
+1-minute load 2.577). The activation diagnostic intercepted 11,715 attempted
+and 11,715 used macro calls with zero fallback counters and 215/215 work, and
+all ten counterbalanced pairs held exact workload parity (215/215 blocks,
+1,952 queue-head increments in every arm) with no noisy arms and no repeats.
+The primary decision is **`meets_threshold` with `no_regression_holds`**:
+median event completion change −29.58%, exact 97.85% interval −30.30% to
+−26.37% (per-pair −54.84% to −24.18%; pair 3's off arm hit a 33.2 s
+background spike, which widens that pair's gain but cannot move the exact
+interval across the gate), every pair beyond the predeclared 15%. The
+secondary post-event `tick_average_ms` is corroboration only and its window
+is unstable on this fixture (per-arm averages 4.3–322.8 ms; median change
+−38.81%, interval −82.00% to +467.43%, `no_regression_decision:
+indeterminate`), matching the standing caveat that the post-event tick query
+is not a sustained active-workload MSPT result; the sustained active-tick
+floor remains PERF-012's cleared −81.72% campaign. The report is
+`build/benchmarks/PERF-011-veinminer/campaigns/vein-6-fabric-selective-macro-10pairs-seed26871031-20261109T204433Z.json`.
+
+**H4 decision: the shipped `selective_macros` default clears the real-workload
+promotion gate.** Vein Miner 5.3.0 side 6 on the plain Fabric stack is the
+workload whose hot path is dominated by successful specialized runs: the
+macro-argument pool measured 27.4% of sampled wall time, the fast path
+intercepts ~11.7k calls per event with zero fallbacks, and the predeclared
+confirmatory cleared 15% with the entire exact interval beyond it. No code
+extension was needed. Coverage widening closes on this evidence: H1 is dead
+(runtime forked samples ~0.0–0.2%), no other profiled pack has a >15% pool
+(Spawn Animations 10.4% and Dynamic Lights 1.6% active addressable), and the
+one >15% pool is already covered by a promoted, default-on mechanism.
+
 ## PERF-012: sustained selective-macro active-tick fixture
 
 The current controlled fixture in

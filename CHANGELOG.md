@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- Run the predeclared H4 confirmatory and clear the real-workload promotion
+  gate (batch 27). Ten counterbalanced compiler-off vs selective-macro pairs
+  on Vein Miner 5.3.0 side 6 (plain Fabric stack, native event, no Spark,
+  seed 26871031, predeclared 15% minimum gain) under the quiet-window gate
+  (observed 1-minute load 2.577): the activation diagnostic intercepted
+  11,715 attempted and 11,715 used macro calls with zero fallback counters,
+  every pair held exact workload parity (215/215 blocks, 1,952 queue-head
+  increments), and no arm started noisy. Primary decision
+  **`meets_threshold` with `no_regression_holds`**: median event completion
+  change −29.58%, exact 97.85% interval −30.30% to −26.37%, every pair
+  beyond the gate. The secondary post-event `tick_average_ms` is
+  corroboration only and its window is unstable on this fixture (median
+  −38.81%, interval −82.00% to +467.43%, `indeterminate`); the sustained
+  active-tick floor remains PERF-012's cleared −81.72% campaign. H4 is
+  decided: the shipped `selective_macros` default clears the real-workload
+  gate with no code extension, Vein Miner side 6 is the workload whose hot
+  path is dominated by successful specialized runs, and coverage widening
+  closes — H1 is dead and no other profiled pack has a >15% pool. No default
+  changed (`selective_macros` was already default-on); no matrix row changed.
+
 - Run the predeclared H4 screening (batch 26): five counterbalanced
   compiler-off vs selective-macro pairs on Vein Miner 5.3.0 side 6 (plain
   Fabric stack, native event, no Spark, seed 26871031) under the wired

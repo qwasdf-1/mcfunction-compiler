@@ -60,7 +60,11 @@ macro argument construction is 27.4% of sampled server-thread wall time and
 29.4% of active tick time, and a selective-macro diagnostic used the fast path
 on 11,701/11,701 attempted calls with zero unsupported providers, entity paths,
 storage sources, missing custom data, resolution fallbacks, or missing keys
-(215/215 blocks). This establishes coverage and pool size, not a timing
-comparison; the real-workload promotion campaign is pending a predeclared
-threshold, pair count, and seed. See the
+(215/215 blocks). The predeclared real-workload campaign then ran on the plain
+Fabric stack (native event, no Spark, seed 26871031, exact workload parity in
+every pair, quiet-window host gate): the five-pair screening measured a
+−30.03% median event-completion change (−32.64% to −21.27%), and the
+predeclared ten-pair confirmatory cleared the 15% gate — median −29.58%,
+exact 97.85% interval −30.30% to −26.37%, `meets_threshold` with
+`no_regression_holds` (2026-11-09). See the
 [attribution record](../../../benchmarks/README.md#time-share-attribution-and-the-h4-decision-2026-11-09).

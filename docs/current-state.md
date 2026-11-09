@@ -1052,6 +1052,31 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   See the
   [benchmarks record](../benchmarks/README.md#time-share-attribution-and-the-h4-decision-2026-11-09).
 
+- Batch 27 ran the predeclared H4 confirmatory and cleared the real-workload
+  promotion gate. Ten counterbalanced compiler-off vs selective-macro pairs on
+  Vein Miner 5.3.0 side 6 (plain Fabric stack, native event, no Spark, seed
+  26871031, predeclared 15% minimum gain) under the quiet-window gate
+  (observed 1-minute load 2.577): the activation diagnostic intercepted
+  11,715 attempted and 11,715 used macro calls with zero fallback counters
+  (215/215 work), every pair held exact workload parity, and no arm started
+  noisy. Primary decision `meets_threshold` with `no_regression_holds`:
+  median event completion change −29.58%, exact 97.85% interval −30.30% to
+  −26.37% (per-pair −54.84% to −24.18%; pair 3's off arm hit a 33.2 s
+  background spike, which cannot move the exact interval across the gate),
+  every pair beyond the gate. The secondary post-event `tick_average_ms` is
+  corroboration only and its window is unstable on this fixture (median
+  −38.81%, interval −82.00% to +467.43%, `indeterminate`); the sustained
+  active-tick floor remains PERF-012's cleared −81.72% campaign. H4 is
+  decided affirmatively with no code extension: the shipped `selective_macros`
+  default clears the real-workload gate, Vein Miner side 6 is the roadmap
+  step-4 workload whose hot path is dominated by successful specialized runs,
+  and coverage widening closes (H1 dead; no other profiled pack has a >15%
+  pool). No default changed (`selective_macros` was already default-on); no
+  matrix row changed. See the
+  [benchmarks record](../benchmarks/README.md#time-share-attribution-and-the-h4-decision-2026-11-09)
+  and the
+  [proposal decision](v1/plans/compiler-coverage-widening-proposal-v0.1.md).
+
 - Batch 26 ran the predeclared H4 screening on Vein Miner 5.3.0 side 6 (plain
   Fabric stack, native event, no Spark, seed 26871031) under the wired
   quiet-window gate (observed 1-minute load 3.946). The activation diagnostic
