@@ -274,7 +274,22 @@ exact vanilla work parity. Pooled as exploratory observations, the six pairs
 have a −82.25% median active-tick-average change and a 96.875% exact median
 interval from −86.57% to −1.81%. That interval does not establish the selected
 15% minimum gain; the five-pair campaign also lacks its final pair and has no
-standalone campaign decision. See [PERF-011
+standalone campaign decision. A confirmatory campaign on that fixture,
+rerun on 2026-11-09 under a declared quiet-host precondition (the runner
+starts only once the 1-minute load average is at or below 4.0), removed the
+interruption: ten counterbalanced pairs on the lb113 stack, seed 26871031,
+predeclared 15% minimum gain, exact vanilla work parity in every pair, exact
+activation (54,528 selected argument calls), and no noisy arms. The primary
+active-tick-average median paired change is −81.72% with a 97.85% exact
+interval of −82.98% to −80.58% (per-pair range −83.45% to −80.15%) — decision
+`meets_threshold`, no-regression decision `no_regression_holds`; the
+active-tick P95 agrees (−81.15% median, interval −83.63% to −77.89%).
+Selective macro arguments therefore has a cleared promotion-gate campaign on
+a sustained Vein Miner-shaped workload as well as on the event-completion
+campaigns, and because `selective_macros` is the one default-on optimization
+the shipped default's no-regression floor now also holds there. Scope: one
+synthetic-but-Vein-Miner-shaped workload on the lb113 stack; the other
+stacks' event-completion campaigns stand as recorded. See [PERF-011
 evidence](research/real-world-profile-targets.md#selective-macro-prototype-and-randomized-perf-011-comparison)
 and [PERF-012 evidence](../benchmarks/README.md#perf-012-sustained-selective-macro-active-tick-fixture).
 
@@ -288,7 +303,21 @@ Fabric campaign passed exact workload parity and exact region activation, but
 its −19.72% median workload-attributable tick-average change has a 97.85%
 interval of −30.30% to −12.90% that overlaps the preselected 15% minimum, so
 it is inconclusive rather than qualifying. It is one synthetic workload on one
-stack. The real-workload measurement now exists: `PERF-017` ran ten
+stack. A second confirmatory campaign rerun under a declared quiet-host
+precondition (the runner starts only once the 1-minute load average is at or
+below 4.0) on 2026-11-09 reproduced the shape: ten counterbalanced pairs with
+no noisy arms and no reruns, exact workload parity and exact activation (674
+regions executed over 674 active ticks, 142 compiled, ~3.37M specialized
+commands inside the regions), a —15.64% median with a 97.85% exact interval
+of —29.27% to —3.23%. The quiet-host evidence therefore supports fused's
+no-regression floor on this workload (both campaigns' intervals are entirely
+faster) while confirming that ten pairs cannot certify the preselected 15%
+minimum: the interval's optimistic bound (—3.23%) falls far short of it. The
+decision stays `inconclusive` and fused interpretation stays disabled; the
+recorded next action is a larger-pair campaign on an idle or dedicated host
+whose pair count would be declared from the screening spread (the screening
+intervals are wide because the per-pair spread is roughly ±10%), never from
+the outcome. The real-workload measurement now exists: `PERF-017` ran ten
 counterbalanced pairs on the pinned Vein Miner 6×6×6 native event with exact
 parity and confirmed region activation (303 region executions and 16,833
 specialized commands per event in the diagnostic), and the paired

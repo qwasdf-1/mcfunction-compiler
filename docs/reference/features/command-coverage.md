@@ -960,6 +960,22 @@ replace the round-trip metric with an execution-adjacent measurement; the
 verified 5.25-million-update workload stays fixed. PERF-001 therefore stays
 *Partial*; no throughput or baseline claim is made.
 
+**Attempts 4 and 5, recorded after the batch-16 write-up.** Attempt 4 ran
+the unchanged constants with a quiet-start driver (1-minute load <= 4.0):
+CV 0.070 with run medians 0.89-1.10 ms and the load climbing 3.5 -> 7.2
+*inside* the campaign. Attempt 5 declared an inter-run settle from that
+diagnosis - each run waits for the declared quiet window, and the observed
+load and wait are recorded per run - and all seven runs started at load
+3.55-3.99, yet the CV was still 0.063 with medians 0.84-1.03 ms. That
+settles the question the attempts were asked: the residual spread is
+**intrinsic fresh-JVM variance at sub-millisecond scale, not host
+contention** (the settle removed the ramp and the CV barely moved). On
+this shared host the pre-declared 5% gate is not reachable by waiting; the
+case records the attempts, keeps the JFR profile, and names the next
+action (an idle/dedicated host, or an execution-adjacent metric - the
+timer includes transport). Attempts 1-5 are all retained in
+`build/benchmarks/PERF-001/` with their per-run server logs.
+
 **Batch 17 - the item-modify slot edges, unblocked by batch 10's confirmed
 modifier id (STATE-004).** The case's recorded open half - `item modify` at
 the slot edges - was blocked at recording time on a confirmed id from the

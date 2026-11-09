@@ -1072,8 +1072,24 @@ an interrupted five-pair campaign pass exact vanilla work parity. Across
 those six exploratory pairs, the median active-tick-average change is
 −82.25%, with a 96.875% exact median interval from −86.57% to −1.81%. It does
 not establish the selected 15% minimum gain, and the interrupted campaign has
-no standalone performance decision. Historical PERF-011 event times had Spark
-sampling active; new primary campaigns use the no-Spark arm.
+no standalone performance decision. The confirmatory campaign that removed
+the interruption ran on 2026-11-09 under a declared quiet-host precondition:
+ten counterbalanced pairs on lb113 with seed 26871031 and the predeclared 15%
+minimum gain, exact vanilla work parity in every pair, exact activation
+(54,528 selected argument calls), and no noisy arms. The primary
+active-tick-average median paired change is −81.72% with a 97.85% exact
+interval of −82.98% to −80.58% (per-pair range −83.45% to −80.15%) — decision
+`meets_threshold`, no-regression decision `no_regression_holds`; the P95
+agrees (−81.15% median, interval −83.63% to −77.89%). Selective macro
+arguments therefore has a cleared promotion-gate campaign on the sustained
+workload in addition to the event-completion campaigns, and since
+`selective_macros` is the one default-on optimization the shipped default's
+no-regression floor now holds there as well. Scope: one
+synthetic-but-Vein-Miner-shaped workload on the lb113 stack (256 marker
+entities, changing macro arguments, a 216-entry coordinate frontier per
+entity); the other stacks' event-completion campaigns stand as recorded.
+Historical PERF-011 event times had Spark sampling active; new primary
+campaigns use the no-Spark arm.
 PERF-016 now supplies the adjacent-eligible fused-region workload. The checked-in
 `tests/fixtures/function_compiler_fused_sustained` fixture applies 5,000
 contiguous eligible adds per active tick, and
@@ -1088,7 +1104,16 @@ server's post-workload idle median, aggregated as the median of five sampled
 windows per arm) has a −19.72% median paired change with a 97.85% exact
 interval from −30.30% to −12.90%. That interval overlaps the pre-declared 15%
 minimum gain, so the campaign decision is inconclusive and `fused_regions`
-stays disabled by default. The 5-pair screening pilot (single-window design)
+stays disabled by default. A second confirmatory campaign, rerun on
+2026-11-09 under a declared quiet-host precondition (the runner starts only
+once the 1-minute load average is ≤ 4.0; no arm was noisy and no rerun was
+needed), reproduced the shape: exact workload parity in every arm, exact
+activation (674 regions executed over 674 active ticks, 142 compiled, ~3.37M
+specialized commands), a −15.64% median with a 97.85% exact interval of
+−29.27% to −3.23% — still `inconclusive` at the preselected 15% minimum,
+with the no-regression floor holding in both campaigns. The recorded next
+action is a larger-pair campaign on an idle or dedicated host whose pair
+count would be declared from the screening spread, never from the outcome. The 5-pair screening pilot (single-window design)
 had a −22.86% median and a −86.55% to 0.00% interval and is retained as
 screening only. Full evidence, gates, limitations, and next actions:
 [PERF-016 report](../benchmarks/PERF-016-sustained-fused-region-active-tick.md).

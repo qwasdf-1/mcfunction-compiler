@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+- Rerun the host-blocked campaigns under quiet-host conditions and record
+  the outcomes (batch 19). PERF-001's baseline campaign ran attempts 4 and 5:
+  attempt 4 (unchanged constants, quiet-start driver at 1-minute load <=
+  4.0) failed the pre-declared gate at CV 0.070 with run medians 0.89-1.10
+  ms - the JIT fix had removed the outliers; attempt 5 declared an inter-run
+  settle from the diagnosed self-induced load ramp, every run started at
+  load 3.55-3.99, and the CV was still 0.063 (medians 0.84-1.03 ms). That
+  is the definitive diagnosis: the residual spread is intrinsic fresh-JVM
+  variance at sub-millisecond scale, not host contention, so the gate is not
+  reachable by waiting on this shared host; PERF-001 stays partial with its
+  next action recorded (an idle/dedicated host or an execution-adjacent
+  metric). PERF-016's fused sustained campaign reran screening and
+  confirmatory under the quiet precondition: exact workload parity and
+  activation in every arm (674/674 regions, 142 compiled, ~3.37M
+  specialized commands), no noisy arms, and a -15.64% median with a 97.85%
+  exact interval of -29.27% to -3.23% - decision `inconclusive` at the
+  preselected 15% minimum, no-regression floor holding, fused_regions
+  stays disabled. The quiet-host evidence reproduces the no-regression floor
+  and a point estimate inside the first campaign's interval but confirms
+  ten pairs cannot certify the gate. PERF-012's selective-macro sustained
+  campaign reran under the same precondition and CLEARED its gate: the
+  confirmatory phase (lb113 stack, ten counterbalanced pairs, seed 26871031,
+  predeclared 15% minimum gain, no noisy arms, exact vanilla work parity and
+  exact activation in every pair) measured an active-tick-average median of
+  -81.72% with a 97.85% exact interval of -82.98% to -80.58% (per-pair range
+  -83.45% to -80.15%; P95 median -81.15%, interval -83.63% to -77.89%) -
+  decision `meets_threshold`, no-regression decision `no_regression_holds`;
+  the screening phase recorded -79.58% with interval -82.88% to -78.01%.
+  Selective macro arguments therefore has a cleared promotion-gate campaign
+  on the sustained Vein Miner-shaped workload in addition to the
+  event-completion campaigns that promoted `selective_macros=true`, so the
+  one default-on optimization's no-regression floor now holds on both
+  workload families. Scope recorded: one synthetic-but-Vein-Miner-shaped
+  workload on the lb113 stack.
+
 - Close the last coverage row, BC-06, with the pre-declared paired
   campaign, which measured the row's bytecode win claim as refuted (batch
   18). `scripts/run_bytecode_vs_fused_campaign.py` compares the canonical
@@ -68,6 +103,23 @@
   with an execution-adjacent measurement. PERF-001 stays partial and no
   throughput or baseline claim is made - the negative outcome is recorded
   data.
+
+- Extend the PERF-001 baseline campaign record with attempts 4 and 5, and
+  keep the pre-declared gate failure as the case's verdict. Attempt 4
+  (unchanged constants, quiet-start driver at 1-minute load <= 4.0) failed
+  the gate at CV 0.070 with run medians 0.89-1.10 ms - the earlier JIT fix
+  had already removed the 2.4-2.9 ms outliers. Attempt 5 declared an
+  inter-run settle from the diagnosed self-induced load ramp: every run
+  then started at load 3.55-3.99, and the CV was still 0.063 (medians
+  0.84-1.03 ms), which is the definitive diagnosis - the residual spread
+  is intrinsic fresh-JVM variance at sub-millisecond scale, not host
+  contention, so further attempts on this shared host cannot clear the
+  pre-declared 5% gate by waiting. All five attempts, their per-run
+  server logs and the JFR profiles are retained in
+  build/benchmarks/PERF-001/, and the campaign exits nonzero on its own
+  gate failure. PERF-001 stays partial; its next action is an idle or
+  dedicated host, or an execution-adjacent metric. No throughput or
+  baseline claim is made.
 
 - Close the last two P0 selector-shape partial cases and fix the fork-limit
   defect they exposed (batch 15): SCORE-007 and QUOTA-009. Measured on the

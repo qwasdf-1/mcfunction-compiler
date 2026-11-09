@@ -419,10 +419,11 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def query_jstat_gc()`:133
   - `def query_jstat_class()`:138
 - [`scripts/run_perf_001_baseline.py`](../../scripts/run_perf_001_baseline.py):
-  - `def prepare_fixture()`:83
-  - `def run_once()`:99
-  - `def quantile()`:224
-  - `def main()`:244
+  - `def prepare_fixture()`:96
+  - `def settle_host()`:112
+  - `def run_once()`:122
+  - `def quantile()`:249
+  - `def main()`:273
 - [`scripts/run_perf_1000_functions.py`](../../scripts/run_perf_1000_functions.py):
   - `def mode_wrapper_enabled()`:39
   - `def mode_score_add_enabled()`:43

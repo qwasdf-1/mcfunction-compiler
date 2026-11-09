@@ -25,6 +25,17 @@ Pre-declared design
   once; the first result is kept in the report beside the rerun.
 * JFR profile: captured on the final run only, with the same settings as
   the exploratory capture, and stored next to this report.
+* Inter-run settle (attempt 5): before each run the campaign waits for the
+  1-minute load average to settle at or below SETTLE_LOAD (4.0), up to
+  SETTLE_TIMEOUT seconds, recording the observed load and the wait. The
+  cause is diagnosed, not guessed: attempts 1-4 measured the host load
+  climbing *during* the campaign (3.5 -> 7.2 in attempt 4) because seven
+  sequential server boots load the box the campaign measures on, so the
+  runs compete with the earlier runs' teardown. Attempt 4 with the JIT fix
+  in place recorded run medians of 0.89-1.10 ms (CV 0.070) - the spread is
+  now small enough that the settle is worth testing before blaming the
+  host.
+
 * Attempt history (all retained in the report directory): attempt 1 with
   50 warmup / 300 measured calls failed the gate (CV 0.375) under rising
   host load; attempt 2 failed it again (CV 0.276), and the run medians did
@@ -74,6 +85,8 @@ RUNS = 7
 WARMUP_CALLS = 350
 MEASURED_CALLS = 1_000
 MAX_CV = 0.05
+SETTLE_LOAD = 4.0
+SETTLE_TIMEOUT = 600
 BENCH_OBJECTIVE = "fc_perf"
 BENCH_HOLDER = "#fcprobe"
 BENCH_FUNCTION = "function_compiler_perf:scoreboard"
@@ -96,6 +109,16 @@ def prepare_fixture(server_dir: Path) -> tuple[Path, str]:
     return function_path, digest
 
 
+def settle_host() -> tuple[float, float]:
+    """Wait for the declared quiet window; returns (observed load, seconds)."""
+    started = time.monotonic()
+    load = os.getloadavg()[0]
+    while load > SETTLE_LOAD and time.monotonic() - started < SETTLE_TIMEOUT:
+        time.sleep(5)
+        load = os.getloadavg()[0]
+    return load, time.monotonic() - started
+
+
 def run_once(
     server_jar: Path,
     fixture_hash: str,
@@ -103,6 +126,8 @@ def run_once(
     run_index: int | str,
     load_average_start: float,
     jfr_path: Path | None,
+    settle_seconds: float = 0.0,
+    load_at_settle_end: float | None = None,
 ) -> dict[str, object]:
     with tempfile.TemporaryDirectory(prefix=f"function-compiler-perf-001-{run_index}-") as temp:
         server_dir = Path(temp)
@@ -227,6 +252,10 @@ def run_once(
     return {
         "run_index": run_index,
         "load_average_1m_start": round(load_average_start, 2),
+        "settle_seconds": round(settle_seconds, 3),
+        "load_at_settle_end": (
+            None if load_at_settle_end is None else round(load_at_settle_end, 2)
+        ),
         "noisy_by_declared_rule": load_average_start > os.cpu_count(),
         "measured_calls": MEASURED_CALLS,
         "expected_total_score": expected_score,
@@ -255,11 +284,12 @@ def main() -> int:
 
     results: list[dict[str, object]] = []
     for run_index in range(1, RUNS + 1):
+        load_at_settle_end, settle_seconds = settle_host()
         load_average_start = os.getloadavg()[0]
         jfr_for_run = jfr_path if run_index == RUNS else None
         result = run_once(
             server_jar, fixture_hash, expected_score, run_index,
-            load_average_start, jfr_for_run,
+            load_average_start, jfr_for_run, settle_seconds, load_at_settle_end,
         )
         results.append(result)
         print(
@@ -272,6 +302,7 @@ def main() -> int:
             repeat = run_once(
                 server_jar, fixture_hash, expected_score,
                 f"{run_index}-rerun", os.getloadavg()[0], None,
+                settle_seconds, load_at_settle_end,
             )
             repeat["repeat_of_run"] = run_index
             results.append(repeat)
