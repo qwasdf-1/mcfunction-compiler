@@ -14,7 +14,9 @@ selects H4. H1's runtime fork pool is ~0 on all three profiled packs, while
 Vein Miner's macro-argument construction is 27.4% of sampled wall time / 29.4%
 of active tick time and the existing selective-macro mechanism already covers
 11,701/11,701 calls with zero fallbacks. The remaining question is a
-real-workload selective-macro campaign, not new code.**
+real-workload selective-macro campaign, not new code; the gate is predeclared
+(event completion at 15%, five screening then ten confirmatory pairs, seed
+26871031) and awaits a quiet host.**
 
 ## 1. The question
 
@@ -243,12 +245,18 @@ score commands.
    Miner, Spawn Animations, and Dynamic Lights show H1's runtime fork pool at
    0.0–0.2%, while Vein Miner's macro-argument construction is 27.4% wall /
    29.4% active — the only >15% pool. See §3.2.
-3. **H4 campaign (next).** Run compiler-off vs the shipped selective-macro
-   default on Vein Miner side 6. Screening→confirmatory with the predeclared
-   minimum, pair count, and seed fixed before the first arm; a negative result
-   is recorded as data and stops coverage widening. The existing mechanism
-   covers 11,701/11,701 calls with zero fallbacks, so this is a campaign, not a
-   code extension.
+3. **H4 campaign (predeclared, awaiting a quiet host).** Run compiler-off vs
+   the shipped selective-macro default on Vein Miner side 6. The gate is event
+   completion (`operation_completion_seconds`) at a 15% minimum median
+   reduction with the 95% exact paired interval entirely beyond it; the
+   post-event `tick_average_ms` is reported alongside as corroboration, not as
+   the decision. Design: five screening pairs, then a predeclared ten-pair
+   confirmatory campaign, seed 26871031, counterbalanced arms, exact workload
+   parity in every pair. A one-time metrics-on activation diagnostic proves the
+   fast path fires; the timing arms are uninstrumented. A negative result is
+   recorded as data and stops coverage widening. The existing mechanism covers
+   11,701/11,701 calls with zero fallbacks, so this is a campaign, not a code
+   extension.
 4. **H1 is not pursued.** Runtime forked samples are ~0 on all three profiled
    packs, and the hot Vein Miner path is non-forked. Reopen only if a new
    workload shows a >15% runtime forked-leaf share; then the ten-arm matrix is

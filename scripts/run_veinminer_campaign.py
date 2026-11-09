@@ -55,6 +55,170 @@ def tick_metrics(query: str) -> dict[str, float | None]:
     return values
 
 
+def profile_command(
+    args: argparse.Namespace,
+    mode: str,
+    *,
+    count_selective_macro_arguments: bool = False,
+) -> list[str]:
+    """Build one profile-runner command.
+
+    Paired timing arms are symmetric and uninstrumented: the fused candidate
+    runs the profile runner's ``fused-timed`` mode, and the selective-macro
+    candidate runs plain ``selective-macro``. A mechanism's fast path is
+    proven by a separate metrics-on activation diagnostic, never by a timing
+    arm; the selective-macro hit counter in particular perturbs timing.
+    """
+    profile_mode = "fused-timed" if mode == "fused" else mode
+    command = [
+        sys.executable,
+        str(PROFILE_RUNNER),
+        "--stack",
+        args.stack,
+        "--compiler-mode",
+        profile_mode,
+        "--side",
+        str(args.side),
+        "--capture-timeout",
+        str(args.capture_timeout),
+        "--no-spark",
+    ]
+    if count_selective_macro_arguments:
+        if mode != "selective-macro":
+            raise ValueError(
+                "the selective-macro hit counter is only valid on the "
+                f"selective-macro activation diagnostic, not {mode!r}"
+            )
+        command.append("--count-selective-macro-arguments")
+    return command
+
+
+def selective_activation_summary(
+    profile: dict[str, object],
+    result: dict[str, object],
+) -> dict[str, object]:
+    """Validate a metrics-on selective-macro run and summarize its activation.
+
+    The run is a diagnostic, not a timing arm. It must pass the native
+    workload gate, pass the selective-macro profile gate, and show that the
+    fast path handled real macro calls.
+    """
+    if not result.get("valid_native_workload"):
+        raise ValueError("activation diagnostic failed the native workload gate")
+    if not result.get("valid_selective_macro_profile"):
+        raise ValueError(
+            "activation diagnostic failed the selective-macro profile gate"
+        )
+    calls = result.get("selective_macro_argument_calls_delta")
+    if not isinstance(calls, int) or calls <= 0:
+        raise ValueError(
+            f"activation diagnostic intercepted no macro calls: {calls!r}"
+        )
+    diagnostics = result.get("selective_macro_diagnostics_delta") or {}
+    attempted = int(diagnostics.get("attempted") or 0)
+    if attempted <= 0:
+        raise ValueError(
+            f"activation diagnostic attempted no macro calls: {diagnostics!r}"
+        )
+    return {
+        "run_id": Path(str(profile.get("output"))).name,
+        "valid_native_workload": result["valid_native_workload"],
+        "valid_selective_macro_profile": result["valid_selective_macro_profile"],
+        "selective_macro_arguments_metrics_enabled": result.get(
+            "selective_macro_arguments_metrics_enabled"
+        ),
+        "selective_macro_argument_calls_delta": calls,
+        "selective_macro_diagnostics_delta": diagnostics,
+        "selective_macro_provider_class_delta": result.get(
+            "selective_macro_provider_class_delta"
+        ),
+        "work_after": result.get("work_after"),
+        "work_expected": result.get("work_expected"),
+        "queue_head_delta": result.get("queue_head_delta"),
+        "operation_completion_seconds": result.get("operation_completion_seconds"),
+        "timing_instrumentation": result.get("timing_instrumentation"),
+        "valid_activation": True,
+    }
+
+
+def run_selective_activation_diagnostic(
+    args: argparse.Namespace,
+    report: dict[str, object],
+    report_path: Path,
+) -> dict[str, object]:
+    """Run or retain the one-time metrics-on selective-macro diagnostic."""
+    existing = report.get("activation_diagnostic")
+    if isinstance(existing, dict) and existing.get("valid_activation"):
+        print(
+            "retaining completed selective-macro activation diagnostic",
+            flush=True,
+        )
+        return existing
+    print(
+        "starting selective-macro activation diagnostic "
+        f"(metrics on; not a timing arm) side={args.side}",
+        flush=True,
+    )
+    command = profile_command(
+        args, "selective-macro", count_selective_macro_arguments=True
+    )
+    completed = subprocess.run(
+        command,
+        cwd=ROOT,
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        report["status"] = "failed"
+        report["failure"] = {
+            "phase": "activation-diagnostic",
+            "returncode": completed.returncode,
+            "stdout_tail": completed.stdout[-3000:],
+            "stderr_tail": completed.stderr[-3000:],
+        }
+        report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        raise RuntimeError(
+            f"Selective-macro activation diagnostic failed; report: {report_path}"
+        )
+    try:
+        profile = json.loads(completed.stdout)
+    except json.JSONDecodeError as error:
+        report["status"] = "failed"
+        report["failure"] = {
+            "phase": "activation-diagnostic",
+            "stdout_tail": completed.stdout[-3000:],
+            "stderr_tail": completed.stderr[-3000:],
+        }
+        report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        raise RuntimeError(
+            f"Selective-macro activation diagnostic emitted invalid JSON: {error}"
+        ) from error
+    try:
+        activation = selective_activation_summary(profile, profile["results"])
+    except ValueError as error:
+        report["status"] = "failed"
+        report["failure"] = {
+            "phase": "activation-diagnostic",
+            "error": str(error),
+            "stdout_tail": completed.stdout[-3000:],
+            "stderr_tail": completed.stderr[-3000:],
+        }
+        report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        raise RuntimeError(
+            f"Selective-macro activation diagnostic gate failed: {error}"
+        ) from error
+    report["activation_diagnostic"] = activation
+    report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(
+        "activation diagnostic passed; "
+        f"calls={activation['selective_macro_argument_calls_delta']} "
+        f"work={activation['work_after']}/{activation['work_expected']}",
+        flush=True,
+    )
+    return activation
+
+
 def profile_summary(
     profile: dict[str, object],
     result: dict[str, object],
@@ -176,6 +340,9 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
             "status": "running",
         }
 
+    if args.candidate == "selective-macro":
+        run_selective_activation_diagnostic(args, report, report_path)
+
     rng = random.Random(args.seed)
     pairs: list[dict[str, object]] = report["pairs"]
     orders: list[list[str]] = report["pair_orders"]
@@ -209,25 +376,11 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
                 f"pair {repetition}/{args.pairs}: starting {args.stack} {mode} side={args.side}",
                 flush=True,
             )
-            # The fused candidate runs a symmetric, un-instrumented timing arm
-            # (metrics off in both arms). Its activation is proven separately by
-            # the metrics-on `fused` diagnostic, not by the timing arms.
-            profile_mode = "fused-timed" if mode == "fused" else mode
-            command = [
-                sys.executable,
-                str(PROFILE_RUNNER),
-                "--stack",
-                args.stack,
-                "--compiler-mode",
-                profile_mode,
-                "--side",
-                str(args.side),
-                "--capture-timeout",
-                str(args.capture_timeout),
-                "--no-spark",
-            ]
-            if mode == "selective-macro":
-                command.append("--count-selective-macro-arguments")
+            # Both timing arms are uninstrumented. The fused candidate runs the
+            # profile runner's `fused-timed` mode, and the selective-macro
+            # candidate runs plain `selective-macro`; each mechanism's fast path
+            # is proven separately by a metrics-on activation diagnostic.
+            command = profile_command(args, mode)
             environment = os.environ.copy()
             completed = subprocess.run(
                 command,
@@ -313,35 +466,50 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
         "macro_resolution_fallbacks",
         "missing_selected_keys",
     )
-    report["selective_macro_diagnostics_total"] = {
-        key: sum(
-            int(
-                (
-                    (pair.get(args.candidate) or {}).get(
-                        "selective_macro_diagnostics_delta", {}
-                    )
-                    or {}
-                ).get(key, 0)
-                or 0
+    activation = report.get("activation_diagnostic")
+    if isinstance(activation, dict):
+        # The paired timing arms are uninstrumented, so the campaign's
+        # selective-macro counters come from the one-time activation
+        # diagnostic rather than from summing per-pair (absent) deltas.
+        diagnostics = activation.get("selective_macro_diagnostics_delta") or {}
+        report["selective_macro_diagnostics_total"] = {
+            key: int(diagnostics.get(key, 0) or 0) for key in diagnostic_keys
+        }
+        report["selective_macro_provider_class_total"] = {
+            str(provider): int(count)
+            for provider, count in (
+                activation.get("selective_macro_provider_class_delta") or {}
+            ).items()
+        }
+    else:
+        report["selective_macro_diagnostics_total"] = {
+            key: sum(
+                int(
+                    (
+                        (pair.get(args.candidate) or {}).get(
+                            "selective_macro_diagnostics_delta", {}
+                        )
+                        or {}
+                    ).get(key, 0)
+                    or 0
+                )
+                for pair in pairs
             )
-            for pair in pairs
-        )
-        for key in diagnostic_keys
-    }
-
-    provider_class_total = {}
-    for pair in pairs:
-        delta = (
-            (pair.get(args.candidate) or {}).get(
-                "selective_macro_provider_class_delta", {}
+            for key in diagnostic_keys
+        }
+        provider_class_total = {}
+        for pair in pairs:
+            delta = (
+                (pair.get(args.candidate) or {}).get(
+                    "selective_macro_provider_class_delta", {}
+                )
+                or {}
             )
-            or {}
-        )
-        for provider, count in delta.items():
-            provider_class_total[provider] = (
-                provider_class_total.get(provider, 0) + count
-            )
-    report["selective_macro_provider_class_total"] = provider_class_total
+            for provider, count in delta.items():
+                provider_class_total[provider] = (
+                    provider_class_total.get(provider, 0) + count
+                )
+        report["selective_macro_provider_class_total"] = provider_class_total
 
     report["all_pairs_exact_parity"] = all(bool(pair["exact_parity"]) for pair in pairs)
     report["paired_median_deltas"] = {

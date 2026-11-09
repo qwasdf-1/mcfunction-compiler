@@ -393,17 +393,42 @@ default clears the 15% gate on the real workload.
 PERF-017's fused arm set `FC_SELECTIVE_MACRO_ARGUMENTS=false`, so its flat
 result did not test the shipped default. The 126.7 ms average tick query from
 the selective-macro diagnostic is not a timing comparison (metrics on, no
-Spark). A real-workload campaign must be counterbalanced, use a quiet host, and
-predeclare its threshold, pair count, and seed before the first arm. One
-prerequisite remains: `run_veinminer_campaign.py` currently forces the
-selective-macro hit counter on its timing arm, and that counter perturbs
-timing; the campaign needs a separate activation diagnostic and an
-uninstrumented selective arm (the `fused-timed` pattern).
+Spark). The H4 gate is predeclared before the first arm:
 
-**Next action:** ask for confirmation of the predeclared gate, pair count, and
-seed, then run compiler-off vs selective-macro on Vein Miner side 6. If the
-addressable share cannot clear 15%, record that as the answer and stop
-widening.
+- **Fixture:** Vein Miner 5.3.0 on the Fabric stack, side 6 (216 blocks; 215
+  mined), native event; neither timing arm uses Spark or compiler counters.
+- **Arms:** compiler off vs the shipped `selective_macros` default,
+  counterbalanced from the seed.
+- **Primary metric:** `operation_completion_seconds` (event completion), with
+  the 15% minimum median reduction and the 95% exact paired interval entirely
+  beyond it; the no-regression floor is reported alongside.
+- **Secondary metric:** the post-event `/tick query` average
+  (`tick_average_ms`), reported alongside as corroboration. It is not a
+  sustained active-workload MSPT result and does not decide the gate.
+- **Design:** five screening pairs, then a predeclared ten-pair confirmatory
+  campaign if screening warrants it; seed `26871031`; exact workload parity is
+  required in every pair.
+- **Activation:** a one-time metrics-on `selective-macro` diagnostic (hit
+  counter enabled, not a timing arm) must show positive attempted and used call
+  counts; the paired timing arms stay uninstrumented.
+- **Host gate:** the declared quiet-window precondition. PERF-001 showed this
+  shared host's fresh-JVM variance can block a 5% gate, so the campaign does
+  not start until the host is quiet.
+
+`run_veinminer_campaign.py` now builds uninstrumented timing arms and records
+the activation diagnostic under `activation_diagnostic`; its selective-macro
+counters come from that diagnostic, not from per-pair timing arms. The
+screening command is:
+
+```
+python3 scripts/run_veinminer_campaign.py --stack fabric --side 6 \
+  --candidate selective-macro --phase screening --pairs 5 --seed 26871031 \
+  --primary-metric operation_completion_seconds
+```
+
+The confirmatory command adds `--phase confirmatory --pairs 10
+--minimum-gain-percent 15` with the same seed. If the addressable share cannot
+clear 15%, that is the recorded answer and coverage widening stops.
 
 ## PERF-012: sustained selective-macro active-tick fixture
 

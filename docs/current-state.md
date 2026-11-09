@@ -1045,10 +1045,31 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   8 in 2, superseding batch 22's 250/143/14. PERF-017's fused arm set
   `FC_SELECTIVE_MACRO_ARGUMENTS=false`, so it did not test the shipped default;
   the 126.7 ms selective-macro diagnostic tick query is not a timing
-  comparison. No default-on status or matrix row changed. The next step is a
-  predeclared compiler-off vs selective-macro campaign on Vein Miner side 6;
-  `run_veinminer_campaign.py` needs an uninstrumented selective timing arm
-  because it currently forces the hit counter. See the
+  comparison. No default-on status or matrix row changed. The next step was a
+  predeclared compiler-off vs selective-macro campaign on Vein Miner side 6.
+  At batch 23 the runner forced the hit counter on its selective timing arm;
+  batch 24 fixed that and predeclared the campaign (see the batch-24 entry).
+  See the
+  [benchmarks record](../benchmarks/README.md#time-share-attribution-and-the-h4-decision-2026-11-09).
+
+- Batch 24 predeclared the H4 real-workload campaign and fixed the Vein Miner
+  campaign runner's timing arm. `run_veinminer_campaign.py` no longer forces
+  the selective-macro hit counter on its timing arms; both arms are
+  uninstrumented, and a one-time metrics-on activation diagnostic (recorded as
+  `activation_diagnostic`) proves the fast path fires and supplies the
+  campaign's selective-macro counters. The gate is fixed before the first arm:
+  compiler off vs the shipped `selective_macros` default on Vein Miner 5.3.0,
+  Fabric stack, side 6, native event; primary metric
+  `operation_completion_seconds` with a 15% minimum median reduction and the
+  95% exact paired interval entirely beyond it; post-event `tick_average_ms`
+  reported alongside as corroboration only; five screening pairs then a
+  predeclared ten-pair confirmatory campaign; seed 26871031; exact workload
+  parity in every pair; the declared quiet-window host gate.
+  `tests/test_veinminer_campaign_runner.py` (10 tests) pins the uninstrumented
+  arm construction and the activation gates. No default-on status or matrix
+  row changed. The campaign has not run; it waits for a quiet host because
+  PERF-001 showed this shared host's fresh-JVM variance can block a 5% gate.
+  See the
   [benchmarks record](../benchmarks/README.md#time-share-attribution-and-the-h4-decision-2026-11-09).
 
 - Batch 17 closed STATE-004 with the item-modify slot edges using the

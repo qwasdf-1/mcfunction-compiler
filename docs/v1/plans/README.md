@@ -29,7 +29,7 @@ Modern Minecraft Function Compiler.
 | [`track-o-player-hud-and-title-dispatch-spec.md`](track-o-player-hud-and-title-dispatch-spec.md) | 1.0 | Complete / Verified | Track O coverage expansion: player HUD and title dispatch (`title`). |
 | [`track-p-item-component-and-inventory-mutation-spec.md`](track-p-item-component-and-inventory-mutation-spec.md) | 1.0 | Complete / Verified | Track P coverage expansion: item component and inventory mutation (`item replace/modify`). |
 
-| [`compiler-coverage-widening-proposal-v0.1.md`](compiler-coverage-widening-proposal-v0.1.md) | 0.1 | Proposal / Attribution complete; H4 campaign pending | Scoping for a second promoted optimization: the four mechanisms' recorded verdicts, the corrected H2-first census, the time-share attribution that kills H1 (runtime forked samples 0.0–0.2%) and selects H4 (Vein Miner macro argument construction 27.4% wall / 29.4% active, already covered by the shipped selective-macro mechanism), and the predeclared real-workload campaign that decides H4. |
+| [`compiler-coverage-widening-proposal-v0.1.md`](compiler-coverage-widening-proposal-v0.1.md) | 0.1 | Proposal / H4 campaign predeclared; awaiting quiet host | Scoping for a second promoted optimization: the four mechanisms' recorded verdicts, the corrected H2-first census, the time-share attribution that kills H1 (runtime forked samples 0.0–0.2%) and selects H4 (Vein Miner macro argument construction 27.4% wall / 29.4% active, already covered by the shipped selective-macro mechanism), and the predeclared real-workload campaign (event completion at 15%, five screening then ten confirmatory pairs, seed 26871031) that decides H4. |
 
 ## Retirement & Compaction Policy
 

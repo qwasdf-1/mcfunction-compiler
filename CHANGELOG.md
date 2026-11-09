@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- Predeclare the H4 real-workload campaign and fix the Vein Miner campaign
+  runner's timing arm (batch 24). `run_veinminer_campaign.py` now builds
+  uninstrumented paired arms for every candidate: the fused candidate keeps
+  `fused-timed`, and the selective-macro candidate runs plain
+  `selective-macro` instead of forcing the hit counter on the timing arm. A
+  one-time metrics-on activation diagnostic, recorded under
+  `activation_diagnostic`, must show positive attempted and used macro-call
+  counts, and the campaign's selective-macro totals now come from that
+  diagnostic rather than from per-pair timing arms. The H4 gate is
+  predeclared: compiler off vs the shipped `selective_macros` default on Vein
+  Miner 5.3.0, Fabric stack, side 6, native event; primary metric
+  `operation_completion_seconds` at a 15% minimum median reduction with the
+  95% exact paired interval entirely beyond it; post-event `tick_average_ms`
+  reported alongside as corroboration only; five screening pairs, then a
+  predeclared ten-pair confirmatory campaign; seed 26871031; exact workload
+  parity in every pair; the declared quiet-window host gate. Tests:
+  `tests/test_veinminer_campaign_runner.py` (10 tests) pins the uninstrumented
+  arm construction and the activation gates. The campaign has not run; it
+  waits for a quiet host because PERF-001 showed this shared host's fresh-JVM
+  variance can block a 5% gate.
+
 - Attribute the coverage-widening pool to tick time and decide H1 vs H4
   (batch 23). `scripts/attribute_specialization_share.py` reads Spark profiles
   and partitions server-thread self weight by the nearest enclosing leaf
