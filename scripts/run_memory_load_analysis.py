@@ -445,21 +445,6 @@ def run_experiment(mode: str) -> dict[str, object]:
 
     return arm_data
 
-        client.command("stop")
-        proc.wait(timeout=30)
-    except Exception as exc:
-        arm_data["error"] = str(exc)
-        if proc.poll() is None:
-            proc.kill()
-    finally:
-        if bot:
-            bot.close()
-        if client:
-            client.close()
-        log_file.close()
-
-    return arm_data
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
