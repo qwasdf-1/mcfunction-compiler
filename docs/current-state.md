@@ -922,6 +922,23 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   claim is made. See the batch-16 record in the
   [coverage table](reference/features/command-coverage.md).
 
+- Batch 18 closed the last coverage row, BC-06, with the pre-declared paired
+  campaign (scripts/run_bytecode_vs_fused_campaign.py): bytecode versus
+  fused interpretation on the declared 5,000-add sustained workload, both
+  arms activating exactly (one region per active tick, ~3.37M specialized
+  commands inside the region in each), ten counterbalanced pairs with the
+  predeclared seed and a predeclared 5% minimum gain. The measured finding
+  refutes the row's win claim: bytecode is 10.4% slower than fused at the
+  paired median with the exact 97.86% interval 3.85% to 33.33% slower
+  (decision does_not_meet_threshold, no-regression decision
+  regression_proven); the screening phase (five pairs, median +20.8%) fixed
+  the confirmatory design before it ran. The row's text records the
+  measured finding and the matrix gained case BC-06, so the table is now
+  **92 rows: 92 covered (R), 0 partial (P), 0 missing (—)** - fully covered,
+  with PERF-001 the one matrix case still partial by its failed
+  pre-declared baseline gate on this host. See the batch-18 record in the
+  [coverage table](reference/features/command-coverage.md).
+
 - Batch 17 closed STATE-004 with the item-modify slot edges using the
   batch-10 confirmed modifier id (fixture state_item_modify_slot_edges:
   hotbar.0, hotbar.8 and weapon.offhand read back count=5 after

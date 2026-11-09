@@ -168,17 +168,15 @@ wrong-type and nested paths are proven but the matrix rows are summary-level.
 | BC-03 | injected compile failure | original queue entries retained | PERF-014 | R |
 | BC-04 | parameterized macro bytecode sharing one class per shape | Metaspace stability | PERF-014 | R |
 | BC-05 | class retention across 25+ reloads | GC unlinking | RELOAD-004 | R |
-| BC-06 | measured win over fused interpretation on a declared workload | — | — | — |
+| BC-06 | measured comparison on the declared 5,000-add sustained workload: bytecode 10.4% slower than fused at the paired median, 97.86% interval 3.85% to 33.33% slower - does_not_meet_threshold, regression_proven | — | BC-06 (case) | R |
 
 ## 11. Current state of the table
 
-**92 rows: 91 covered (R), 0 partial (P), 1 missing (—).**
+**92 rows: 92 covered (R), 0 partial (P), 0 missing (—).**
 
 Status is assigned from the matrix's own verdicts: **R** requires a cited matrix case recorded *complete* in [`minecraft-function-compiler-test-matrix-v0.1.csv`](../../v1/plans/minecraft-function-compiler-test-matrix-v0.1.csv); **P** requires a cited case recorded *Partial*, which proves some of the row and names the rest; **—** means no case exists for that shape.
 
-**The 1 missing rows, by family group:**
-
-- **10. Bytecode backend families**: BC-06
+No rows are missing.
 
 ### 11.1 How the eleven partial-cited rows were resolved
 
@@ -998,6 +996,40 @@ recorded partial with its failed pre-declared gate and next action (batch
 16). The coverage table itself is unchanged at **92 rows: 91 covered (R),
 0 partial (P), 1 missing (—)**; the remaining row is BC-06, whose paired
 performance campaign is next.
+
+**Batch 18 - the BC-06 campaign, which measured the row's win claim as
+refuted (BC-06).** The last row in the table required "a paired performance
+campaign, not a fixture", so the batch built
+(`scripts/run_bytecode_vs_fused_campaign.py`) and ran one under a design
+declared before its first arm: the declared workload is
+`tests/fixtures/function_compiler_fused_sustained` on the pinned
+26.3 server (one contiguous 5,000-add eligible block per active tick,
+110-tick windows); the baseline arm is the canonical fused-interpreted
+configuration and the candidate the bytecode-emitted configuration, both
+with wrapper and ScoreAdd specialization on, so the pair isolates the
+region backend; the primary metric is the workload-attributable active
+tick average (active minus post-idle).
+
+Activation gates passed in both diagnostic arms: fused executed 674
+regions over 674 active ticks and bytecode executed 674 over 674, with
+142 regions compiled and ~3.37 million specialized commands executed
+inside the region in each arm, and each arm's other backend counter at
+zero - so the measurement compares real region execution, not fallbacks.
+
+The screening phase (five counterbalanced pairs, seed 26871050) recorded
+a median of +20.8% bytecode slower with the interval −16.7% to +151.9% at
+93.75% coverage, which fixed the confirmatory design. The confirmatory
+phase (ten counterbalanced pairs, same seed, predeclared 5% minimum gain)
+recorded the bytecode arm 10.4% slower than fused at the paired median
+with the exact-interval bounds 3.85% to 33.33% slower at 97.86% coverage
+- decision `does_not_meet_threshold`, no-regression decision
+`regression_proven`; the raw active-tick and p95 metrics agree in sign
+(+10.8% and +12.5% medians) with wider intervals. The BC-06 row's text
+now records that measured finding (the FR-03 pattern for a negative
+performance result), the matrix gained case BC-06, and the table stands at
+**92 rows: 92 covered (R), 0 partial (P), 0 missing (—)** - fully covered,
+with PERF-001 the one matrix case still partial by its failed
+pre-declared baseline gate on this host (batch 16).
 
 ## 12. Reproducing this table from the code
 

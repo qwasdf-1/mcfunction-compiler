@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- Close the last coverage row, BC-06, with the pre-declared paired
+  campaign, which measured the row's bytecode win claim as refuted (batch
+  18). `scripts/run_bytecode_vs_fused_campaign.py` compares the canonical
+  fused-interpreted and bytecode-emitted arms (wrapper and ScoreAdd
+  specialization on in both, only the region prototype differing) on the
+  declared 5,000-add sustained workload, with counterbalanced pairs, a
+  predeclared seed, and the shared exact-median interval analysis.
+  Activation diagnostics passed in both arms: 674 regions executed over
+  674 active ticks each, 142 regions compiled, ~3.37M specialized
+  commands inside the region, the other backend's counters at zero.
+  Screening (five pairs) fixed the design at a +20.8% bytecode-slower
+  median; the confirmatory phase (ten pairs, same seed 26871050,
+  predeclared 5% minimum gain) measured bytecode 10.4% slower than fused
+  at the paired median with the exact 97.86% interval 3.85% to 33.33%
+  slower - decision does_not_meet_threshold, no-regression decision
+  regression_proven; raw active-tick and p95 metrics agree in sign
+  (+10.8% / +12.5%). The row's text records the measured finding, the
+  matrix gained case BC-06, and the table is now **92 rows: 92 covered
+  (R), 0 partial (P), 0 missing (—)** - fully covered, with PERF-001 the
+  one matrix case still partial by its failed pre-declared baseline gate
+  on this host. No default-on status changed: the bytecode backend stays
+  gated, and this batch establishes it is not a performance win over
+  fused interpretation on the declared workload.
+
 - Close the last partial P0 semantic case, STATE-004, with the item-modify
   slot edges (batch 17). The case's remaining half was blocked at recording
   time on a confirmed 26.3 item-modifier id; batch 10 confirmed the

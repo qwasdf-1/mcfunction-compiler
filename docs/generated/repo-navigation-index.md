@@ -343,6 +343,15 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def write_setup_pack()`:83
   - `def block_matches()`:102
   - `def region_matches_template()`:107
+- [`scripts/run_bytecode_vs_fused_campaign.py`](../../scripts/run_bytecode_vs_fused_campaign.py):
+  - `def sha256()`:109
+  - `def server_environment()`:117
+  - `def prepare_workdir()`:155
+  - `def start_server()`:205
+  - `def setup_fixture()`:239
+  - `def read_status_counts()`:266
+  - `def run_arm()`:273
+  - `def make_report()`:493
 - [`scripts/run_compatibility_probe.py`](../../scripts/run_compatibility_probe.py):
   - `def mode_mod_keys()`:77
   - `def mode_wrapper_enabled()`:87
