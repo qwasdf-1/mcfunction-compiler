@@ -320,11 +320,6 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def matches_excluded_path_prefix()`:66
   - `def is_excluded_repo_path()`:77
   - `def iter_repo_files()`:87
-- [`scripts/paired_benchmark_analysis.py`](../../scripts/paired_benchmark_analysis.py):
-  - `def _median_interval()`:10
-  - `def paired_percent_changes()`:33
-  - `def no_regression_decision()`:59
-  - `def summarize_paired_changes()`:86
 - [`scripts/run_bellows_selector_nbt_benchmark.py`](../../scripts/run_bellows_selector_nbt_benchmark.py):
   - `def sha256()`:84
   - `def generate_profile_packet_ids()`:92
@@ -344,14 +339,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def block_matches()`:102
   - `def region_matches_template()`:107
 - [`scripts/run_bytecode_vs_fused_campaign.py`](../../scripts/run_bytecode_vs_fused_campaign.py):
-  - `def sha256()`:109
-  - `def server_environment()`:117
-  - `def prepare_workdir()`:155
-  - `def start_server()`:205
-  - `def setup_fixture()`:239
-  - `def read_status_counts()`:266
-  - `def run_arm()`:273
-  - `def make_report()`:493
+  - `def sha256()`:116
+  - `def server_environment()`:124
+  - `def prepare_workdir()`:162
+  - `def start_server()`:212
+  - `def setup_fixture()`:246
+  - `def read_status_counts()`:273
+  - `def run_arm()`:280
+  - `def make_report()`:500
 - [`scripts/run_compatibility_probe.py`](../../scripts/run_compatibility_probe.py):
   - `def mode_mod_keys()`:77
   - `def mode_wrapper_enabled()`:87
@@ -371,14 +366,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def create_workdir()`:148
   - `def stop_idle_spark_shell()`:154
 - [`scripts/run_entity_datapack_profile.py`](../../scripts/run_entity_datapack_profile.py):
-  - `class DrainingRconClient`:63
-  - `def command()`:66
-  - `def wait_for_profile_rcon()`:86
-  - `def parse_args()`:102
-  - `def score_value()`:123
-  - `def count_candidate_entities()`:131
-  - `def candidate_entity_sample()`:137
-  - `def count_clings_eligible_entities()`:143
+  - `def wait_for_profile_rcon()`:73
+  - `def parse_args()`:88
+  - `def score_value()`:109
+  - `def count_candidate_entities()`:117
+  - `def candidate_entity_sample()`:123
+  - `def count_clings_eligible_entities()`:129
+  - `def write_setup_pack()`:139
+  - `def main()`:169
 - [`scripts/run_exotic_redteam_probe.py`](../../scripts/run_exotic_redteam_probe.py):
   - `def setup_exotic_server()`:61
   - `def _test_vector1_opt_mods()`:83
@@ -398,14 +393,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def free_port()`:84
   - `def wait_for_rcon()`:90
 - [`scripts/run_fused_region_sustained.py`](../../scripts/run_fused_region_sustained.py):
-  - `def sha256()`:54
-  - `def adjacent_adds_per_tick()`:62
-  - `def generated_files()`:77
-  - `def generated_hashes()`:115
-  - `def reserve_ports()`:122
-  - `def wait_for_rcon()`:138
-  - `def connect_player_when_ready()`:154
-  - `def score()`:182
+  - `def sha256()`:78
+  - `def adjacent_adds_per_tick()`:86
+  - `def generated_files()`:101
+  - `def generated_hashes()`:139
+  - `def reserve_ports()`:146
+  - `def wait_for_rcon()`:151
+  - `def connect_player_when_ready()`:166
+  - `def score()`:180
 - [`scripts/run_macro_perf_benchmark.py`](../../scripts/run_macro_perf_benchmark.py):
   - `def run_benchmark_for_mode()`:33
   - `def main()`:122
@@ -419,11 +414,11 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def query_jstat_gc()`:133
   - `def query_jstat_class()`:138
 - [`scripts/run_perf_001_baseline.py`](../../scripts/run_perf_001_baseline.py):
-  - `def prepare_fixture()`:96
-  - `def settle_host()`:112
-  - `def run_once()`:122
-  - `def quantile()`:249
-  - `def main()`:273
+  - `def prepare_fixture()`:106
+  - `def settle_host()`:122
+  - `def run_once()`:127
+  - `def quantile()`:254
+  - `def main()`:278
 - [`scripts/run_perf_1000_functions.py`](../../scripts/run_perf_1000_functions.py):
   - `def mode_wrapper_enabled()`:39
   - `def mode_score_add_enabled()`:43
@@ -447,14 +442,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def run_in_server_session()`:146
   - `def _get_selective_macro_count()`:188
 - [`scripts/run_runtime_probe.py`](../../scripts/run_runtime_probe.py):
-  - `def configure_probe_ports()`:146
-  - `class RconClient`:572
-  - `def __init__()`:573
-  - `def close()`:581
-  - `def command()`:584
-  - `def _request()`:592
-  - `def _read_exact()`:605
-  - `def prepare_server_files()`:615
+  - `def configure_probe_ports()`:159
+  - `def prepare_server_files()`:585
+  - `def prepare_macro_server_files()`:629
+  - `def locate_official_server_jar()`:654
+  - `def generate_packet_ids()`:670
+  - `def connect_probe_player()`:679
+  - `def read_score()`:710
+  - `def status_counter()`:718
 - [`scripts/run_score_add_ab.py`](../../scripts/run_score_add_ab.py):
   - `class PortBindError`:79
   - `def sha256()`:83
@@ -465,14 +460,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def start_server()`:205
   - `def connect_perf_player()`:280
 - [`scripts/run_selective_macro_sustained.py`](../../scripts/run_selective_macro_sustained.py):
-  - `def sha256()`:52
-  - `def generated_setup_functions()`:60
-  - `def reserve_ports()`:88
-  - `def wait_for_rcon()`:104
-  - `def connect_player_when_ready()`:120
-  - `def score()`:148
-  - `def tick_metrics()`:156
-  - `def wait_for_score()`:172
+  - `def sha256()`:76
+  - `def generated_setup_functions()`:84
+  - `def reserve_ports()`:112
+  - `def wait_for_rcon()`:117
+  - `def connect_player_when_ready()`:132
+  - `def score()`:146
+  - `def tick_metrics()`:151
+  - `def median_window()`:156
 - [`scripts/run_spawn_animations_profile.py`](../../scripts/run_spawn_animations_profile.py):
   - `def sha256()`:41
   - `def free_port()`:49
@@ -483,10 +478,10 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def write_spawn_fixture_pack()`:97
   - `def start_spark_shell()`:126
 - [`scripts/run_veinminer_campaign.py`](../../scripts/run_veinminer_campaign.py):
-  - `def tick_metrics()`:38
-  - `def profile_summary()`:52
-  - `def make_report()`:97
-  - `def main()`:380
+  - `def tick_metrics()`:44
+  - `def profile_summary()`:58
+  - `def make_report()`:103
+  - `def main()`:386
 - [`scripts/run_veinminer_profile.py`](../../scripts/run_veinminer_profile.py):
   - `def free_port()`:74
   - `def wait_for_rcon()`:80

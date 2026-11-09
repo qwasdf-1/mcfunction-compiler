@@ -939,6 +939,35 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   pre-declared baseline gate on this host. See the batch-18 record in the
   [coverage table](reference/features/command-coverage.md).
 
+- Batch 20 completed roadmap step 6: the engine-agnostic harness was extracted
+  into a version-pinned sibling package,
+  [`mc-harness`](../../mc-tooling/mc-harness/README.md) v1.0.0 in the
+  `mc-tooling` workspace. It owns the machinery that had been copied per
+  project: the pinned 26.3 Fabric mod-stack matrix, the exact
+  sign/order-statistic paired-campaign analysis, the server lifecycle (RCON
+  clients including the split-response-draining variant, pinned server-jar
+  location with SHA-256 verification, Mojang packet-report extraction, RCON
+  readiness, server-property helpers), the counterbalanced-campaign
+  primitives (port reservation, player connect with transient-close retry,
+  score reads and workload waits, tick-query parsing, median windows), and the
+  host gate (quiet-window precondition, per-arm noise rule, inter-run settle).
+  The runtime probe, both sustained campaign runners, the bytecode-vs-fused
+  campaign, the Vein Miner campaign and the PERF-001 baseline campaign consume
+  it by path with an import-time version assertion
+  (`mc_harness.assert_version("1.0.0")`); their duplicated local copies were
+  removed and `paired_benchmark_analysis.py` was deleted, with its
+  tests now running against the harness copy unchanged. Per the project guide
+  the headless protocol client stays project-owned and pinned to 26.3 protocol
+  777 (`tests/runtime/player_bot.py`); the harness receives the client classes
+  by injection so no shared-kit change can re-target a live probe. Verified:
+  the two-arm runtime probe smoke passes end-to-end on the rewired imports,
+  all 54 Python tests pass (including the new harness pin suite), and the doc
+  boundary and doc link checks pass. A pre-existing IndentationError in
+  `scripts/run_memory_load_analysis.py` (line 448) was found during the
+  compile sweep and is reported separately; it predates this batch. See the
+  batch-20 record in the
+  [coverage table](reference/features/command-coverage.md).
+
 - Batch 17 closed STATE-004 with the item-modify slot edges using the
   batch-10 confirmed modifier id (fixture state_item_modify_slot_edges:
   hotbar.0, hotbar.8 and weapon.offhand read back count=5 after

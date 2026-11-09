@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+- Extract the engine-agnostic harness into a version-pinned sibling package
+  (batch 20, roadmap step 6). `mc-mods/mc-tooling/mc-harness` v1.0.0 now owns
+  the shared harness machinery that had been copied per project: the pinned
+  26.3 Fabric mod-stack matrix (`mod_stacks`), the exact sign/order-statistic
+  paired-campaign analysis (`paired_stats`), the server lifecycle - RCON
+  clients including the split-response-draining variant, pinned server-jar
+  location with SHA-256 verification, Mojang packet-report extraction, RCON
+  readiness, and server-property helpers (`server_lifecycle`) - the
+  counterbalanced-campaign primitives (`campaign`: port reservation, player
+  connect with transient-close retry, score reads and workload waits, tick-query
+  parsing, median windows), and the host gate (`host_gate`: the declared
+  quiet-window precondition, the per-arm noise rule, the inter-run settle).
+  The function-compiler runtime probe, both sustained campaign runners, the
+  bytecode-vs-fused campaign, the Vein Miner campaign, and the PERF-001
+  baseline campaign now consume it by path with an import-time version
+  assertion, so a harness change cannot reach a recorded campaign unannounced;
+  their duplicated local copies of these helpers were removed, and
+  `paired_benchmark_analysis.py` was deleted (its consumer tests now
+  run against the harness copy unchanged). Per the project guide the headless
+  protocol client stays project-owned and pinned to 26.3 protocol 777
+  (`tests/runtime/player_bot.py`), and the harness receives the client classes
+  by injection, so no shared-kit change can re-target a live probe. Verified:
+  the two-arm runtime probe smoke (mod-free-vanilla ↔ wrapper-on) passes
+  end-to-end on the rewired imports, all 54 Python tests pass (including the
+  new harness pin suite asserting the version, the wrapper bindings, the
+  project-owned bot, and the workspace registration), the doc boundary check
+  passes, and the docs link test passes with the campaign references rewired
+  to the harness. Found and reported (not fixed here): a pre-existing
+  IndentationError in `scripts/run_memory_load_analysis.py` (orphaned code
+  after a return, line 448) that predates this batch and leaves the script
+  unrunnable.
+
 - Rerun the host-blocked campaigns under quiet-host conditions and record
   the outcomes (batch 19). PERF-001's baseline campaign ran attempts 4 and 5:
   attempt 4 (unchanged constants, quiet-start driver at 1-minute load <=

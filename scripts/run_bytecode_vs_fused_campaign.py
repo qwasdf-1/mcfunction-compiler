@@ -65,12 +65,20 @@ from datetime import datetime, timezone
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests" / "runtime"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
 
 from mod_artifacts import MODS, MODS_DIR, STACK_MODS  # noqa: E402
-from paired_benchmark_analysis import (  # noqa: E402
+from mc_harness import assert_version  # noqa: E402
+from mc_harness.paired_stats import (  # noqa: E402
     paired_percent_changes,
     summarize_paired_changes,
 )
+from mc_harness.server_lifecycle import MINECRAFT_SERVER_SHA256  # noqa: E402
+
+#: The harness version this campaign was verified against (roadmap step 6 pin).
+HARNESS_PIN = "1.0.0"
+
+assert_version(HARNESS_PIN)
 from run_entity_datapack_profile import DrainingRconClient  # noqa: E402
 from run_fused_region_sustained import (  # noqa: E402
     ADDS_PER_TICK,
@@ -91,7 +99,6 @@ from run_fused_region_sustained import (  # noqa: E402
     wait_for_score,
 )
 from run_runtime_probe import (  # noqa: E402
-    SERVER_JAR_SHA256,
     generate_packet_ids,
     locate_official_server_jar,
 )
@@ -492,7 +499,7 @@ def run_arm(
 
 def make_report(args: argparse.Namespace) -> None:
     server_jar = locate_official_server_jar()
-    if sha256(server_jar) != SERVER_JAR_SHA256:
+    if sha256(server_jar) != MINECRAFT_SERVER_SHA256:
         raise RuntimeError(f"Minecraft 26.3 server hash mismatch: {server_jar}")
     packet_ids = generate_packet_ids(server_jar)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")

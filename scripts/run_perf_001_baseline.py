@@ -69,6 +69,8 @@ import tempfile
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
+from mc_harness import assert_version, host_gate  # noqa: E402
 from run_runtime_probe import (  # noqa: E402
     LEVEL,
     SERVER_JAR_SHA256,
@@ -78,6 +80,11 @@ from run_runtime_probe import (  # noqa: E402
     wait_for_rcon,
 )
 
+#: The harness version this campaign was verified against (roadmap step 6 pin).
+HARNESS_PIN = "1.0.0"
+
+assert_version(HARNESS_PIN)
+
 ROOT = Path(__file__).resolve().parents[1]
 REPORT_DIR = ROOT / "build" / "benchmarks" / "PERF-001"
 FUNCTION_LINES = 5_000
@@ -85,8 +92,11 @@ RUNS = 7
 WARMUP_CALLS = 350
 MEASURED_CALLS = 1_000
 MAX_CV = 0.05
-SETTLE_LOAD = 4.0
-SETTLE_TIMEOUT = 600
+#: The declared quiet window and settle budget. The shared harness owns the
+#: rule (host_gate); these names stay as this campaign's declared aliases so the
+#: pre-declared design text and the recorded reports keep their meaning.
+SETTLE_LOAD = host_gate.QUIET_LOAD_1M
+SETTLE_TIMEOUT = host_gate.SETTLE_TIMEOUT_SECONDS
 BENCH_OBJECTIVE = "fc_perf"
 BENCH_HOLDER = "#fcprobe"
 BENCH_FUNCTION = "function_compiler_perf:scoreboard"
@@ -111,12 +121,7 @@ def prepare_fixture(server_dir: Path) -> tuple[Path, str]:
 
 def settle_host() -> tuple[float, float]:
     """Wait for the declared quiet window; returns (observed load, seconds)."""
-    started = time.monotonic()
-    load = os.getloadavg()[0]
-    while load > SETTLE_LOAD and time.monotonic() - started < SETTLE_TIMEOUT:
-        time.sleep(5)
-        load = os.getloadavg()[0]
-    return load, time.monotonic() - started
+    return host_gate.settle_host(quiet_load=SETTLE_LOAD, timeout_seconds=SETTLE_TIMEOUT)
 
 
 def run_once(

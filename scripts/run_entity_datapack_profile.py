@@ -11,7 +11,6 @@ import re
 import secrets
 import shutil
 import socket
-import struct
 import subprocess
 import sys
 import time
@@ -20,6 +19,7 @@ from datetime import datetime, timezone
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests" / "runtime"))
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
 
 from player_bot import PacketIds, PlayerBot  # noqa: E402
 from run_dynamic_lights_profile import (  # noqa: E402
@@ -42,7 +42,17 @@ from run_spawn_animations_profile import (  # noqa: E402
     stop_spark_shell,
     wait_for_spark_password,
 )
-from run_runtime_probe import RconClient, locate_official_server_jar  # noqa: E402
+from mc_harness import assert_version  # noqa: E402
+from mc_harness.server_lifecycle import (  # noqa: E402
+    DrainingRconClient,
+    locate_official_server_jar,
+    wait_for_rcon as mc_wait_for_rcon,
+)
+
+#: The harness version this profile was verified against (roadmap step 6 pin).
+HARNESS_PIN = "1.0.0"
+
+assert_version(HARNESS_PIN)
 from analyze_spark_profile import summarize as summarize_spark_profile  # noqa: E402
 
 
@@ -60,43 +70,19 @@ PROFILE_SECONDS = 18
 DEFAULT_ENTITIES = 128
 
 
-class DrainingRconClient(RconClient):
-    """Ignore leftover split response packets before returning the next command result."""
-
-    def command(self, command: str) -> str:
-        self.request_id += 1
-        request_id = self.request_id
-        encoded = command.encode("utf-8") + b"\0\0"
-        payload = struct.pack("<ii", request_id, 2) + encoded
-        self.socket.sendall(struct.pack("<i", len(payload)) + payload)
-        while True:
-            packet_length = struct.unpack("<i", self._read_exact(4))[0]
-            packet = self._read_exact(packet_length)
-            response_id, response_type = struct.unpack("<ii", packet[:8])
-            response = packet[8:-2].decode("utf-8", errors="replace")
-            if response_id < request_id:
-                continue
-            if response_id != request_id or response_type != 0:
-                raise RuntimeError(
-                    f"Unexpected RCON response id={response_id} type={response_type}; expected {request_id}"
-                )
-            return response
-
-
 def wait_for_profile_rcon(
     process: subprocess.Popen[bytes], port: int, password: str, timeout: float = 120
 ) -> DrainingRconClient:
-    deadline = time.monotonic() + timeout
-    last_error: Exception | None = None
-    while time.monotonic() < deadline:
-        if process.poll() is not None:
-            raise RuntimeError(f"Minecraft server exited early with code {process.returncode}")
-        try:
-            return DrainingRconClient(SERVER_HOST, port, password)
-        except (OSError, ConnectionError, RuntimeError) as error:
-            last_error = error
-            time.sleep(0.5)
-    raise TimeoutError(f"RCON did not become available: {last_error}")
+    """Wait for a profile server's RCON (shared harness implementation)."""
+    return mc_wait_for_rcon(
+        process,
+        host=SERVER_HOST,
+        port=port,
+        password=password,
+        client_cls=DrainingRconClient,
+        timeout_seconds=int(timeout),
+        poll_seconds=0.5,
+    )
 
 
 def parse_args() -> argparse.Namespace:

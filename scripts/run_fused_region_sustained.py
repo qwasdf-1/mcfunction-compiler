@@ -11,7 +11,6 @@ import random
 import re
 import shutil
 import socket
-import statistics
 import subprocess
 import sys
 import time
@@ -21,16 +20,38 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests" / "runtime"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
 
 from mod_artifacts import MODS, MODS_DIR, STACK_MODS  # noqa: E402
-from paired_benchmark_analysis import paired_percent_changes, summarize_paired_changes  # noqa: E402
+from mc_harness import assert_version  # noqa: E402
+from mc_harness.campaign import (  # noqa: E402
+    connect_player_when_ready as mc_connect_player_when_ready,
+    median_window as mc_median_window,
+    reserve_ports as mc_reserve_ports,
+    score as mc_score,
+    tick_metrics as mc_tick_metrics,
+    wait_for_score as mc_wait_for_score,
+)
+from mc_harness.paired_stats import (  # noqa: E402
+    paired_percent_changes,
+    summarize_paired_changes,
+)
+from mc_harness.server_lifecycle import (  # noqa: E402
+    MINECRAFT_SERVER_SHA256,
+    wait_for_rcon as mc_wait_for_rcon,
+)
 from player_bot import PacketIds, PlayerBot  # noqa: E402
 from run_entity_datapack_profile import DrainingRconClient  # noqa: E402
 from run_runtime_probe import (  # noqa: E402
-    SERVER_JAR_SHA256,
     generate_packet_ids,
     locate_official_server_jar,
 )
+
+
+#: The harness version this campaign was verified against (roadmap step 6 pin).
+HARNESS_PIN = "1.0.0"
+
+assert_version(HARNESS_PIN)
 
 
 FIXTURE = ROOT / "tests/fixtures/function_compiler_fused_sustained"
@@ -38,6 +59,9 @@ OUTPUT_ROOT = ROOT / "build/benchmarks/PERF-FUSED-SUSTAINED"
 RUN_ROOT = ROOT / "run"
 HOST = "127.0.0.1"
 ADD_COMMAND = "scoreboard players add #fused fc_fused 1"
+#: The fixture's scoreboard objective; the shared harness score helpers take it
+#: as a parameter because each campaign fixture names its own.
+FIXTURE_OBJECTIVE = "fc_fused"
 STACK_CHOICES = ("fabric", "lb113", "lbm113", "lbm113120")
 IDLE_TICKS = 110
 WARMUP_ACTIVE_TICKS = 110
@@ -120,98 +144,52 @@ def generated_hashes(adds_per_tick: int = ADDS_PER_TICK) -> dict[str, str]:
 
 
 def reserve_ports(count: int) -> tuple[int, ...]:
-    reservations: list[socket.socket] = []
-    try:
-        while len(reservations) < count:
-            probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            probe.bind((HOST, 0))
-            if any(probe.getsockname()[1] == item.getsockname()[1] for item in reservations):
-                probe.close()
-                continue
-            reservations.append(probe)
-        return tuple(int(item.getsockname()[1]) for item in reservations)
-    finally:
-        for probe in reservations:
-            probe.close()
+    """Reserve distinct free ports (shared harness implementation)."""
+    return mc_reserve_ports(count)
 
 
 def wait_for_rcon(
     process: subprocess.Popen[bytes], port: int, password: str, timeout_seconds: int = 240
 ) -> DrainingRconClient:
-    deadline = time.monotonic() + timeout_seconds
-    last_error: Exception | None = None
-    while time.monotonic() < deadline:
-        if process.poll() is not None:
-            raise RuntimeError(f"Minecraft exited early with code {process.returncode}")
-        try:
-            return DrainingRconClient(HOST, port, password)
-        except (OSError, ConnectionError, RuntimeError) as error:
-            last_error = error
-            time.sleep(0.5)
-    raise TimeoutError(f"RCON did not become ready: {last_error}")
+    """Wait for a campaign server's RCON, draining split responses."""
+    return mc_wait_for_rcon(
+        process,
+        host=HOST,
+        port=port,
+        password=password,
+        client_cls=DrainingRconClient,
+        timeout_seconds=timeout_seconds,
+        poll_seconds=0.5,
+    )
 
 
 def connect_player_when_ready(
     process: subprocess.Popen[bytes], server_port: int, packet_ids: PacketIds
 ) -> tuple[PlayerBot, int]:
-    """Let dedicated-server startup settle and retry transient login closes."""
-    time.sleep(1.0)
-    attempts = 0
-    last_error: Exception | None = None
-    while attempts < 3:
-        if process.poll() is not None:
-            raise RuntimeError(
-                f"Minecraft exited before player login with code {process.returncode}"
-            )
-        attempts += 1
-        bot = PlayerBot("FCFused", HOST, server_port, packet_ids)
-        try:
-            return bot.connect(), attempts
-        except (ConnectionError, RuntimeError) as error:
-            bot.close()
-            last_error = error
-            if "server closed the player connection" not in str(error):
-                raise
-            if attempts < 3:
-                time.sleep(1.0)
-    raise RuntimeError(
-        f"Minecraft closed all three player login attempts; last error: {last_error}"
+    """Connect this campaign's spectator player (shared harness implementation)."""
+    return mc_connect_player_when_ready(
+        process,
+        server_port,
+        packet_ids,
+        player_name="FCFused",
+        player_bot_cls=PlayerBot,
+        host=HOST,
     )
 
 
 def score(rcon: DrainingRconClient, holder: str) -> int:
-    response = rcon.command(f"scoreboard players get {holder} fc_fused")
-    match = re.search(r"has (-?\d+)", response)
-    if match is None:
-        raise RuntimeError(f"Could not read #{holder} fc_fused: {response!r}")
-    return int(match.group(1))
+    """Read this fixture's scoreboard objective (shared harness implementation)."""
+    return mc_score(rcon, holder, FIXTURE_OBJECTIVE)
 
 
 def tick_metrics(response: str) -> dict[str, float]:
-    patterns = {
-        "tick_average_ms": r"Average time per tick: ([0-9.]+)ms",
-        "tick_p50_ms": r"P50: ([0-9.]+)ms",
-        "tick_p95_ms": r"P95: ([0-9.]+)ms",
-        "tick_p99_ms": r"P99: ([0-9.]+)ms",
-    }
-    parsed: dict[str, float] = {}
-    for label, pattern in patterns.items():
-        match = re.search(pattern, response)
-        if match is None:
-            raise RuntimeError(f"Could not parse {label} from /tick query: {response!r}")
-        parsed[label] = float(match.group(1))
-    return parsed
+    """Parse a /tick query summary (shared harness implementation)."""
+    return mc_tick_metrics(response)
 
 
 def median_window(windows: list[dict[str, float]]) -> dict[str, float]:
-    """Take the per-label median across sampled tick-query windows."""
-    if not windows:
-        raise RuntimeError("No tick query windows were sampled")
-    labels = sorted(windows[0])
-    return {
-        label: round(statistics.median(window[label] for window in windows), 6)
-        for label in labels
-    }
+    """Per-label median across sampled tick windows (shared harness implementation)."""
+    return mc_median_window(windows)
 
 
 def wait_for_score(
@@ -221,16 +199,10 @@ def wait_for_score(
     target: int,
     timeout_seconds: int = 240,
 ) -> int:
-    deadline = time.monotonic() + timeout_seconds
-    current = score(rcon, holder)
-    while current < target and time.monotonic() < deadline:
-        if process.poll() is not None:
-            raise RuntimeError(f"Minecraft exited while waiting for #{holder}")
-        time.sleep(0.2)
-        current = score(rcon, holder)
-    if current < target:
-        raise TimeoutError(f"#{holder} reached {current}; expected at least {target}")
-    return current
+    """Wait for this fixture's workload-progress score (shared harness implementation)."""
+    return mc_wait_for_score(
+        process, rcon, holder, FIXTURE_OBJECTIVE, target, timeout_seconds=timeout_seconds
+    )
 
 
 def server_environment(mode: str, diagnostic: bool) -> dict[str, str]:
@@ -623,7 +595,7 @@ def main() -> int:
     args = parse_args()
     adds_per_tick = args.adds_per_tick if args.adds_per_tick is not None else ADDS_PER_TICK
     server_jar = locate_official_server_jar()
-    if sha256(server_jar) != SERVER_JAR_SHA256:
+    if sha256(server_jar) != MINECRAFT_SERVER_SHA256:
         raise RuntimeError(f"Minecraft 26.3 server hash mismatch: {server_jar}")
     packet_ids = generate_packet_ids(server_jar)
     mods = [

@@ -11,7 +11,6 @@ from pathlib import Path
 import re
 import shutil
 import socket
-import struct
 import subprocess
 import sys
 import tempfile
@@ -19,8 +18,23 @@ import threading
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests" / "runtime"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
 from player_bot import PacketIds, PlayerBot  # noqa: E402
 from mod_artifacts import MODS, MODS_DIR, STACK_MODS  # noqa: E402
+from mc_harness import assert_version  # noqa: E402
+from mc_harness.server_lifecycle import (  # noqa: E402
+    DrainingRconClient,
+    RconClient,
+    SERVER_JAR_SHA256,
+    generate_packet_ids as mc_generate_packet_ids,
+    locate_official_server_jar as mc_locate_official_server_jar,
+    wait_for_rcon as mc_wait_for_rcon,
+)
+
+#: The harness version this probe was verified against (roadmap step 6 pin).
+HARNESS_PIN = "1.0.0"
+
+assert_version(HARNESS_PIN)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -137,7 +151,6 @@ EXTENDED_QUOTA_FIXTURES = frozenset(
 )
 FORK_LIMITS = tuple(range(1, 13))
 FORK_MATCH_COUNTS = (0, 1, 2, 4)
-SERVER_JAR_SHA256 = "d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64"
 ACTOR_TAG = "fc_probe_actor"
 ACTOR_POOL_TAG = "fc_probe_actor_pool"
 ACTOR_TYPE = "minecraft:armor_stand"
@@ -569,49 +582,6 @@ RECURSIVE_MAX_SCORE = 4
 RECURSIVE_COMPILED_MAX_SCORE = 6
 
 
-class RconClient:
-    def __init__(self, host: str, port: int, password: str) -> None:
-        self.socket = socket.create_connection((host, port), timeout=5)
-        self.socket.settimeout(10)
-        self.request_id = 0
-        response_id, response_type, _ = self._request(3, password)
-        if response_id == -1 or response_type != 2:
-            raise RuntimeError("RCON authentication failed")
-
-    def close(self) -> None:
-        self.socket.close()
-
-    def command(self, command: str) -> str:
-        response_id, response_type, response = self._request(2, command)
-        if response_id != self.request_id or response_type != 0:
-            raise RuntimeError(
-                f"Unexpected RCON command response id={response_id} type={response_type}"
-            )
-        return response
-
-    def _request(self, packet_type: int, body: str) -> tuple[int, int, str]:
-        self.request_id += 1
-        packet_id = self.request_id
-        encoded = body.encode("utf-8") + b"\0\0"
-        payload = struct.pack("<ii", packet_id, packet_type) + encoded
-        self.socket.sendall(struct.pack("<i", len(payload)) + payload)
-
-        packet_length = struct.unpack("<i", self._read_exact(4))[0]
-        packet = self._read_exact(packet_length)
-        response_id, response_type = struct.unpack("<ii", packet[:8])
-        response_body = packet[8:-2].decode("utf-8", errors="replace")
-        return response_id, response_type, response_body
-
-    def _read_exact(self, length: int) -> bytes:
-        chunks = bytearray()
-        while len(chunks) < length:
-            chunk = self.socket.recv(length - len(chunks))
-            if not chunk:
-                raise ConnectionError("RCON closed before sending a full packet")
-            chunks.extend(chunk)
-        return bytes(chunks)
-
-
 def prepare_server_files() -> Path:
     RUN_DIR.mkdir(parents=True, exist_ok=True)
     logs_dir = RUN_DIR / "logs"
@@ -682,57 +652,28 @@ def prepare_macro_server_files(stack: str) -> Path:
 
 
 def locate_official_server_jar() -> Path:
+    """Locate the pinned official 26.3 server jar (shared harness implementation).
+
+    The search roots are this project's: the configured GRADLE_USER_HOME, this
+    checkout's retained `.gradle-user-home` offline cache, then the user's
+    default Gradle home. The jar's SHA-256 is verified against the pinned
+    digest by the shared implementation.
+    """
     cache_roots: list[Path] = []
     configured_gradle_home = os.environ.get("GRADLE_USER_HOME")
     if configured_gradle_home:
         cache_roots.append(Path(configured_gradle_home).expanduser().resolve())
-    cache_roots.extend(
-        (ROOT / ".gradle-user-home", Path.home() / ".gradle")
-    )
-
-    for gradle_home in cache_roots:
-        candidate = gradle_home / "caches" / "fabric-loom" / "26.3" / "minecraft-server.jar"
-        if candidate.is_file():
-            with candidate.open("rb") as server_file:
-                digest = hashlib.file_digest(server_file, "sha256").hexdigest()
-            if digest != SERVER_JAR_SHA256:
-                raise RuntimeError(
-                    f"Cached server jar fingerprint mismatch at {candidate}: {digest}"
-                )
-            return candidate
-    raise FileNotFoundError(
-        "Official Minecraft 26.3 server jar is not cached. Run the pinned Gradle "
-        "build once or set GRADLE_USER_HOME to the cache containing it."
-    )
+    cache_roots.extend((ROOT / ".gradle-user-home", Path.home() / ".gradle"))
+    return mc_locate_official_server_jar(cache_roots=cache_roots)
 
 
 def generate_packet_ids(server_jar: Path) -> PacketIds:
-    with tempfile.TemporaryDirectory(prefix="function-compiler-packet-report-") as temp:
-        temp_dir = Path(temp)
-        report_root = temp_dir / "packet-report"
-        report = subprocess.run(
-            [
-                "java",
-                "-DbundlerMainClass=net.minecraft.data.Main",
-                "-jar",
-                str(server_jar),
-                "--reports",
-                "--output",
-                str(report_root),
-            ],
-            cwd=temp_dir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            timeout=300,
-            check=False,
-        )
-        packet_report = report_root / "reports" / "packets.json"
-        if report.returncode != 0 or not packet_report.is_file():
-            raise RuntimeError(
-                "Minecraft packet report generation failed: " + report.stdout[-1600:]
-            )
-        return PacketIds.load(packet_report)
+    """Extract the pinned jar's packets.json report (shared harness implementation).
+
+    The parser class is this project's protocol client, which AGENTS.md keeps
+    project-owned and pinned to 26.3 protocol 777.
+    """
+    return mc_generate_packet_ids(server_jar, PacketIds)
 
 
 def connect_probe_player(
@@ -4025,17 +3966,19 @@ def start_vanilla_server(
 
 
 def wait_for_rcon(process: subprocess.Popen[bytes], timeout_seconds: int = 240) -> RconClient:
-    deadline = time.monotonic() + timeout_seconds
-    last_error: Exception | None = None
-    while time.monotonic() < deadline:
-        if process.poll() is not None:
-            raise RuntimeError(f"Gradle/server exited early with code {process.returncode}")
-        try:
-            return RconClient(RCON_HOST, RCON_PORT, RCON_PASSWORD)
-        except (OSError, ConnectionError, RuntimeError) as error:
-            last_error = error
-            time.sleep(1)
-    raise TimeoutError(f"RCON did not become available: {last_error}")
+    """Wait for this probe's RCON to answer (shared harness implementation).
+
+    The host, port, and password are this probe's declared constants, so the
+    many scripts that import this helper keep their exact call signature.
+    """
+    return mc_wait_for_rcon(
+        process,
+        host=RCON_HOST,
+        port=RCON_PORT,
+        password=RCON_PASSWORD,
+        client_cls=RconClient,
+        timeout_seconds=timeout_seconds,
+    )
 
 
 def prepare_modifier_actors(client: RconClient, mode: str) -> None:

@@ -1047,6 +1047,36 @@ performance result), the matrix gained case BC-06, and the table stands at
 with PERF-001 the one matrix case still partial by its failed
 pre-declared baseline gate on this host (batch 16).
 
+**Batch 20 - the harness extraction, roadmap step 6 (no table rows changed).**
+The engine-agnostic harness now lives in the version-pinned sibling package
+`mc-harness` v1.0.0 (`mc-mods/mc-tooling/mc-harness`): the pinned 26.3 Fabric
+mod-stack matrix, the exact sign/order-statistic paired-campaign analysis,
+the server lifecycle (RCON clients, pinned server-jar location and
+fingerprint, Mojang packet-report extraction, RCON readiness, server
+properties), the counterbalanced-campaign primitives, and the host gate
+(quiet-window precondition, per-arm noise rule, inter-run settle). Every
+runtime and campaign script that had duplicated these helpers now consumes
+the harness by path with an import-time version assertion, so a harness
+change cannot reach a recorded campaign unannounced; the duplicated local
+copies were removed and `paired_benchmark_analysis.py` was deleted,
+with its consumer tests running against the harness copy unchanged.
+
+Per the project guide the headless protocol client stays project-owned and
+pinned to 26.3 protocol 777 (`tests/runtime/player_bot.py`); the harness
+receives the client classes by injection, which keeps one protocol pin per
+project and prevents a shared-kit change from re-targeting a live probe.
+Verified after the extraction: the two-arm runtime probe smoke
+(mod-free-vanilla ↔ wrapper-on) passes end-to-end on the rewired imports, all
+54 Python tests pass including the new harness-pin suite (version pin,
+wrapper bindings, project-owned bot, workspace registration), and the doc
+boundary and link checks pass. No table rows changed; the table stands at
+**92 rows: 92 covered (R), 0 partial (P), 0 missing (—)**.
+
+A pre-existing `IndentationError` in `scripts/run_memory_load_analysis.py`
+(line 448, orphaned code after a `return`) was found by the extraction's
+compile sweep and is reported separately: it predates this batch and leaves
+that script unrunnable, and it is not part of the extraction surface.
+
 ## 12. Reproducing this table from the code
 
 ```sh

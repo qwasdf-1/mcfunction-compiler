@@ -13,12 +13,18 @@ import re
 import subprocess
 import sys
 
-from paired_benchmark_analysis import (
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
+from mc_harness import assert_version  # noqa: E402
+from mc_harness.paired_stats import (  # noqa: E402
     paired_percent_changes,
     summarize_paired_changes,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
+#: The harness version this campaign was verified against (roadmap step 6 pin).
+HARNESS_PIN = "1.0.0"
+
+assert_version(HARNESS_PIN)
 PROFILE_RUNNER = ROOT / "scripts/run_veinminer_profile.py"
 CAMPAIGN_ROOT = ROOT / "build/benchmarks/PERF-011-veinminer/campaigns"
 

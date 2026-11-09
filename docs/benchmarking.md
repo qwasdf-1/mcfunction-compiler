@@ -165,9 +165,9 @@ performance comparisons and record the compatibility failure separately.
    distinguished. Record both in the campaign report before its first trial.
    Report paired median change, full pair range, and a paired confidence
    interval with achieved coverage. The shared helper
-   [`scripts/paired_benchmark_analysis.py`](../scripts/paired_benchmark_analysis.py)
-   calculates a distribution-free exact order-statistic interval for the
-   median paired change. For a metric where lower is better, the interval must
+   [`mc-harness/mc_harness/paired_stats.py`](../../mc-tooling/mc-harness/mc_harness/paired_stats.py)
+   (the sibling harness, version-pinned - see roadmap step 6) calculates a
+   distribution-free exact order-statistic interval for the median paired change. For a metric where lower is better, the interval must
    lie entirely at or beyond the preselected gain to meet the threshold. An
    interval that overlaps the threshold is inconclusive; an interval entirely
    above it does not meet the threshold. With five pairs, the maximum
@@ -218,10 +218,11 @@ adapter. A new candidate should add or update these pieces:
    hashes; warms both arms the same way; checks exact work completion; records
    absolute measurements and environment details; and preserves failed-run
    evidence.
-4. A paired campaign adapter that randomizes arm order and calls
-   `paired_benchmark_analysis.py`. Keep optimization-specific setup and
-   assertions local to the adapter; use the same paired analysis fields,
-   confidence rule, and report meanings across candidates.
+4. A paired campaign adapter that randomizes arm order and calls the harness's
+   paired analysis (`mc-harness/mc_harness/paired_stats.py`, version-pinned).
+   Keep optimization-specific setup and assertions local to the adapter; use
+   the same paired analysis fields, confidence rule, and report meanings across
+   candidates.
 5. A maintained result page linked from `benchmarks/README.md`, the relevant
    correctness/benchmark matrix rows, and `docs/current-state.md`.
 

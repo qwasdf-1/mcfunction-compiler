@@ -322,6 +322,21 @@ pass actually implements:
 6. **Extract the engine-agnostic harness** (oracle harness, mod-stack matrix,
    paired statistics and the host gate) into a sibling project, with its own
    version pinning, once steps 1–3 have stabilised.
+   **Done (batch 20, 2026-11-09)**: the sibling workspace gained
+   [`mc-harness`](../../../../mc-tooling/mc-harness/README.md) v1.0.0, holding
+   the mod-stack pin matrix, the exact paired-campaign statistics, the server
+   lifecycle (RCON clients, pinned-jar location, packet-report extraction,
+   readiness), the counterbalanced-campaign primitives, and the host gate
+   (quiet-window precondition, per-arm noise rule, inter-run settle). The
+   function-compiler scripts now consume it by path with an import-time
+   version assertion (`mc_harness.assert_version("1.0.0")`), so a harness
+   change cannot reach a recorded campaign unannounced. Per project decision
+   the headless protocol client stays project-owned
+   (`tests/runtime/player_bot.py`, pinned to 26.3 protocol 777) and the
+   harness receives it by injection - one protocol pin per project, no
+   shared-kit re-targeting of live probes. Verified by the two-arm runtime
+   probe smoke (mod-free-vanilla ↔ wrapper-on, exit 0) and the harness pin
+   test suite (`tests/test_mc_harness_pin.py`).
 
 ### 6.4 What v1.0 is allowed to claim
 
