@@ -16,7 +16,8 @@ of active tick time and the existing selective-macro mechanism already covers
 11,701/11,701 calls with zero fallbacks. The remaining question is a
 real-workload selective-macro campaign, not new code; the gate is predeclared
 (event completion at 15%, five screening then ten confirmatory pairs, seed
-26871031) and awaits a quiet host.**
+26871031), the screening passed at a −30.03% median with its entire exact
+interval beyond the gate, and the predeclared ten-pair confirmatory is next.**
 
 ## 1. The question
 
@@ -245,7 +246,7 @@ score commands.
    Miner, Spawn Animations, and Dynamic Lights show H1's runtime fork pool at
    0.0–0.2%, while Vein Miner's macro-argument construction is 27.4% wall /
    29.4% active — the only >15% pool. See §3.2.
-3. **H4 campaign (predeclared, awaiting a quiet host).** Run compiler-off vs
+3. **H4 campaign (screening passed; confirmatory next).** Run compiler-off vs
    the shipped selective-macro default on Vein Miner side 6. The gate is event
    completion (`operation_completion_seconds`) at a 15% minimum median
    reduction with the 95% exact paired interval entirely beyond it; the

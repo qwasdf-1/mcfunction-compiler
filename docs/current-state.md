@@ -1052,6 +1052,20 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   See the
   [benchmarks record](../benchmarks/README.md#time-share-attribution-and-the-h4-decision-2026-11-09).
 
+- Batch 26 ran the predeclared H4 screening on Vein Miner 5.3.0 side 6 (plain
+  Fabric stack, native event, no Spark, seed 26871031) under the wired
+  quiet-window gate (observed 1-minute load 3.946). The activation diagnostic
+  intercepted 11,753 attempted and 11,753 used macro calls with zero fallback
+  counters (215/215 work), and all five counterbalanced pairs held exact
+  workload parity with no noisy arms. Median event completion change is
+  −30.03% with the exact 93.75% interval −32.64% to −21.27%
+  (`screening_only`, `no_regression_holds`); the post-event `tick_average_ms`
+  median is −25.03% (−30.62% to −2.60%). The interval lies entirely beyond the
+  predeclared 15% gate, so the predeclared ten-pair confirmatory (same seed,
+  `--minimum-gain-percent 15`, event completion primary) is next. No
+  default-on status or matrix row changed. See the
+  [benchmarks record](../benchmarks/README.md#time-share-attribution-and-the-h4-decision-2026-11-09).
+
 - Batch 25 wired the harness's declared host gate into
   `run_veinminer_campaign.py`, which previously had none: the campaign start
   waits for the declared quiet window (1-minute load at or below 4.0, recorded

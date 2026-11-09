@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Run the predeclared H4 screening (batch 26): five counterbalanced
+  compiler-off vs selective-macro pairs on Vein Miner 5.3.0 side 6 (plain
+  Fabric stack, native event, no Spark, seed 26871031) under the wired
+  quiet-window gate (observed 1-minute load 3.946). The one-time activation
+  diagnostic intercepted 11,753 attempted and 11,753 used macro calls with
+  zero fallback counters and 215/215 work. Every pair held exact workload
+  parity (215/215 blocks, 1,952 queue-head increments); no arm started noisy.
+  Median event completion change is −30.03% with the exact 93.75% interval
+  −32.64% to −21.27% (`screening_only`, `no_regression_holds`); the post-event
+  `tick_average_ms` median is −25.03% (−30.62% to −2.60%) and `tick_p95_ms`
+  −30.26% (−34.88% to −22.27%). The interval lies entirely beyond the
+  predeclared 15% gate, so the predeclared ten-pair confirmatory (same seed,
+  same gate, `--minimum-gain-percent 15`) is next; the promotion decision
+  follows that campaign.
+
 - Wire the declared host gate into the Vein Miner campaign runner (batch 25).
   `run_veinminer_campaign.py` now imports `mc_harness.host_gate` and enforces
   the declared quiet-window precondition at campaign start (recorded as

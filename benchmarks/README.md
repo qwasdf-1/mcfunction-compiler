@@ -434,6 +434,22 @@ The confirmatory command adds `--phase confirmatory --pairs 10
 --minimum-gain-percent 15` with the same seed. If the addressable share cannot
 clear 15%, that is the recorded answer and coverage widening stops.
 
+The screening ran on 2026-11-09 under the wired quiet-window gate (observed
+1-minute load 3.946). The one-time activation diagnostic intercepted 11,753
+attempted and 11,753 used macro calls with zero fallback counters and 215/215
+work, and all five counterbalanced pairs held exact workload parity (215/215
+blocks mined, 1,952 queue-head increments in every arm) with no noisy arms and
+no repeats. Median event completion change is −30.03% with the exact 93.75%
+interval −32.64% to −21.27% (`screening_only`, `no_regression_holds`); the
+post-event `tick_average_ms` median is −25.03% (−30.62% to −2.60%) and
+`tick_p95_ms` −30.26% (−34.88% to −22.27%). Per-pair completions (off vs
+selective): 20.160/13.579 s, 18.330/13.466 s, 18.701/13.086 s, 18.363/12.769 s,
+18.317/14.421 s. The report is
+`build/benchmarks/PERF-011-veinminer/campaigns/vein-6-fabric-selective-macro-5pairs-seed26871031-20261109T200155Z.json`.
+The entire interval lies beyond the predeclared 15% gate, so the predeclared
+ten-pair confirmatory (same seed, same stack, `--minimum-gain-percent 15`) is
+next; the promotion decision follows that campaign.
+
 ## PERF-012: sustained selective-macro active-tick fixture
 
 The current controlled fixture in
