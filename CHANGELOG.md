@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Wire the declared host gate into the Vein Miner campaign runner (batch 25).
+  `run_veinminer_campaign.py` now imports `mc_harness.host_gate` and enforces
+  the declared quiet-window precondition at campaign start (recorded as
+  `quiet_window`; a give-up is a recorded failure, never a silent start under
+  load), settles the host before every arm so one boot does not compete with
+  the previous teardown (the batch-19 load-ramp diagnosis), records each
+  arm's settle outcome, start load, and `noisy_by_declared_rule` verdict, and
+  repeats a noisy arm once with both results retained
+  (`noisy_arm_repeats`), matching the paired bytecode-vs-fused campaign's
+  declared rule. The campaign-runner test module covers the quiet-window
+  fail-closed decision and the per-mode arm gates (16 tests). No default-on
+  status or matrix row changed.
+
 - Predeclare the H4 real-workload campaign and fix the Vein Miner campaign
   runner's timing arm (batch 24). `run_veinminer_campaign.py` now builds
   uninstrumented paired arms for every candidate: the fused candidate keeps

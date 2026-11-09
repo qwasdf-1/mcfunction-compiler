@@ -15,7 +15,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
-from mc_harness import assert_version  # noqa: E402
+from mc_harness import assert_version, host_gate  # noqa: E402
 from mc_harness.paired_stats import (  # noqa: E402
     paired_percent_changes,
     summarize_paired_changes,
@@ -91,6 +91,39 @@ def profile_command(
             )
         command.append("--count-selective-macro-arguments")
     return command
+
+
+def quiet_window_report(
+    observed_load: float, seconds_waited: float
+) -> dict[str, object]:
+    """Record the declared quiet-window precondition for a campaign start.
+
+    A give-up is a recorded campaign failure, never a silent start under load.
+    """
+    state = {
+        "quiet_load_1m": host_gate.QUIET_LOAD_1M,
+        "observed_load_1m": round(observed_load, 3),
+        "seconds_waited": round(seconds_waited, 3),
+        "quiet_window_met": observed_load <= host_gate.QUIET_LOAD_1M,
+    }
+    if not state["quiet_window_met"]:
+        raise ValueError(
+            f"quiet window not met after {seconds_waited:.0f}s: "
+            f"load {observed_load:.2f} > {host_gate.QUIET_LOAD_1M:.1f}"
+        )
+    return state
+
+
+def check_arm_gates(mode: str, result: dict[str, object]) -> None:
+    """Raise unless the arm's compiler-mode profile gate passed."""
+    if not result["valid_native_workload"]:
+        raise RuntimeError(f"Native workload gate failed in {mode}: {result}")
+    if mode == "fused" and not result["valid_fused_timed_profile"]:
+        raise RuntimeError(f"Fused candidate arm gate failed: {result['run_id']}")
+    if mode == "score-add" and not result["valid_score_add_profile"]:
+        raise RuntimeError(f"ScoreAdd compile gate failed: {result}")
+    if mode == "selective-macro" and not result["valid_selective_macro_profile"]:
+        raise RuntimeError(f"Selective macro activation gate failed: {result}")
 
 
 def selective_activation_summary(
@@ -219,6 +252,68 @@ def run_selective_activation_diagnostic(
     return activation
 
 
+def execute_profile_arm(
+    args: argparse.Namespace,
+    mode: str,
+    repetition: int,
+    report: dict[str, object],
+    report_path: Path,
+) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+    """Settle the host, run one profile arm, and parse its result.
+
+    The settle and start-load record follow the declared host-gate rules: an
+    inter-run settle so one boot does not compete with the previous teardown
+    (the batch-19 load-ramp diagnosis), and a per-arm noise verdict that the
+    caller repeats on once.
+    """
+    settle_load, settle_seconds = host_gate.settle_host()
+    load_start = host_gate.load_average_1m()
+    host = {
+        "settle_load_1m": round(settle_load, 3),
+        "settle_seconds": round(settle_seconds, 3),
+        "load_average_1m_start": round(load_start, 3),
+        "noisy_by_declared_rule": host_gate.is_noisy(load_start),
+    }
+    # Both timing arms are uninstrumented. The fused candidate runs the
+    # profile runner's `fused-timed` mode, and the selective-macro candidate
+    # runs plain `selective-macro`; each mechanism's fast path is proven
+    # separately by a metrics-on activation diagnostic.
+    command = profile_command(args, mode)
+    completed = subprocess.run(
+        command,
+        cwd=ROOT,
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        report["status"] = "failed"
+        report["failure"] = {
+            "pair": repetition,
+            "mode": mode,
+            "returncode": completed.returncode,
+            "stdout_tail": completed.stdout[-3000:],
+            "stderr_tail": completed.stderr[-3000:],
+        }
+        report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        raise RuntimeError(
+            f"Profile failed ({mode}, pair {repetition}); report: {report_path}"
+        )
+    try:
+        profile = json.loads(completed.stdout)
+    except json.JSONDecodeError as error:
+        report["status"] = "failed"
+        report["failure"] = {
+            "pair": repetition,
+            "mode": mode,
+            "stdout_tail": completed.stdout[-3000:],
+            "stderr_tail": completed.stderr[-3000:],
+        }
+        report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        raise RuntimeError(f"Profile emitted invalid JSON: {error}") from error
+    return profile, profile["results"], host
+
+
 def profile_summary(
     profile: dict[str, object],
     result: dict[str, object],
@@ -326,6 +421,14 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
             "pairs_requested": args.pairs,
             "random_seed": args.seed,
             "capture_timeout_seconds": args.capture_timeout,
+            "host_gate": {
+                "quiet_load_1m": host_gate.QUIET_LOAD_1M,
+                "settle_timeout_seconds": host_gate.SETTLE_TIMEOUT_SECONDS,
+                "noise_rule": (
+                    "1-minute load average above the CPU count marks an arm "
+                    "noisy and it is repeated once; both results are retained"
+                ),
+            },
             "analysis_plan": {
                 "phase": args.phase,
                 "primary_metric": args.primary_metric,
@@ -339,6 +442,16 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
             "report_path": str(report_path.relative_to(ROOT)),
             "status": "running",
         }
+
+    observed_load, quiet_seconds = host_gate.wait_for_quiet_host()
+    try:
+        report["quiet_window"] = quiet_window_report(observed_load, quiet_seconds)
+    except ValueError as error:
+        report["status"] = "failed"
+        report["failure"] = {"phase": "quiet-window", "error": str(error)}
+        report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        raise RuntimeError(f"Quiet-window precondition failed: {error}") from error
+    report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
     if args.candidate == "selective-macro":
         run_selective_activation_diagnostic(args, report, report_path)
@@ -376,54 +489,29 @@ def make_report(args: argparse.Namespace) -> dict[str, object]:
                 f"pair {repetition}/{args.pairs}: starting {args.stack} {mode} side={args.side}",
                 flush=True,
             )
-            # Both timing arms are uninstrumented. The fused candidate runs the
-            # profile runner's `fused-timed` mode, and the selective-macro
-            # candidate runs plain `selective-macro`; each mechanism's fast path
-            # is proven separately by a metrics-on activation diagnostic.
-            command = profile_command(args, mode)
-            environment = os.environ.copy()
-            completed = subprocess.run(
-                command,
-                cwd=ROOT,
-                env=environment,
-                capture_output=True,
-                text=True,
+            profile, result, host = execute_profile_arm(
+                args, mode, repetition, report, report_path
             )
-            if completed.returncode != 0:
-                report["status"] = "failed"
-                report["failure"] = {
-                    "pair": repetition,
-                    "mode": mode,
-                    "returncode": completed.returncode,
-                    "stdout_tail": completed.stdout[-3000:],
-                    "stderr_tail": completed.stderr[-3000:],
-                }
-                report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-                raise RuntimeError(
-                    f"Profile failed ({mode}, pair {repetition}); report: {report_path}"
+            check_arm_gates(mode, result)
+            if host["noisy_by_declared_rule"]:
+                print(
+                    f"pair {repetition}/{args.pairs}: {mode} started noisy "
+                    f"(load {host['load_average_1m_start']}); repeating once",
+                    flush=True,
                 )
-            try:
-                profile = json.loads(completed.stdout)
-            except json.JSONDecodeError as error:
-                report["status"] = "failed"
-                report["failure"] = {
-                    "pair": repetition,
-                    "mode": mode,
-                    "stdout_tail": completed.stdout[-3000:],
-                    "stderr_tail": completed.stderr[-3000:],
-                }
+                retained = profile_summary(profile, result)
+                retained["host"] = host
+                report.setdefault("noisy_arm_repeats", []).append(
+                    {"pair": repetition, "mode": mode, "retained_run": retained}
+                )
                 report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-                raise RuntimeError(f"Profile emitted invalid JSON: {error}") from error
-            result = profile["results"]
-            if not result["valid_native_workload"]:
-                raise RuntimeError(f"Native workload gate failed in {mode}: {result}")
-            if mode == "fused" and not result["valid_fused_timed_profile"]:
-                raise RuntimeError(f"Fused candidate arm gate failed: {result['run_id']}")
-            if mode == "score-add" and not result["valid_score_add_profile"]:
-                raise RuntimeError(f"ScoreAdd compile gate failed: {result}")
-            if mode == "selective-macro" and not result["valid_selective_macro_profile"]:
-                raise RuntimeError(f"Selective macro activation gate failed: {result}")
-            arms[mode] = profile_summary(profile, result)
+                profile, result, host = execute_profile_arm(
+                    args, mode, repetition, report, report_path
+                )
+                check_arm_gates(mode, result)
+            summary = profile_summary(profile, result)
+            summary["host"] = host
+            arms[mode] = summary
             report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
             print(
                 f"pair {repetition}/{args.pairs}: {mode} passed; "

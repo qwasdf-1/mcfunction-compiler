@@ -498,11 +498,12 @@ This navigation index summarizes key code symbols across Java source and Python 
 - [`scripts/run_veinminer_campaign.py`](../../scripts/run_veinminer_campaign.py):
   - `def tick_metrics()`:44
   - `def profile_command()`:58
-  - `def selective_activation_summary()`:96
-  - `def run_selective_activation_diagnostic()`:144
-  - `def profile_summary()`:222
-  - `def make_report()`:267
-  - `def main()`:554
+  - `def quiet_window_report()`:96
+  - `def check_arm_gates()`:117
+  - `def selective_activation_summary()`:129
+  - `def run_selective_activation_diagnostic()`:177
+  - `def execute_profile_arm()`:255
+  - `def profile_summary()`:317
 - [`scripts/run_veinminer_profile.py`](../../scripts/run_veinminer_profile.py):
   - `def free_port()`:74
   - `def wait_for_rcon()`:80

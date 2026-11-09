@@ -411,9 +411,13 @@ Spark). The H4 gate is predeclared before the first arm:
 - **Activation:** a one-time metrics-on `selective-macro` diagnostic (hit
   counter enabled, not a timing arm) must show positive attempted and used call
   counts; the paired timing arms stay uninstrumented.
-- **Host gate:** the declared quiet-window precondition. PERF-001 showed this
-  shared host's fresh-JVM variance can block a 5% gate, so the campaign does
-  not start until the host is quiet.
+- **Host gate:** the declared quiet-window precondition, wired into the
+  campaign runner (batch 25): the start waits for the 1-minute load average to
+  fall to the declared quiet load and records the outcome, every arm is
+  preceded by an inter-run settle, and an arm that starts above the CPU count
+  is repeated once with both results retained. PERF-001 showed this shared
+  host's fresh-JVM variance can block a 5% gate, so the campaign does not
+  start until the host is quiet.
 
 `run_veinminer_campaign.py` now builds uninstrumented timing arms and records
 the activation diagnostic under `activation_diagnostic`; its selective-macro

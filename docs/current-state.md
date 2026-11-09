@@ -1052,6 +1052,18 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   See the
   [benchmarks record](../benchmarks/README.md#time-share-attribution-and-the-h4-decision-2026-11-09).
 
+- Batch 25 wired the harness's declared host gate into
+  `run_veinminer_campaign.py`, which previously had none: the campaign start
+  waits for the declared quiet window (1-minute load at or below 4.0, recorded
+  as `quiet_window`; a give-up is a recorded failure, never a silent start
+  under load), every arm is preceded by an inter-run settle so sequential
+  server boots do not ramp the load (the batch-19 diagnosis), each arm records
+  its settle outcome, start load, and `noisy_by_declared_rule` verdict under
+  `host`, and a noisy arm is repeated once with both results retained in
+  `noisy_arm_repeats`, matching the bytecode-vs-fused campaign's rule. The H4
+  campaign has not run; the host's 1-minute load was 53.69 when batch 25
+  landed, so the quiet-window gate correctly blocks a start.
+
 - Batch 24 predeclared the H4 real-workload campaign and fixed the Vein Miner
   campaign runner's timing arm. `run_veinminer_campaign.py` no longer forces
   the selective-macro hit counter on its timing arms; both arms are

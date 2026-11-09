@@ -11,7 +11,9 @@ import argparse
 import unittest
 
 from scripts.run_veinminer_campaign import (
+    check_arm_gates,
     profile_command,
+    quiet_window_report,
     selective_activation_summary,
 )
 
@@ -133,6 +135,56 @@ class SelectiveActivationTests(unittest.TestCase):
                 {"output": "/tmp/run"},
                 activation_result(selective_macro_diagnostics_delta=diagnostics),
             )
+
+
+class QuietWindowTests(unittest.TestCase):
+    def test_a_met_precondition_is_recorded(self) -> None:
+        state = quiet_window_report(3.4, 12.5)
+        self.assertTrue(state["quiet_window_met"])
+        self.assertEqual(state["observed_load_1m"], 3.4)
+        self.assertEqual(state["seconds_waited"], 12.5)
+
+    def test_a_give_up_is_not_a_silent_start_under_load(self) -> None:
+        with self.assertRaises(ValueError):
+            quiet_window_report(53.69, 600.0)
+
+
+class ArmGateTests(unittest.TestCase):
+    def test_off_requires_only_the_native_workload_gate(self) -> None:
+        check_arm_gates("off", {"valid_native_workload": True})
+        with self.assertRaises(RuntimeError):
+            check_arm_gates("off", {"valid_native_workload": False})
+
+    def test_fused_requires_the_fused_timed_gate(self) -> None:
+        result = {
+            "valid_native_workload": True,
+            "valid_fused_timed_profile": True,
+            "run_id": "run-1",
+        }
+        check_arm_gates("fused", result)
+        result["valid_fused_timed_profile"] = False
+        with self.assertRaises(RuntimeError):
+            check_arm_gates("fused", result)
+
+    def test_selective_macro_requires_its_activation_gate(self) -> None:
+        result = {
+            "valid_native_workload": True,
+            "valid_selective_macro_profile": True,
+        }
+        check_arm_gates("selective-macro", result)
+        result["valid_selective_macro_profile"] = False
+        with self.assertRaises(RuntimeError):
+            check_arm_gates("selective-macro", result)
+
+    def test_score_add_requires_its_compile_gate(self) -> None:
+        result = {
+            "valid_native_workload": True,
+            "valid_score_add_profile": True,
+        }
+        check_arm_gates("score-add", result)
+        result["valid_score_add_profile"] = False
+        with self.assertRaises(RuntimeError):
+            check_arm_gates("score-add", result)
 
 
 if __name__ == "__main__":

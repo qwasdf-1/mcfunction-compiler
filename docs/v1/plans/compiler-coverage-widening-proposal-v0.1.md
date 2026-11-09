@@ -252,7 +252,9 @@ score commands.
    post-event `tick_average_ms` is reported alongside as corroboration, not as
    the decision. Design: five screening pairs, then a predeclared ten-pair
    confirmatory campaign, seed 26871031, counterbalanced arms, exact workload
-   parity in every pair. A one-time metrics-on activation diagnostic proves the
+   parity in every pair. The campaign start enforces the declared
+   quiet-window host gate with per-arm settles and a repeat-once noise rule.
+   A one-time metrics-on activation diagnostic proves the
    fast path fires; the timing arms are uninstrumented. A negative result is
    recorded as data and stops coverage widening. The existing mechanism covers
    11,701/11,701 calls with zero fallbacks, so this is a campaign, not a code
