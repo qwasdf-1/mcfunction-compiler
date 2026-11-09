@@ -1011,8 +1011,45 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   Miner tick functions, none in the other three). The proposal was amended
   with the census result (§3.1) and a new next step: a time-share attribution
   pass before sizing H1 or H4. No default-on status changed; no matrix rows
-  changed. See the
+  changed. Batch 23 later corrected these census counts (see the batch-23
+  entry): Vein Miner 266 adjacent tick commands in 27 runs, Spawn Animations
+  165 in 36, Dynamic Lights 80 in 19; Vein Miner's fork share is 23.4%. See
+  the
   [benchmarks record](../benchmarks/README.md#h2-first-specialization-inventory-2026-11-09).
+
+- Batch 23 completed the compiler-widening proposal's time-share attribution
+  and decided the H1/H4 branch. `scripts/attribute_specialization_share.py`
+  parses Spark profiles and partitions server-thread self weight by the nearest
+  enclosing leaf command family, with macro argument construction
+  (`FunctionCommand$2.arguments` / `getArgumentTag`, including the
+  `DataCommands.getSingleTag` helper) separated from `data` commands,
+  `ServerFunctionManager.execute` resetting function-body attribution,
+  `ContinuationTask` marking runtime forks, and blocking syscall /
+  `Thread.sleep` / `park` samples split out as idle. Fresh Spark captures:
+  Vein Miner side 6 with the compiler off (19,960 sampled weight, 215/215
+  work), Spawn Animations 1.11.6 on the vanilla server (11,876, 24 actors), and
+  Dynamic Lights 1.4.6 with the compiler off (29,516, 26 markers). Wall shares are 7.1% idle / 88.5% function time / 27.4%
+  macro-argument / 58.7% addressable leaf for Vein Miner, 87.4% / 3.1% / 0% /
+  1.3% for Spawn Animations, and 60.3% / 9.7% / 0% / 0.6% for Dynamic Lights;
+  active-tick shares are 95.2% / 29.4% / 63.2%, 24.6% / 0% / 10.4%, and 24.4%
+  / 0% / 1.6%. Runtime forked samples are 0.0–0.2%, so H1 is dead on these
+  packs: the hot Vein Miner `execute` chain is non-forked and its cost is macro
+  argument construction. H4 is the only >15% pool. The existing selective
+  macro mechanism already covers the shape: a side-6 diagnostic recorded
+  215/215 work, 11,701 attempted / 11,701 used calls, and zero unsupported
+  providers, entity paths, storage sources, missing custom data, resolution
+  fallbacks, or missing keys, so no code extension is needed. The batch also
+  corrected the census (macro-body `$` normalization, `scoreboard players
+  remove`, inner-`execute` calls): Vein Miner 266 adjacent tick commands in 27
+  runs, Spawn Animations 165 in 36, Dynamic Lights 80 in 19, Everything Clings
+  8 in 2, superseding batch 22's 250/143/14. PERF-017's fused arm set
+  `FC_SELECTIVE_MACRO_ARGUMENTS=false`, so it did not test the shipped default;
+  the 126.7 ms selective-macro diagnostic tick query is not a timing
+  comparison. No default-on status or matrix row changed. The next step is a
+  predeclared compiler-off vs selective-macro campaign on Vein Miner side 6;
+  `run_veinminer_campaign.py` needs an uninstrumented selective timing arm
+  because it currently forces the hit counter. See the
+  [benchmarks record](../benchmarks/README.md#time-share-attribution-and-the-h4-decision-2026-11-09).
 
 - Batch 17 closed STATE-004 with the item-modify slot edges using the
   batch-10 confirmed modifier id (fixture state_item_modify_slot_edges:

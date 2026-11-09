@@ -2,6 +2,47 @@
 
 ## Unreleased
 
+- Attribute the coverage-widening pool to tick time and decide H1 vs H4
+  (batch 23). `scripts/attribute_specialization_share.py` reads Spark profiles
+  and partitions server-thread self weight by the nearest enclosing leaf
+  command family. It separates macro argument construction
+  (`FunctionCommand$2.arguments` / `getArgumentTag`, including the
+  `DataCommands.getSingleTag` helper) from `data` commands, resets leaf
+  attribution at `ServerFunctionManager.execute` so a function body is charged
+  to its own commands, marks runtime forks via `ContinuationTask`, and splits
+  blocking syscall / `Thread.sleep` / `park` samples into an idle family so
+  active-tick shares have a clean denominator. Fresh Spark captures covered
+  Vein Miner 5.3.0 side 6 with the compiler off (19,960 sampled weight, 215/215
+  work), Spawn Animations 1.11.6 on the vanilla server (11,876, 24 actors), and
+  Dynamic Lights 1.4.6 with the compiler off (29,516, 26 markers). Vein Miner's wall attribution is 7.1% idle, 88.5%
+  function time, 27.4% macro argument construction, and 58.7% addressable leaf
+  work (95.2% / 29.4% / 63.2% on active ticks); Spawn Animations is 87.4% /
+  3.1% / 0% / 1.3% (24.6% / 0% / 10.4% active); Dynamic Lights is 60.3% /
+  9.7% / 0% / 0.6% (24.4% / 0% / 1.6% active). Runtime forked samples are
+  0.0–0.2%, and Vein Miner's hot `execute` chain is a non-forked conditional
+  chain whose cost is macro argument construction, so **H1 is dead** on these
+  packs. **H4 is the only candidate with a >15% pool**, and the existing
+  selective-macro mechanism already covers the shape: a side-6 diagnostic
+  recorded 11,701 attempted and 11,701 used calls with zero unsupported
+  providers, entity paths, storage sources, missing custom data, resolution
+  fallbacks, or missing keys, plus 215/215 work. No H4 code extension is
+  needed; the open question is whether the shipped default clears 15% on the
+  real workload. The batch also corrected the static census (macro-body `$`
+  normalization, `scoreboard players remove` as `score-add`, and macro/pure-leaf
+  calls inside `execute ... run` counted on the inner command): Vein Miner 266
+  adjacent tick commands in 27 runs, Spawn Animations 165 in 36, Dynamic Lights
+  80 in 19, Everything Clings 8 in 2, superseding batch 22's 250/143/14/8.
+  PERF-017's fused arm set `FC_SELECTIVE_MACRO_ARGUMENTS=false`, so it did not
+  test the shipped default, and the selective-macro diagnostic's 126.7 ms tick
+  query is not a timing comparison. Tests: `tests/test_attribute_specialization_share.py`
+  (13 tests) pins the family boundaries, macro-argument separation, fork
+  propagation, idle partition, and self-weight accounting;
+  `tests/test_specialization_inventory.py` (22 tests) pins the corrected
+  census. No default-on status or matrix row changed. Next: a predeclared
+  compiler-off vs selective-macro campaign on Vein Miner side 6, with an
+  uninstrumented selective timing arm because `run_veinminer_campaign.py`
+  currently forces the hit counter.
+
 - Run the compiler-widening proposal's first step: a metrics-only
   specialization inventory of the pinned real datapacks (batch 22).
   `scripts/run_specialization_inventory.py` verifies each pack's recorded
@@ -29,7 +70,10 @@
   default-on status or matrix row changed. Tests: `tests/test_specialization_inventory.py`
   (19 tests) pins the tokenizer, fork classification, leaf-family mapping,
   pure-leaf inlining, adjacent-run counting, scheduled-loop reachability, and
-  the synthetic-pack summary.
+  the synthetic-pack summary. Batch 23 corrected these census counts after
+  fixing macro-body `$` normalization and inner-`execute` classification
+  (Vein Miner 266 adjacent tick commands in 27 runs, Spawn Animations 165 in
+  36, Dynamic Lights 80 in 19; Vein Miner fork share 23.4%).
 
 - Scope the compiler-widening decision as a proposal (batch 21).
   `docs/v1/plans/compiler-coverage-widening-proposal-v0.1.md` records what the

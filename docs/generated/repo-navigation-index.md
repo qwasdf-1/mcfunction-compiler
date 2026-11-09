@@ -278,6 +278,15 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def repeated_doubles()`:88
   - `def repeated_ints()`:107
   - `def call_paths()`:126
+- [`scripts/attribute_specialization_share.py`](../../scripts/attribute_specialization_share.py):
+  - `def is_idle_frame()`:98
+  - `class StackNode`:128
+  - `def frame()`:138
+  - `def leaf_family()`:142
+  - `def generic_family()`:149
+  - `def is_fork_frame()`:156
+  - `def is_macro_argument_frame()`:160
+  - `def load_thread()`:169
 - [`scripts/check_doc_boundary.py`](../../scripts/check_doc_boundary.py):
   - `def run_git()`:32
   - `def git_bytes()`:42
@@ -478,14 +487,14 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def write_spawn_fixture_pack()`:97
   - `def start_spark_shell()`:126
 - [`scripts/run_specialization_inventory.py`](../../scripts/run_specialization_inventory.py):
-  - `def sha256_file()`:128
-  - `def split_tokens()`:133
-  - `def leaf_family()`:174
-  - `def parse_execute()`:185
-  - `def is_pure_leaf()`:209
-  - `class Pack`:226
-  - `def __init__()`:229
-  - `def _read()`:237
+  - `def sha256_file()`:129
+  - `def split_tokens()`:134
+  - `def leaf_family()`:175
+  - `def parse_execute()`:186
+  - `def is_pure_leaf()`:210
+  - `class Pack`:227
+  - `def __init__()`:230
+  - `def _read()`:238
 - [`scripts/run_veinminer_campaign.py`](../../scripts/run_veinminer_campaign.py):
   - `def tick_metrics()`:44
   - `def profile_summary()`:58

@@ -54,3 +54,13 @@ Vein Miner 5.3.0 ($6 \times 6 \times 6 = 216$ blocks, 1,952 queue increments per
 - **Screening (3 pairs, [`PERF-015`](../../../benchmarks/PERF-015-multi-mod-endurance-campaigns.md)):** Fabric -22.25% median event completion with `>6.5x` average-tick ratios, and `lbm113120` -28.40% with -35.21% P95 MSPT. Three pairs reach at most 93.75% exact median coverage, so these are screening observations only.
 - **Confirmatory (6 pairs):** Fabric -22.34% and Lithium -22.06% median event completion each met the pre-declared 15% gate; the Lithium+Bellows 1.1.3 nested-source run measured -22.17% at 95% confidence. Synthetic sustained macro fixtures measured -80.49% (`lb113`) and -83.22% (`lbm113120`) active-tick averages.
 - **Workload Integrity:** exact parity across all recorded arms (215/215 blocks mined, $\Delta\text{\#head} = 1,952$).
+
+Batch 23 measured the addressable pool on the same pack with the compiler off:
+macro argument construction is 27.4% of sampled server-thread wall time and
+29.4% of active tick time, and a selective-macro diagnostic used the fast path
+on 11,701/11,701 attempted calls with zero unsupported providers, entity paths,
+storage sources, missing custom data, resolution fallbacks, or missing keys
+(215/215 blocks). This establishes coverage and pool size, not a timing
+comparison; the real-workload promotion campaign is pending a predeclared
+threshold, pair count, and seed. See the
+[attribution record](../../../benchmarks/README.md#time-share-attribution-and-the-h4-decision-2026-11-09).

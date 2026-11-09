@@ -20,6 +20,7 @@ from scripts.run_specialization_inventory import (
     adjacent_runs,
     is_pure_leaf,
     leaf_family,
+    normalize_command_line,
     parse_execute,
     split_tokens,
     summarize_pack,
@@ -79,6 +80,16 @@ class ExecuteClassificationTests(unittest.TestCase):
 
 
 class FamilyTests(unittest.TestCase):
+    def test_macro_marker_is_not_part_of_the_command(self) -> None:
+        self.assertEqual(
+            normalize_command_line("$scoreboard players add #macro demo $(n)"),
+            "scoreboard players add #macro demo $(n)",
+        )
+        self.assertEqual(
+            normalize_command_line("  scoreboard players add #state demo 1  "),
+            "scoreboard players add #state demo 1",
+        )
+
     def test_leaf_families(self) -> None:
         cases = {
             "scoreboard players add #state demo 1": "score-add",
@@ -238,7 +249,9 @@ class PackReachabilityTests(unittest.TestCase):
         totals = summary["totals"]
         self.assertEqual(totals["functions_tick"], 4)  # tick, leaf, macro, scheduled
         self.assertEqual(totals["tick_forked_lines"], 1)
-        self.assertEqual(totals["tick_leaf_lines"], 5)
+        # tick (2) + demo:leaf (1) + demo:macro body (1) + scheduled (2). The
+        # macro body line's leading "$" is stripped before classification.
+        self.assertEqual(totals["tick_leaf_lines"], 6)
         self.assertEqual(totals["tick_context_lines"], 2)
         self.assertEqual(totals["tick_adjacent_runs"], 3)
         self.assertEqual(totals["tick_adjacent_run_commands"], 7)

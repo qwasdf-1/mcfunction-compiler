@@ -285,9 +285,9 @@ and `.json`.
 
 | Pack | Reachable fns | Command lines | Tick lines | Forked `execute` | Forked share | Leaf lines | Context-modifier lines | Adjacent tick runs | Adjacent tick commands | Longest run | Fake-holder adds | Macro fns | Macro `with` (tick) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Vein Miner 5.3.0 | 58 | 635 | 532 | 97 | 23.0% | 80 | 213 | 23 | 250 | 144 | 3 | 10 | 10 |
-| Spawn Animations 1.11.6 | 78 | 556 | 519 | 63 | 19.0% | 98 | 72 | 35 | 143 | 15 | 0 | 0 | 0 |
-| Dynamic Lights 1.4.6 | 77 | 285 | 262 | 28 | 18.3% | 23 | 25 | 4 | 14 | 10 | 0 | 0 | 0 |
+| Vein Miner 5.3.0 | 58 | 635 | 532 | 102 | 23.4% | 83 | 233 | 27 | 266 | 144 | 3 | 10 | 10 |
+| Spawn Animations 1.11.6 | 78 | 556 | 519 | 63 | 19.0% | 99 | 98 | 36 | 165 | 16 | 0 | 0 | 0 |
+| Dynamic Lights 1.4.6 | 77 | 285 | 262 | 28 | 18.3% | 24 | 88 | 19 | 80 | 10 | 0 | 0 | 0 |
 | Everything Clings 1.0.0 | 4 | 15 | 14 | 2 | 25.0% | 4 | 4 | 2 | 8 | 6 | 0 | 0 | 0 |
 
 `Adjacent tick runs` counts maximal runs of at least two adjacent eligible
@@ -296,6 +296,14 @@ commands inside tick-reachable functions — the unit fused regions compile.
 lexical fork status is per line, so a function called from a forked context
 inherits that context at runtime even when its own lines are top-level; the
 per-function JSON records the lexical counts.
+
+Batch 23 corrected two classification gaps that undercounted the batch-22
+table: a macro body line carries a leading `$` marker that is not part of the
+command, and a macro call or pure-leaf call inside `execute ... run` must be
+counted on the inner command. The corrected census supersedes the batch-22
+numbers (Vein Miner 250→266 adjacent tick commands, Spawn Animations 143→165,
+Dynamic Lights 14→80; ranking unchanged) and also recognizes
+`scoreboard players remove` as a `score-add` form.
 
 Runtime confirmation on the top-ranked pack used the existing native-event
 runner: `python3 scripts/run_veinminer_profile.py --stack fabric
@@ -309,7 +317,7 @@ corroborates PERF-017's activation diagnostic on the same pack.
 adjacent eligible tick-path work, and the fused engine compiles and executes
 164 regions in one native Vein Miner event, yet PERF-017's paired real-workload
 result is flat (+0.69% median, 97.85% interval −3.92% to +2.74%,
-`does_not_meet_threshold`). The fork barrier is real — 23.0% of Vein Miner's
+`does_not_meet_threshold`). The fork barrier is real — 23.4% of Vein Miner's
 reachable `execute` lines are forked, 19.0% in Spawn Animations, 25.0% in
 Everything Clings, 18.3% in Dynamic Lights — but the non-forked pool is large
 enough that "the specializers never fire" is not supported by these packs. The
@@ -318,10 +326,84 @@ command census cannot measure. The macro-extension pool is also narrow here:
 10 `function ... with` call sites in Vein Miner tick functions and none in the
 other three packs.
 
-**Next action:** a time-share attribution pass — map the census's addressable
-functions to existing or fresh Spark samples — before sizing H4 (extend the
-proven macro mechanism) or H1 (fork-interior fusion). Do not size either
-implementation from the static pool alone.
+## Time-share attribution and the H4 decision (2026-11-09)
+
+The census measures static eligibility; it cannot say how much tick time that
+work represents. Batch 23 adds `scripts/attribute_specialization_share.py`,
+which reads a Spark profile and partitions each server-thread stack's self
+weight by the nearest enclosing leaf command family. Three boundaries matter
+for the decision:
+
+- `FunctionCommand$2.arguments` / `FunctionCommand.getArgumentTag` marks macro
+  argument construction. The vanilla fallback reads the source tag through
+  `DataCommands.getSingleTag`; that helper is not a `data` command, so it is
+  reported as the separate `macro-argument` (H4) share.
+- `ServerFunctionManager.execute` resets the leaf owner, so a called function's
+  body is attributed to its own commands rather than to its call site.
+- Samples under `net.minecraft.commands.execution.tasks.ContinuationTask` are
+  marked forked; blocking syscall / `Thread.sleep` / `park` samples are marked
+  idle and excluded from the active-tick denominators.
+
+The addressable figure sums `scoreboard`, `data`, `function-call`, and `return`
+self weight. It is an upper bound: Spark cannot distinguish a fusable
+`scoreboard players add` from an unfusable `scoreboard players get`, nor a
+pure-leaf call from an arbitrary one. Wall shares use total sampled self
+weight; active shares exclude the idle family.
+
+| Pack (capture) | Sampler weight | Idle | Function time (wall / active) | Macro arg H4 (wall / active) | Addressable leaf (wall / active) | Forked samples |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Vein Miner 5.3.0 (side 6, compiler off) | 19,960 | 7.1% | 88.5% / 95.2% | 27.4% / 29.4% | 58.7% / 63.2% | 0.0% |
+| Spawn Animations 1.11.6 (vanilla, 24 actors, 12 s) | 11,876 | 87.4% | 3.1% / 24.6% | 0.0% / 0.0% | 1.3% / 10.4% | 0.1% |
+| Dynamic Lights 1.4.6 (pack on, wrapper off, 30 s) | 29,516 | 60.3% | 9.7% / 24.4% | 0.0% / 0.0% | 0.6% / 1.6% | 0.2% |
+
+Captures: Vein Miner `python3 scripts/run_veinminer_profile.py --stack fabric
+--compiler-mode off --side 6` (4,317 server-thread nodes, 215/215 work);
+Spawn Animations `python3 scripts/run_spawn_animations_profile.py --seconds
+12` on the official server (2,205 nodes, 12 of 24 actors animating at sample
+start); Dynamic Lights `python3 scripts/run_dynamic_lights_profile.py --stack
+fabric --mode cpu --wrapper off --datapack on --seconds 30` (6,834 nodes, 26
+markers, torch level 14). Profiles are retained under
+`build/benchmarks/PERF-011-veinminer/vein-6-fabric-off-20261109T171149Z-8132fc/`,
+`build/benchmarks/PERF-010/20261109T172135Z-b2fb0f/`, and
+`build/benchmarks/PERF-010/dynamic-lights-fabric-pack-on-off-cpu-20261109T171936Z-b14c56/`.
+
+**H1 is dead on this evidence.** Sampled time under the runtime fork marker is
+0.0% (Vein Miner), 0.1% (Spawn Animations), and 0.2% (Dynamic Lights). The hot
+Vein Miner `execute` chain (6,948 of 19,960 sampled weight) is a non-forked
+conditional chain whose cost is macro argument construction (5,460), not
+fork-interior leaf work; the static forked lines (23.4% of Vein Miner's
+reachable `execute` lines) are not where the sampled time goes. Widening
+fusion across the fork barrier therefore has no measured >15% pool on these
+packs. The detector uses the `ContinuationTask` frame; a fork form that
+bypasses that task would be attributed to its leaf family, but the conclusion
+does not rest on the forked count alone — the hot path is demonstrably the
+non-forked macro-argument chain.
+
+**H4 is the only candidate with a >15% pool.** Vein Miner's macro argument
+construction is 27.4% of sampled wall time and 29.4% of active tick time; the
+other two packs have no macro-argument samples. The existing
+`selective_macros` mechanism already covers Vein Miner's shape: a diagnostic
+run (`--compiler-mode selective-macro --count-selective-macro-arguments --side
+6 --no-spark`) recorded 215/215 work, 11,701 attempted and 11,701 used calls,
+and zero unsupported providers, unsupported entity paths, invalid storage
+sources, missing custom data, macro-resolution fallbacks, or missing selected
+keys. No H4 code extension is needed; the open question is whether the shipped
+default clears the 15% gate on the real workload.
+
+PERF-017's fused arm set `FC_SELECTIVE_MACRO_ARGUMENTS=false`, so its flat
+result did not test the shipped default. The 126.7 ms average tick query from
+the selective-macro diagnostic is not a timing comparison (metrics on, no
+Spark). A real-workload campaign must be counterbalanced, use a quiet host, and
+predeclare its threshold, pair count, and seed before the first arm. One
+prerequisite remains: `run_veinminer_campaign.py` currently forces the
+selective-macro hit counter on its timing arm, and that counter perturbs
+timing; the campaign needs a separate activation diagnostic and an
+uninstrumented selective arm (the `fused-timed` pattern).
+
+**Next action:** ask for confirmation of the predeclared gate, pair count, and
+seed, then run compiler-off vs selective-macro on Vein Miner side 6. If the
+addressable share cannot clear 15%, record that as the answer and stop
+widening.
 
 ## PERF-012: sustained selective-macro active-tick fixture
 

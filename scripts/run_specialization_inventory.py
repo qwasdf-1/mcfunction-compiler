@@ -91,6 +91,7 @@ CONTEXT_SUBCOMMANDS = {"align", "anchored", "facing", "in", "positioned", "rotat
 #: Brigadier nodes; the class names are the implementing wrappers.
 LEAF_FAMILIES: tuple[tuple[tuple[str, ...], str], ...] = (
     (("scoreboard", "players", "add"), "score-add"),
+    (("scoreboard", "players", "remove"), "score-add"),
     (("scoreboard", "players", "set"), "score-store"),
     (("scoreboard", "players", "reset"), "score-reset"),
     (("scoreboard", "players", "operation"), "score-operation"),
@@ -348,11 +349,25 @@ class Pack:
         return seen
 
 
+def normalize_command_line(line: str) -> str:
+    """Strip a macro line's leading ``$`` marker.
+
+    A macro function body line starts with ``$`` to mark that it is
+    parameterized; the marker is not part of the command. Classification and
+    reachability must see the underlying command, or every macro body command
+    disappears from the census.
+    """
+    stripped = line.strip()
+    if stripped.startswith("$"):
+        return stripped[1:].lstrip()
+    return stripped
+
+
 def command_lines(text: str) -> list[str]:
     """Return the non-comment, non-blank command lines of a function file."""
     lines: list[str] = []
     for raw in text.splitlines():
-        stripped = raw.strip()
+        stripped = normalize_command_line(raw)
         if not stripped or stripped.startswith("#"):
             continue
         lines.append(stripped)
@@ -373,26 +388,12 @@ def function_profile(pack: Pack, function_id: str) -> dict[str, object]:
 
     for line in lines:
         is_execute, forked, inner = parse_execute(line)
-        if is_execute:
-            execute_lines += 1
-            if forked:
-                forked_lines += 1
-                eligible_flags.append(False)
-                continue
-            if inner is not None and leaf_family(inner) is not None:
-                context_lines += 1
-                eligible_flags.append(True)
-            else:
-                eligible_flags.append(False)
-            continue
+        command_text = inner if is_execute and inner is not None else line
+        family = leaf_family(command_text)
 
-        family = leaf_family(line)
-        first_token = split_tokens(line)[0]
-        if family is not None:
-            leaf_lines += 1
         inlined_call = False
-        if family is None and first_token == "function":
-            for match in FUNCTION_CALL.finditer(line):
+        if family is None and command_text.startswith("function "):
+            for match in FUNCTION_CALL.finditer(command_text):
                 reference = match.group(1)
                 if reference.startswith("#"):
                     continue
@@ -401,16 +402,32 @@ def function_profile(pack: Pack, function_id: str) -> dict[str, object]:
                     inlined_call = True
                     inline_calls += 1
                     break
+
+        for _match in MACRO_WITH_CALL.finditer(line):
+            macro_calls += 1
+
+        if is_execute:
+            execute_lines += 1
+            if forked:
+                forked_lines += 1
+                eligible_flags.append(False)
+                continue
+            if inner is not None and (family is not None or inlined_call):
+                context_lines += 1
+                eligible_flags.append(True)
+            else:
+                eligible_flags.append(False)
+            continue
+
         if family is not None or inlined_call:
+            if family is not None:
+                leaf_lines += 1
             eligible_flags.append(True)
         else:
             eligible_flags.append(False)
 
-        if family == "score-add" and FAKE_HOLDER_ADD.match(line):
+        if family == "score-add" and FAKE_HOLDER_ADD.match(command_text):
             fake_holder_adds += 1
-
-        for _match in MACRO_WITH_CALL.finditer(line):
-            macro_calls += 1
 
     runs = adjacent_runs(eligible_flags)
     return {
