@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- Run the compiler-widening proposal's first step: a metrics-only
+  specialization inventory of the pinned real datapacks (batch 22).
+  `scripts/run_specialization_inventory.py` verifies each pack's recorded
+  SHA-256, walks the functions reachable from `minecraft:tick` and
+  `minecraft:load` (including self-rescheduling `schedule function ... 1t`
+  loops, which is how Dynamic Lights drives its tick path), and classifies
+  every command against the fuser's real eligibility rule: forked `execute`
+  contexts (`as`, `at`, `on`, `summon`) are not fusable, non-forked
+  context-modifier chains are, and `function` calls count only when the target
+  is a pure leaf in the sense of `LeafFunctionParser.isPureLeaf`. The census
+  ranks Vein Miner first (250 adjacent tick commands in 23 runs, longest 144),
+  then Spawn Animations (143 in 35), Dynamic Lights (14 in 4), and Everything
+  Clings (8 in 2). A runtime confirmation on Vein Miner's native event (Fabric,
+  fused mode, no Spark) passed the workload gate (63/63 blocks, 480 queue-head
+  increments) and recorded 164 fused regions compiled and 718 executed during
+  the event, with 5,860 ScoreAdd executions. Finding: addressability is not the
+  binding constraint - the engine fires on the top-ranked real pack and the
+  recorded paired result is still flat (+0.69%, interval -3.92% to +2.74%,
+  `does_not_meet_threshold`); the fork barrier is real (23.0% of Vein Miner's
+  reachable `execute` lines are forked) but the non-forked pool is large enough
+  that "the specializers never fire" is not supported. The macro-extension pool
+  is narrow (10 `function ... with` call sites in Vein Miner tick functions,
+  none in the other three). The proposal now records the census result (S3.1)
+  and a new next step: a time-share attribution pass before sizing H1 or H4. No
+  default-on status or matrix row changed. Tests: `tests/test_specialization_inventory.py`
+  (19 tests) pins the tokenizer, fork classification, leaf-family mapping,
+  pure-leaf inlining, adjacent-run counting, scheduled-loop reachability, and
+  the synthetic-pack summary.
+
 - Scope the compiler-widening decision as a proposal (batch 21).
   `docs/v1/plans/compiler-coverage-widening-proposal-v0.1.md` records what the
   measurements already establish (selective macro arguments is the one

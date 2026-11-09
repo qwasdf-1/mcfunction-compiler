@@ -266,6 +266,63 @@ does not establish a regression or support promotion. Its report is retained at
 `build/benchmarks/PERF-011-veinminer/campaigns/vein-6-lb113-score-add-5pairs-seed26871030-20261029T053118Z.json`.
 Bellows 1.1.3 Moonrise workload checks remain open.
 
+## H2-first specialization inventory (2026-11-09)
+
+The compiler-coverage-widening proposal's first step is a metrics-only
+inventory of the addressable work in the pinned real datapacks. The census
+runner `scripts/run_specialization_inventory.py` verifies each pack's recorded
+SHA-256, walks the functions reachable from `minecraft:tick` and
+`minecraft:load` (including self-rescheduling `schedule function ... 1t` loops,
+which is how Dynamic Lights drives its tick path), and classifies every command
+against the compiler's real eligibility rule: fused regions reject forked
+`execute` contexts (`as`, `at`, `on`, `summon`), accept non-forked
+context-modifier chains (`positioned`, `facing`, `rotated`, `anchored`, `align`,
+`in`), and inline `function` calls only when the target is a pure leaf in the
+sense of `LeafFunctionParser.isPureLeaf` (1–64 entries, no `function`/`return`
+roots, no macro placeholders). The output is hermetic and reproducible; the
+generated report is `build/benchmarks/COVERAGE-INVENTORY/<timestamp>/inventory.md`
+and `.json`.
+
+| Pack | Reachable fns | Command lines | Tick lines | Forked `execute` | Forked share | Leaf lines | Context-modifier lines | Adjacent tick runs | Adjacent tick commands | Longest run | Fake-holder adds | Macro fns | Macro `with` (tick) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Vein Miner 5.3.0 | 58 | 635 | 532 | 97 | 23.0% | 80 | 213 | 23 | 250 | 144 | 3 | 10 | 10 |
+| Spawn Animations 1.11.6 | 78 | 556 | 519 | 63 | 19.0% | 98 | 72 | 35 | 143 | 15 | 0 | 0 | 0 |
+| Dynamic Lights 1.4.6 | 77 | 285 | 262 | 28 | 18.3% | 23 | 25 | 4 | 14 | 10 | 0 | 0 | 0 |
+| Everything Clings 1.0.0 | 4 | 15 | 14 | 2 | 25.0% | 4 | 4 | 2 | 8 | 6 | 0 | 0 | 0 |
+
+`Adjacent tick runs` counts maximal runs of at least two adjacent eligible
+commands inside tick-reachable functions — the unit fused regions compile.
+`Forked share` is over all reachable `execute` lines. Static limitation:
+lexical fork status is per line, so a function called from a forked context
+inherits that context at runtime even when its own lines are top-level; the
+per-function JSON records the lexical counts.
+
+Runtime confirmation on the top-ranked pack used the existing native-event
+runner: `python3 scripts/run_veinminer_profile.py --stack fabric
+--compiler-mode fused --side 4 --no-spark` passed its workload gate (63/63
+blocks, 480 queue-head increments, empty vein, cleared markers) and recorded
+164 fused regions compiled, 718 region executions during the event (18 before
+to 736 after), and 5,860 ScoreAdd executions (1,920 queue plus 318 ray). This
+corroborates PERF-017's activation diagnostic on the same pack.
+
+**Finding: addressability is not the binding constraint.** All four packs have
+adjacent eligible tick-path work, and the fused engine compiles and executes
+164 regions in one native Vein Miner event, yet PERF-017's paired real-workload
+result is flat (+0.69% median, 97.85% interval −3.92% to +2.74%,
+`does_not_meet_threshold`). The fork barrier is real — 23.0% of Vein Miner's
+reachable `execute` lines are forked, 19.0% in Spawn Animations, 25.0% in
+Everything Clings, 18.3% in Dynamic Lights — but the non-forked pool is large
+enough that "the specializers never fire" is not supported by these packs. The
+constraint is the share of tick time the addressable work represents, which a
+command census cannot measure. The macro-extension pool is also narrow here:
+10 `function ... with` call sites in Vein Miner tick functions and none in the
+other three packs.
+
+**Next action:** a time-share attribution pass — map the census's addressable
+functions to existing or fresh Spark samples — before sizing H4 (extend the
+proven macro mechanism) or H1 (fork-interior fusion). Do not size either
+implementation from the static pool alone.
+
 ## PERF-012: sustained selective-macro active-tick fixture
 
 The current controlled fixture in

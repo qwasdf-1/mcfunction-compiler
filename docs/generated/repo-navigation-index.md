@@ -477,6 +477,15 @@ This navigation index summarizes key code symbols across Java source and Python 
   - `def count_entities()`:91
   - `def write_spawn_fixture_pack()`:97
   - `def start_spark_shell()`:126
+- [`scripts/run_specialization_inventory.py`](../../scripts/run_specialization_inventory.py):
+  - `def sha256_file()`:128
+  - `def split_tokens()`:133
+  - `def leaf_family()`:174
+  - `def parse_execute()`:185
+  - `def is_pure_leaf()`:209
+  - `class Pack`:226
+  - `def __init__()`:229
+  - `def _read()`:237
 - [`scripts/run_veinminer_campaign.py`](../../scripts/run_veinminer_campaign.py):
   - `def tick_metrics()`:44
   - `def profile_summary()`:58

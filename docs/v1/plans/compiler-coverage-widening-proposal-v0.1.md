@@ -1,12 +1,15 @@
 # Compiler coverage-widening proposal (v0.1)
 
-**Status: proposal for decision. Nothing in this document ships, and the
-[v1 roadmap](v1-production-roadmap.md) remains the plan of record. This is the
-scoping work the roadmap's step 4 and the batch-19 performance record called
-for: with every parity case closed and all four mechanisms' gates decided, the
-question is no longer "is the compiler correct" (answered: yes, on the
-enumerated families) but "which additional shapes are worth compiling", and
-that is a research question this document frames rather than answers.**
+**Status: proposal for decision; first step complete (batch 22). Nothing in this
+document ships, and the [v1 roadmap](v1-production-roadmap.md) remains the plan
+of record. This is the scoping work the roadmap's step 4 and the batch-19
+performance record called for: with every parity case closed and all four
+mechanisms' gates decided, the question is no longer "is the compiler correct"
+(answered: yes, on the enumerated families) but "which additional shapes are
+worth compiling", and that is a research question this document frames rather
+than answers. The H2-first census is done and refines the diagnosis in §3.1:
+the specializers do fire on real packs; the open constraint is tick-time share,
+not eligibility.**
 
 ## 1. The question
 
@@ -50,6 +53,35 @@ So the pattern is consistent: **the specializers do not fire on the shapes real
 code contains.** The 2026-11-03 static screen found adjacent eligible runs in
 several pinned packs, but no screened pack has a runtime-confirmed specialized
 region — nothing yet says a real hot path both fuses *and* dominates its tick.
+
+### 3.1 Census result (batch 22, 2026-11-09)
+
+The H2-first census tested that diagnosis against the pinned packs. It walks
+the functions reachable from `minecraft:tick`/`minecraft:load` (including
+self-rescheduling `schedule function ... 1t` loops), classifies commands by the
+fuser's real eligibility rule, and verifies each pack's recorded SHA-256. The
+full table is in the
+[benchmarks README](../../../benchmarks/README.md#h2-first-specialization-inventory-2026-11-09).
+
+The census **refines the diagnosis rather than confirming it**. Every pinned
+pack has adjacent eligible runs on its tick path (Vein Miner 250 commands in 23
+runs, Spawn Animations 143 in 35, Dynamic Lights 14 in 4, Everything Clings 8
+in 2), and a native Vein Miner event compiled 164 fused regions and executed
+718 of them while the engine stayed on the vanilla-parity path (63/63 work,
+480 queue-head increments). The fork barrier is real — 23.0% of Vein Miner's
+reachable `execute` lines are forked, 19.0% in Spawn Animations, 25.0% in
+Everything Clings, 18.3% in Dynamic Lights — but the non-forked pool is large
+enough that "the specializers never fire" is not supported. The recorded
+real-workload result is still flat (+0.69% median, interval −3.92% to +2.74%,
+`does_not_meet_threshold`), so the binding constraint is **the share of tick
+time the addressable work represents**, not its existence. The macro-extension
+pool is also narrow in these packs: 10 `function ... with` call sites in Vein
+Miner tick functions, none in the other three.
+
+This weakens H1's premise (the existing non-forked engine already fires on the
+top-ranked pack and does not move the real workload) and narrows H4's measured
+addressable pool. The next decision needs a time-share attribution, not more
+static coverage.
 
 ## 4. Candidate hypotheses
 
@@ -145,13 +177,20 @@ score commands.
 
 ## 5. Recommended sequence and decision framework
 
-1. **H2-first (metrics inventory, days, no behavior change).** Ranks the pinned
-   packs by addressable specialized work and tells us which pack each
-   candidate campaign would run on.
-2. **H4 (the low-risk extension) on the pack the inventory ranks first.**
-   Screening→confirmatory with the predeclared 15% minimum and 95% interval;
-   negative result recorded as data.
-3. **H1 only if 2 fails**, and only behind the ten-arm matrix gate for the
+1. **H2-first (done, batch 22).** The census ranks the pinned packs by
+   addressable specialized work and finds that every one has adjacent eligible
+   tick-path runs; Vein Miner ranks first, and its native event already compiles
+   164 fused regions and executes 718 of them. Eligibility is therefore not the
+   binding constraint — the share of tick time is. See §3.1.
+2. **Time-share attribution (next).** Map the census's addressable functions to
+   existing or fresh Spark samples per pack. This is the measurement that can
+   decide whether any candidate has enough hot share to clear the 15% gate; a
+   command census cannot.
+3. **H4 (the low-risk extension) only if step 2 shows a macro-shaped hot share
+   that can clear 15% on the pack it ranks first.** Screening→confirmatory with
+   the predeclared minimum and 95% interval; a negative result is recorded as
+   data.
+4. **H1 only if step 3 fails**, and only behind the ten-arm matrix gate for the
    fork-interior fixture.
 
 Decision framework is the existing one, now mechanically available through

@@ -29,7 +29,7 @@ Modern Minecraft Function Compiler.
 | [`track-o-player-hud-and-title-dispatch-spec.md`](track-o-player-hud-and-title-dispatch-spec.md) | 1.0 | Complete / Verified | Track O coverage expansion: player HUD and title dispatch (`title`). |
 | [`track-p-item-component-and-inventory-mutation-spec.md`](track-p-item-component-and-inventory-mutation-spec.md) | 1.0 | Complete / Verified | Track P coverage expansion: item component and inventory mutation (`item replace/modify`). |
 
-| [`compiler-coverage-widening-proposal-v0.1.md`](compiler-coverage-widening-proposal-v0.1.md) | 0.1 | Proposal / Awaiting decision | Scoping for a second promoted optimization: the four mechanisms' recorded verdicts, the diagnosis that the specializers do not fire on real-pack shapes, and candidate hypotheses (metrics-only inventory, selective-macro extension, fork-interior fusion, storage-holder ScoreAdd) each with a falsifiable prediction, code surface, and validating campaign. |
+| [`compiler-coverage-widening-proposal-v0.1.md`](compiler-coverage-widening-proposal-v0.1.md) | 0.1 | Proposal / First step complete | Scoping for a second promoted optimization: the four mechanisms' recorded verdicts, the diagnosis that the specializers do not fire on real-pack shapes, and candidate hypotheses (metrics-only inventory, selective-macro extension, fork-interior fusion, storage-holder ScoreAdd) each with a falsifiable prediction, code surface, and validating campaign. |
 
 ## Retirement & Compaction Policy
 

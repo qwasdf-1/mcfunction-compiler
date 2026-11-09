@@ -988,6 +988,32 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   open until one of its candidates produces a campaign decision, and no
   default-on status changes. Registered in `docs/v1/plans/README.md`.
 
+- Batch 22 ran the compiler-widening proposal's first step: a metrics-only
+  specialization inventory of the pinned real datapacks
+  (`scripts/run_specialization_inventory.py`, hermetic and SHA-256-pinned).
+  It walks the functions reachable from `minecraft:tick`/`minecraft:load`
+  (including Dynamic Lights' self-rescheduling `schedule function ... 1t`
+  loop), classifies commands against the fuser's real eligibility rule
+  (forked `execute` contexts are not fusable; non-forked context modifiers
+  are; `function` calls count only when the target is a pure leaf), and ranks
+  the packs: Vein Miner 250 adjacent tick commands in 23 runs (longest 144),
+  Spawn Animations 143 in 35, Dynamic Lights 14 in 4, Everything Clings 8
+  in 2. A runtime confirmation on Vein Miner's native event (Fabric, fused
+  mode, no Spark) passed the workload gate (63/63 blocks, 480 queue-head
+  increments) and recorded 164 fused regions compiled and 718 executed during
+  the event, with 5,860 ScoreAdd executions. Finding: addressability is not
+  the binding constraint - the engine fires on the top-ranked real pack and
+  the recorded paired result is still flat (+0.69%, interval -3.92% to
+  +2.74%, `does_not_meet_threshold`); the fork barrier is real (23.0% of Vein
+  Miner's reachable `execute` lines are forked) but the non-forked pool is
+  large enough that "the specializers never fire" is not supported. The
+  macro-extension pool is narrow (10 `function ... with` call sites in Vein
+  Miner tick functions, none in the other three). The proposal was amended
+  with the census result (§3.1) and a new next step: a time-share attribution
+  pass before sizing H1 or H4. No default-on status changed; no matrix rows
+  changed. See the
+  [benchmarks record](../benchmarks/README.md#h2-first-specialization-inventory-2026-11-09).
+
 - Batch 17 closed STATE-004 with the item-modify slot edges using the
   batch-10 confirmed modifier id (fixture state_item_modify_slot_edges:
   hotbar.0, hotbar.8 and weapon.offhand read back count=5 after
