@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- Scope the compiler-widening decision as a proposal (batch 21).
+  `docs/v1/plans/compiler-coverage-widening-proposal-v0.1.md` records what the
+  measurements already establish (selective macro arguments is the one
+  cleared-gate, default-on mechanism at -81.72% sustained and -22% event
+  completion; fused regions inconclusive at -15.64% with the interval uncertified
+  and flat on the real Vein Miner workload; ScoreAdd slower everywhere it fires;
+  bytecode refuted against fused; the predicate family measured with no sample
+  reduction), the diagnosis the numbers support (the fuser's eligibility
+  excludes forked contexts, which is where real selector-heavy tick functions
+  spend their work, and ScoreAdd covers only literal fake holders), and four
+  candidate hypotheses with falsifiable predictions, code surfaces, and the
+  campaign that would decide each: H2-first a metrics-only inventory of
+  addressable specialized work across the pinned real packs (days, no behavior
+  change, ranks which pack each candidate would run on), H4 extending the one
+  mechanism that has already cleared its gate, H1 fusing across the fork
+  barrier (highest value, highest correctness risk, gated behind the ten-arm
+  matrix), and H3 storage-holder ScoreAdd deprioritized because the mechanism
+  has never shown a gain where it fires. The proposal is input to a decision,
+  not a plan of record: roadmap step 4 stays open until one of its candidates
+  produces a campaign decision. Registered in `docs/v1/plans/README.md`.
+
 - Extract the engine-agnostic harness into a version-pinned sibling package
   (batch 20, roadmap step 6). `mc-mods/mc-tooling/mc-harness` v1.0.0 now owns
   the shared harness machinery that had been copied per project: the pinned

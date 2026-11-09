@@ -968,6 +968,26 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   batch-20 record in the
   [coverage table](reference/features/command-coverage.md).
 
+- Batch 21 scoped the compiler-widening decision as a proposal,
+  [`docs/v1/plans/compiler-coverage-widening-proposal-v0.1.md`](v1/plans/compiler-coverage-widening-proposal-v0.1.md).
+  It records the four mechanisms' verdicts (selective macro arguments the one
+  cleared-gate mechanism, default-on; fused regions inconclusive at -15.64%
+  with the 97.85% interval uncertified and flat on the real Vein Miner
+  workload; ScoreAdd slower everywhere it fires; bytecode refuted against
+  fused; the predicate family measured with no sample-share reduction), the
+  diagnosis the numbers support (the fuser's eligibility rule excludes forked
+  contexts, which is where real selector-heavy tick functions spend their
+  work, and ScoreAdd covers only the literal fake-holder family), and four
+  candidate hypotheses with falsifiable predictions, code surfaces, and the
+  campaign that would decide each: a metrics-only inventory of addressable
+  specialized work across the pinned real packs (days, no behavior change),
+  extending the one mechanism that has already cleared its gate, fusing
+  across the fork barrier (highest value, highest correctness risk, gated
+  behind the ten-arm matrix), and storage-holder ScoreAdd deprioritized. The
+  proposal is input to a decision, not a plan of record; roadmap step 4 stays
+  open until one of its candidates produces a campaign decision, and no
+  default-on status changes. Registered in `docs/v1/plans/README.md`.
+
 - Batch 17 closed STATE-004 with the item-modify slot edges using the
   batch-10 confirmed modifier id (fixture state_item_modify_slot_edges:
   hotbar.0, hotbar.8 and weapon.offhand read back count=5 after

@@ -315,6 +315,13 @@ pass actually implements:
    honestly that the real-workload result is negative. Either find a workload
    whose hot path is dominated by successful specialized runs, or document the
    mechanism as measured-but-unpromoted. Do not re-run the negative design.
+   The scoping proposal for that decision - which shapes are worth compiling,
+   with each candidate hypothesis's evidence, falsifiable prediction, code
+   surface, and validating campaign - is
+   [`compiler-coverage-widening-proposal-v0.1.md`](compiler-coverage-widening-proposal-v0.1.md)
+   (batch 21, 2026-11-09); it is input to a decision, not a plan of record,
+   and step 4 stays open until one of its candidates produces a campaign
+   decision.
 5. **Bytecode/tiered JIT**: implement to the point of a *measured* win over
    fused interpretation on a declared workload (PERF-009 currently shows it
    slower), including the cold-function opt-out policy, with the Metaspace
