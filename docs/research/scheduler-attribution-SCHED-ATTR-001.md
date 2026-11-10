@@ -74,7 +74,7 @@ Median of the two **within-run window medians** for each workload. Values below 
 
 All twelve windows completed their verified workloads; each measured arm executed millions of commands. No instrumentation counter was enabled in the timing arms beyond the minimal leaf's integrity increment.
 
-## After-fix JFR layer attribution
+## Initial after-fix JFR layer attribution (one runner)
 
 Pooled per-arm samples from the two after-fix JFR windows (753 minimal-leaf samples, 857 scoreboard samples, 916 conditional samples). Percentages are **sampling-based screening classifications**, not exact scheduler percentages. Categories are mutually exclusive as assigned by the classifier.
 
@@ -91,19 +91,37 @@ Pooled per-arm samples from the two after-fix JFR windows (753 minimal-leaf samp
 
 The minimal-leaf fixture intentionally has little native command work, making its overhead proportions unrepresentative of all real datapacks. Heavy NBT, selectors, world edits, and macro extraction could have very different profiles.
 
+### Independent rerun on a new CI host — reproducibility warning
+
+GitHub Actions [run 42889815692](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/42889815692), compiler revision `58dbb8c8`, re-executed the **same Java production code and benchmark runner**. Only a five-case profiler unit test and the research documentation had changed. The Gradle build, **115 tests**, two server smoke arms, and all six profiled benchmark windows passed. Yet the observed latencies and JFR sample proportions were materially different:
+
+| Workload | First after-fix runner (42888533071) | Repeated after-fix runner (42889815692) |
+|---|---:|---:|
+| Minimal leaf RCON median | 0.2723 ms | 0.1910 ms |
+| Scoreboard RCON median | 0.4020 ms | 0.2637 ms |
+| Conditional RCON median | 0.4866 ms | 0.3368 ms |
+| Minimal leaf sampled Fabric hook share | 23.5% | 54.0% |
+| Minimal leaf sampled scheduler share | 29.5% | 19.6% |
+| Scoreboard sampled Fabric hook share | 20.8% | 47.9% |
+
+This is a **large reproducibility failure for exact timing and attribution** across GitHub-hosted runners. The relative ordering of the three workload families remains the same, but we cannot confidently attribute an end-to-end percentage gain to the cached trace flag *or* use the JFR percentages as a reliable Amdahl-law bound for rewriting the vanilla scheduler. Runner allocation, host CPU contention, JVM tiered compilation/inlining, and sample-classification sensitivity have not been controlled or separated.
+
+The qualitative observation from the **original full stack traces** remains strong: a specific repeated disabled trace-flag environment lookup was present in the command hot path, and the cached implementation no longer incurs that lookup each command. The magnitude of its runtime impact remains open until a properly controlled same-host paired campaign.
+
+
 ## Important limitations
 
 1. **No mod-free vanilla baseline:** This execution stack includes Fabric API and the compiler's default-off Mixins. Their time must not be mislabeled vanilla time.
-2. **JFR CPU samples are estimates:** Java inlining, stack classification, sampling variance, garbage collection and interpreter/JIT transitions can shift shares. Around 350–470 queue samples per window is useful for screening but not for a precise percentage claim.
+2. **JFR CPU samples are estimates:** Java inlining, stack classification, sampling variance, garbage collection and interpreter/JIT transitions can shift shares. A second after-fix run showed substantial changes in category proportions with identical profiler code. Around 350–470 queue samples per window is useful for screening but not for a precise percentage claim.
 3. **RCON round trips are not CPU timers:** No network overhead was subtracted. A run-to-run percentage change in RCON time cannot be reported as a Minecraft CPU improvement.
-4. **Different hosts, not randomized A/B:** The cached-flag change is strongly mechanistically supported by the stack evidence, but the magnitude of an end-to-end speedup is still unconfirmed.
+4. **Different hosts, not randomized A/B:** The cached-flag change is strongly mechanistically supported by the stack evidence, but the magnitude of an end-to-end speedup is still unconfirmed. Indeed, an after-fix repeat on another CI host produced a roughly 30% faster round trip with **no** runtime implementation change.
 5. **No full callback/quota parity proof for the new command:** The counter establishes exactly completed benchmark work only. Production changes should go through the project's full behavioral test matrix.
 6. **The effect of optimizing the scheduler alone is not isolated:** The nearest-owner method partitions stack samples but does not establish an Amdahl-law bound on a hypothetical new scheduler.
 
 ## Research conclusions and next tests
 
 - **Confirmed source-level issue:** `FC_RUNTIME_TRACE` was read via `System.getenv` in the hot queue/debit hooks even with tracing off. It is a valid optimization target independent of any general compiler architecture.
-- **Measured screening result:** The cached-flag version has consistently shorter RCON function round trips across all three fixtures; raw JFR supports removal of the hot environment lookups.
+- **Measured screening result:** Both cached-flag runs have shorter RCON function round trips than the original run across all three fixtures, and JFR confirms removal of the hot lookup. But variation between *unchanged* cached-flag runners is itself approximately 30%; no precise causal speedup claim is warranted.
 - **Open architectural question:** Neither the pre-fix nor post-fix comparison proves that vanilla's scheduler is optimal, or that replacing it would be profitable.
 
 **Next falsifiable tests:**
