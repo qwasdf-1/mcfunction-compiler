@@ -22,16 +22,13 @@ jobs:
       - name: Check out pinned private mc-tooling workspace
         id: tooling_checkout
         uses: actions/checkout@v4
-        continue-on-error: true
         with:
           repository: qwasdf-1/mc-tooling
           ref: 9b63c9e554a0cb55855c51f53b6ebe0664eefbc3
           path: mc-tooling
           persist-credentials: false
-          # By default GITHUB_TOKEN only grants access to this repository.
-          # A fine-grained read-only PAT for the private tooling repo can be
-          # provided as MC_TOOLING_READ_TOKEN if the default token is rejected.
-          token: ${{ secrets.MC_TOOLING_READ_TOKEN || github.token }}
+          # Cross-repository private access requires a read-only token.
+          token: ${{ secrets.MC_TOOLING_READ_TOKEN }}
       - name: Install Java 25
         uses: actions/setup-java@v4
         with:
@@ -56,7 +53,6 @@ jobs:
       - name: Static Python compilation
         run: python3 -m compileall -q scripts tests
       - name: Full harness version / workspace check
-        if: steps.tooling_checkout.outcome == 'success'
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -68,23 +64,7 @@ jobs:
           print(f"Verified pinned mc_harness 1.0.0 at {harness}")
           PY
       - name: Full Python unit suite (with pinned mc-harness)
-        if: steps.tooling_checkout.outcome == 'success'
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
-      - name: Self-contained Python unit checks (fallback)
-        if: steps.tooling_checkout.outcome != 'success'
-        run: |
-          for suite in \
-            test_attribute_specialization_share.py \
-            test_config_flag_semantics.py \
-            test_delegation_contract_fixtures.py \
-            test_specialization_inventory.py; do
-            echo "Running independent suite: $suite"
-            python3 -m unittest discover -s tests -p "$suite" -v
-          done
-      - name: Report private tooling checkout result
-        if: steps.tooling_checkout.outcome != 'success'
-        run: |
-          echo "::warning title=Full harness unavailable::mc-tooling is private and the default GITHUB_TOKEN may not read another private repository. To run the full 1.0.0 suite, add MC_TOOLING_READ_TOKEN as a repository Actions secret with Contents: read for qwasdf-1/mc-tooling. No public exposure or repository-visibility change is necessary."
       - name: Real Minecraft 26.3 Fabric server smoke
         run: python3 scripts/ci_smoke_server.py
       - name: Upload server smoke logs
