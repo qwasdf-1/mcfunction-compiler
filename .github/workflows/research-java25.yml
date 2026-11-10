@@ -81,6 +81,20 @@ jobs:
             function-compiler/build/benchmarks/SCHED-ATTR-001/minecraft-server.log
           if-no-files-found: warn
           retention-days: 14
+      - name: SCHED-ATTR-002 same-runner native three-stack CPU comparison
+        timeout-minutes: 18
+        run: python3 scripts/ci_native_cross_mode_attribution.py
+      - name: Upload cross-mode CPU results and independent JFR diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-native-cross-mode-attribution
+          path: |
+            function-compiler/build/benchmarks/SCHED-ATTR-002/results.json
+            function-compiler/build/benchmarks/SCHED-ATTR-002/*.jfr
+            function-compiler/build/benchmarks/SCHED-ATTR-002/*.log
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload server smoke logs
         if: always()
         uses: actions/upload-artifact@v4
