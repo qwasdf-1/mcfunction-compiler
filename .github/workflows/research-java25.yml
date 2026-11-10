@@ -28,7 +28,30 @@ jobs:
           ./gradlew --version
           cat gradle.properties
           cat gradle/wrapper/gradle-wrapper.properties
-      - name: Resolve dependencies and compile mod
-        run: ./gradlew --no-daemon --stacktrace classes
-      - name: Run Python harness unit tests
-        run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Resolve dependencies and build mod
+        run: ./gradlew --no-daemon --stacktrace build
+      - name: Static Python compilation
+        run: python3 -m compileall -q scripts tests
+      - name: Self-contained Python unit checks
+        run: |
+          for suite in \
+            test_attribute_specialization_share.py \
+            test_config_flag_semantics.py \
+            test_delegation_contract_fixtures.py \
+            test_specialization_inventory.py; do
+            echo "Running independent suite: $suite"
+            python3 -m unittest discover -s tests -p "$suite" -v
+          done
+      - name: Explain external harness prerequisite
+        run: |
+          echo "::notice title=Shared harness unavailable::The complete Python suite imports sibling ../mc-tooling/mc-harness v1.0.0, which is not in this repository or an accessible remote. Independent tests and a standalone Fabric smoke test run here; the full differential suite remains blocked until that source is provisioned."
+      - name: Real Minecraft 26.3 Fabric server smoke
+        run: python3 scripts/ci_smoke_server.py
+      - name: Upload server smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-research-java25-server-logs
+          path: build/reports/ci-server-smoke/*.log
+          if-no-files-found: ignore
+          retention-days: 7
