@@ -35,6 +35,7 @@ from mc_harness.server_lifecycle import (
     MINECRAFT_SERVER_SHA256,
     locate_official_server_jar,
 )
+from mc_harness.host_gate import is_noisy
 OUTPUT = ROOT / "build" / "benchmarks" / "SCHED-ATTR-002"
 FABRIC_BASE = OUTPUT / "fabric-install"
 RUN_ROOT = ROOT / "run"
@@ -506,10 +507,33 @@ def main() -> int:
             }
             for family, modes in summary.items()
         }
+        noisy_boots = [
+            boot["boot"] for boot in RUN_RECORD["modes"]
+            if is_noisy(boot["host_loadavg_before"][0], boot["host_cpu_count"])
+        ]
+        RUN_RECORD["quality_gate"] = {
+            "quiet_host_required": True,
+            "noisy_boots": noisy_boots,
+            "boot_count": len(RUN_RECORD["modes"]),
+            "host_quiet_gate_passed": not noisy_boots,
+            "performance_decision": (
+                "inconclusive_host_noise" if noisy_boots else "screening_only"
+            ),
+            "note": "Only two boots per environment; even a quiet host would "
+                    "not make this a confirmatory 6+ pair campaign.",
+        }
+        if noisy_boots:
+            print(
+                "::warning title=SCHED-ATTR-002 host-noise gate failed::"
+                f"One-minute load exceeds CPU count in boots {noisy_boots}; "
+                "results are screening-only and cannot support promotion or regression claims.",
+                flush=True,
+            )
         RUN_RECORD["status"] = "complete"
         REPORT.write_text(json.dumps(RUN_RECORD, indent=2) + "\n", encoding="utf-8")
         print("SCHED-ATTR-002 completed with exact workload parity; summary=" +
-              json.dumps(RUN_RECORD["analysis"]), flush=True)
+              json.dumps(RUN_RECORD["analysis"]) +
+              " quality=" + json.dumps(RUN_RECORD["quality_gate"]), flush=True)
     except BaseException as exc:
         RUN_RECORD["status"] = "failed"
         RUN_RECORD["failure"] = repr(exc)
