@@ -11,20 +11,43 @@ jobs:
   java25-build:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: function-compiler
     steps:
-      - name: Check out source
+      - name: Check out compiler at sibling workspace path
         uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Check out pinned private mc-tooling workspace
+        id: tooling_checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          repository: qwasdf-1/mc-tooling
+          ref: 9b63c9e554a0cb55855c51f53b6ebe0664eefbc3
+          path: mc-tooling
+          persist-credentials: false
+          # By default GITHUB_TOKEN only grants access to this repository.
+          # A fine-grained read-only PAT for the private tooling repo can be
+          # provided as MC_TOOLING_READ_TOKEN if the default token is rejected.
+          token: ${{ secrets.MC_TOOLING_READ_TOKEN || github.token }}
       - name: Install Java 25
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '25'
+      - name: Install Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
       - name: Set up Gradle dependency cache
         uses: gradle/actions/setup-gradle@v4
       - name: Record runtime and toolchain versions
         run: |
           java --version
           javac --version
+          python3 --version
           ./gradlew --version
           cat gradle.properties
           cat gradle/wrapper/gradle-wrapper.properties
@@ -32,7 +55,23 @@ jobs:
         run: ./gradlew --no-daemon --stacktrace build
       - name: Static Python compilation
         run: python3 -m compileall -q scripts tests
-      - name: Self-contained Python unit checks
+      - name: Full harness version / workspace check
+        if: steps.tooling_checkout.outcome == 'success'
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+          harness = (Path.cwd().parent / "mc-tooling" / "mc-harness").resolve()
+          sys.path.insert(0, str(harness))
+          from mc_harness import assert_version
+          assert_version("1.0.0")
+          print(f"Verified pinned mc_harness 1.0.0 at {harness}")
+          PY
+      - name: Full Python unit suite (with pinned mc-harness)
+        if: steps.tooling_checkout.outcome == 'success'
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Self-contained Python unit checks (fallback)
+        if: steps.tooling_checkout.outcome != 'success'
         run: |
           for suite in \
             test_attribute_specialization_share.py \
@@ -42,9 +81,10 @@ jobs:
             echo "Running independent suite: $suite"
             python3 -m unittest discover -s tests -p "$suite" -v
           done
-      - name: Explain external harness prerequisite
+      - name: Report private tooling checkout result
+        if: steps.tooling_checkout.outcome != 'success'
         run: |
-          echo "::notice title=Shared harness unavailable::The complete Python suite imports sibling ../mc-tooling/mc-harness v1.0.0, which is not in this repository or an accessible remote. Independent tests and a standalone Fabric smoke test run here; the full differential suite remains blocked until that source is provisioned."
+          echo "::warning title=Full harness unavailable::mc-tooling is private and the default GITHUB_TOKEN may not read another private repository. To run the full 1.0.0 suite, add MC_TOOLING_READ_TOKEN as a repository Actions secret with Contents: read for qwasdf-1/mc-tooling. No public exposure or repository-visibility change is necessary."
       - name: Real Minecraft 26.3 Fabric server smoke
         run: python3 scripts/ci_smoke_server.py
       - name: Upload server smoke logs
@@ -52,6 +92,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ci-research-java25-server-logs
-          path: build/reports/ci-server-smoke/*.log
+          path: function-compiler/build/reports/ci-server-smoke/*.log
           if-no-files-found: ignore
           retention-days: 7
