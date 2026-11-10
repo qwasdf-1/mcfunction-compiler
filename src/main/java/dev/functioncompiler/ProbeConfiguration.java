@@ -1,6 +1,10 @@
 package dev.functioncompiler;
 
 public final class ProbeConfiguration {
+    // Process environment variables are immutable for a running server. This
+    // trace flag is consulted on every queue boundary and command cost debit;
+    // avoid a System.getenv() hash-map lookup for every single command.
+    private static final boolean TRACE_ENABLED = readBoolean("FC_RUNTIME_TRACE", false);
     private ProbeConfiguration() {
     }
 
@@ -9,7 +13,7 @@ public final class ProbeConfiguration {
     }
 
     public static boolean traceEnabled() {
-        return readBoolean("FC_RUNTIME_TRACE", false);
+        return TRACE_ENABLED;
     }
 
     public static boolean scoreAddPrototypeEnabled() {
