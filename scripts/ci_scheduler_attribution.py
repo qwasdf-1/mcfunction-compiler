@@ -109,17 +109,22 @@ def jcmd(pid: int, *args: str) -> str:
 def describe_frame(frame: dict) -> str:
     method = frame.get("method") or {}
     type_data = method.get("type") or {}
-    return f"{type_data.get('name', '')}.{method.get('name', '')}"
+    return f"{type_data.get('name', '').replace('/', '.')}.{method.get('name', '')}"
 
 
 def classify_stack(frame_names: list[str]) -> str:
-    """Approximate CPU self-sample attribution to the nearest semantic layer.
+    """Approximate CPU sample layer attribution including opt-in mod hooks.
 
-    Scan from innermost to outermost frame. Java collection methods inherit
-    the nearest underlying named Minecraft frame, if one is present.
-    Unclassified samples remain unclassified (never force to scheduler).
+    Scan from innermost to outermost frame. Java collection-method samples
+    inherit the closest recognized source frame. Compiler tracing and Fabric
+    event hooks are separate buckets, not vanilla scheduler time.
     """
     for name in frame_names:
+        if "dev.functioncompiler.ProbeConfiguration.readBoolean" in name:
+            return "compiler_probe_env_lookup"
+        if ("net.fabricmc.fabric.impl.entity.event.effect.MobEffectUtil" in name
+                or "fabric-entity-events-v1" in name):
+            return "fabric_entity_event_hook"
         if "dev.functioncompiler.ProbeCommands" in name:
             return "minimal_leaf"
         if ("net.minecraft.world.scores" in name
@@ -143,7 +148,7 @@ def classify_stack(frame_names: list[str]) -> str:
 
 def summarize_jfr(path: Path) -> dict:
     output = subprocess.run(
-        ["jfr", "print", "--json", "--events", "jdk.ExecutionSample", str(path)],
+        ["jfr", "print", "--json", "--stack-depth", "96", "--events", "jdk.ExecutionSample", str(path)],
         text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         timeout=90, check=False,
     )
