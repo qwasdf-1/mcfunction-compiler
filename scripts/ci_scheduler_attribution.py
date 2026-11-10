@@ -74,7 +74,7 @@ def java_server_pid(parent_pid: int, server_dir: Path) -> int:
         pid = int(path.name)
         try:
             cwd = (path / "cwd").resolve(strict=True)
-            cmd = (path / "cmdline").read_bytes().replace(b"\\0", b" ").decode(errors="replace")
+            cmd = (path / "cmdline").read_bytes().replace(b"\x00", b" ").decode(errors="replace")
             if "java" in Path(cmd.split(" ", 1)[0]).name:
                 all_java.append((pid, str(cwd), cmd[:180]))
             if cwd == server_dir.resolve() and "java" in Path(cmd.split(" ", 1)[0]).name:
