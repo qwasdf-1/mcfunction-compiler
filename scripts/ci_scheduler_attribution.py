@@ -59,36 +59,40 @@ def make_fixture(run_dir: Path) -> None:
         )
 
 
-def java_server_pid(parent_pid: int) -> int:
-    """Follow the Gradle child-process tree to the dedicated Fabric JVM."""
-    visited = set()
-    pending = [parent_pid]
-    matches = []
-    while pending:
-        pid = pending.pop()
-        if pid in visited:
+def java_server_pid(parent_pid: int, server_dir: Path) -> int:
+    """Resolve the server JVM by its run-directory cwd, not Gradle parentage.
+
+    Gradle may launch the Minecraft JVM from an already-running daemon rather
+    than below the invocation wrapper's process tree. CI hosts have a single
+    running server, and its working directory is our dedicated run directory.
+    """
+    candidates = []
+    all_java = []
+    for path in Path("/proc").iterdir():
+        if not path.name.isdigit():
             continue
-        visited.add(pid)
-        cmdpath = Path(f"/proc/{pid}/cmdline")
-        if cmdpath.exists():
-            cmdline = cmdpath.read_bytes().replace(b"\0", b" ").decode(errors="replace")
-            if any(m in cmdline for m in (
-                "net.fabricmc.loader.impl.launch.knot.KnotServer",
-                "net.fabricmc.devlaunchinjector.Main",
-                "net.fabricmc.loader.impl.launch.knot.Knot",
-            )):
-                matches.append(pid)
-        children = Path(f"/proc/{pid}/task/{pid}/children")
-        if children.exists():
-            pending.extend(int(n) for n in children.read_text().split())
-    if not matches:
-        raise RuntimeError(
-            f"Could not identify Minecraft server JVM among descendants of {parent_pid}; "
-            f"descendants={sorted(visited)}"
+        pid = int(path.name)
+        try:
+            cwd = (path / "cwd").resolve(strict=True)
+            cmd = (path / "cmdline").read_bytes().replace(b"\\0", b" ").decode(errors="replace")
+            if "java" in Path(cmd.split(" ", 1)[0]).name:
+                all_java.append((pid, str(cwd), cmd[:180]))
+            if cwd == server_dir.resolve() and "java" in Path(cmd.split(" ", 1)[0]).name:
+                candidates.append(pid)
+        except (OSError, ValueError, PermissionError):
+            continue
+    if len(candidates) != 1:
+        jcmd_list = subprocess.run(
+            ["jcmd", "-l"], text=True, capture_output=True, check=False,
+            timeout=15,
         )
-    if len(matches) != 1:
-        raise RuntimeError(f"Ambiguous Minecraft JVMs found: {matches}")
-    return matches[0]
+        raise RuntimeError(
+            f"Expected one server JVM in {server_dir}, got {candidates}. "
+            f"Visible java processes={all_java[:20]!r}. "
+            f"jcmd -l: {jcmd_list.stdout[:1400]!r}. "
+            f"Gradle wrapper PID={parent_pid}"
+        )
+    return candidates[0]
 
 
 def jcmd(pid: int, *args: str) -> str:
@@ -346,7 +350,7 @@ def main() -> int:
             client.command(f"scoreboard objectives add {OBJECTIVE} dummy")
             client.command(f"scoreboard players set {HOLDER} {OBJECTIVE} 0")
             client.command(f"scoreboard players set {GATE} {OBJECTIVE} 1")
-            java_pid = java_server_pid(proc.pid)
+            java_pid = java_server_pid(proc.pid, run_dir)
             print(f"SCHED-ATTR-001 server JVM pid={java_pid}", flush=True)
             for idx, arm in enumerate(ARMS, 1):
                 result["windows"].append(run_profile_window(client, java_pid, arm, idx))
