@@ -17,6 +17,22 @@ final class ProbeCommands {
     }
 
     static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        // CI-only scheduler-cost experiment. Never register these commands in
+        // ordinary installations; the optional leaf increments a server-thread
+        // local counter so the research harness can prove exact work completion.
+        if (Boolean.parseBoolean(System.getenv("FC_SCHEDULER_RESEARCH"))) {
+            dispatcher.register(Commands.literal("fc_research_noop").executes(context -> {
+                ResearchCounter.EXECUTED++;
+                return 1;
+            }));
+            dispatcher.register(Commands.literal("fc_research_count").executes(context -> {
+                int count = ResearchCounter.EXECUTED;
+                context.getSource().sendSuccess(
+                        () -> Component.literal("FC_RESEARCH_COUNT " + count), false);
+                return count;
+            }));
+        }
+
         dispatcher.register(Commands.literal("function_compiler_probe")
                 .then(Commands.literal("status").executes(context -> ProbeStatus.status(context.getSource())))
                 .then(Commands.literal("metrics").executes(context -> ProbeStatus.metrics(context.getSource())))
@@ -116,5 +132,10 @@ final class ProbeCommands {
                         frame.discard();
                     }
                 })));
+    }
+    // A single Java thread executes the benchmark function and counter
+    // queries; this is deliberately not a synchronized per-command increment.
+    private static final class ResearchCounter {
+        static int EXECUTED;
     }
 }
