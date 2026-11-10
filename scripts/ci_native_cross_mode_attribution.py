@@ -26,14 +26,15 @@ import time
 import urllib.request
 import zipfile
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT.parent / "mc-tooling" / "mc-harness"))
+
 from ci_smoke_server import Rcon, unused_port, wait_for_rcon
 from ci_scheduler_attribution import jcmd
 from mc_harness.server_lifecycle import (
     MINECRAFT_SERVER_SHA256,
     locate_official_server_jar,
 )
-
-ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "build" / "benchmarks" / "SCHED-ATTR-002"
 FABRIC_BASE = OUTPUT / "fabric-install"
 RUN_ROOT = ROOT / "run"
@@ -407,7 +408,6 @@ def run_mode(index: int, mode: str, artifacts: dict) -> dict:
             rcon.command(f"scoreboard objectives add {OBJECTIVE} dummy")
             rcon.command(f"scoreboard players set {HOLDER} {OBJECTIVE} 0")
             rcon.command(f"scoreboard players set {GATE} {OBJECTIVE} 1")
-            rcon.command("gamerule sendCommandFeedback false")
             pid, tid = process.pid, server_tid(process.pid)
             cpu_0, clock = server_cpu_time_ns(pid, tid)
             start = time.perf_counter_ns()
