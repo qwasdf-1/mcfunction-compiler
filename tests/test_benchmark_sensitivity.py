@@ -34,7 +34,7 @@ class SensitivityTests(unittest.TestCase):
             self.assertEqual(orders.count("BA"), 5)
             for x,y in pairs:
                 self.assertEqual(x["pair"], y["pair"])
-                self.assertEqual(x["modified_lines"], 0)
+                self.assertEqual(x["modified_lines"], 300 if x["arm"] == "B" and kind == "AB" else 0)
                 self.assertEqual(y["modified_lines"], 300 if y["arm"] == "B" and kind == "AB" else 0)
 
     def test_identical_negative_and_positive_dose(self):
