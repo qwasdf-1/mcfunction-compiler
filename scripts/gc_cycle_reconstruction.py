@@ -113,6 +113,8 @@ def overlap_ms(start: float, end: float, event_start: float, event_end: float) -
 
 
 def describe_window(parsed: dict, start_ms: float, end_ms: float) -> dict:
+    if end_ms < start_ms:
+        raise ValueError("Negative window duration")
     events = [
         c for c in parsed["cycles"]
         if overlap_ms(start_ms, end_ms, c["start_ms"], c["end_ms"]) > 0
