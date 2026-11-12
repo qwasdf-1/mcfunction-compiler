@@ -238,8 +238,13 @@ def run_boot(index: int, mode: str, artifacts: dict) -> dict:
         "FC_FUNCTION_TIMING", "FC_RUNTIME_TRACE", "FC_SCHEDULER_RESEARCH",
     ):
         env[flag] = "false"
+    # Opt-in research logging; SCHED-HOOK-004 and SCHED-NOISE-005 default flags unchanged.
+    gc_log_args = (
+        ["-Xlog:gc*,safepoint=info:file=gc-phase.log:time,uptimemillis,level,tags"]
+        if os.getenv("FC_BENCH_GC_LOG") == "true" else []
+    )
     command = [
-        "java", *JVM_ARGS, "-jar",
+        "java", *JVM_ARGS, *gc_log_args, "-jar",
         str(workdir / "fabric-server-launch.jar"), "nogui",
     ]
     result = {"boot": index, "mode": mode, "status": "started",
