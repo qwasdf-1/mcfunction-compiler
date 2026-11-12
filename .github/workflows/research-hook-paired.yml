@@ -1,0 +1,62 @@
+name: SCHED-HOOK-003 paired disabled compiler cost
+
+on:
+  pull_request:
+    paths:
+      - scripts/ci_compiler_off_paired.py
+      - tests/test_compiler_off_paired.py
+      - .github/workflows/research-hook-paired.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-compiler-hooks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Check out compiler
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Check out pinned private mc-tooling
+        uses: actions/checkout@v4
+        with:
+          repository: qwasdf-1/mc-tooling
+          ref: 9b63c9e554a0cb55855c51f53b6ebe0664eefbc3
+          path: mc-tooling
+          persist-credentials: false
+          token: ${{ secrets.MC_TOOLING_READ_TOKEN }}
+      - name: Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+      - name: Build production compiler jar
+        run: ./gradlew --no-daemon --stacktrace build
+      - name: Verify benchmark statistical contracts
+        run: python3 -m unittest discover -s tests -p test_compiler_off_paired.py -v
+      - name: SCHED-HOOK-003 predeclared paired campaign
+        timeout-minutes: 22
+        run: python3 scripts/ci_compiler_off_paired.py
+      - name: Upload all paired CPU measurements and server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sched-hook-003-paired-raw
+          path: |
+            function-compiler/build/benchmarks/SCHED-HOOK-003/results.json
+            function-compiler/build/benchmarks/SCHED-HOOK-003/*.log
+            function-compiler/build/benchmarks/SCHED-HOOK-003/fabric-installer.jar
+          if-no-files-found: warn
+          retention-days: 21
