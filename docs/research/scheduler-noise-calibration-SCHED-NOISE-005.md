@@ -12,17 +12,17 @@ Before attributing this to code or external CPU contention, run the same A/B ana
 
 ## Fixed preregistration and implementation
 
-- Script: [\`scripts/ci_noise_aa_calibration.py\`](../../scripts/ci_noise_aa_calibration.py).
-- Reusable Linux/JVM telemetry: [\`scripts/benchmark_noise_telemetry.py\`](../../scripts/benchmark_noise_telemetry.py).
-- Synthetic contracts: [\`tests/test_noise_aa_calibration.py\`](../../tests/test_noise_aa_calibration.py).
-- Dedicated CI: [\`.github/workflows/research-noise-aa.yml\`](../../.github/workflows/research-noise-aa.yml).
-- **Pre-measurement commit:** \`96006507d1ea86f441922722ec449af05033a6ff\`.
-- **Verified successful run:** [GitHub Actions 43273896651](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43273896651). Artifact: **\`sched-noise-005-aa-raw\`**, including \`results.json\` (~770 KB) and all 20 server logs. Artifacts expire under Actions retention policy; preserve a ZIP copy elsewhere for permanent reference.
+- Script: [`scripts/ci_noise_aa_calibration.py`](../../scripts/ci_noise_aa_calibration.py).
+- Reusable Linux/JVM telemetry: [`scripts/benchmark_noise_telemetry.py`](../../scripts/benchmark_noise_telemetry.py).
+- Synthetic contracts: [`tests/test_noise_aa_calibration.py`](../../tests/test_noise_aa_calibration.py).
+- Dedicated CI: [`.github/workflows/research-noise-aa.yml`](../../.github/workflows/research-noise-aa.yml).
+- **Pre-measurement commit:** `96006507d1ea86f441922722ec449af05033a6ff`.
+- **Verified successful run:** [GitHub Actions 43273896651](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43273896651). Artifact: **`sched-noise-005-aa-raw`**, including `results.json` (~770 KB) and all 20 server logs. Artifacts expire under Actions retention policy; preserve a ZIP copy elsewhere for permanent reference.
 - Environment: Java 25, Minecraft 26.3, pinned Fabric Loader 0.20.1 and Fabric API 0.165.0+26.3, production server launcher, same JVM flags, exact same datapack/function text for both arms of every pair. All compiler optimization and tracing flags off. JAR SHA-256 values and fixed settings are recorded in JSON.
 
 The study predeclared 10 adjacent same-binary pairs, with five Fabric/Fabric and five compiler-off/compiler-off comparisons interleaved and the time-order labels counterbalanced. For each JVM: identical three-family prewarm, 6–18 fixed scoreboard qualification windows until the specified 4-window plateau criterion (6% individual deviation / 4% trend), then two adjacent scored CPU windows and two conditional controls.
 
-**Primary measurement:** Linux **server-thread running CPU** nanoseconds per verified \`.mcfunction\` source line. The environment monitor snapshots process CPU, per-surviving-thread CPU categorized as compiler/GC/server/other, run-queue wait, cgroup throttling, CPU pressure and affinity. No JFR runs during timed windows; environment snapshots bracket rather than occur inside the inner timed command CPU clock.
+**Primary measurement:** Linux **server-thread running CPU** nanoseconds per verified `.mcfunction` source line. The environment monitor snapshots process CPU, per-surviving-thread CPU categorized as compiler/GC/server/other, run-queue wait, cgroup throttling, CPU pressure and affinity. No JFR runs during timed windows; environment snapshots bracket rather than occur inside the inner timed command CPU clock.
 
 **Null screening targets (predeclared):** median absolute paired effect ≤3%, 90th-percentile absolute paired effect ≤8%, and maximum absolute paired effect ≤12%, with no failed-quality pairs. These are pragmatic **screening** criteria, NOT a confidence guarantee of detecting a 5% change; the total sample is just ten pairs and each stack has five.
 
@@ -49,7 +49,7 @@ All pair labels, warmup failures and outliers are retained. A failed quality gat
 | Conservative exact signed-median interval (97.85% coverage) | −18.188% to +5.422% |
 | Fabric/Fabric median absolute apparent effect, 5 pairs | 5.422% |
 | Compiler-off/compiler-off median absolute apparent effect, 5 pairs | 3.816% |
-| Predeclared verdict | **\`inconclusive_quality_gate\`** |
+| Predeclared verdict | **`inconclusive_quality_gate`** |
 
 The signed distribution is only a diagnostic: both labels point to **identical** code, and the interval legitimately includes zero. With only five observations per stack, the independent stack statistics are descriptive, not reliable estimates of their population variance.
 
@@ -93,7 +93,7 @@ Exploratory correlations across 20 boots:
 
 These strong associations do **not** prove that GC caused the server-thread CPU slowdown; GC and the server thread can be affected simultaneously by heap state, system scheduling and memory behavior. However, concurrent GC is now a well-grounded specific hypothesis, unlike the previous generic description of “host noise”. JIT-worker CPU did not exhibit the same association in this limited snapshot sample; that does not prove compilation tiers were identical or JIT state irrelevant.
 
-Per-thread CPU categorization uses Linux \`/proc/<pid>/task/*/comm\` names, which are truncated, and counts **surviving threads** observed at both snapshots. The whole-process CPU counter includes all threads but has coarse tick granularity. The new role totals are informative approximations, not a complete Java GC/compilation event trace.
+Per-thread CPU categorization uses Linux `/proc/<pid>/task/*/comm` names, which are truncated, and counts **surviving threads** observed at both snapshots. The whole-process CPU counter includes all threads but has coarse tick granularity. The new role totals are informative approximations, not a complete Java GC/compilation event trace.
 
 ### Do NOT use post-hoc exclusion as a performance claim
 
@@ -109,7 +109,7 @@ This is a measurement methodology finding, not a compiler optimization result.
 
 ## Next falsifiable experiment
 
-1. **GC-phase diagnosis**, a new preregistered A/A campaign with per-JVM GC unified logs (\`-Xlog:gc*\`, with explicit assessment of logging overhead), heap occupancy and collection counters, plus the same CPU/GC-worker telemetry. Determine which GC phase explains the 350 ms worker-CPU regime.
+1. **GC-phase diagnosis**, a new preregistered A/A campaign with per-JVM GC unified logs (`-Xlog:gc*`, with explicit assessment of logging overhead), heap occupancy and collection counters, plus the same CPU/GC-worker telemetry. Determine which GC phase explains the 350 ms worker-CPU regime.
 2. Run an **explicit GC-behavior factorial diagnostic**, e.g. default G1 vs controlled GC-worker count, on identical Fabric-only binaries; make no production performance inference from a diagnostic GC configuration.
 3. Separately report **GC-inclusive whole-JVM/event cost** (where GC induced by an intervention counts) and **GC-quiet steady-state command cost** (where the quiet criterion is predeclared, with failures retained). Do not equate them.
 4. If the A/A noise floor remains comparable to the intended target effect, move to a genuinely isolated benchmark host or a safe within-JVM crossover for compilation paths that support it. A shared GitHub-hosted 2-vCPU runner cannot guarantee physical-core exclusivity.
