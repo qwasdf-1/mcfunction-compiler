@@ -10,10 +10,10 @@ import datetime as dt
 import re
 from pathlib import Path
 
-STAMP = re.compile(r"^\\[(\\d{4}-\\d\\d-\\d\\dT[^\\]]+)\\]\\[(\\d+)ms\\]")
-GC_ID = re.compile(r"GC\\((\\d+)\\)")
-HEAP = re.compile(r"(\\d+(?:\\.\\d+)?)([BKMGT])->(\\d+(?:\\.\\d+)?)([BKMGT])\\((\\d+(?:\\.\\d+)?)([BKMGT])\\)")
-PAUSE = re.compile(r"(?:Pause |Concurrent )(.*?)\\s+(\\d+(?:\\.\\d+)?)ms(?:\\s|$)")
+STAMP = re.compile(r"^\[(\d{4}-\d\d-\d\dT[^\]]+)\]\[(\d+)ms\]")
+GC_ID = re.compile(r"GC\((\d+)\)")
+HEAP = re.compile(r"(\d+(?:\.\d+)?)([BKMGT])->(\d+(?:\.\d+)?)([BKMGT])\((\d+(?:\.\d+)?)([BKMGT])\)")
+PAUSE = re.compile(r"(?:Pause |Concurrent )(.*?)\s+(\d+(?:\.\d+)?)ms(?:\s|$)")
 UNITS = {"B": 1, "K": 1024, "M": 1024**2, "G": 1024**3, "T": 1024**4}
 
 
@@ -29,7 +29,7 @@ def bytes_value(value: str, unit: str) -> int:
 def parse_lines(lines) -> dict:
     events, unknown_gc, malformed = [], [], []
     for number, line in enumerate(lines, 1):
-        line = line.rstrip("\\n")
+        line = line.rstrip("\n")
         stamp = STAMP.match(line)
         if not stamp:
             if "GC(" in line or "[gc" in line:
