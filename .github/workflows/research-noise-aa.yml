@@ -1,0 +1,66 @@
+name: SCHED-NOISE-005 same-binary A/A noise calibration
+
+on:
+  pull_request:
+    paths:
+      - scripts/benchmark_noise_telemetry.py
+      - scripts/ci_noise_aa_calibration.py
+      - tests/test_noise_aa_calibration.py
+      - .github/workflows/research-noise-aa.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sched-noise-005-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  same-binary-negative-controls:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Check out compiler
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Check out pinned private tooling harness
+        uses: actions/checkout@v4
+        with:
+          repository: qwasdf-1/mc-tooling
+          ref: 9b63c9e554a0cb55855c51f53b6ebe0664eefbc3
+          path: mc-tooling
+          persist-credentials: false
+          token: ${{ secrets.MC_TOOLING_READ_TOKEN }}
+      - name: Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Gradle dependency cache
+        uses: gradle/actions/setup-gradle@v4
+      - name: Build production compiler JAR
+        run: ./gradlew --no-daemon --stacktrace build
+      - name: Check A/A statistical and Linux telemetry contracts
+        run: python3 -m unittest discover -s tests -p test_noise_aa_calibration.py -v
+      - name: SCHED-NOISE-005 A/A calibration — no code differences within pairs
+        timeout-minutes: 31
+        run: python3 scripts/ci_noise_aa_calibration.py
+      - name: Preserve A/A results, environment telemetry and server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sched-noise-005-aa-raw
+          path: |
+            function-compiler/build/benchmarks/SCHED-NOISE-005/results.json
+            function-compiler/build/benchmarks/SCHED-NOISE-005/*.log
+          if-no-files-found: warn
+          retention-days: 21
