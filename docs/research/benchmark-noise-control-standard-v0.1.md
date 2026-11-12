@@ -31,10 +31,10 @@ Never swap the primary metric in response to results. Never equate CPU time with
 
 ## Required telemetry
 
-The reusable implementation [\`scripts/benchmark_noise_telemetry.py\`](../../scripts/benchmark_noise_telemetry.py) captures:
-- Server-thread running and wait CPU nanoseconds from \`/proc/<pid>/task/<tid>/schedstat\`.
-- Whole-JVM CPU from \`/proc/<pid>/stat\`, with coarser tick resolution, plus per-surviving-thread CPU by role (\`jit_compiler\`, \`gc\`, \`server\`, other). Linux thread names are truncated and threads can disappear mid-window: **role totals are indicative, not full attribution**.
-- \`cpu.stat\` cgroup throttling, system CPU pressure from \`/proc/pressure/cpu\`, host load and process CPU affinity.
+The reusable implementation [`scripts/benchmark_noise_telemetry.py`](../../scripts/benchmark_noise_telemetry.py) captures:
+- Server-thread running and wait CPU nanoseconds from `/proc/<pid>/task/<tid>/schedstat`.
+- Whole-JVM CPU from `/proc/<pid>/stat`, with coarser tick resolution, plus per-surviving-thread CPU by role (`jit_compiler`, `gc`, `server`, other). Linux thread names are truncated and threads can disappear mid-window: **role totals are indicative, not full attribution**.
+- `cpu.stat` cgroup throttling, system CPU pressure from `/proc/pressure/cpu`, host load and process CPU affinity.
 - Exact work counters and independent secondary RCON latency.
 
 Snapshot telemetry outside the core timing boundaries; a process snapshot may encompass a slightly wider window than the exact server-thread CPU timer. Record that limitation explicitly.
