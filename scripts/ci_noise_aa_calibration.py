@@ -206,7 +206,10 @@ def protocol() -> dict:
         "question": "How much false effect does a fresh-JVM same-binary A/A pair produce?",
         "a_a_stack_pairs": list(PAIR_MODES),
         "blinded_label_order": [list(x) for x in LABEL_ORDER],
-        "jvm_warmup_protocol": stable.quality_constants(),
+        "jvm_warmup_protocol": {
+            key: value for key, value in stable.quality_constants().items()
+            if key.startswith(("prewarm_", "qualification_", "timed_", "max_"))
+        },
         "primary_metric": "false A/A percent delta in server thread CPU ns per 2000-command source line",
         "jit_diagnostics": (
             "process total CPU and per-surviving-thread JIT/GC CPU from /proc, "
