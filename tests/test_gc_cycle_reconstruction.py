@@ -34,14 +34,14 @@ class ReconstructionTests(unittest.TestCase):
         self.assertEqual(len(parsed["unmatched_starts"]), 0)
         self.assertEqual(sum(c["is_concurrent_cycle"] for c in parsed["cycles"]), 1)
         self.assertEqual(sum(c["is_pause"] for c in parsed["cycles"]), 2)
-        concurrent = parsed["cycles"][0]
+        concurrent = next(c for c in parsed["cycles"] if c["is_concurrent_cycle"])
         self.assertEqual(concurrent["duration_ms"], 80)
         self.assertEqual(concurrent["start_source"], "explicit")
         self.assertEqual(len(concurrent["nested_phases"]), 1)
 
     def test_overlap_counts_pause_and_marking_separately(self):
         parsed = parse_cycles(self.lines)
-        t = parsed["cycles"][0]["start_ms"]
+        t = next(c for c in parsed["cycles"] if c["is_concurrent_cycle"])["start_ms"]
         window = describe_window(parsed, t + 40, t + 60)
         self.assertEqual(window["concurrent_cycle_count"], 1)
         self.assertEqual(window["pause_count"], 1)
