@@ -14,6 +14,10 @@ public final class ProbeMetrics {
     private static final AtomicLong SCORE_ADD_EXECUTED = new AtomicLong();
     private static final AtomicLong FUSED_REGIONS_COMPILED = new AtomicLong();
     private static final AtomicLong FUSED_REGIONS_EXECUTED = new AtomicLong();
+    // Server-thread-only, opt-in scheduler attribution diagnostic counters.
+    // These are not CPU timers and include queue work from RCON commands.
+    private static long ARCH_NONEMPTY_QUEUE_VISITS;
+    private static long ARCH_QUOTA_DEBITS;
     // Opt-in research measurements outside timed function execution.
     private static final AtomicLong SCORE_ADD_COMPILE_WALL_NS = new AtomicLong();
     private static final AtomicLong FUSED_COMPILE_WALL_NS = new AtomicLong();
@@ -87,6 +91,22 @@ public final class ProbeMetrics {
     private static long SELECTIVE_MACRO_MISSING_SELECTED_KEYS;
 
     private ProbeMetrics() {
+    }
+
+    public static void archQueueBoundaryVisit() {
+        ARCH_NONEMPTY_QUEUE_VISITS++;
+    }
+
+    public static void archQuotaDebit() {
+        ARCH_QUOTA_DEBITS++;
+    }
+
+    public static long archQueueBoundaryVisits() {
+        return ARCH_NONEMPTY_QUEUE_VISITS;
+    }
+
+    public static long archQuotaDebits() {
+        return ARCH_QUOTA_DEBITS;
     }
 
     public static void wrapperCreated() {
