@@ -123,6 +123,63 @@ class DirectSchedulerContracts(unittest.TestCase):
         with self.assertRaises(AssertionError):
             study.analyze(trials,assignments)
 
+    def test_new_namespaced_gamerule_is_verified_by_readback_and_truncation(self):
+        class Fake:
+            def __init__(self):
+                self.quota=65536
+                self.score=0
+                self.changed=[]
+            def command(self,text):
+                prefix=f"gamerule {study.SEQUENCE_GAMERULE}"
+                if text==prefix:
+                    return f"Game rule {study.SEQUENCE_GAMERULE} is currently set to: {self.quota}"
+                if text.startswith(prefix+" "):
+                    self.quota=int(text.removeprefix(prefix+" "))
+                    self.changed.append(self.quota)
+                    return f"Set {study.SEQUENCE_GAMERULE} to {self.quota}"
+                if text.startswith("scoreboard players set #x fc_sched 0"):
+                    self.score=0
+                    return "OK"
+                if text.startswith("fc_arch_call "):
+                    self.score=min(16,max(0,self.quota-2))
+                    return "FC_ARCH_CALL queued"
+                if text=="scoreboard players get #x fc_sched":
+                    return f"#x has {self.score} [fc_sched]"
+                raise AssertionError(text)
+        fake=Fake()
+        rows=study.quota_parity(fake)
+        self.assertEqual(len(rows),9)
+        self.assertEqual(fake.quota,65536)
+        self.assertIn(2,fake.changed)
+        self.assertEqual(rows[0]["readback"]["confirmed"],2)
+        self.assertLess(rows[0]["scores"]["fused"],16)
+        self.assertEqual(rows[-1]["scores"]["fused"],16)
+
+    def test_invalid_gamerule_command_must_not_fake_a_pass(self):
+        class OldVersion:
+            def command(self,text):
+                return "Unknown game rule"
+        with self.assertRaises(AssertionError):
+            study.set_verified_sequence_quota(OldVersion(),2)
+
+    def test_false_positive_quota_sweep_cannot_pass(self):
+        class Broken:
+            def __init__(self):
+                self.quota=65536
+            def command(self,text):
+                if text.startswith(f"gamerule {study.SEQUENCE_GAMERULE} "):
+                    self.quota=int(text.split()[-1])
+                    return "Set"
+                if text==f"gamerule {study.SEQUENCE_GAMERULE}":
+                    return f"Game rule {study.SEQUENCE_GAMERULE} set to {self.quota}"
+                if text=="scoreboard players get #x fc_sched":
+                    return "#x has 16 [fc_sched]"
+                if text.startswith("scoreboard players set #x fc_sched 0") or text.startswith("fc_arch_call "):
+                    return "OK"
+                raise AssertionError(text)
+        with self.assertRaises(AssertionError):
+            study.quota_parity(Broken())
+
     def test_no_inference_from_missing_or_partial_boots(self):
         assignments=study.plan()
         trials=[fake_boot(i,a) for i,a in enumerate(assignments)]
