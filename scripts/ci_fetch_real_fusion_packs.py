@@ -46,6 +46,7 @@ def choose_timer_version(versions: list[dict]) -> dict:
     # Select a deterministic public version no later than that scan.
     cutoff=datetime(2026,11,3,tzinfo=timezone.utc)
     compatible=[]
+    historical=[]
     for version in versions:
         try:
             published=datetime.fromisoformat(version["date_published"].replace("Z","+00:00"))
@@ -53,16 +54,21 @@ def choose_timer_version(versions: list[dict]) -> dict:
             continue
         if published>cutoff:
             continue
-        if not ({"26.2","26.3"} & set(version.get("game_versions",[]))):
-            continue
         archives=[f for f in version.get("files",[]) if f["filename"].lower().endswith(".zip")
                   and f.get("hashes",{}).get("sha256")]
         if archives:
-            compatible.append((published,version,archives))
-    if not compatible:
-        raise RuntimeError("No pre-2026-11-03 Simple Timer 26.2/26.3 ZIP; cannot claim historical candidate")
-    compatible.sort(key=lambda x:(x[0],x[1]["id"]))
-    _,selected,archives=compatible[-1]
+            historical.append((published,version,archives))
+            if {"26.2","26.3"} & set(version.get("game_versions",[])):
+                compatible.append((published,version,archives))
+    if not historical:
+        raise RuntimeError("No historically published Simple Timer ZIP before 2026-11-03")
+    # The platform's project-level game-version compatibility can differ from
+    # individual version.game_versions; do not conflate these. A historical ZIP
+    # with another reported game-version string is diagnostic-only and must
+    # separately pass actual 26.3 loader validation and 36-command screen.
+    pool=compatible or historical
+    pool.sort(key=lambda x:(x[0],x[1]["id"]))
+    _,selected,archives=pool[-1]
     chosen=next((f for f in archives if f.get("primary")),archives[0])
     return {"version":selected,"file":chosen}
 
@@ -71,7 +77,7 @@ def main() -> None:
     output=ROOT/"build/benchmarks/SCHED-COMP-012"
     output.mkdir(parents=True,exist_ok=True)
     record={"experiment":"SCHED-COMP-012","source":"publisher metadata",
-            "note":"Simple Timer selection is newly established; not a verified match to November 3 source archive.",
+            "note":"Timer selected before November 3, version metadata may not declare 26.2; loader and candidate counts must independently verify.",
             "packs":{}}
     try:
         blast=get_json("https://api.modrinth.com/v2/version/dMtA8r0n")
