@@ -32,7 +32,7 @@ public final class FusedRegionPrototype {
             PlainTextFunction<CommandSourceStack> original
     ) {
         return compile(original, commands -> {
-            ProbeMetrics.fusedRegionsCompiled(1);
+            ProbeMetrics.fusedRegionsCompiled(original.id(), 1);
             return new FusedScoreAddRegion(commands);
         });
     }
