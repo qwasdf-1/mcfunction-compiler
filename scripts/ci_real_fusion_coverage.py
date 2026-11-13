@@ -20,6 +20,7 @@ import secrets
 import shutil
 import statistics
 import subprocess
+import sys
 import time
 import zipfile
 
@@ -32,6 +33,8 @@ from ci_compiler_off_stability import JVM_ARGS
 from ci_smoke_server import unused_port, wait_for_rcon
 from screen_adjacent_regions import screen_pack, FUNCTION_PATH
 from run_runtime_probe import generate_packet_ids
+
+sys.path.insert(0, str(ROOT / "tests" / "runtime"))
 
 OUT = ROOT / "build/benchmarks/SCHED-COMP-012"
 SOURCES = {
