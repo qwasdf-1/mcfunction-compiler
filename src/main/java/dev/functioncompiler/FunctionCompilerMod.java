@@ -86,6 +86,7 @@ public final class FunctionCompilerMod implements ModInitializer {
 
         String message = "FC_STATS function=" + functionId
                 + " score_add_compiled=" + ProbeMetrics.scoreAddsCompiled(functionId)
+                + " fused_regions_compiled=" + ProbeMetrics.fusedRegionsCompiled(functionId)
                 + " score_add_executed=" + ProbeMetrics.scoreAddsExecuted(functionId)
                 + " score_add_timed_calls=" + ProbeMetrics.scoreAddTimedCalls(functionId);
         source.sendSuccess(() -> Component.literal(message), false);
