@@ -188,7 +188,7 @@ def read_sequence_quota(rcon: Rcon) -> tuple[int,str]:
     response=rcon.command(f"gamerule {SEQUENCE_GAMERULE}")
     if SEQUENCE_GAMERULE not in response and "max_command_sequence_length" not in response:
         raise AssertionError(f"Gamerule query did not identify the real rule: {response!r}")
-    numbers=re.findall(r"-?\\d+",response)
+    numbers=re.findall(r"-?\d+",response)
     if not numbers:
         raise AssertionError(f"Expected numeric quota readback: {response!r}")
     return int(numbers[-1]),response
