@@ -50,8 +50,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.14'
-      - name: Gradle setup
-        uses: gradle/actions/setup-gradle@v4
       - name: Verify compiler production build
         run: ./gradlew --no-daemon --stacktrace build
       - name: Unit contracts for event and compilation costs
