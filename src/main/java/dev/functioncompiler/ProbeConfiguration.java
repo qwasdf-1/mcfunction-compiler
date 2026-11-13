@@ -75,8 +75,11 @@ public final class ProbeConfiguration {
                 && DIRECT_SCHEDULER_NAMESPACE.equals(id.getNamespace());
     }
 
+    private static final boolean DIRECT_SCHEDULER_DIAGNOSTICS =
+            readBoolean("FC_DIRECT_SCHEDULER_DIAGNOSTICS", false);
+
     public static boolean directSchedulerDiagnosticsEnabled() {
-        return readBoolean("FC_DIRECT_SCHEDULER_DIAGNOSTICS", false);
+        return DIRECT_SCHEDULER_DIAGNOSTICS;
     }
 
     public static boolean bytecodeRegionPrototypeEnabled() {
