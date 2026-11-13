@@ -44,7 +44,7 @@ final class ProbeCommands {
         // and tracer semantics on the original scheduler fallback.
         if (Boolean.parseBoolean(System.getenv("FC_DIRECT_SCHEDULER_HARNESS"))) {
             dispatcher.register(Commands.literal("fc_arch_call")
-                    .then(Commands.argument("function", StringArgumentType.word())
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
                             .executes(context -> researchQueueFunction(
                                     context.getSource(),
                                     StringArgumentType.getString(context, "function")
