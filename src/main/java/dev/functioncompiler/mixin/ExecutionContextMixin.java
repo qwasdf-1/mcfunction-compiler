@@ -35,6 +35,10 @@ abstract class ExecutionContextMixin<T> {
             )
     )
     private void functionCompiler$traceQueueBoundary(CallbackInfo callback) {
+        if (ProbeConfiguration.schedulerArchitectureCountersEnabled()
+                && !commandQueue.isEmpty()) {
+            ProbeMetrics.archQueueBoundaryVisit();
+        }
         if (ProbeRuntimeTrace.enabled()) {
             Object next = commandQueue.peekFirst();
             FunctionCompilerMod.LOGGER.info(
@@ -56,6 +60,9 @@ abstract class ExecutionContextMixin<T> {
 
     @Inject(method = "incrementCost", at = @At("TAIL"))
     private void functionCompiler$traceCostDebit(CallbackInfo callback) {
+        if (ProbeConfiguration.schedulerArchitectureCountersEnabled()) {
+            ProbeMetrics.archQuotaDebit();
+        }
         if (ProbeRuntimeTrace.enabled()) {
             FunctionCompilerMod.LOGGER.info(
                     "FC_TRACE label={} event=cost-debit quota={}",
