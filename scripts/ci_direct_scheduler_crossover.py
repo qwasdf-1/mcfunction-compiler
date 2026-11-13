@@ -31,7 +31,7 @@ import ci_scheduler_arch_attribution as parent
 import ci_compiler_off_stability as stable
 from ci_compiler_off_paired import exact_median_interval, cpu_run_delay, snapshot_host
 from ci_native_cross_mode_attribution import (
-    ROOT, RUN_ROOT, FABRIC_BASE, PACK, OBJECTIVE, HOLDER,
+    ROOT, RUN_ROOT, FABRIC_BASE, PACK, OBJECTIVE, HOLDER, GATE,
     stage_artifacts, setup_server_properties, server_tid, server_cpu_time_ns,
     read_score,
 )
@@ -353,6 +353,7 @@ def run_boot(index: int, artifacts: dict, diagnostic: bool,
             for command in (
                 f"scoreboard objectives add {OBJECTIVE} dummy",
                 f"scoreboard players set {HOLDER} {OBJECTIVE} 0",
+                f"scoreboard players set {GATE} {OBJECTIVE} 1",
             ):
                 rcon.command(command)
             if diagnostic:
