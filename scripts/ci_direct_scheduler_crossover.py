@@ -177,23 +177,64 @@ def execute_and_verify(rcon: Rcon, arm: str, length: int, calls: int) -> dict:
             "expected":expected,"observed":value,"exact_work":True}
 
 
+# Minecraft Java 26.3 uses namespaced snake_case gamerules. The older
+# maxCommandChainLength name is invalid and silently invalidated an earlier
+# purported quota check. Never accept a quota sweep without command readback
+# AND a demonstrated reduction in the completed source commands.
+SEQUENCE_GAMERULE = "minecraft:max_command_sequence_length"
+
+
+def read_sequence_quota(rcon: Rcon) -> tuple[int,str]:
+    response=rcon.command(f"gamerule {SEQUENCE_GAMERULE}")
+    if SEQUENCE_GAMERULE not in response and "max_command_sequence_length" not in response:
+        raise AssertionError(f"Gamerule query did not identify the real rule: {response!r}")
+    numbers=re.findall(r"-?\\d+",response)
+    if not numbers:
+        raise AssertionError(f"Expected numeric quota readback: {response!r}")
+    return int(numbers[-1]),response
+
+
+def set_verified_sequence_quota(rcon: Rcon, quota: int) -> dict:
+    reply=rcon.command(f"gamerule {SEQUENCE_GAMERULE} {quota}")
+    actual,readback=read_sequence_quota(rcon)
+    if actual!=quota:
+        raise AssertionError(
+            f"Quota set/readback mismatch: wanted={quota}, got={actual}; "
+            f"set_reply={reply!r}, query_reply={readback!r}")
+    return {"requested":quota,"confirmed":actual,
+            "set_response":reply,"readback_response":readback}
+
+
 def quota_parity(rcon: Rcon) -> list[dict]:
     rows=[]
+    low_quota_truncated=False
     # Quota 0 cannot support the diagnostic scoreboard read and reset RCON
     # commands. It remains part of the existing full vanilla parity suite.
-    for quota in (2,3,4,5,8,16,32,64,1024):
-        rcon.command(f"gamerule maxCommandChainLength {quota}")
-        observed={}
-        for arm in ("fused","direct"):
-            rcon.command(f"scoreboard players set {HOLDER} {OBJECTIVE} 0")
-            reply=invoke(rcon,arm,16)
-            observed[arm]=read_value(rcon)
-        row={"quota":quota,"scores":observed}
-        if observed["fused"]!=observed["direct"]:
-            raise AssertionError(f"Call quota changed semantics: {row}")
-        rows.append(row)
-    rcon.command("gamerule maxCommandChainLength 65536")
-    return rows
+    original,_=read_sequence_quota(rcon)
+    try:
+        for quota in (2,3,4,5,8,16,32,64,1024):
+            verified=set_verified_sequence_quota(rcon,quota)
+            observed={}
+            for arm in ("fused","direct"):
+                reset=rcon.command(f"scoreboard players set {HOLDER} {OBJECTIVE} 0")
+                reply=invoke(rcon,arm,16)
+                observed[arm]=read_value(rcon)
+                if not 0<=observed[arm]<=16:
+                    raise AssertionError(f"Invalid quota-limited score for {arm}: {observed}")
+            row={"quota":quota,"readback":verified,"scores":observed}
+            if observed["fused"]!=observed["direct"]:
+                raise AssertionError(f"Call quota changed semantics: {row}")
+            if quota<=8 and observed["fused"]<16:
+                low_quota_truncated=True
+            if quota==1024 and observed["fused"]!=16:
+                raise AssertionError(f"High quota unexpectedly truncated commands: {row}")
+            rows.append(row)
+        if not low_quota_truncated:
+            raise AssertionError("Quota test is not exercising truncation; old gamerule or invalid fixture?")
+        return rows
+    finally:
+        # Restore even when parity fails, preserving the diagnostic evidence.
+        set_verified_sequence_quota(rcon,original)
 
 
 def diagnostic_phase(rcon: Rcon) -> dict:
