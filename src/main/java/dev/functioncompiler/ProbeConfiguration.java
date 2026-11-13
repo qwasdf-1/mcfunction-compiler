@@ -35,6 +35,16 @@ public final class ProbeConfiguration {
         return readBoolean("FC_FUSED_REGION_PROTOTYPE", CompilerConfig.isFusedRegions());
     }
 
+    /** Optional research-only function namespace gate for fusion, not ScoreAdd. */
+    public static boolean fusedRegionForFunction(net.minecraft.resources.Identifier id) {
+        if (!fusedRegionPrototypeEnabled()) {
+            return false;
+        }
+        String onlyNamespace = System.getenv("FC_FUSED_REGION_ONLY_NAMESPACE");
+        return onlyNamespace == null || onlyNamespace.isBlank()
+                || (id != null && onlyNamespace.equals(id.getNamespace()));
+    }
+
     public static boolean bytecodeRegionPrototypeEnabled() {
         return readBoolean("FC_BYTECODE_REGION_PROTOTYPE", CompilerConfig.isTieredBytecode());
     }
