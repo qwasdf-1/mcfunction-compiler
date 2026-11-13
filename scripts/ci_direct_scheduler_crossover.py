@@ -167,7 +167,7 @@ def execute_and_verify(rcon: Rcon, arm: str, length: int, calls: int) -> dict:
     rcon.command(f"scoreboard players set {HOLDER} {OBJECTIVE} 0")
     for _ in range(calls):
         reply = invoke(rcon,arm,length)
-        if not reply.startswith("FC_ARCH_CALL queued ")
+        if not reply.startswith("FC_ARCH_CALL queued "):
             raise AssertionError(f"Function invocation rejected: {arm}/{length}: {reply!r}")
     value = read_score(rcon)
     expected = calls * length
@@ -262,7 +262,7 @@ def measure_window(rcon: Rcon,pid: int,tid: int, arm: str) -> dict:
     wall0=time.perf_counter_ns()
     for _ in range(WINDOW_CALLS):
         reply=invoke(rcon,arm,PRIMARY_LENGTH)
-        if not reply.startswith("FC_ARCH_CALL queued ")
+        if not reply.startswith("FC_ARCH_CALL queued "):
             raise AssertionError(f"Timed invocation failed {arm}: {reply!r}")
     wall_ns=time.perf_counter_ns()-wall0
     host1=snapshot_host()
