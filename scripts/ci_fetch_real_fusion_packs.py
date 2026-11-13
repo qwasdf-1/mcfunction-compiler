@@ -89,16 +89,23 @@ def main() -> None:
         rec=download(bf[0],SOURCES["blastback"],BLASTBACK_SHA256)
         record["packs"]["blastback"]={**rec,"project":"blastback","version_id":"dMtA8r0n"}
 
-        versions=get_json("https://api.modrinth.com/v2/project/simple_timer/version")
-        if not isinstance(versions,list):raise TypeError("Timer versions response not an array")
-        chosen=choose_timer_version(versions)
-        version=chosen["version"]
-        rec=download(chosen["file"],SOURCES["simple_timer"],None)
-        record["packs"]["simple_timer"]={**rec,"project":"simple_timer",
-                                          "version_id":version["id"],
-                                          "published":version["date_published"],
-                                          "game_versions":version["game_versions"]}
-        record["status"]="complete"
+        try:
+            versions=get_json("https://api.modrinth.com/v2/project/simple_timer/version")
+            if not isinstance(versions,list):raise TypeError("Timer versions response not an array")
+            chosen=choose_timer_version(versions)
+            version=chosen["version"]
+            rec=download(chosen["file"],SOURCES["simple_timer"],None)
+            record["packs"]["simple_timer"]={**rec,"project":"simple_timer",
+                                              "version_id":version["id"],
+                                              "published":version["date_published"],
+                                              "game_versions":version["game_versions"]}
+            record["status"]="complete"
+        except (OSError,ValueError,RuntimeError,KeyError,TypeError) as error:
+            # Pack discovery must not prevent the independently pinned
+            # Blastback activation diagnostic from running.
+            record["status"]="partial"
+            record["packs"]["simple_timer"]={"status":"unavailable",
+                                              "reason":repr(error)}
         print("CANDIDATE_PACKS "+json.dumps(record["packs"]),flush=True)
     except BaseException as e:
         record["status"]="failed"
