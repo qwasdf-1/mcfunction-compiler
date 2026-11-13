@@ -204,6 +204,12 @@ def boot(name: str, mode: str, index: int, artifacts: dict, inventory: dict) -> 
                     ("gold_block",2,4),("diamond_block",4,4),
                     ("redstone_block",6,4),("emerald_block",4,6)):
                     rcon.command(f"setblock {x} 63 {z} minecraft:{block}")
+                # Include an actual block-state-rich block within TNT range;
+                # previous all-solid-block witnesses could not exercise the
+                # generated fence state-reader despite compilation.
+                report["acacia_state_source"]=rcon.command(
+                    "setblock 4 63 4 minecraft:acacia_fence[east=true]")
+                rcon.command("setblock 5 63 4 minecraft:acacia_fence[east=true]")
                 report["template_clone"]=rcon.command(
                     "clone -4 56 -4 12 72 12 64 56 32 replace force")
             tid=server_tid(process.pid)
@@ -213,6 +219,8 @@ def boot(name: str, mode: str, index: int, artifacts: dict, inventory: dict) -> 
                     for key in ("fused_regions_compiled","fused_regions_executed")}
                     for item in inventory["targets"]}
             report["stats_before"]=snapshots()
+            report["global_executed_before"]=stat_int(
+                rcon.command("functioncompiler status"),"fused_regions_executed")
             report["ticks_before"]=read_tick_count(rcon)
             cpu_start,cpu_clock=server_cpu_time_ns(process.pid,tid)
             started=time.monotonic()
@@ -227,6 +235,10 @@ def boot(name: str, mode: str, index: int, artifacts: dict, inventory: dict) -> 
             report["ticks_after"]=read_tick_count(rcon)
             report["tick_delta"]=report["ticks_after"]-report["ticks_before"]
             report["stats_after"]=snapshots()
+            report["global_executed_after"]=stat_int(
+                rcon.command("functioncompiler status"),"fused_regions_executed")
+            report["global_fused_executed_delta"]=(
+                report["global_executed_after"]-report["global_executed_before"])
             report["tick_query"]=rcon.command("tick query")
             report["executed_delta_by_function"]={
                 key:report["stats_after"][key]["fused_regions_executed"]
@@ -249,6 +261,13 @@ def boot(name: str, mode: str, index: int, artifacts: dict, inventory: dict) -> 
                 response=rcon.command("scoreboard players get #witness fc_blastback_check")
                 report["source_matches_template"]="has 1" in response
                 report["restoration_state"]=rcon.command("function erb:status/collect")
+                report["queue_state"]={}
+                for holder in ("#captures_active","#groups_active",
+                               "#verification_active","#protected_active",
+                               "#watchers_active","#unresolved_active"):
+                    value=rcon.command(f"scoreboard players get {holder} erb.cfg")
+                    found=re.search(r"has (-?\d+)",value)
+                    report["queue_state"][holder]=int(found.group(1)) if found else None
                 # The 1-TNT restoration scenario has previously failed exact
                 # parity. No performance claim is allowed without full native
                 # state validation; this run is a mechanism diagnostic only.
@@ -323,6 +342,10 @@ def main() -> int:
             "method":"fusion counters on only for diagnostic, never timed"}
     reportpath.write_text(json.dumps(record,indent=2)+"\n")
     try:
+        if not SOURCES[args.pack].is_file():
+            record["status"]="unavailable_source"
+            record["reason"]="The requested historically bounded publisher ZIP is not available"
+            return 0
         inventory=candidate_functions(SOURCES[args.pack],args.pack)
         record["inventory"]=inventory
         if args.stage=="timing":
