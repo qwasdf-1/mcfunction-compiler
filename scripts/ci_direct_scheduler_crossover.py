@@ -152,7 +152,7 @@ def activation_gate(rcon: Rcon, diagnostics: bool) -> dict:
 
 
 def invoke(rcon: Rcon, arm: str, length: int) -> str:
-    return rcon.command(f"function {function_id(arm,length)}")
+    return rcon.command(f"fc_arch_call {function_id(arm,length)}")
 
 
 def read_value(rcon: Rcon, holder: str = HOLDER) -> int:
@@ -167,7 +167,7 @@ def execute_and_verify(rcon: Rcon, arm: str, length: int, calls: int) -> dict:
     rcon.command(f"scoreboard players set {HOLDER} {OBJECTIVE} 0")
     for _ in range(calls):
         reply = invoke(rcon,arm,length)
-        if not reply.startswith("Running function "):
+        if not reply.startswith("FC_ARCH_CALL queued ")
             raise AssertionError(f"Function invocation rejected: {arm}/{length}: {reply!r}")
     value = read_score(rcon)
     expected = calls * length
@@ -198,6 +198,17 @@ def quota_parity(rcon: Rcon) -> list[dict]:
 
 def diagnostic_phase(rcon: Rcon) -> dict:
     evidence={"activation_before":activation_gate(rcon,True)}
+    # The public /function command retains its nonempty result callback.
+    # Confirm that our conservative fast path refuses that call site.
+    name=function_id("direct",16)
+    before_std=stat(rcon.command(f"functioncompiler stats {name}"),
+                    "direct_scheduler_executed")
+    evidence["ordinary_function_response"]=rcon.command(f"function {name}")
+    after_std=stat(rcon.command(f"functioncompiler stats {name}"),
+                   "direct_scheduler_executed")
+    evidence["ordinary_function_direct_executed_delta"]=after_std-before_std
+    if after_std!=before_std:
+        raise AssertionError("Direct fast path unexpectedly bypassed public /function callbacks")
     for length in LENGTHS:
         for arm in ("fused","fused_null","direct"):
             execute_and_verify(rcon,arm,length,DIAGNOSTIC_CALLS)
@@ -251,7 +262,7 @@ def measure_window(rcon: Rcon,pid: int,tid: int, arm: str) -> dict:
     wall0=time.perf_counter_ns()
     for _ in range(WINDOW_CALLS):
         reply=invoke(rcon,arm,PRIMARY_LENGTH)
-        if not reply.startswith("Running function "):
+        if not reply.startswith("FC_ARCH_CALL queued ")
             raise AssertionError(f"Timed invocation failed {arm}: {reply!r}")
     wall_ns=time.perf_counter_ns()-wall0
     host1=snapshot_host()
@@ -301,6 +312,7 @@ def run_boot(index: int, artifacts: dict, diagnostic: bool,
         "FC_FUSED_REGION_PROTOTYPE":"true",
         "FC_FUSED_REGION_ONLY_NAMESPACE":C_NS,
         "FC_DIRECT_SCHEDULER_PROTOTYPE":"true",
+        "FC_DIRECT_SCHEDULER_HARNESS":"true",
         "FC_DIRECT_SCHEDULER_ONLY_NAMESPACE":DIRECT_NS,
         "FC_DIRECT_SCHEDULER_DIAGNOSTICS":str(diagnostic).lower(),
         "FC_SCORE_ADD_METRICS":"false","FC_SCORE_ADD_TIMING":"false",
