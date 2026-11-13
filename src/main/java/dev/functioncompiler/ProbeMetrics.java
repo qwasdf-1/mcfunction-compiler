@@ -14,6 +14,8 @@ public final class ProbeMetrics {
     private static final AtomicLong SCORE_ADD_EXECUTED = new AtomicLong();
     private static final AtomicLong FUSED_REGIONS_COMPILED = new AtomicLong();
     private static final AtomicLong FUSED_REGIONS_EXECUTED = new AtomicLong();
+    private static final ConcurrentMap<Identifier, AtomicLong> FUSED_REGIONS_BY_FUNCTION =
+            new ConcurrentHashMap<>();
     private static final AtomicLong BYTECODE_REGIONS_COMPILED = new AtomicLong();
     private static final AtomicLong BYTECODE_REGIONS_COMPILE_FAILED = new AtomicLong();
     private static final AtomicLong BYTECODE_REGIONS_EXECUTED = new AtomicLong();
@@ -208,6 +210,19 @@ public final class ProbeMetrics {
 
     public static void fusedRegionsCompiled(int count) {
         FUSED_REGIONS_COMPILED.addAndGet(count);
+    }
+
+    public static void fusedRegionsCompiled(Identifier functionId, int count) {
+        fusedRegionsCompiled(count);
+        if (functionId != null) {
+            FUSED_REGIONS_BY_FUNCTION.computeIfAbsent(functionId, ignored -> new AtomicLong())
+                    .addAndGet(count);
+        }
+    }
+
+    public static long fusedRegionsCompiled(Identifier functionId) {
+        AtomicLong count = FUSED_REGIONS_BY_FUNCTION.get(functionId);
+        return count == null ? 0 : count.get();
     }
 
     public static void fusedRegionExecuted() {
