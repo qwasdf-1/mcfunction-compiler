@@ -1,6 +1,6 @@
 # SCHED-ARCH-014 — Restricted direct function-call scheduler versus fused C
 
-**Status:** Prototype and protocol committed; no empirical performance result until CI completes. This is the first deliberately different *function scheduling/continuation* path relative to the existing vanilla queue, but it is **not** a replacement for the global `ExecutionContext` driver.
+**Status:** **Completed; restricted D regressed versus fused C.** The corrected semantic gate and all twelve timing boots passed in CI run `43520441346`. This is a genuinely different *function scheduling/continuation* path relative to the existing vanilla queue, but it is **not** a replacement for the global `ExecutionContext` driver.
 
 ## Question
 
@@ -65,3 +65,36 @@ The earlier 013 diagnostic showed that C has already eliminated almost all obser
 **Files:** `src/main/java/dev/functioncompiler/DirectSchedulerPrototype.java`, `scripts/ci_direct_scheduler_crossover.py`, `tests/test_direct_scheduler_crossover.py`. **Workflow:** `.github/workflows/research-direct-scheduler.yml`. **Artifacts:** `build/benchmarks/SCHED-ARCH-014/{diagnostic,timing}.json`.
 
 **Production defaults unchanged.** No feature flag is enabled without explicit environment variables and an exact namespace match.
+
+## Completed outcome — SCHED-ARCH-014 (2026-11-13)
+
+**Authoritative run:** [GitHub Actions #43520441346](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43520441346). Raw artifact `sched-arch-014-restricted-direct-call`, artifact ID `14083450300`, contains `diagnostic.json`, `timing.json`, and per-server logs. Prior interrupted and superseded runs are **not pooled**. The first "quota parity passed" diagnostic used an invalid old rule name; it was explicitly invalidated, corrected, and rerun. The decisive run validated *readback and actual truncation* in Minecraft 26.3.
+
+### Corrected semantic diagnostic
+
+- Exactly **160 actual D executions** in the separate diagnostic JVM, over four eligible lengths (4,16,256,2000).
+- Ordinary public `/function`: **0 direct executions**, as required by result-callback safety; falls back to the original fused representation. Therefore the D/C outcome applies only to the research no-callback `fc_arch_call` invocation shape.
+- `minecraft:max_command_sequence_length` command **set and read back** to 2,3,4,5,8,16,32,64,1024. For 16-line functions, both C and D executed exactly [0,1,2,3,6,14,16,16,16] commands respectively; explicit truncated execution at low quotas, full execution at high quota. These are real quota tests, not a synthetic re-labeling of unlimited execution.
+- Nested parent function: C and D both produced **18** scoreboard increments; unsupported control-flow function produced **6**; `/debug function` generated a positive direct fallback delta (**1**). Source function lines byte-identical across all comparison arms.
+- These tests are **not** proof of arbitrary fork, recursion, mod callback, reload or general return semantics for any generalized scheduler. D's strict compiler and call-site guard *exclude* such scenarios.
+
+### CPU screening results
+
+**12 complete independent fresh JVMs**, balanced crossover per the frozen design, both A/A and C/D contrasts inside every JVM; every timed window passed exact work/host-quality gates; **zero quality-failed boots**. The A/A placebo median interval includes zero. Retain all boots, including one placebo boot with +23.37 signed log percent (large within-run outlier); never drop it post-hoc.
+
+| Predeclared contrast | Median signed log-percent (B/A) | Exact 96.14% median interval (signed log-percent) |
+| --- | ---: | --- |
+| Identical fused C' vs fused C (A/A) | −0.3224 | [−1.0999, +1.6216] |
+| Direct D vs fused C | **+4.3922** | **[+0.7412, +9.0727]** |
+
+Converted to **ordinary relative CPU** on the measured fixture, the D/C median is `exp(0.04392185)−1 ≈ +4.49%`, with exact interval approximately **+0.74% to +9.50%**. Positive means D is slower. Preregistered decision: **`direct_scheduler_regression_supported`** (CI report).
+
+The regression is **not** proof that all direct scheduling or all future execution architectures regress. It says this *restricted child-frame bypass* adds cost or removes insufficient overhead to win against C on a long straight-line ScoreAdd function, using the same typed command bridge. CPU time attributed separately to scheduler internals remains unmeasured; do not claim a precise scheduling-time percentage.
+
+### Decision and research relevance
+
+**Do not promote D** or generalize its whitelist. Keep all production defaults unchanged, retain the prototype only as an opt-in negative research result or remove it after archival. More attempts to optimize this exact no-callback ScoreAdd island are not justified without a new profiler-attributed cost hypothesis.
+
+SCHED-ARCH-013 already established that fused C dramatically reduced queue-boundary counts without reducing command quota debits, and the current test shows bypassing the residual `CallFunction` child frame did **not** improve this workload. Also, the earlier 013 native comparison was significantly faster than typed B (and C was still above native on a separately derived exploratory comparison), so even a C/D relative gain would not have been sufficient to demonstrate production value versus vanilla.
+
+**Next research direction:** return to the original *end-to-end* objective with profiler-attributed command work: reduce overhead of typed `ScoreAddCommand` itself, verify a true benefit versus vanilla before adding architecture complexity, and prioritize selective macro optimizations already qualified on real datapacks. If an entirely new scheduler design is proposed later, require a *new* causal mechanism, narrowed semantic contract, and direct C/D plus vanilla comparison, rather than treating this result as an excuse for another unconstrained prototype.
