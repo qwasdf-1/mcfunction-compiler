@@ -181,7 +181,8 @@ final class ProbeCommands {
             // Same no-result callback path for both C and D. This cannot
             // overwrite a parent callback or alter real /function behavior.
             ExecutionContext.queueInitialFunctionCall(
-                    execution, function, source.withCallback(CommandResultCallback.EMPTY),
+                    execution, function,
+                    source.withSuppressedOutput().withCallback(CommandResultCallback.EMPTY),
                     CommandResultCallback.EMPTY);
         } catch (Exception failure) {
             source.sendFailure(Component.literal("FC_ARCH instantiation failed " + failure));
