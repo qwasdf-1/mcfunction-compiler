@@ -30,6 +30,14 @@ Compare C/D exact scoreboard work for all four function lengths. Sweep command-c
 
 These checks cover a **restricted subset** of the required global scheduler semantics. A general D would still require explicit fork, `return run`, custom callbacks, /debug trace equality, macro, reload and error-path parity before any promotion.
 
+## Protocol amendment — empty-callback invocation site
+
+The first CI diagnostic (run `43517938301`) **failed its required direct-activation gate**: the ordinary public `/function` command never invoked the direct path, because its callback context requires the vanilla frame. There was **no timed result** from that run. We did not weaken the callback guard.
+
+The revised protocol adds an explicit research-only `fc_arch_call <function-id>` command, registered **only** when `FC_DIRECT_SCHEDULER_HARNESS=true`. It uses `ExecutionContext.queueInitialFunctionCall` with `CommandResultCallback.EMPTY` and a source with an empty callback, resembling a fire-and-forget tick/manager function call. This is the *same* invocation mechanism for the placebo fused C, control fused C, and direct D; only the already precompiled function's scheduling path differs. It does not change or override ordinary `/function` behavior or any production command.
+
+The revised diagnostic explicitly checks that ordinary `/function` **does not** activate D and that the research no-callback invocation **does** activate D. Do not interpret any result as an optimization of public `/function`, which remains on fused fallback, or as a blanket tick-function performance improvement. The CI campaign after this amendment is an **independent new screen**; the first failed diagnostic is retained as an important applicability result.
+
 ## Timing study
 
 - Exactly **12 independent JVMs**, each compares two predeclared ABBA/BAAB crossover blocks: placebo **C versus byte-identical C'** and treatment **C versus D**, both within the same warmed Minecraft 26.3 Fabric JVM.
