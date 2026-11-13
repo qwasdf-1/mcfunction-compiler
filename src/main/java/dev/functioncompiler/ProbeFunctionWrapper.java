@@ -40,13 +40,14 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         ProbeMetrics.wrapperCreated();
         boolean excluded = delegate.id() != null
                 && ProbeConfiguration.isNamespaceExcluded(delegate.id().getNamespace());
+        boolean fuseThisFunction = !excluded && ProbeConfiguration.fusedRegionForFunction(delegate.id());
         if (!excluded && (ProbeConfiguration.scoreAddPrototypeEnabled()
                 || ProbeConfiguration.scoreAddTimingEnabled()
                 || ProbeConfiguration.fusedRegionPrototypeEnabled()
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled())) {
             ScoreAddPrototype.compile(delegate);
         }
-        if (!excluded && (ProbeConfiguration.fusedRegionPrototypeEnabled()
+        if (!excluded && (fuseThisFunction
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled())
                 && delegate instanceof PlainTextFunction<?> plainTextFunction) {
             PlainTextFunction<CommandSourceStack> typedFunction =
@@ -135,7 +136,7 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         if (ProbeConfiguration.bytecodeRegionPrototypeEnabled()
                 && ProbeConfiguration.bytecodeMacroEnabled()) {
             result = (InstantiatedFunction<T>) BytecodeRegionPrototype.compile(typedFunction);
-        } else if (ProbeConfiguration.fusedRegionPrototypeEnabled()) {
+        } else if (ProbeConfiguration.fusedRegionForFunction(delegate.id())) {
             result = (InstantiatedFunction<T>) FusedRegionPrototype.compile(typedFunction);
         }
         macroCompilationCache.put(plainTextFunction, result);
