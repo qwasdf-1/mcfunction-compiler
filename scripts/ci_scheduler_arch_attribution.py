@@ -25,12 +25,12 @@ import statistics
 import subprocess
 import time
 
-from ci_compiler_off_paired import exact_median_interval
+from ci_compiler_off_paired import exact_median_interval, cpu_run_delay, snapshot_host
 import ci_compiler_off_stability as stable
 from ci_native_cross_mode_attribution import (
     ROOT, RUN_ROOT, FABRIC_BASE, PACK, OBJECTIVE, HOLDER, GATE,
     stage_artifacts, make_fixture, setup_server_properties,
-    server_tid, server_cpu_time_ns, cpu_run_delay, snapshot_host, read_score,
+    server_tid, server_cpu_time_ns, read_score,
 )
 from ci_smoke_server import Rcon, unused_port, wait_for_rcon
 
