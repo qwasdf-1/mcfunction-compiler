@@ -1,0 +1,73 @@
+name: SCHED-ARCH-013 vanilla queue versus typed versus fused
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - src/main/java/dev/functioncompiler/ProbeConfiguration.java
+      - src/main/java/dev/functioncompiler/ProbeMetrics.java
+      - src/main/java/dev/functioncompiler/ProbeStatus.java
+      - src/main/java/dev/functioncompiler/mixin/ExecutionContextMixin.java
+      - scripts/ci_scheduler_arch_attribution.py
+      - tests/test_scheduler_arch_attribution.py
+      - docs/research/scheduler-architecture-SCHED-ARCH-013.md
+      - .github/workflows/research-scheduler-architecture.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sched-arch-013-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  queue-attribution:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Check out architecture research
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Check out pinned mc-tooling harness
+        uses: actions/checkout@v4
+        with:
+          repository: qwasdf-1/mc-tooling
+          ref: 9b63c9e554a0cb55855c51f53b6ebe0664eefbc3
+          path: mc-tooling
+          token: ${{ secrets.MC_TOOLING_READ_TOKEN }}
+          persist-credentials: false
+      - name: Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Build production-equivalent compiler with opt-in diagnostic counters
+        run: ./gradlew --no-daemon --stacktrace build
+      - name: Verify experimental contracts
+        run: |
+          python3 -m unittest discover -s tests -p test_scheduler_arch_attribution.py -v
+          python3 -m py_compile scripts/ci_scheduler_arch_attribution.py
+      - name: Diagnose actual vanilla queue visits and quota debits
+        timeout-minutes: 12
+        run: python3 scripts/ci_scheduler_arch_attribution.py --phase diagnostic
+      - name: Run randomized 12-JVM A/A, A/B, B/C crossover with counters off
+        timeout-minutes: 60
+        run: python3 scripts/ci_scheduler_arch_attribution.py --phase timing
+      - name: Preserve diagnostics, all windows and raw server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sched-arch-013-queue-attribution
+          path: |
+            function-compiler/build/benchmarks/SCHED-ARCH-013/*.json
+            function-compiler/build/benchmarks/SCHED-ARCH-013/*.log
+          if-no-files-found: warn
+          retention-days: 21
