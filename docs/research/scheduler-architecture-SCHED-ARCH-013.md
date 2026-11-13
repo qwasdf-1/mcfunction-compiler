@@ -1,6 +1,6 @@
 # SCHED-ARCH-013 — Return to the core scheduler-architecture question
 
-**Status:** Design/preregistration work. No new scheduler backend implemented and no result claimed.
+**Status:** Phase 1/2 implementation committed on the research branch; no empirical result until the new CI campaign completes. **No alternative scheduler backend exists.**
 
 ## The research question we should now answer
 
@@ -72,3 +72,36 @@ If D fails to add material gain beyond C, **do not build a general scheduler rep
 ## Stop rule for unrelated research
 
 No more free-form GC root-cause work or speculative pack discovery. Only investigate infrastructure failures that actually invalidate the experiment at hand. After the two 012 candidates are classified, execute this scheduler decomposition—starting with the queue/callback cost split—rather than extending the current fusion-workload series.
+
+## Executable 013-A study: actual queue work and controlled incremental CPU
+
+**Implementation:** `scripts/ci_scheduler_arch_attribution.py`, `tests/test_scheduler_arch_attribution.py`, `.github/workflows/research-scheduler-architecture.yml`.
+
+### Separate diagnostic boot
+
+One JVM runs with the **opt-in process-wide** `FC_SCHED_ARCH_COUNTERS=true`, which adds two counters to *existing verified scheduler hooks*:
+
+- `arch_nonempty_queue_visits` counts nonempty queue boundary visits observed at the `runCommandQueue` command-quota field read (the hook is not an intercept of every potential nested queue action).
+- `arch_quota_debits` counts `incrementCost` calls after the debit returns.
+
+Both counters operate on the Minecraft Server thread only. They are not nanos, not exclusive scheduler CPU, and snapshots include command work from RCON. A/B/C differences in **queue visits** corroborate the qualitative scheduling intervention; **quota debits must not decrease below actual original commands**. The counters are completely **disabled in all timed JVMs** (`FC_SCHED_ARCH_COUNTERS=false`), preventing per-entry metric instrumentation from contaminating the primary CPU result.
+
+Generate all four functions for each length `{4,16,256,2000}`: `fc_arch_native`, `fc_arch_native_null`, `fc_arch_typed`, and `fc_arch_fused`. Each file at a fixed length is byte-identical; all commands increment exactly `#x fc_sched`. The native and null namespaces are excluded from specialization. ScoreAdd compiles **n** operations for typed and fused; fusion compiles **one** region in fused only. Exact scoreboard accounting, per-function compile counters, and relative queue visit differences are hard integrity gates. All length-dependent diagnostic conclusions are descriptive, not independently powered effect estimates.
+
+### Twelve-boot performance study
+
+At `n=2000`, run **12 independent fresh JVMs** each comparing all three contrasts in balanced ABBA/BAAB blocks:
+
+- `native vs null` — A/A zero-effect placebo.
+- `native vs typed` — incremental command specialization under vanilla scheduler.
+- `typed vs fused` — incremental **reduction of queue entries under vanilla scheduler** with the same typed operations.
+
+Seed `13013`; exactly two boots for each of six block orders, six ABBA and six BAAB orientations per contrast. All 12 boots keep every one of their 12 measured windows (220 function calls × 2,000 original scoreboard increments per window); prewarm each candidate for 120 calls and use the existing bounded server-thread CPU warmup qualification. All use the same Minecraft 26.3 production Fabric server/Java 25, compiler artifact and mod flags. Native and optimized paths coexist in each JVM, differing only by function namespace eligibility. Scoreboard result after each window **must** be 440,000, and each arm must have the expected typed/fused compile counts.
+
+Primary metric: Linux Server thread running CPU nanoseconds per *exact original command*, not MSPT or wall clock. For each boot and contrast, compute signed `100 × [mean log(B CPU/command) − mean log(A CPU/command)]`. Aggregate **one contrast per boot**, report signed median and conservative exact >=95% median interval. No window is treated as independent across boots. Predeclared integrity/quality: all warmups qualified, zero cgroup throttling events in all measured windows, available runqueue delay ≤25% for each window, all exact work and activation. Quality failure → `inconclusive_quality`. Placebo interval excluding zero → `invalid_a_a_control`. If both pass → `valid_a_b_c_comparison` with signed intervals. No post-hoc sample removal.
+
+These are **A/B/C** results only. Even a striking C/B speedup cannot estimate D/C or justify replacing `ExecutionContext`. Mechanistically, `FusedRegionPrototype` already runs within one ordinary queue action, and uses a vanilla `ExecutionContext` quota decrement plus `ContextChain.runExecutable` for each internal command. The unmeasured D comparison requires a separate, semantic-equivalent scheduling bridge and the P0 gates described earlier in this document.
+
+### Exit condition
+
+Report the diagnostic queue/debit counts and A/B/C CPU intervals, then decide whether the *remaining* scheduling component is large enough to motivate a strict no-fork/no-return D prototype. If the safe direct executor is not possible or likely valuable, document the limit rather than inventing a supposed scheduler benefit. Do **not** search for more datapacks or perform another generic JVM-noise study as a prerequisite.
