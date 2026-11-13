@@ -5,6 +5,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import ci_veinminer_fusion_event as research
+from run_veinminer_profile import configure_gradle_cache_environment
 
 
 def arm(mode, event=20.0, ready=34.0, score_ns=5000000, fused_ns=0):
@@ -63,6 +64,32 @@ class NativeEventTests(unittest.TestCase):
         self.assertEqual(research.stats_int("foo score_add_compile_wall_ns=123 fused_compile_wall_ns=456",
                                             "fused_compile_wall_ns"), 456)
         self.assertIsNone(research.stats_int("foo", "fused_compile_wall_ns"))
+
+    def test_nested_gradle_does_not_synthesize_readonly_cache(self):
+        env = configure_gradle_cache_environment({})
+        self.assertNotIn("GRADLE_RO_DEP_CACHE", env)
+
+    def test_overlapping_explicit_gradle_cache_lock_is_removed(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as temp:
+            home = Path(temp)
+            env = configure_gradle_cache_environment({
+                "GRADLE_USER_HOME": str(home),
+                "GRADLE_RO_DEP_CACHE": str(home / "caches"),
+            })
+            self.assertEqual(env["GRADLE_USER_HOME"], str(home))
+            self.assertNotIn("GRADLE_RO_DEP_CACHE", env)
+
+    def test_distinct_explicit_readonly_cache_is_preserved(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as temp:
+            home = Path(temp) / "writable"
+            ro = Path(temp) / "readonly"
+            env = configure_gradle_cache_environment({
+                "GRADLE_USER_HOME": str(home),
+                "GRADLE_RO_DEP_CACHE": str(ro),
+            })
+            self.assertEqual(env["GRADLE_RO_DEP_CACHE"], str(ro))
 
     def test_no_imaginary_positive_timings(self):
         with self.assertRaises(AssertionError):
