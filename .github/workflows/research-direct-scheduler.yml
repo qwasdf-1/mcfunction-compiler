@@ -52,12 +52,12 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.14'
+      - name: Validate research Python protocol before Java compilation
+        run: |
+          python3 -m py_compile scripts/ci_direct_scheduler_crossover.py
+          python3 -m unittest discover -s tests -p test_direct_scheduler_crossover.py -v
       - name: Build restricted scheduler prototype
         run: ./gradlew --no-daemon --stacktrace build
-      - name: Unit-test locked scope and estimator
-        run: |
-          python3 -m unittest discover -s tests -p test_direct_scheduler_crossover.py -v
-          python3 -m py_compile scripts/ci_direct_scheduler_crossover.py
       - name: Require full activation and semantic parity before CPU timing
         timeout-minutes: 14
         run: python3 scripts/ci_direct_scheduler_crossover.py --phase diagnostic
