@@ -41,10 +41,13 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         boolean excluded = delegate.id() != null
                 && ProbeConfiguration.isNamespaceExcluded(delegate.id().getNamespace());
         boolean fuseThisFunction = !excluded && ProbeConfiguration.fusedRegionForFunction(delegate.id());
+        boolean directThisFunction = !excluded
+                && ProbeConfiguration.directSchedulerForFunction(delegate.id());
         if (!excluded && (ProbeConfiguration.scoreAddPrototypeEnabled()
                 || ProbeConfiguration.scoreAddTimingEnabled()
                 || ProbeConfiguration.fusedRegionPrototypeEnabled()
-                || ProbeConfiguration.bytecodeRegionPrototypeEnabled())) {
+                || ProbeConfiguration.bytecodeRegionPrototypeEnabled()
+                || directThisFunction)) {
             if (Boolean.parseBoolean(System.getenv("FC_BENCH_COMPILE_TIMING"))) {
                 long started = System.nanoTime();
                 try {
@@ -56,7 +59,7 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
                 ScoreAddPrototype.compile(delegate);
             }
         }
-        if (!excluded && (fuseThisFunction
+        if (!excluded && (fuseThisFunction || directThisFunction
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled())
                 && delegate instanceof PlainTextFunction<?> plainTextFunction) {
             PlainTextFunction<CommandSourceStack> typedFunction =
@@ -70,6 +73,8 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
                 } finally {
                     ProbeMetrics.compileWallTime(delegate.id(), true, System.nanoTime() - started);
                 }
+            } else if (directThisFunction) {
+                compiled = DirectSchedulerPrototype.compile(typedFunction);
             } else {
                 compiled = ProbeConfiguration.bytecodeRegionPrototypeEnabled()
                         ? BytecodeRegionPrototype.compile(typedFunction)
@@ -171,7 +176,8 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         if (compiledInstantiation == original) {
             return true;
         }
-        return FusedRegionPrototype.retainsOriginal(
+        return DirectSchedulerPrototype.retainsOriginal(compiledInstantiation, original)
+                || FusedRegionPrototype.retainsOriginal(
                 (InstantiatedFunction<CommandSourceStack>) (Object) compiledInstantiation,
                 (InstantiatedFunction<CommandSourceStack>) (Object) original
         );
