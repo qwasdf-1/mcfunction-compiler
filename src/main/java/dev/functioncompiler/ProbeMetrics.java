@@ -14,6 +14,13 @@ public final class ProbeMetrics {
     private static final AtomicLong SCORE_ADD_EXECUTED = new AtomicLong();
     private static final AtomicLong FUSED_REGIONS_COMPILED = new AtomicLong();
     private static final AtomicLong FUSED_REGIONS_EXECUTED = new AtomicLong();
+    // Opt-in research measurements outside timed function execution.
+    private static final AtomicLong SCORE_ADD_COMPILE_WALL_NS = new AtomicLong();
+    private static final AtomicLong FUSED_COMPILE_WALL_NS = new AtomicLong();
+    private static final ConcurrentMap<Identifier, AtomicLong> SCORE_ADD_COMPILE_BY_FUNCTION =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Identifier, AtomicLong> FUSED_COMPILE_BY_FUNCTION =
+            new ConcurrentHashMap<>();
     private static final ConcurrentMap<Identifier, AtomicLong> FUSED_REGIONS_BY_FUNCTION =
             new ConcurrentHashMap<>();
     private static final AtomicLong BYTECODE_REGIONS_COMPILED = new AtomicLong();
@@ -148,6 +155,32 @@ public final class ProbeMetrics {
                 .sorted(java.util.Map.Entry.comparingByKey())
                 .forEach(entry -> snapshot.put(entry.getKey(), entry.getValue().get()));
         return snapshot;
+    }
+
+
+    public static void compileWallTime(Identifier id, boolean fused, long nanos) {
+        if (nanos < 0) {
+            throw new IllegalArgumentException("Negative compile duration");
+        }
+        (fused ? FUSED_COMPILE_WALL_NS : SCORE_ADD_COMPILE_WALL_NS).addAndGet(nanos);
+        if (id != null) {
+            (fused ? FUSED_COMPILE_BY_FUNCTION : SCORE_ADD_COMPILE_BY_FUNCTION)
+                    .computeIfAbsent(id, ignored -> new AtomicLong()).addAndGet(nanos);
+        }
+    }
+
+    public static long scoreAddCompileWallNanos() {
+        return SCORE_ADD_COMPILE_WALL_NS.get();
+    }
+
+    public static long fusedCompileWallNanos() {
+        return FUSED_COMPILE_WALL_NS.get();
+    }
+
+    public static long compileWallNanos(Identifier id, boolean fused) {
+        AtomicLong value = (fused ? FUSED_COMPILE_BY_FUNCTION :
+                SCORE_ADD_COMPILE_BY_FUNCTION).get(id);
+        return value == null ? 0L : value.get();
     }
 
     public static long scoreAddsCompiled() {
