@@ -117,6 +117,8 @@ final class ProbeStatus {
                 + " fused_region_prototype_enabled=" + ProbeConfiguration.fusedRegionPrototypeEnabled()
                 + " bytecode_region_prototype_enabled=" + ProbeConfiguration.bytecodeRegionPrototypeEnabled()
                 + " bytecode_compile_failure_forced=" + ProbeConfiguration.bytecodeCompileFailureEnabled()
+                + " score_add_compile_wall_ns=" + ProbeMetrics.scoreAddCompileWallNanos()
+                + " fused_compile_wall_ns=" + ProbeMetrics.fusedCompileWallNanos()
                 + " fused_regions_compiled=" + ProbeMetrics.fusedRegionsCompiled()
                 + " fused_regions_executed=" + ProbeMetrics.fusedRegionsExecuted()
                 + " bytecode_regions_compiled=" + ProbeMetrics.bytecodeRegionsCompiled()
