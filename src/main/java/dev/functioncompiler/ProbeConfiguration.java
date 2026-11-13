@@ -16,6 +16,14 @@ public final class ProbeConfiguration {
         return TRACE_ENABLED;
     }
 
+    // Cached at process launch: attribution counters must never run in timed arms.
+    private static final boolean SCHED_ARCH_COUNTERS_ENABLED =
+            readBoolean("FC_SCHED_ARCH_COUNTERS", false);
+
+    public static boolean schedulerArchitectureCountersEnabled() {
+        return SCHED_ARCH_COUNTERS_ENABLED;
+    }
+
     public static boolean scoreAddPrototypeEnabled() {
         return readBoolean(
                 "FC_SCORE_ADD_PROTOTYPE",
