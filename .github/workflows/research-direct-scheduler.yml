@@ -1,0 +1,75 @@
+name: SCHED-ARCH-014 restricted direct scheduler vs fused
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - src/main/java/dev/functioncompiler/DirectSchedulerPrototype.java
+      - src/main/java/dev/functioncompiler/ProbeConfiguration.java
+      - src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java
+      - src/main/java/dev/functioncompiler/ProbeStatus.java
+      - src/main/java/dev/functioncompiler/FunctionCompilerMod.java
+      - src/main/java/dev/functioncompiler/mixin/CallFunctionMixin.java
+      - scripts/ci_direct_scheduler_crossover.py
+      - tests/test_direct_scheduler_crossover.py
+      - docs/research/direct-call-SCHED-ARCH-014.md
+      - .github/workflows/research-direct-scheduler.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sched-arch-014-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  restricted-direct-call:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Checkout compiler research
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Checkout pinned mc-tooling
+        uses: actions/checkout@v4
+        with:
+          repository: qwasdf-1/mc-tooling
+          ref: 9b63c9e554a0cb55855c51f53b6ebe0664eefbc3
+          path: mc-tooling
+          token: ${{ secrets.MC_TOOLING_READ_TOKEN }}
+          persist-credentials: false
+      - name: Install Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Install Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Build restricted scheduler prototype
+        run: ./gradlew --no-daemon --stacktrace build
+      - name: Unit-test locked scope and estimator
+        run: |
+          python3 -m unittest discover -s tests -p test_direct_scheduler_crossover.py -v
+          python3 -m py_compile scripts/ci_direct_scheduler_crossover.py
+      - name: Require full activation and semantic parity before CPU timing
+        timeout-minutes: 14
+        run: python3 scripts/ci_direct_scheduler_crossover.py --phase diagnostic
+      - name: Compare C and D in 12 independent JVMs
+        timeout-minutes: 64
+        run: python3 scripts/ci_direct_scheduler_crossover.py --phase timing
+      - name: Preserve raw parity, all windows and server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sched-arch-014-restricted-direct-call
+          path: |
+            function-compiler/build/benchmarks/SCHED-ARCH-014/*.json
+            function-compiler/build/benchmarks/SCHED-ARCH-014/*.log
+          if-no-files-found: warn
+          retention-days: 21
