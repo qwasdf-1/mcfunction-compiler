@@ -38,6 +38,14 @@ The revised protocol adds an explicit research-only `fc_arch_call <function-id>`
 
 The revised diagnostic explicitly checks that ordinary `/function` **does not** activate D and that the research no-callback invocation **does** activate D. Do not interpret any result as an optimization of public `/function`, which remains on fused fallback, or as a blanket tick-function performance improvement. The CI campaign after this amendment is an **independent new screen**; the first failed diagnostic is retained as an important applicability result.
 
+## Semantic gate correction — actual Minecraft 26.3 command quota
+
+A subsequent audit found that the previous diagnostic used `gamerule maxCommandChainLength`, which Minecraft Java 26.3 **does not recognize** (the current ID is `minecraft:max_command_sequence_length`). That command failure was not checked, so the reported quota=2–1024 parity actually used the unchanged default quota. The prior **"quota sweep passed" statement was invalid**. No D-path semantic approval or C/D CPU claim may rely on that run. The run's ordinary `/function` fallback, D activation, nested and debug evidence remain separate observations.
+
+The corrected protocol invokes `gamerule minecraft:max_command_sequence_length N`, immediately queries the current value with `gamerule minecraft:max_command_sequence_length` and **requires exact numeric readback**. It also requires real truncation of the 16-command function under at least one quota ≤8, all C/D scoreboard results equal at each quota, and complete 16-command execution at quota=1024. The original gamerule is restored in a `finally` block. Any failed readback or missing truncation is a fatal diagnostic failure before timing. Regression unit tests cover an unknown gamerule, no-truncation bogus checks, and correct restoration.
+
+This fix is a semantic validity correction; it does not change the actual direct or fused executors, benchmark effect threshold, sample count, or quality filters.
+
 ## Timing study
 
 - Exactly **12 independent JVMs**, each compares two predeclared ABBA/BAAB crossover blocks: placebo **C versus byte-identical C'** and treatment **C versus D**, both within the same warmed Minecraft 26.3 Fabric JVM.
