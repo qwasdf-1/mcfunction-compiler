@@ -71,6 +71,31 @@ MODE_OPTIONS = (
 SUBSTITUTES_COMPILATION = {"fused", "fused-timed", "bytecode-emitted"}
 
 
+def configure_gradle_cache_environment(environment: dict[str, str]) -> dict[str, str]:
+    """Avoid registering the writable Gradle cache as read-only.
+
+    Gradle's shared read-only dependency cache requires a *distinct* cache
+    directory. The old auto-configuration used ~/.gradle/caches, which is also
+    Gradle's writable cache in a standard GitHub Actions runner. A nested
+    runServer invocation then aborted with "already open with different lock
+    options" before Minecraft started.
+    """
+    environment = environment.copy()
+    project_cache = ROOT / ".gradle-user-home"
+    if "GRADLE_USER_HOME" not in environment and project_cache.is_dir():
+        environment["GRADLE_USER_HOME"] = str(project_cache)
+    # Do not automatically set GRADLE_RO_DEP_CACHE. This is an explicit
+    # opt-in Gradle feature, not an alias for the normal writable cache.
+    writable_home = Path(
+        environment.get("GRADLE_USER_HOME", str(Path.home() / ".gradle"))
+    ).expanduser().resolve()
+    readonly = environment.get("GRADLE_RO_DEP_CACHE")
+    if readonly and Path(readonly).expanduser().resolve() == writable_home / "caches":
+        # Prefer the already-warm writable cache instead of conflicting locks.
+        environment.pop("GRADLE_RO_DEP_CACHE")
+    return environment
+
+
 def free_port() -> int:
     with socket.socket() as probe:
         probe.bind((SERVER_HOST, 0))
@@ -408,13 +433,7 @@ def main() -> int:
             cwd = work
             environment = None
         else:
-            environment = os.environ.copy()
-            project_cache = ROOT / ".gradle-user-home"
-            if "GRADLE_USER_HOME" not in environment and project_cache.is_dir():
-                environment["GRADLE_USER_HOME"] = str(project_cache)
-            shared_cache = Path.home() / ".gradle/caches"
-            if "GRADLE_RO_DEP_CACHE" not in environment and shared_cache.is_dir():
-                environment["GRADLE_RO_DEP_CACHE"] = str(shared_cache)
+            environment = configure_gradle_cache_environment(os.environ.copy())
             wrapper_enabled = compiler_enabled or callback_metrics_enabled
             score_add_enabled = args.compiler_mode in {
                 "score-add",
