@@ -90,6 +90,7 @@ public final class DirectSchedulerPrototype {
         // and traced call boundaries. We cannot skip that frame in such modes.
         if (returnParentFrame || functionCallback != CommandResultCallback.EMPTY
                 || context.tracer() != null
+                || sender.callback() != CommandResultCallback.EMPTY
                 || !(sender instanceof CommandSourceStack source)) {
             if (ProbeConfiguration.directSchedulerDiagnosticsEnabled()) {
                 FALLBACKS.computeIfAbsent(direct.id(), ignored -> new AtomicLong())
