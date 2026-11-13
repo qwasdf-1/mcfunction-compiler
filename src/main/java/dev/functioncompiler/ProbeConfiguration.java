@@ -53,6 +53,32 @@ public final class ProbeConfiguration {
                 || (id != null && onlyNamespace.equals(id.getNamespace()));
     }
 
+
+    /**
+     * Research-only opt-in. A nonblank namespace is MANDATORY: prevents this
+     * restricted, unpromoted scheduling experiment affecting ordinary datapacks.
+     */
+    private static final boolean DIRECT_SCHEDULER_ENABLED =
+            readBoolean("FC_DIRECT_SCHEDULER_PROTOTYPE", false);
+    private static final String DIRECT_SCHEDULER_NAMESPACE =
+            System.getenv("FC_DIRECT_SCHEDULER_ONLY_NAMESPACE");
+
+    public static boolean directSchedulerPrototypeEnabled() {
+        return DIRECT_SCHEDULER_ENABLED
+                && DIRECT_SCHEDULER_NAMESPACE != null
+                && !DIRECT_SCHEDULER_NAMESPACE.isBlank();
+    }
+
+    public static boolean directSchedulerForFunction(net.minecraft.resources.Identifier id) {
+        return directSchedulerPrototypeEnabled()
+                && id != null
+                && DIRECT_SCHEDULER_NAMESPACE.equals(id.getNamespace());
+    }
+
+    public static boolean directSchedulerDiagnosticsEnabled() {
+        return readBoolean("FC_DIRECT_SCHEDULER_DIAGNOSTICS", false);
+    }
+
     public static boolean bytecodeRegionPrototypeEnabled() {
         return readBoolean("FC_BYTECODE_REGION_PROTOTYPE", CompilerConfig.isTieredBytecode());
     }
