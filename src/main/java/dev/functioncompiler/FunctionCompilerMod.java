@@ -87,6 +87,7 @@ public final class FunctionCompilerMod implements ModInitializer {
         String message = "FC_STATS function=" + functionId
                 + " score_add_compiled=" + ProbeMetrics.scoreAddsCompiled(functionId)
                 + " fused_regions_compiled=" + ProbeMetrics.fusedRegionsCompiled(functionId)
+                + " fused_regions_executed=" + ProbeMetrics.fusedRegionsExecuted(functionId)
                 + " score_add_compile_wall_ns=" + ProbeMetrics.compileWallNanos(functionId, false)
                 + " fused_compile_wall_ns=" + ProbeMetrics.compileWallNanos(functionId, true)
                 + " score_add_executed=" + ProbeMetrics.scoreAddsExecuted(functionId)
