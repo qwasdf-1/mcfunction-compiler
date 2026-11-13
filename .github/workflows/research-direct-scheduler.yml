@@ -9,6 +9,7 @@ on:
       - src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java
       - src/main/java/dev/functioncompiler/ProbeStatus.java
       - src/main/java/dev/functioncompiler/FunctionCompilerMod.java
+      - src/main/java/dev/functioncompiler/ProbeCommands.java
       - src/main/java/dev/functioncompiler/mixin/CallFunctionMixin.java
       - scripts/ci_direct_scheduler_crossover.py
       - tests/test_direct_scheduler_crossover.py
