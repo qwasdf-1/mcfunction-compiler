@@ -115,6 +115,8 @@ final class ProbeStatus {
                 + " score_add_metrics_enabled=" + ProbeConfiguration.scoreAddMetricsEnabled()
                 + " score_add_timing_enabled=" + ProbeConfiguration.scoreAddTimingEnabled()
                 + " fused_region_prototype_enabled=" + ProbeConfiguration.fusedRegionPrototypeEnabled()
+                + " direct_scheduler_prototype_enabled=" + ProbeConfiguration.directSchedulerPrototypeEnabled()
+                + " direct_scheduler_diagnostics_enabled=" + ProbeConfiguration.directSchedulerDiagnosticsEnabled()
                 + " bytecode_region_prototype_enabled=" + ProbeConfiguration.bytecodeRegionPrototypeEnabled()
                 + " bytecode_compile_failure_forced=" + ProbeConfiguration.bytecodeCompileFailureEnabled()
                 + " score_add_compile_wall_ns=" + ProbeMetrics.scoreAddCompileWallNanos()
