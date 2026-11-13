@@ -45,17 +45,36 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
                 || ProbeConfiguration.scoreAddTimingEnabled()
                 || ProbeConfiguration.fusedRegionPrototypeEnabled()
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled())) {
-            ScoreAddPrototype.compile(delegate);
+            if (Boolean.parseBoolean(System.getenv("FC_BENCH_COMPILE_TIMING"))) {
+                long started = System.nanoTime();
+                try {
+                    ScoreAddPrototype.compile(delegate);
+                } finally {
+                    ProbeMetrics.compileWallTime(delegate.id(), false, System.nanoTime() - started);
+                }
+            } else {
+                ScoreAddPrototype.compile(delegate);
+            }
         }
         if (!excluded && (fuseThisFunction
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled())
                 && delegate instanceof PlainTextFunction<?> plainTextFunction) {
             PlainTextFunction<CommandSourceStack> typedFunction =
                     (PlainTextFunction<CommandSourceStack>) plainTextFunction;
-            InstantiatedFunction<CommandSourceStack> compiled =
-                    ProbeConfiguration.bytecodeRegionPrototypeEnabled()
-                            ? BytecodeRegionPrototype.compile(typedFunction)
-                            : FusedRegionPrototype.compile(typedFunction);
+            InstantiatedFunction<CommandSourceStack> compiled;
+            if (fuseThisFunction && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()
+                    && Boolean.parseBoolean(System.getenv("FC_BENCH_COMPILE_TIMING"))) {
+                long started = System.nanoTime();
+                try {
+                    compiled = FusedRegionPrototype.compile(typedFunction);
+                } finally {
+                    ProbeMetrics.compileWallTime(delegate.id(), true, System.nanoTime() - started);
+                }
+            } else {
+                compiled = ProbeConfiguration.bytecodeRegionPrototypeEnabled()
+                        ? BytecodeRegionPrototype.compile(typedFunction)
+                        : FusedRegionPrototype.compile(typedFunction);
+            }
             compiledInstantiation = (InstantiatedFunction<T>) compiled;
         } else {
             compiledInstantiation = null;
