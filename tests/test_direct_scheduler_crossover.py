@@ -61,13 +61,6 @@ class DirectSchedulerContracts(unittest.TestCase):
             study.make_pack(work)
             folder=work/"world/datapacks"/study.PACK/"data"
             for length in study.LENGTHS:
-                sources=[
-                    (folder/(study.DIRECT_NS if arm=="direct" else study.C_NS)/
-                     "function"/(
-                        "score_null_" if arm=="fused_null" else "score_"
-                     ).__str__() if False else "")
-                    for arm in ()
-                ]
                 texts=[]
                 for arm in ("fused","fused_null","direct"):
                     namespace=study.DIRECT_NS if arm=="direct" else study.C_NS
