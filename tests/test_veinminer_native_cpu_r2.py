@@ -226,6 +226,25 @@ class CPUEventContracts(unittest.TestCase):
         self.assertEqual(readiness.SETUP_RCON_TIMEOUT_SECONDS,45)
         self.assertEqual(readiness.EVENT_OBSERVATION_CAP_SECONDS,150)
 
+    def test_archived_r2_arms_recover_identity_from_frozen_order(self):
+        # The original R2 raw artifact has 30 complete arm records but
+        # omitted the redundant three fields below. Neither the map key nor
+        # frozen randomized order is missing: recover those without imputing
+        # an outcome or dropping any completed run.
+        trials=campaign()
+        for triplet in trials:
+            for arm in triplet["arms"].values():
+                for field in ("arm","triplet","position"):
+                    arm.pop(field,None)
+        result=a.analyze(trials,a.plan())
+        self.assertEqual(result["n_independent_triplets"],a.TRIPLETS)
+        self.assertEqual(result["verdict"],"small_gain_supported")
+        trials[0]["arms"]["cached"]["position"]=2
+        # The first cached arm was position 0 in the frozen R2 plan.
+        self.assertEqual(a.plan()[0][0],"cached")
+        with self.assertRaises(AssertionError):
+            a.analyze(trials,a.plan())
+
     def test_predeclared_materiality_and_regression(self):
         p=a.plan()
         self.assertEqual(a.analyze(campaign(cached_cpu=.8),p)["verdict"],
