@@ -1,6 +1,6 @@
 # SCHED-COMP-017 — Cached vs legacy ScoreAdd in a real Vein Miner event
 
-**Status:** Preregistered, not yet interpreted. The initial CI attempt (run 43562100401) stopped **before Minecraft started** due to a nested Gradle dependency-cache lock conflict; no data from that attempt count as performance evidence. Follow-up runs isolate the nested Gradle user home; the original paired protocol and acceptance thresholds are unchanged. This is the real-datapack follow-up to SCHED-COMP-016's production-safe immutable environment override caching. It does not alter any production defaults.
+**Status:** **Completed: no material real-event gain** in authoritative run 43562316081. All ten pairs completed with exact gameplay parity, but event duration differences were small and inconclusive around zero; interval rules out the predeclared 15% improvement. Initial run 43562100401 failed before game launch with Gradle cache conflict and contributed no data. This is the real-datapack follow-up to SCHED-COMP-016's production-safe immutable environment override caching. It does not alter any production defaults.
 
 ## Hypothesis and measurement
 
@@ -30,3 +30,11 @@ A valid interval entirely below zero but not wholly past the 15% threshold is a 
 This is a **cached-vs-legacy ScoreAdd** real-datapack result, not cached-vs-vanilla/compiler-off. Whole-event completion is not exclusive server-thread CPU; tick, playerbot protocol and server scheduling may dominate. The `FC_SCORE_ADD_LEGACY_NAMESPACE=vm` choice deliberately covers exactly the publisher's `vm` namespace, not all functions in all datapacks. A valid negative result in the real event would bound practical benefit without invalidating the earlier controlled microbenchmark.
 
 **Files:** `scripts/ci_veinminer_cache_event.py`, `tests/test_veinminer_cache_event.py`, `.github/workflows/research-veinminer-cache-event.yml`. Run outputs `build/benchmarks/SCHED-COMP-017/results.json` and the original Vein Miner harness per-run source logs.
+
+## Completed observed result (2026-11-14)
+
+**Authoritative CI:** [Run 43562316081](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43562316081), all ten independent pairs completed after isolation of the nested Gradle user home. [Raw artifact 14102240289](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43562316081/artifacts/14102240289). Every cached and legacy arm passed native source-mining work validity and nonzero publisher `vm` typed ScoreAdd compilation, with full ore-work parity between the two sides of every pair; all were retained.
+
+**Primary median relative end-to-end mining event duration:** **−0.3543%** (cached vs legacy), exact **97.8516%-coverage** population-median interval **[−3.4707%, +5.9461%]**. The interval overlaps zero. Preregistered verdict: **`no_material_real_event_gain`**, because the entire interval is above the −15% improvement cutoff. One legacy event took 57.12 seconds where its cached mate took 30.85 seconds (pair 6); this large outlier was **retained**, not removed. Most events took around 30–32 seconds.
+
+**Interpretation:** The production-safe flag cache reduces the CPU cost of a benchmarked literal scoreboard command, but that does not necessarily shorten a real Vein Miner event paced over numerous game ticks. This experiment does not measure game-server thread CPU during the actual event or compare compiler-disabled against cached; it cannot establish that CPU is unchanged. Conversely, it does **not** support asserting a meaningful gameplay-latency gain for Vein Miner. The next useful experiment is directly paired compiler-disabled vs cached typed ScoreAdd on the same pinned playerbot event, capturing Linux Server-thread running CPU and end-to-end event duration, with a compiler-disabled A/A negative control. Do not extrapolate synthetic per-command CPU savings to overall gameplay.
