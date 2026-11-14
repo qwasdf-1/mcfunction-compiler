@@ -94,3 +94,54 @@ def event_cpu_delta(before:dict,after:dict,
         "host_quality_pass":(
             throttled==0 and wait_fraction<=.25),
     }
+
+
+def parse_tick_query(message: str) -> dict:
+    """Parse observed English Minecraft 26.3 'tick query' response.
+
+    This is diagnostic, not a substitute for Linux Server-thread CPU.
+    Return None only by raising: a silently unparsed tick response cannot
+    satisfy the preregistered *pre-event* stability gate.
+    """
+    import math
+    patterns={
+        "average_ms":r"Average time per tick:\s*([0-9]+(?:\.[0-9]+)?)ms",
+        "p50_ms":r"P50:\s*([0-9]+(?:\.[0-9]+)?)ms",
+        "p95_ms":r"P95:\s*([0-9]+(?:\.[0-9]+)?)ms",
+        "p99_ms":r"P99:\s*([0-9]+(?:\.[0-9]+)?)ms",
+        "sample_ticks":r"Sample:\s*(\d+)",
+    }
+    values={}
+    for key,pattern in patterns.items():
+        match=re.search(pattern,message)
+        if match is None:
+            raise ValueError(f"Could not parse pinned Minecraft 26.3 tick query {key}: {message!r}")
+        values[key]=int(match.group(1)) if key=="sample_ticks" else float(match.group(1))
+    if (values["sample_ticks"]<1 or
+            any(not math.isfinite(v) or v<0 for k,v in values.items() if k!="sample_ticks")
+            or not (values["p50_ms"]<=values["p95_ms"]<=values["p99_ms"])):
+        raise ValueError(f"Impossible tick metrics: {values}")
+    return values
+
+
+def pre_event_stability(ticks:dict)->dict:
+    """Hard gate on *idle before intervention*, never on treatment outcome."""
+    # Deliberately permissive to reject severe ongoing world/startup load, not
+    # the heavy 6^3 Vein Miner event which averages 250-310 ms/tick on success.
+    sample_ok=ticks["sample_ticks"]>=50
+    stable=sample_ok and ticks["average_ms"]<=150.0 and ticks["p95_ms"]<=600.0
+    return {
+        "stable":stable,"sample_sufficient":sample_ok,
+        "max_idle_average_ms":150.0,"max_idle_p95_ms":600.0,
+        "minimum_sample_ticks":50,"tick_metrics":ticks,
+    }
+
+
+def event_tick_diagnostic(ticks:dict)->dict:
+    """Post-event overload is an observed outcome, NEVER a selection filter."""
+    return {
+        "tick_metrics":ticks,
+        "severe_overload_observed":ticks["average_ms"]>=500.0 or ticks["p95_ms"]>=2000.0,
+        "overload_thresholds_ms":{"average":500.0,"p95":2000.0},
+        "used_to_exclude_or_retry":False,
+    }
