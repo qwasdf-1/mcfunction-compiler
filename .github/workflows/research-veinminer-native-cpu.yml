@@ -1,4 +1,4 @@
-name: SCHED-COMP-018 Vein Miner native event CPU cached vs off
+name: SCHED-COMP-018R1 independent Vein Miner CPU stability replication
 
 on:
   workflow_dispatch:
@@ -7,22 +7,22 @@ on:
       - src/main/java/dev/functioncompiler/ProbeConfiguration.java
       - scripts/ci_server_event_cpu.py
       - scripts/run_veinminer_profile.py
-      - scripts/ci_veinminer_native_cpu.py
-      - tests/test_veinminer_native_cpu.py
-      - docs/research/veinminer-native-cpu-SCHED-COMP-018.md
+      - scripts/ci_veinminer_native_cpu_r1.py
+      - tests/test_veinminer_native_cpu_r1.py
+      - docs/research/veinminer-native-cpu-SCHED-COMP-018R1.md
       - .github/workflows/research-veinminer-native-cpu.yml
 
 permissions:
   contents: read
 
 concurrency:
-  group: sched-comp-018-${{ github.ref }}
+  group: sched-comp-018r1-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   real-veinminer-event:
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    timeout-minutes: 175
     defaults:
       run:
         working-directory: function-compiler
@@ -52,8 +52,8 @@ jobs:
         run: ./gradlew --no-daemon --stacktrace build
       - name: Unit-test process CPU accounting and frozen triplet inference
         run: |
-          python3 -m unittest discover -s tests -p test_veinminer_native_cpu.py -v
-          python3 -m py_compile scripts/run_veinminer_profile.py scripts/ci_server_event_cpu.py scripts/ci_veinminer_native_cpu.py
+          python3 -m unittest discover -s tests -p test_veinminer_native_cpu_r1.py -v
+          python3 -m py_compile scripts/run_veinminer_profile.py scripts/ci_server_event_cpu.py scripts/ci_veinminer_native_cpu_r1.py
       - name: Fetch and verify exact pinned Vein Miner datapack
         env:
           MC_VEINMINER_REFERENCE_URL: ${{ secrets.MC_VEINMINER_REFERENCE_URL }}
@@ -87,20 +87,20 @@ jobs:
           target.write_bytes(payload)
           print("Verified pinned Vein Miner archive",len(payload),"bytes")
           PY
-      - name: Preflight real cached and compiler-disabled event CPU measurement
-        timeout-minutes: 17
-        run: python3 scripts/ci_veinminer_native_cpu.py --phase smoke
-      - name: Run ten frozen native/off placebo and cached triplets
-        timeout-minutes: 125
-        run: python3 scripts/ci_veinminer_native_cpu.py --phase timing
+      - name: Preflight all three arms, full drain, and idle tick stability
+        timeout-minutes: 25
+        run: python3 scripts/ci_veinminer_native_cpu_r1.py --phase smoke
+      - name: Run new ten frozen off/off/cached triplets with 150s observation
+        timeout-minutes: 135
+        run: python3 scripts/ci_veinminer_native_cpu_r1.py --phase timing
       - name: Upload complete real-workload raw results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sched-comp-018-veinminer-cpu-raw
+          name: sched-comp-018r1-veinminer-cpu-raw
           path: |
-            function-compiler/build/benchmarks/SCHED-COMP-018/*.json
-            function-compiler/build/benchmarks/PERF-011-veinminer/vein-*/results.json
+            function-compiler/build/benchmarks/SCHED-COMP-018R1/*.json
+            function-compiler/build/benchmarks/PERF-011-veinminer/vein-*/*.json
             function-compiler/build/benchmarks/PERF-011-veinminer/vein-*/*.log
           if-no-files-found: warn
           retention-days: 21
