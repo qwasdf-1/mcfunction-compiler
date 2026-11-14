@@ -23,6 +23,16 @@ public final class ProbeMetrics {
     private static long SCORE_PHASE_FEEDBACK_NS;
     private static long SCORE_PHASE_SAMPLES;
     private static long SCORE_ATTR_DELEGATE_CALLS;
+    private static long SCORE_ATTR_CACHED_CALLS;
+
+    public static void scoreAttrCachedCalls() {
+        SCORE_ATTR_CACHED_CALLS++;
+    }
+
+    public static long scoreAttrCachedCalls() {
+        return SCORE_ATTR_CACHED_CALLS;
+    }
+
     private static long SCORE_ATTR_FAST_OBJECTIVE_HITS;
 
     public static void scoreAttrDelegateCalled() {
