@@ -22,6 +22,25 @@ public final class ProbeMetrics {
     private static long SCORE_PHASE_MUTATION_NS;
     private static long SCORE_PHASE_FEEDBACK_NS;
     private static long SCORE_PHASE_SAMPLES;
+    private static long SCORE_ATTR_DELEGATE_CALLS;
+    private static long SCORE_ATTR_FAST_OBJECTIVE_HITS;
+
+    public static void scoreAttrDelegateCalled() {
+        SCORE_ATTR_DELEGATE_CALLS++;
+    }
+
+    public static void scoreAttrFastObjectiveHit() {
+        SCORE_ATTR_FAST_OBJECTIVE_HITS++;
+    }
+
+    public static long scoreAttrDelegateCalls() {
+        return SCORE_ATTR_DELEGATE_CALLS;
+    }
+
+    public static long scoreAttrFastObjectiveHits() {
+        return SCORE_ATTR_FAST_OBJECTIVE_HITS;
+    }
+
 
     public static void scoreAddPhases(long objectiveNs, long mutationNs, long feedbackNs) {
         SCORE_PHASE_OBJECTIVE_NS += objectiveNs;
