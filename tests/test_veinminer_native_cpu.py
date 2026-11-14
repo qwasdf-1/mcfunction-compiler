@@ -63,7 +63,7 @@ class CPUEventContracts(unittest.TestCase):
                "timeslices":8}
         result=proc.event_cpu_delta(before,after,10,10)
         self.assertEqual(result["server_thread_cpu_running_ns"],1000000)
-        self.assertAlmostEqual(result["server_thread_runqueue_wait_fraction"],.1)
+        self.assertAlmostEqual(result["server_thread_runqueue_wait_fraction"],1/11)
         self.assertTrue(result["host_quality_pass"])
         noisy=proc.event_cpu_delta(before,after,10,11)
         self.assertFalse(noisy["host_quality_pass"])
