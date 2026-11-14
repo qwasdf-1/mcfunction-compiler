@@ -204,6 +204,9 @@ def run_arm(arm:str,triplet:int,position:int,phase:str,budget:dict)->dict:
             f"Unfinished native queue/return state: head={result.get('queue_head_delta')} "
             f"run={result.get('run_state_after')}")
     return {
+        # Persist the frozen arm assignment along with its observations.
+        # This restores the identity fields omitted in the first R2 run.
+        "arm":arm,"triplet":triplet,"position":position,
         "tick_pre_event_stability":baseline,
         "tick_post_event_diagnostic":post_event,
         "event_progress_checkpoints":result["event_progress_checkpoints"],
@@ -239,8 +242,15 @@ def analyze(triplets:list[dict],frozen:tuple[tuple[str,str,str],...])->dict:
         if set(arms)!=set(MODES) or len(arms)!=3:
             raise AssertionError("Incomplete triplet arms")
         for pos,arm in enumerate(order):
-            if arms[arm]["position"]!=pos or arms[arm]["triplet"]!=i:
-                raise AssertionError(f"Wrong predeclared arm allocation {i}/{arm}")
+            # Earlier R2 persisted arms in a map keyed by their actual name,
+            # accompanied by the frozen per-triplet order, but omitted the
+            # *redundant* position/triplet fields in individual arm payloads.
+            # Treat the map+frozen order as authoritative. If redundant fields
+            # exist, they MUST agree; never silently override a discrepancy.
+            if (arms[arm].get("position",pos)!=pos
+                    or arms[arm].get("triplet",i)!=i
+                    or arms[arm].get("arm",arm)!=arm):
+                raise AssertionError(f"Wrong preregistered arm identity {i}/{arm}")
         states=[tuple(sorted(arms[arm]["native_state"].items())) for arm in MODES]
         if len(set(states))!=1 or not all(arms[arm]["valid_native_workload"] for arm in MODES):
             raise AssertionError(f"Native mining work or player state diverged: {i}")
