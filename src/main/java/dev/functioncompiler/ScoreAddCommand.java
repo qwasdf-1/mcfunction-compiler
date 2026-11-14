@@ -28,6 +28,7 @@ final class ScoreAddCommand implements FusableCommand {
     private final Operation operation;
     private final int amount;
     private final Identifier functionId;
+    private final boolean useLegacyFlagLookups;
 
     ScoreAddCommand(
             Command<CommandSourceStack> vanillaCommand,
@@ -62,11 +63,14 @@ final class ScoreAddCommand implements FusableCommand {
         this.operation = operation;
         this.amount = amount;
         this.functionId = functionId;
+        this.useLegacyFlagLookups = ProbeConfiguration.legacyScoreAddLookupForFunction(functionId);
     }
 
     @Override
     public int run(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        if (ProbeConfiguration.scoreAddTimingEnabled()) {
+        if (useLegacyFlagLookups
+                ? ProbeConfiguration.scoreAddTimingEnabledLegacy()
+                : ProbeConfiguration.scoreAddTimingEnabled()) {
             long started = System.nanoTime();
             try {
                 return runUntimed(context);
@@ -79,7 +83,9 @@ final class ScoreAddCommand implements FusableCommand {
 
     private int runUntimed(CommandContext<CommandSourceStack> context)
             throws CommandSyntaxException {
-        if (!ProbeConfiguration.scoreAddPrototypeEnabled()) {
+        if (!(useLegacyFlagLookups
+                ? ProbeConfiguration.scoreAddPrototypeEnabledLegacy()
+                : ProbeConfiguration.scoreAddPrototypeEnabled())) {
             return vanillaCommand.run(context);
         }
 
@@ -126,7 +132,9 @@ final class ScoreAddCommand implements FusableCommand {
                 objective,
                 amount
         );
-        if (ProbeConfiguration.scoreAddMetricsEnabled()) {
+        if (useLegacyFlagLookups
+                ? ProbeConfiguration.scoreAddMetricsEnabledLegacy()
+                : ProbeConfiguration.scoreAddMetricsEnabled()) {
             ProbeMetrics.scoreAddExecuted(functionId);
         }
         return result;
