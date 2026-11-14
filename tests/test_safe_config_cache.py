@@ -18,7 +18,7 @@ class FakeStats:
         return f"FC_STATS function={fid} score_add_compiled={score}"
 
 
-def synthetic(i,assignment,placebo=1.0,legacy=1.5,cached=.86,qualified=True):
+def synthetic(i,assignment,placebo=1.0,legacy=1.5,cached=.90,qualified=True):
     costs={"native":100.0,"null":100.0*placebo,
            "legacy":100.0*legacy,"cached":100.0*cached}
     return {"index":i,"status":"complete",
