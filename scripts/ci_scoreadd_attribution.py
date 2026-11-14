@@ -4,10 +4,9 @@
 Stage A (diagnostic): timed ObjectiveArgument resolution, score creation /
 mutation, and response tracking+feedback *within typed callbacks* only. Those
 nanoTime probes are not exclusive CPU times and are disabled during timing.
-Stage B: 12 independent JVMs, with five byte-identical function namespaces
-and four balanced ABBA/BAAB contrasts: native A/A placebo, pass-through
-wrapper vs native, typed body vs pass-through wrapper, research guarded
-objective lookup vs typed. No fusion or alternative scheduler in any arm.
+Stage B: 10 independent JVMs, with six byte-identical function namespaces
+and five balanced ABBA/BAAB contrasts: native A/A placebo, pass-through
+wrapper vs native, typed body vs pass-through wrapper, cached fixed flags vs typed, then guarded objective lookup vs cached. No fusion or alternative scheduler in any arm.
 """
 from __future__ import annotations
 
@@ -37,25 +36,28 @@ from ci_smoke_server import Rcon, unused_port, wait_for_rcon
 EXPERIMENT = "SCHED-COMP-015"
 OUT = ROOT / "build" / "benchmarks" / EXPERIMENT
 SEED = 15015
-N_BOOTS = 12
+N_BOOTS = 10
 DIAGNOSTIC_CALLS = 32
 TIMING_CALLS_PER_WINDOW = 220
 PREWARM_PER_ARM = 120
 LENGTHS = (4, 16, 256, 2000)
 PRIMARY_LENGTH = 2000
-KINDS = ("negative","delegating_vs_native","typed_vs_delegating","fastobj_vs_typed")
+KINDS = ("negative","delegating_vs_native","typed_vs_delegating",
+         "cached_vs_typed","fastobj_vs_cached")
 NAMESPACES = {
     "native":"fc_attr_native",
     "null":"fc_attr_native_null",
     "delegate":"fc_attr_delegate",
     "typed":"fc_attr_typed",
+    "cached":"fc_attr_cached",
     "fastobj":"fc_attr_fastobj",
 }
 FAMILIES = {
     "negative":("native","null"),
     "delegating_vs_native":("native","delegate"),
     "typed_vs_delegating":("delegate","typed"),
-    "fastobj_vs_typed":("typed","fastobj"),
+    "cached_vs_typed":("typed","cached"),
+    "fastobj_vs_cached":("cached","fastobj"),
 }
 
 
@@ -90,10 +92,10 @@ def prepare_fixture(workdir: Path) -> None:
 
 def plan() -> tuple[dict, ...]:
     rng=random.Random(SEED)
-    # 4 Latin-square rotations repeated three times: each contrast is in
-    # each temporal block position exactly three times across 12 boots.
-    # Six ABBA and six BAAB orientations per contrast, fixed ahead of time.
-    rotations=[KINDS[i:]+KINDS[:i] for i in range(4)] * 3
+    # 5 Latin-square rotations repeated twice: each contrast is in
+    # every temporal block position exactly twice across 10 boots.
+    # Five ABBA and five BAAB orientations per contrast, fixed ahead of time.
+    rotations=[KINDS[i:]+KINDS[:i] for i in range(5)] * 2
     rng.shuffle(rotations)
     orientations={
         kind:rng.sample(["ABBA","BAAB"]*(N_BOOTS//2),N_BOOTS)
@@ -125,7 +127,7 @@ def compilation_gate(rcon: Rcon) -> dict:
                 key: parse_stat(reply, key)
                 for key in ("score_add_compiled", "fused_regions_compiled")
             }
-            expected_score = length if arm in ("delegate","typed","fastobj") else 0
+            expected_score = length if arm in ("delegate","typed","cached","fastobj") else 0
             if counts["score_add_compiled"] != expected_score:
                 raise AssertionError(f"Wrong typed activation: {fid} {counts} vs {expected_score}")
             expected_fused = 0
@@ -183,13 +185,13 @@ def semantic_guard(rcon: Rcon) -> dict:
     # scoreboard object compiled at datapack load.
     status_before=rcon.command("functioncompiler status")
     baseline={k:parse_stat(status_before,k)
-              for k in ("score_attr_delegate_calls","score_attr_fastobj_hits")}
+              for k in ("score_attr_delegate_calls","score_attr_cached_calls","score_attr_fastobj_hits")}
     results={}
     rcon.command(f"scoreboard objectives remove {OBJECTIVE}")
     for arm in ("typed","fastobj"):
         results[arm+"_missing_reply"]=invoke(rcon,arm,4)
     rcon.command(f"scoreboard objectives add {OBJECTIVE} dummy")
-    for arm in ("typed","fastobj","delegate","native"):
+    for arm in ("typed","cached","fastobj","delegate","native"):
         rcon.command(f"scoreboard players set {HOLDER} {OBJECTIVE} 0")
         invoke(rcon,arm,4)
         results[arm+"_recreated_score"]=read_score(rcon)
@@ -201,7 +203,7 @@ def semantic_guard(rcon: Rcon) -> dict:
     results["readonly_create_response"]=created
     if "error" in created.lower() or "unknown" in created.lower():
         raise AssertionError(f"Could not create read-only criterion: {created}")
-    for arm in ("typed","fastobj","delegate","native"):
+    for arm in ("typed","cached","fastobj","delegate","native"):
         results[arm+"_readonly_reply"]=invoke(rcon,arm,4)
     rcon.command(f"scoreboard objectives remove {OBJECTIVE}")
     rcon.command(f"scoreboard objectives add {OBJECTIVE} dummy")
@@ -437,7 +439,7 @@ def analyze(boots: list[dict], assignments: tuple[dict, ...]) -> dict:
         verdict = "invalid_a_a_control"
     else:
         verdict = "valid_attribution_comparison"
-    effect=kinds["fastobj_vs_typed"]["exact_median_interval"]
+    effect=kinds["fastobj_vs_cached"]["exact_median_interval"]
     if verdict!="valid_attribution_comparison":
         objective_decision="invalid_or_unqualified"
     elif effect["upper"]<=-15:
@@ -497,6 +499,7 @@ def main() -> int:
             "negative_control": "native vs byte-identical native namespace",
             "no_alternative_scheduler_arm": True,
             "no_fusion":True,
+            "cached_flags_only_with_explicit_env_overrides":True,
             "phase_timers_off_during_timing":True,
             "no_runtime_metrics_during_cpu_timing": True,
             "retain_all_windows": True,
