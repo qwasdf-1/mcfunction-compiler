@@ -23,6 +23,7 @@ sys.path.insert(0, str(ROOT / "tests" / "runtime"))
 
 from ci_server_event_cpu import (  # noqa: E402
     find_server_thread, read_thread_schedstat, cgroup_throttle_count, event_cpu_delta,
+    parse_tick_query, pre_event_stability, event_tick_diagnostic,
 )
 from analyze_spark_profile import summarize as summarize_spark_profile  # noqa: E402
 from player_bot import PacketIds, PlayerBot  # noqa: E402
@@ -258,7 +259,17 @@ def parse_args() -> object:
             "native mining event only; no agents or function counters."
         ),
     )
+    parser.add_argument(
+        "--tick-stability-diagnostics", action="store_true",
+        help="Research-only idle baseline gate and non-exclusionary event tick diagnostics.",
+    )
+    parser.add_argument(
+        "--pre-event-idle-seconds",type=float,default=9.0,
+        help="Idle settling interval before baseline tick query (018R1, >=8s).",
+    )
     args = parser.parse_args()
+    if args.tick_stability_diagnostics and args.pre_event_idle_seconds < 8.0:
+        parser.error("Research idle baseline requires at least 8 seconds")
     if args.stack == "vanilla" and args.compiler_mode != "off":
         parser.error("a compiler mode requires a Fabric stack")
     if args.stack == "vanilla" and args.count_command_callbacks:
@@ -590,6 +601,25 @@ def main() -> int:
         compiler_status_before = (
             rcon.command("function_compiler_probe status") if compiler_probe_active else None
         )
+        tick_pre_event_stability = None
+        if args.tick_stability_diagnostics:
+            # The heavy actual event normally averages 250-310 ms/tick.
+            # Only an *idle* baseline can be used as a host-stability gate;
+            # post-event slowdown is an outcome and cannot filter runs.
+            time.sleep(args.pre_event_idle_seconds)
+            baseline_raw = rcon.command("tick query")
+            tick_pre_event_stability = pre_event_stability(
+                parse_tick_query(baseline_raw))
+            (output / "tick-baseline.json").write_text(
+                json.dumps({
+                    "raw_tick_query":baseline_raw,
+                    "pre_event_stability":tick_pre_event_stability,
+                    "pre_event_idle_seconds":args.pre_event_idle_seconds,
+                },indent=2)+"\n",encoding="utf-8")
+            if not tick_pre_event_stability["stable"]:
+                raise RuntimeError(
+                    "Pre-event idle tick stability gate failed; not measuring or "
+                    f"excluding this arm after observing treatment outcome: {tick_pre_event_stability}")
         event_thread = None
         event_cpu_before = None
         event_throttle_before = None
@@ -620,10 +650,19 @@ def main() -> int:
         work_after = work_before
         run_after = 0
         completion_elapsed: float | None = None
+        event_progress_checkpoints: list[dict[str, object]] = []
+        last_progress_state: tuple[int,int] | None = None
         while time.monotonic() < completion_deadline:
             work_after = read_score(rcon, PLAYER_NAME, "vmr.work")
             run_after = read_score(rcon, PLAYER_NAME, "vmr.run")
             saw_operation = saw_operation or run_after == 1
+            current_state = (work_after,run_after)
+            if current_state != last_progress_state:
+                event_progress_checkpoints.append({
+                    "elapsed_seconds":time.monotonic()-event_started,
+                    "work":work_after,"run":run_after,
+                })
+                last_progress_state = current_state
             if work_after == expected_work and run_after == 0:
                 completion_elapsed = time.monotonic() - event_started
                 break
@@ -706,6 +745,10 @@ def main() -> int:
             ),
         }
         tick_query = rcon.command("tick query")
+        tick_post_event_diagnostic = (
+            event_tick_diagnostic(parse_tick_query(tick_query))
+            if args.tick_stability_diagnostics else None
+        )
         if profile_path is not None:
             profile_summary = summarize_spark_profile(profile_path, "Server thread", 40)
             server_thread = profile_summary["matched_threads"][0]
@@ -883,6 +926,13 @@ def main() -> int:
             "target_markers_after": target_markers,
             "runtime_state_after_capture": runtime_state,
             "operation_completion_seconds": completion_elapsed,
+            "completion_observation_timeout_seconds":args.capture_timeout,
+            "event_timeout_reached":completion_elapsed is None,
+            "event_progress_checkpoints":(
+                event_progress_checkpoints if args.tick_stability_diagnostics else None
+            ),
+            "tick_pre_event_stability":tick_pre_event_stability,
+            "tick_post_event_diagnostic":tick_post_event_diagnostic,
             "server_thread_event_cpu": event_cpu,
             "server_thread_event_cpu_enabled":args.capture_server_thread_cpu,
             "spark_capture_seconds": round(capture_seconds, 3) if capture_seconds is not None else None,
