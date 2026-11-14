@@ -120,6 +120,10 @@ final class ScoreAddCommand implements FusableCommand {
                 || researchMode == ResearchMode.DELEGATING_WRAPPER) {
             // Measures cost of the ScoreAddCommand callback layer without
             // changing the underlying scoreboard command or scheduler.
+            if (researchMode == ResearchMode.DELEGATING_WRAPPER
+                    && ProbeConfiguration.scoreAddAttributionDiagnosticsEnabled()) {
+                ProbeMetrics.scoreAttrDelegateCalled();
+            }
             return vanillaCommand.run(context);
         }
 
@@ -145,9 +149,14 @@ final class ScoreAddCommand implements FusableCommand {
             // Missing or read-only objectives fall back to vanilla Brigadier
             // argument validation and its exact CommandSyntaxException.
             Objective candidate = scoreboard.getObjective(objectiveName);
-            objective = candidate != null && !candidate.getCriteria().isReadOnly()
-                    ? candidate
-                    : ObjectiveArgument.getWritableObjective(context, "objective");
+            if (candidate != null && !candidate.getCriteria().isReadOnly()) {
+                objective = candidate;
+                if (ProbeConfiguration.scoreAddAttributionDiagnosticsEnabled()) {
+                    ProbeMetrics.scoreAttrFastObjectiveHit();
+                }
+            } else {
+                objective = ObjectiveArgument.getWritableObjective(context, "objective");
+            }
         } else {
             objective = ObjectiveArgument.getWritableObjective(context, "objective");
         }
