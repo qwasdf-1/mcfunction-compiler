@@ -437,8 +437,23 @@ def analyze(boots: list[dict], assignments: tuple[dict, ...]) -> dict:
         verdict = "invalid_a_a_control"
     else:
         verdict = "valid_attribution_comparison"
+    effect=kinds["fastobj_vs_typed"]["exact_median_interval"]
+    if verdict!="valid_attribution_comparison":
+        objective_decision="invalid_or_unqualified"
+    elif effect["upper"]<=-15:
+        objective_decision="material_15logpercent_gain_supported"
+    elif effect["upper"]<0:
+        objective_decision="small_gain_supported_below_15logpercent_threshold"
+    elif effect["lower"]>0:
+        objective_decision="objective_shortcut_regression_supported"
+    elif effect["lower"]>=-15:
+        objective_decision="no_material_15logpercent_gain"
+    else:
+        objective_decision="inconclusive"
     return {
         "verdict": verdict,
+        "objective_shortcut_decision":objective_decision,
+        "material_threshold_signed_log_percent":-15,
         "quality_failed_boots": failed,
         "negative_interval_includes_zero": null_pass,
         "per_boot": per_boot,
