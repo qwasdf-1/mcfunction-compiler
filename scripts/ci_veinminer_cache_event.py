@@ -64,6 +64,12 @@ def run_profile(mode: str, pair: int, position: int) -> dict:
         "--side",str(SIDELENGTH),"--capture-timeout","60","--no-spark",
     ]
     env=dict(os.environ)
+    # Gradle's runner-wide shared read-only dependency cache has previously
+    # conflicted with the nested runServer task's writable lock requirements.
+    # Keep a dedicated (serially reusable) cache for these native events.
+    # This does not affect Minecraft runtime flags or event timing.
+    env.pop("GRADLE_RO_DEP_CACHE",None)
+    env["GRADLE_USER_HOME"]=str(OUT/"gradle-user-home")
     # The existing production runner passes the inherited environment to
     # Gradle's Minecraft server. This flag is intentionally absent for cached,
     # and names the real publisher 'vm' namespace for legacy.
