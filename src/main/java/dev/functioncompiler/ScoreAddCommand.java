@@ -32,7 +32,22 @@ final class ScoreAddCommand implements FusableCommand {
     private final ResearchMode researchMode;
 
     private enum ResearchMode {
-        NORMAL, DELEGATING_WRAPPER, FAST_OBJECTIVE_LOOKUP
+        NORMAL, DELEGATING_WRAPPER, CACHED_FIXED_FLAGS, FAST_OBJECTIVE_LOOKUP
+    }
+
+    // "Cached" is only semantically equivalent when the benchmark explicitly
+    // fixes *all three* feature flags in its process environment. Unlike an
+    // ordinary CompilerConfig reload, these explicit env overrides cannot be
+    // changed through /functioncompiler reload.
+    private static final boolean FIXED_RESEARCH_FLAGS =
+            "true".equalsIgnoreCase(System.getenv("FC_SCORE_ADD_PROTOTYPE"))
+            && "false".equalsIgnoreCase(System.getenv("FC_SCORE_ADD_TIMING"))
+            && "false".equalsIgnoreCase(System.getenv("FC_SCORE_ADD_METRICS"));
+
+    private boolean usesFixedResearchFlags() {
+        return FIXED_RESEARCH_FLAGS
+                && (researchMode == ResearchMode.CACHED_FIXED_FLAGS
+                    || researchMode == ResearchMode.FAST_OBJECTIVE_LOOKUP);
     }
 
     private static ResearchMode researchMode(Identifier id, String objectiveName,
@@ -44,7 +59,10 @@ final class ScoreAddCommand implements FusableCommand {
         if ("fc_attr_delegate".equals(id.getNamespace())) {
             return ResearchMode.DELEGATING_WRAPPER;
         }
-        if ("fc_attr_fastobj".equals(id.getNamespace())
+        if (FIXED_RESEARCH_FLAGS && "fc_attr_cached".equals(id.getNamespace())) {
+            return ResearchMode.CACHED_FIXED_FLAGS;
+        }
+        if (FIXED_RESEARCH_FLAGS && "fc_attr_fastobj".equals(id.getNamespace())
                 && "fc_sched".equals(objectiveName)
                 && holder != null && !isSelf && operation == Operation.ADD) {
             return ResearchMode.FAST_OBJECTIVE_LOOKUP;
@@ -103,7 +121,7 @@ final class ScoreAddCommand implements FusableCommand {
 
     @Override
     public int run(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        if (ProbeConfiguration.scoreAddTimingEnabled()) {
+        if (!usesFixedResearchFlags() && ProbeConfiguration.scoreAddTimingEnabled()) {
             long started = System.nanoTime();
             try {
                 return runUntimed(context);
@@ -116,7 +134,8 @@ final class ScoreAddCommand implements FusableCommand {
 
     private int runUntimed(CommandContext<CommandSourceStack> context)
             throws CommandSyntaxException {
-        if (!ProbeConfiguration.scoreAddPrototypeEnabled()
+        boolean fixedFlags = usesFixedResearchFlags();
+        if ((!fixedFlags && !ProbeConfiguration.scoreAddPrototypeEnabled())
                 || researchMode == ResearchMode.DELEGATING_WRAPPER) {
             // Measures cost of the ScoreAddCommand callback layer without
             // changing the underlying scoreboard command or scheduler.
@@ -127,6 +146,9 @@ final class ScoreAddCommand implements FusableCommand {
             return vanillaCommand.run(context);
         }
 
+        if (fixedFlags && ProbeConfiguration.scoreAddAttributionDiagnosticsEnabled()) {
+            ProbeMetrics.scoreAttrCachedCalls();
+        }
         boolean diagnose = ProbeConfiguration.scoreAddPhaseTimersForFunction(functionId);
         long t0 = diagnose ? System.nanoTime() : 0L;
         CommandSourceStack source = context.getSource();
@@ -195,7 +217,7 @@ final class ScoreAddCommand implements FusableCommand {
             long t3 = System.nanoTime();
             ProbeMetrics.scoreAddPhases(t1 - t0, t2 - t1, t3 - t2);
         }
-        if (ProbeConfiguration.scoreAddMetricsEnabled()) {
+        if (!fixedFlags && ProbeConfiguration.scoreAddMetricsEnabled()) {
             ProbeMetrics.scoreAddExecuted(functionId);
         }
         return result;
