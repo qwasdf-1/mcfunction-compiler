@@ -21,10 +21,11 @@ class MockStats:
 
 
 def fake_boot(i, assignment, *, placebo=1.0, delegate=1.04,
-              typed=1.45, fastobj=.96, qualified=True):
+              typed=1.45, cached=.85, fastobj=.96, qualified=True):
     costs={"native":100.0,"null":100.0*placebo,
            "delegate":100.0*delegate,"typed":100.0*typed,
-           "fastobj":100.0*typed*fastobj}
+           "cached":100.0*typed*cached,
+           "fastobj":100.0*typed*cached*fastobj}
     blocks=[{"kind":block["kind"],"orientation":block["orientation"],
              "windows":[{
                  "arm":arm,"cpu_ns_per_command":costs[arm],
@@ -38,22 +39,22 @@ def fake_boot(i, assignment, *, placebo=1.0, delegate=1.04,
 
 
 class AttributionContracts(unittest.TestCase):
-    def test_12_boot_latin_square_and_orientation_balance(self):
+    def test_10_boot_latin_square_and_orientation_balance(self):
         p=study.plan()
         self.assertEqual(p,study.plan())
-        self.assertEqual(len(p),12)
+        self.assertEqual(len(p),10)
         orders=Counter(tuple(b["kind"] for b in x["blocks"]) for x in p)
-        self.assertEqual(len(orders),4)
-        self.assertTrue(all(v==3 for v in orders.values()))
+        self.assertEqual(len(orders),5)
+        self.assertTrue(all(v==2 for v in orders.values()))
         for kind in study.KINDS:
             orientations=Counter(
                 b["orientation"] for x in p for b in x["blocks"]
                 if b["kind"]==kind)
-            self.assertEqual(orientations,{"ABBA":6,"BAAB":6})
+            self.assertEqual(orientations,{"ABBA":5,"BAAB":5})
             self.assertEqual(Counter(
                 pos for x in p for pos,b in enumerate(x["blocks"])
                 if b["kind"]==kind),
-                {0:3,1:3,2:3,3:3})
+                {0:2,1:2,2:2,3:2,4:2})
 
     def test_byte_identical_arms_and_no_fused_functions(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -70,7 +71,7 @@ class AttributionContracts(unittest.TestCase):
 
     def test_correct_specializations_and_no_fusion(self):
         observations=study.compilation_gate(MockStats())
-        self.assertEqual(len(observations),len(study.LENGTHS)*5)
+        self.assertEqual(len(observations),len(study.LENGTHS)*6)
         self.assertEqual(observations[study.function_id("typed",2000)]["score_add_compiled"],2000)
         self.assertEqual(observations[study.function_id("delegate",2000)]["score_add_compiled"],2000)
         self.assertEqual(observations[study.function_id("native",2000)]["score_add_compiled"],0)
@@ -84,8 +85,9 @@ class AttributionContracts(unittest.TestCase):
         self.assertEqual(result["by_kind"]["negative"]["median_signed_log_percent"],0)
         self.assertGreater(result["by_kind"]["delegating_vs_native"]["exact_median_interval"]["lower"],0)
         self.assertGreater(result["by_kind"]["typed_vs_delegating"]["exact_median_interval"]["lower"],0)
-        self.assertLess(result["by_kind"]["fastobj_vs_typed"]["exact_median_interval"]["upper"],0)
-        self.assertEqual(len(result["derived_exploratory_native_to_typed"]["per_boot_signed_log_percent"]),12)
+        self.assertLess(result["by_kind"]["cached_vs_typed"]["exact_median_interval"]["upper"],0)
+        self.assertLess(result["by_kind"]["fastobj_vs_cached"]["exact_median_interval"]["upper"],0)
+        self.assertEqual(len(result["derived_exploratory_native_to_typed"]["per_boot_signed_log_percent"]),10)
         self.assertIn("nanoTime",result["prohibited_inference"])
 
     def test_placebo_fails_without_posthoc_rejection(self):
