@@ -274,9 +274,12 @@ def main()->int:
     try:
         record["verified_archive_sha256"]=verify_pack()
         if args.phase=="smoke":
-            record["smoke"]=run_arm("cached",0,0)
-            if not record["smoke"]["valid_native_workload"]:
-                raise AssertionError("Native CPU smoke failed")
+            record["smoke"]={
+                "off":run_arm("off_a",0,0),
+                "cached":run_arm("cached",0,1),
+            }
+            if record["smoke"]["off"]["native_state"]!=record["smoke"]["cached"]["native_state"]:
+                raise AssertionError("Native CPU smoke off/cached state mismatch")
             record["status"]="complete"
         else:
             smoke=json.loads(SMOKE.read_text())
@@ -301,7 +304,9 @@ def main()->int:
         print("SCHED-COMP-018 COMPLETE "+json.dumps({
             "phase":args.phase,"status":record["status"],
             "analysis":record.get("analysis"),
-            "smoke_cpu_ns":record.get("smoke",{}).get("server_thread_cpu_running_ns")
+            "smoke_cpu_ns":{
+                arm:rec["server_thread_cpu_running_ns"]
+                for arm,rec in record.get("smoke",{}).items()}
         }),flush=True)
     except BaseException as e:
         record["status"]="failed"
