@@ -1,6 +1,6 @@
 # SCHED-COMP-017 — Cached vs legacy ScoreAdd in a real Vein Miner event
 
-**Status:** Preregistered, not yet interpreted. This is the real-datapack follow-up to SCHED-COMP-016's production-safe immutable environment override caching. It does not alter any production defaults.
+**Status:** Preregistered, not yet interpreted. The initial CI attempt (run 43562100401) stopped **before Minecraft started** due to a nested Gradle dependency-cache lock conflict; no data from that attempt count as performance evidence. Follow-up runs isolate the nested Gradle user home; the original paired protocol and acceptance thresholds are unchanged. This is the real-datapack follow-up to SCHED-COMP-016's production-safe immutable environment override caching. It does not alter any production defaults.
 
 ## Hypothesis and measurement
 
