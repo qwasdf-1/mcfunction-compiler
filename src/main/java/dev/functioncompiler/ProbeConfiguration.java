@@ -4,6 +4,24 @@ public final class ProbeConfiguration {
     private ProbeConfiguration() {
     }
 
+    /**
+     * Environment variables are immutable after process startup in the normal
+     * Java launcher. Cache their optional overrides once; do not cache
+     * reloadable CompilerConfig fallback values. Null means no nonblank
+     * override, retaining the existing blank / Boolean.parseBoolean behavior.
+     */
+    private static Boolean immutableBooleanOverride(String name) {
+        String value = System.getenv(name);
+        return value == null || value.isBlank() ? null : Boolean.parseBoolean(value);
+    }
+
+    private static final Boolean SCORE_ADD_OVERRIDE =
+            immutableBooleanOverride("FC_SCORE_ADD_PROTOTYPE");
+    private static final Boolean SCORE_ADD_TIMING_OVERRIDE =
+            immutableBooleanOverride("FC_SCORE_ADD_TIMING");
+    private static final Boolean SCORE_ADD_METRICS_OVERRIDE =
+            immutableBooleanOverride("FC_SCORE_ADD_METRICS");
+
     public static boolean wrapperEnabled() {
         return readBoolean("FC_WRAPPER_PROBE", CompilerConfig.isEnabled());
     }
@@ -13,18 +31,19 @@ public final class ProbeConfiguration {
     }
 
     public static boolean scoreAddPrototypeEnabled() {
-        return readBoolean(
-                "FC_SCORE_ADD_PROTOTYPE",
-                CompilerConfig.isScoreAddEnabled() || fusedRegionPrototypeEnabled()
-        );
+        // Deliberately re-evaluate live config on every call without a fixed
+        // environment override; function_compiler_probe reload must work.
+        return SCORE_ADD_OVERRIDE != null
+                ? SCORE_ADD_OVERRIDE.booleanValue()
+                : CompilerConfig.isScoreAddEnabled() || fusedRegionPrototypeEnabled();
     }
 
     public static boolean scoreAddMetricsEnabled() {
-        return readBoolean("FC_SCORE_ADD_METRICS", false);
+        return SCORE_ADD_METRICS_OVERRIDE != null && SCORE_ADD_METRICS_OVERRIDE;
     }
 
     public static boolean scoreAddTimingEnabled() {
-        return readBoolean("FC_SCORE_ADD_TIMING", false);
+        return SCORE_ADD_TIMING_OVERRIDE != null && SCORE_ADD_TIMING_OVERRIDE;
     }
 
     public static boolean fusedRegionPrototypeEnabled() {
