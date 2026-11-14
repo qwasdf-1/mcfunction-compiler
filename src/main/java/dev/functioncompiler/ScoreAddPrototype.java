@@ -589,10 +589,11 @@ public final class ScoreAddPrototype {
         }
 
         ScoreHolderArgument.Result targetResult;
+        String objectiveName;
         int amount;
         try {
             targetResult = context.getArgument("targets", ScoreHolderArgument.Result.class);
-            context.getArgument("objective", String.class);
+            objectiveName = context.getArgument("objective", String.class);
             amount = context.getArgument("score", Integer.class);
         } catch (IllegalArgumentException exception) {
             return false;
@@ -611,7 +612,8 @@ public final class ScoreAddPrototype {
         CommandContextAccessor<CommandSourceStack> accessor =
                 (CommandContextAccessor<CommandSourceStack>) (Object) context;
         accessor.functionCompiler$setCommand(
-                new ScoreAddCommand(context.getCommand(), holder, isSelfSelector, operation, amount, functionId)
+                new ScoreAddCommand(context.getCommand(), holder, isSelfSelector, operation, amount,
+                        functionId, objectiveName)
         );
         ProbeMetrics.scoreAddCompiled(functionId);
         return true;
