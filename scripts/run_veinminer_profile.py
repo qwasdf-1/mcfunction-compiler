@@ -21,6 +21,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests" / "runtime"))
 
+from ci_server_event_cpu import (  # noqa: E402
+    find_server_thread, read_thread_schedstat, cgroup_throttle_count, event_cpu_delta,
+)
 from analyze_spark_profile import summarize as summarize_spark_profile  # noqa: E402
 from player_bot import PacketIds, PlayerBot  # noqa: E402
 from run_dynamic_lights_profile import (  # noqa: E402
@@ -245,6 +248,14 @@ def parse_args() -> object:
         help=(
             "Run the native event timing without the Spark agent or sampling; "
             "use a separate Spark run for CPU attribution."
+        ),
+    )
+    parser.add_argument(
+        "--capture-server-thread-cpu",
+        action="store_true",
+        help=(
+            "Opt-in Linux /proc Server-thread running-CPU accounting for the "
+            "native mining event only; no agents or function counters."
         ),
     )
     args = parser.parse_args()
@@ -579,6 +590,16 @@ def main() -> int:
         compiler_status_before = (
             rcon.command("function_compiler_probe status") if compiler_probe_active else None
         )
+        event_thread = None
+        event_cpu_before = None
+        event_throttle_before = None
+        if args.capture_server_thread_cpu:
+            # In Fabric mode the outer process is Gradle. Find Minecraft's
+            # actual Server thread in its descendant JVM before the event.
+            pid, tid = find_server_thread(server.pid)
+            event_thread = (pid, tid)
+            event_cpu_before = read_thread_schedstat(pid, tid)
+            event_throttle_before = cgroup_throttle_count()
         event_started = time.monotonic()
         bot.send_player_action("start_destroy_block", sx, sy, sz, direction=1, sequence=0)
         time.sleep(args.mining_hold_seconds)
@@ -608,6 +629,18 @@ def main() -> int:
                 break
             time.sleep(0.5)
 
+        # Close the CPU window immediately when the exact ore work completes,
+        # before collecting compiler stats, RCON post-run context, or Spark.
+        event_cpu = None
+        if args.capture_server_thread_cpu:
+            assert event_thread is not None and event_cpu_before is not None
+            pid, tid = event_thread
+            event_cpu = event_cpu_delta(
+                event_cpu_before,read_thread_schedstat(pid,tid),
+                event_throttle_before,cgroup_throttle_count())
+            event_cpu["work_expected"]=expected_work
+            event_cpu["cpu_ns_per_affected_block"]=(
+                event_cpu["server_thread_cpu_running_ns"]/expected_work)
         compiler_status_after = (
             rcon.command("function_compiler_probe status") if compiler_probe_active else None
         )
@@ -850,6 +883,8 @@ def main() -> int:
             "target_markers_after": target_markers,
             "runtime_state_after_capture": runtime_state,
             "operation_completion_seconds": completion_elapsed,
+            "server_thread_event_cpu": event_cpu,
+            "server_thread_event_cpu_enabled":args.capture_server_thread_cpu,
             "spark_capture_seconds": round(capture_seconds, 3) if capture_seconds is not None else None,
             "spark_interval_ms": PROFILE_INTERVAL_MS if capture_spark else None,
             "spark_thread_nodes": thread_nodes,
