@@ -147,7 +147,7 @@ final class ScoreAddCommand implements FusableCommand {
         }
 
         if (fixedFlags && ProbeConfiguration.scoreAddAttributionDiagnosticsEnabled()) {
-            ProbeMetrics.scoreAttrCachedCalls();
+            ProbeMetrics.scoreAttrCachedCall();
         }
         boolean diagnose = ProbeConfiguration.scoreAddPhaseTimersForFunction(functionId);
         long t0 = diagnose ? System.nanoTime() : 0L;
