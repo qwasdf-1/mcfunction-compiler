@@ -1,0 +1,38 @@
+# SCHED-COMP-018R1 — Fresh Vein Miner event-CPU replication with idle tick-quality control
+
+**Status:** New preregistration following an incomplete SCHED-COMP-018 run. R1 is a new campaign with new randomization and outputs. **No earlier observations are pooled.**
+
+## Why the first campaign is unusable
+
+The original SCHED-COMP-018 [run #43622114468](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43622114468) passed its two-arm CPU preflight and completed two of ten independent three-arm triplets. Its third triplet's second arm, **compiler-off B**, did **not** finish within the prior 60-second observation window. The raw archive [14124629948](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43622114468/artifacts/14124629948) shows **215/215** ore work recorded, but `vmr.run=1` and only 1,856 queue steps, versus 1,952 in fully completed runs. That arm's RCON `tick query` reported **631.7 ms average**, P95 **3,073.4 ms**, with Server-thread running CPU **53.33 s** during observation, even though cgroup throttling was zero and Server-thread runqueue wait was only 12.5%. In contrast, successful original runs had event `tick query` averages around **250–310 ms**, P95 under ~900 ms. As a result, a blanket 50-ms/tick quality requirement would reject **ordinary completed heavy Vein Miner work**, and apparent short CPU savings from prematurely completed ore counters must not be counted when the function queue is still draining.
+
+The **entire original campaign is inconclusive**. It is not legitimate to treat its first two triplets as a completed inference or to selectively replace its failed arm. R1 uses a separately frozen seed, publishes its analysis as a separate study, and retains the original failure evidence unchanged. The 150-second observation cap and permissive tick stability/overload limits below are **informed by the original failed run**, so they are not a blind posthoc reinterpretation of it.
+
+## Same scientific question and workload
+
+Does enabling the SCHED-COMP-016 cached immutable ScoreAdd env-override path reduce total **Linux Minecraft Server-thread running CPU** during one *fully drained* real 215-block Vein Miner 5.3.0 survival-player-bot mining event compared with **compiler optimizers disabled** (compiler mod present in both arms)? Measure event wall duration separately. Do not claim exclusive function CPU, client-visible game performance, or compiler-without-mod vanilla equivalence.
+
+The Minecraft 26.3 Fabric+API/Java 25 versions, world seed, survival mining packet, player equipment, pinned verified publisher datapack SHA-256 `fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e`, function command sources, server flags, source block, and 6×6×6 ore vein are unchanged. All measurements use the existing unmodified ScoreAdd implementation and the same opt-in two-boundary `/proc/PID/task/TID/schedstat` server-running-CPU sampling. No Spark/JFR, per-command counters, fusion, bytecode or alternative scheduler.
+
+## Revised, fixed event-completion and tick diagnostics
+
+- **Before mining**, allow a fixed **9-second idle settling interval** after registration/geometry preparation and read `tick query`. Its parsed sample must have **at least 50 ticks**, average **≤150 ms**, and P95 **≤600 ms**. This is a permissive **pre-intervention stability gate**, not a demand for 20 TPS while running the heavy mining workload. If an arm is unstable *before* treatment, the study halts, retaining the failure; **do not rerun just that arm**.
+- The **completion observation window is 150 seconds**, fixed from completion of the initial mining packet/source-block confirmation. Preserve both conditions `work_after=215` **and** `vmr.run=0`; also require `queue_head_delta=1,952` and all existing exact final state checks. Merely mining all 215 ores while the queue remains busy does not complete the event. No partial run yields an estimated CPU effect. A failed cap stops the campaign and is documented as incomplete, rather than treating the cap as a measured duration.
+- Record `work` and `run` transition checkpoints from the existing scoreboard-poll loop, plus final event `tick query`, Server-thread CPU, runqueue waiting, cgroup throttling and exact ore/marker state. No new commands are injected *inside* the polling loop. A post-event `tick query` average **≥500 ms** or P95 **≥2,000 ms** is reported as **severe event overload** for interpretation, **not** used as a selective drop/quality exclusion: treatment can itself change workload tick time. Tick data are parsed as diagnostics; any malformed/missing pre-event tick report fails the mandatory gate.
+- Original host gates remain: zero cgroup throttling and Server-thread runqueue wait ≤25% per measured event. No snapshots missing. These measure outside host contention; a true full-event CPU regression may occur **without** a host gate failure and must remain in the result.
+
+## Frozen plan and analysis
+
+**First**, run a fresh three-arm preflight: independently booted off-A, off-B (identical placebo), cached treatment, all with the 9-second idle gate and 150-second observation cap. Require actual Server-thread CPU identification, source/ore/queue parity, configuration activation and valid host data from all three. This preflight is a validity screen, **not** part of the effect sample.
+
+**Then**, run exactly ten independent **three-JVM triplets** (30 independent server/world/playerbot runs): off-A, identical off-B placebo, cached ScoreAdd. Freeze seed **26874019** before the run; all six order permutations plus four predetermined extras, each arm appearing 3 or 4 times in every temporal slot. Original 018 data are not reused and no run is selectively rerun. Archive all results, including partial triplets and failed arms.
+
+The **primary** is paired arithmetic relative Server-thread running CPU, `100×(CPU_cached/CPU_offA−1)`, one signed value per independent triplet. **Secondary** is paired arithmetic `100×(wall_cached/wall_offA−1)`. **Negative controls**: the analogous independent offB/offA CPU and wall ratios. Analyze ten independent triplets, never 30 arms or individual polls as independent samples. Report exact ≥95%-coverage distribution-free median intervals (ten triplets: 97.8516%). Both A/A confidence intervals must contain zero. Fixed 15% ordinary CPU and wall material-gain thresholds require upper interval ≤−15%; an interval entirely below zero but above this threshold supports only a small workload-specific screen. No performance inference if any part of a triplet is incomplete, ore state differs, pre-event or host quality fails, or either placebo fails. Retain all observations even in inconclusive cases.
+
+**Overload diagnostic** is reported for every successful arm but is not a post-treatment exclusion criterion or a cause to rerandomize. Avoid interpreting the whole-game tick workload CPU as CPU spent exclusively in typed ScoreAdd callbacks.
+
+## Sources and disposition
+
+- Original baseline failure: CI [43622114468](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43622114468), artifact [14124629948](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43622114468/artifacts/14124629948).
+- Base frozen experiment/protocol: `docs/research/veinminer-native-cpu-SCHED-COMP-018.md`, on draft PR #16.
+- R1 execution: `scripts/ci_veinminer_native_cpu_r1.py`, `tests/test_veinminer_native_cpu_r1.py`, opt-in additions to `scripts/run_veinminer_profile.py` and `scripts/ci_server_event_cpu.py`. CI workflow `.github/workflows/research-veinminer-native-cpu.yml`; output `build/benchmarks/SCHED-COMP-018R1/`. The standalone production cache patch remains in draft PR #15; **no default optimization flag changed**.
