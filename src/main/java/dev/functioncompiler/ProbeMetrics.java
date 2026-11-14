@@ -25,7 +25,7 @@ public final class ProbeMetrics {
     private static long SCORE_ATTR_DELEGATE_CALLS;
     private static long SCORE_ATTR_CACHED_CALLS;
 
-    public static void scoreAttrCachedCalls() {
+    public static void scoreAttrCachedCall() {
         SCORE_ATTR_CACHED_CALLS++;
     }
 
