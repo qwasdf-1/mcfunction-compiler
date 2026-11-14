@@ -45,6 +45,12 @@ public final class ProbeConfiguration {
             readBoolean("FC_SCORE_ADD_ATTRIBUTION", false);
     private static final boolean SCORE_ADD_PHASE_TIMERS_ENABLED =
             readBoolean("FC_SCORE_ADD_PHASE_TIMERS", false);
+    private static final boolean SCORE_ADD_ATTR_DIAGNOSTICS_ENABLED =
+            readBoolean("FC_SCORE_ADD_ATTR_DIAGNOSTICS", false);
+
+    public static boolean scoreAddAttributionDiagnosticsEnabled() {
+        return SCORE_ADD_ATTR_DIAGNOSTICS_ENABLED;
+    }
 
     public static boolean scoreAddAttributionEnabled() {
         return SCORE_ADD_ATTRIBUTION_ENABLED;
