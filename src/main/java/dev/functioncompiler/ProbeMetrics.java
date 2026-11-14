@@ -14,6 +14,37 @@ public final class ProbeMetrics {
     private static final AtomicLong SCORE_ADD_EXECUTED = new AtomicLong();
     private static final AtomicLong FUSED_REGIONS_COMPILED = new AtomicLong();
     private static final AtomicLong FUSED_REGIONS_EXECUTED = new AtomicLong();
+    // Research-only phase stopwatch totals, accumulated only on the server
+    // thread and only for fc_attr_typed in an independent diagnostic JVM.
+    // These wall-clock spans include nanoTime/attribution overhead and are
+    // NOT exclusive CPU cost or comparable to uninstrumented native execution.
+    private static long SCORE_PHASE_OBJECTIVE_NS;
+    private static long SCORE_PHASE_MUTATION_NS;
+    private static long SCORE_PHASE_FEEDBACK_NS;
+    private static long SCORE_PHASE_SAMPLES;
+
+    public static void scoreAddPhases(long objectiveNs, long mutationNs, long feedbackNs) {
+        SCORE_PHASE_OBJECTIVE_NS += objectiveNs;
+        SCORE_PHASE_MUTATION_NS += mutationNs;
+        SCORE_PHASE_FEEDBACK_NS += feedbackNs;
+        SCORE_PHASE_SAMPLES++;
+    }
+
+    public static long scoreAddPhaseObjectiveNanos() {
+        return SCORE_PHASE_OBJECTIVE_NS;
+    }
+
+    public static long scoreAddPhaseMutationNanos() {
+        return SCORE_PHASE_MUTATION_NS;
+    }
+
+    public static long scoreAddPhaseFeedbackNanos() {
+        return SCORE_PHASE_FEEDBACK_NS;
+    }
+
+    public static long scoreAddPhaseSamples() {
+        return SCORE_PHASE_SAMPLES;
+    }
     // Server-thread-only, opt-in scheduler attribution diagnostic counters.
     // These are not CPU timers and include queue work from RCON commands.
     private static long ARCH_NONEMPTY_QUEUE_VISITS;
