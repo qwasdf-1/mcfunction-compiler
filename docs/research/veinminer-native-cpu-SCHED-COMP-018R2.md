@@ -1,6 +1,6 @@
 # SCHED-COMP-018R2 — bounded pre-mining RCON readiness and fresh Vein Miner CPU replication
 
-**Status:** Preregistered implementation; no R2 effect or success claim until all CI quality, state, placebo, and completion gates pass. The original SCHED-COMP-018 and R1 partial data are retained, never pooled.
+**Status:** **All 30 independent Minecraft arms completed and passed gameplay/host gates; archived-data analysis recovered after a bookkeeping-only CI failure.** R2 verdict: **no material real-workload CPU or event-duration gain**. CI itself reported failure because the analyst expected redundant arm identity fields that were omitted from saved records; no gameplay or performance observations are missing. Earlier 018 and R1 partial datasets remain separate.
 
 ## Failure diagnosis and rationale
 
@@ -41,3 +41,28 @@ Primary per-triplet effect is arithmetic `100×(CPU_cached/CPU_offA−1)`. Secon
 - `.github/workflows/research-veinminer-native-cpu-r2.yml`: new CI experiment, immutable raw artifact `build/benchmarks/SCHED-COMP-018R2/`.
 
 All production optimization defaults remain unchanged. The one-file production cache optimization is still isolated as draft [PR #15](https://github.com/qwasdf-1/mcfunction-compiler/pull/15).
+
+## Completed R2 data and archived-data recovery (November 14, 2026)
+
+**Authoritative original run:** [GitHub Actions #43641756371](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43641756371). **Raw immutable artifact:** [`sched-comp-018r2-veinminer-cpu-raw`, ID 14134496063](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43641756371/artifacts/14134496063). The pinned reference, production build, unit tests, and three-arm preflight all passed. Ten complete triplets containing **30 fresh independent Minecraft runs** completed the actual 215-block player-bot event; all three arms in every triplet had matching native final game state, matching pack digest, valid treatment activation, and passed their individual host-quality gates. All 30 startup attempts completed on the first boot, with **zero readiness retries**, no startup failure imbalance, and no post-event severe tick overload flags.
+
+**Important CI qualification:** The original workflow's timing job failed *after the 30th Minecraft run* on `KeyError: 'position'` during `analyze()`. The existing `run_arm` saved each arm under the correct name in the per-triplet `arms` dictionary, and separately persisted the preregistered `order` array, but accidentally omitted redundant `arm`, `triplet`, and `position` fields from the arm value. The repaired analyzer recovers this identity solely from the immutable dictionary key, triplet index, and frozen order, checking any explicitly present labels for agreement. It **does not impute, modify, drop, replace or rerun any observation**. A new regression test covers this exact archived-record shape and rejects contradictory explicit labels. The completed R2 data were independently reanalyzed directly from the preserved ZIP; the original CI run is still **red** because this is a post-archival reanalysis, not a claim that the historical workflow passed.
+
+### Archived-data reanalysis: original, unchanged ten triplets
+
+All outcomes below are signed **ordinary relative percentages**, comparing each run with the same-triplet compiler-off A control. Negative is lower CPU or faster event completion. The exact interval is the predeclared nonparametric 97.8516%-coverage median interval (2nd through 9th sorted among ten independently paired observations).
+
+| Preregistered comparison | Median effect | Exact 97.85% median interval |
+| --- | ---: | ---: |
+| **Cached ScoreAdd vs compiler disabled — primary full-event Server-thread running CPU** | **+0.7831%** | **[−9.1110%, +8.9656%]** |
+| Cached ScoreAdd vs compiler disabled — secondary event completion duration | +0.6941% | [−7.2468%, +7.0526%] |
+| Compiler-off B vs identical compiler-off A — CPU A/A placebo | −0.5425% | [−9.7232%, +8.1010%] |
+| Compiler-off B vs identical compiler-off A — event-duration A/A placebo | −0.2338% | [−8.8386%, +6.0850%] |
+
+The CPU and duration placebo intervals both contain zero; every triplet passes host-quality and exact-work gates, so the previously preregistered analysis is admissible **after recovering the omitted redundant labels**. Both treatment intervals also contain zero: there is **no supported real-workload CPU saving and no supported event-duration change**. Both lower bounds lie above −15%, ruling out the predeclared material 15% median improvement on this 215-block Vein Miner workload at this confidence level. The original analyzer's intended decision function yields **`verdict=no_material_gain`** and **`event_latency_verdict=no_material_gain`**. The observed positive medians are also insufficient to claim a regression, because both treatment intervals include zero.
+
+There are visible high-variance individual triplets (for example triplet 4 contains unusually high CPU in the off-A control); all ten were retained unmodified. This is consistent with baseline noise that is substantial relative to any real-workload benefit from caching. Critically, the **synthetic ~8.5% per-command CPU improvement from SCHED-COMP-016 is not equivalent to a whole-gameplay-event CPU improvement**, and this R2 experiment has now bounded the practical benefit for this specific publisher Vein Miner scenario.
+
+**Decision:** Preserve the small, production-safe static environment-override cache as an *optional/simple local optimization* candidate (draft PR #15), but **do not promote a material real-gameplay performance claim** or pursue further repetitions of the identical Vein Miner workload merely to seek significance. If future compiler work is justified, prioritize a fundamentally different, well-defined representative workload or an implementation-level profile with semantic controls. More global queue/scheduler bypass experiments are not justified by this result.
+
+The archived event data may be downloaded from the linked artifact. The standalone copy of the recovered analysis is also available as a downloadable JSON in the ChatGPT conversation that performed this recovery. This post-hoc analysis is limited to repairing the analyzer's data-schema bug and strictly follows the original frozen outcome definitions.
