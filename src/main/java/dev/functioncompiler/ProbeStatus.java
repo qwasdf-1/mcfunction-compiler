@@ -117,6 +117,7 @@ final class ProbeStatus {
                 + " score_add_attr_enabled=" + ProbeConfiguration.scoreAddAttributionEnabled()
                 + " score_attr_diag_enabled=" + ProbeConfiguration.scoreAddAttributionDiagnosticsEnabled()
                 + " score_attr_delegate_calls=" + ProbeMetrics.scoreAttrDelegateCalls()
+                + " score_attr_cached_calls=" + ProbeMetrics.scoreAttrCachedCalls()
                 + " score_attr_fastobj_hits=" + ProbeMetrics.scoreAttrFastObjectiveHits()
                 + " score_phase_samples=" + ProbeMetrics.scoreAddPhaseSamples()
                 + " score_phase_objective_ns=" + ProbeMetrics.scoreAddPhaseObjectiveNanos()
