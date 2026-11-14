@@ -339,6 +339,7 @@ def main()->int:
     OUT.mkdir(parents=True,exist_ok=True)
     orders=plan()
     report=SMOKE if args.phase=="smoke" else REPORT
+    budget={"used":0,"attempts":[]}
     record={
         "experiment":EXPERIMENT,"phase":args.phase,"status":"started",
         "preregistration":{
@@ -352,7 +353,16 @@ def main()->int:
             "host_quality":"no cgroup throttling and Server thread runqueue wait <=25% for all three arms",
             "no_posthoc_exclusions":True,
             "previous_incomplete_run":43633149821,
-            "revision":"R1 new campaign after 60s timeout failure; no data pooled",
+            "revision":"R2 new campaign after R1 pre-mining forceload RCON failure; no data pooled",
+            "previous_incomplete_runs":[43622114468,43633149821],
+            "premining_readiness_policy":{
+                "rcon_forceload_timeout_seconds":SETUP_RCON_TIMEOUT_SECONDS,
+                "maximum_restarts_per_arm":1,
+                "maximum_restarts_per_phase":MAX_RETRIES_PER_PHASE,
+                "verified_pre_packet_rcon_forceload_only":True,
+                "no_mining_outcome_retries":True,
+                "all_attempts_archived":True,
+            },
             "pre_event_idle_stability":{"minimum_sample_ticks":50,"max_average_ms":150,"max_p95_ms":600,"idle_seconds":9},
             "post_event_overload_reporting_only":{"average_ms":500,"p95_ms":2000},
             "fixed_event_observation_timeout_seconds":150,
@@ -366,9 +376,9 @@ def main()->int:
         record["verified_archive_sha256"]=verify_pack()
         if args.phase=="smoke":
             record["smoke"]={
-                "off_a":run_arm("off_a",0,0),
-                "off_b":run_arm("off_b",0,1),
-                "cached":run_arm("cached",0,2),
+                "off_a":run_arm("off_a",0,0,args.phase,budget),
+                "off_b":run_arm("off_b",0,1,args.phase,budget),
+                "cached":run_arm("cached",0,2,args.phase,budget),
             }
             if len({json.dumps(item["native_state"],sort_keys=True)
                     for item in record["smoke"].values()})!=1:
@@ -391,7 +401,7 @@ def main()->int:
                     triplet["current_arm"]=arm
                     triplet["current_position"]=position
                     report.write_text(json.dumps(record,indent=2)+"\n")
-                    triplet["arms"][arm]=run_arm(arm,i,position)
+                    triplet["arms"][arm]=run_arm(arm,i,position,args.phase,budget)
                     triplet.pop("current_arm")
                     triplet.pop("current_position")
                     report.write_text(json.dumps(record,indent=2)+"\n")
@@ -400,6 +410,12 @@ def main()->int:
                         for a in MODES})!=1:
                     raise AssertionError(f"Ore state diverged triplet {i}")
             record["analysis"]=analyze(record["triplets"],orders)
+            record["analysis"]["premining_retries_used"]=budget["used"]
+            record["analysis"]["startup_attempt_count"]=len(budget["attempts"])
+            record["analysis"]["failed_startup_attempts_by_arm"]={
+                arm:sum(1 for item in budget["attempts"]
+                        if item["arm"]==arm and item.get("exit_code",0)!=0)
+                for arm in MODES}
             record["status"]="complete"
         print("SCHED-COMP-018R2 COMPLETE "+json.dumps({
             "phase":args.phase,"status":record["status"],
@@ -413,6 +429,8 @@ def main()->int:
         record["failure"]=repr(e)
         raise
     finally:
+        record["startup_attempts_total"]=len(budget["attempts"])
+        record["premining_retries_used"]=budget["used"]
         report.write_text(json.dumps(record,indent=2)+"\n")
     return 0
 
