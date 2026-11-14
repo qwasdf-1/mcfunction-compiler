@@ -138,6 +138,12 @@ def run_arm(arm:str,triplet:int,position:int)->dict:
         raise AssertionError("Event did not respect R1 fixed 150-second completion window")
     if not isinstance(result.get("event_progress_checkpoints"),list):
         raise AssertionError("Expected ore progress trace missing")
+    # Last failed control had 215/215 ore but vmr.run=1 and 1856 queue
+    # steps. The fully drained original reference has exactly 1952 steps.
+    if result.get("queue_head_delta")!=1952 or result.get("run_state_after")!=0:
+        raise AssertionError(
+            f"Unfinished native queue/return state: head={result.get('queue_head_delta')} "
+            f"run={result.get('run_state_after')}")
     return {
         "tick_pre_event_stability":baseline,
         "tick_post_event_diagnostic":post_event,
