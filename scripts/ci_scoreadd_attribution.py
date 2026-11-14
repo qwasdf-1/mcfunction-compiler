@@ -181,6 +181,9 @@ def semantic_guard(rcon: Rcon) -> dict:
     # Research fast lookup always fetches the current Objective. It must
     # observe missing and recreated objectives, rather than retain a stale
     # scoreboard object compiled at datapack load.
+    status_before=rcon.command("functioncompiler status")
+    baseline={k:parse_stat(status_before,k)
+              for k in ("score_attr_delegate_calls","score_attr_fastobj_hits")}
     results={}
     rcon.command(f"scoreboard objectives remove {OBJECTIVE}")
     for arm in ("typed","fastobj"):
@@ -202,6 +205,13 @@ def semantic_guard(rcon: Rcon) -> dict:
         results[arm+"_readonly_reply"]=invoke(rcon,arm,4)
     rcon.command(f"scoreboard objectives remove {OBJECTIVE}")
     rcon.command(f"scoreboard objectives add {OBJECTIVE} dummy")
+    status_after=rcon.command("functioncompiler status")
+    results["variant_activation_deltas"]={
+        k:parse_stat(status_after,k)-baseline[k]
+        for k in baseline}
+    if any(v<=0 for v in results["variant_activation_deltas"].values()):
+        raise AssertionError(
+            f"An intervention never actually executed: {results['variant_activation_deltas']}")
     return results
 
 
@@ -229,6 +239,7 @@ def run_boot(index: int, artifacts: dict, *,
         "FC_FUSED_REGION_PROTOTYPE": "false",
         "FC_SCORE_ADD_ATTRIBUTION": "true",
         "FC_SCORE_ADD_PHASE_TIMERS": str(diagnostic).lower(),
+        "FC_SCORE_ADD_ATTR_DIAGNOSTICS": str(diagnostic).lower(),
         "FC_DIRECT_SCHEDULER_PROTOTYPE": "false",
         "FC_BYTECODE_REGION_PROTOTYPE": "false",
         "FC_SELECTIVE_MACRO_ARGUMENTS": "false",
@@ -269,6 +280,12 @@ def run_boot(index: int, artifacts: dict, *,
                 raise AssertionError(f"Unexpected compiler configuration: {status}")
             if "arch_counters_enabled=false" not in status:
                 raise AssertionError(f"Scheduler counters must be disabled: {status}")
+            if f"score_attr_diag_enabled={str(diagnostic).lower()}" not in status:
+                raise AssertionError(f"Wrong activation instrumentation: {status}")
+            if not diagnostic and any(
+                    parse_stat(status,k)!=0 for k in
+                    ("score_attr_delegate_calls","score_attr_fastobj_hits","score_phase_samples")):
+                raise AssertionError("Research instrumentation leaked into timed JVM")
             record["activation"] = compilation_gate(rcon)
             for cmd in (
                 f"scoreboard objectives add {OBJECTIVE} dummy",
