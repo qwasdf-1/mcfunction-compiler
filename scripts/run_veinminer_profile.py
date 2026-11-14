@@ -260,6 +260,14 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--startup-readiness-record", type=Path, default=None,
+        help="Research-only file recording pre-mining stage for eligibility audit.",
+    )
+    parser.add_argument(
+        "--setup-rcon-timeout-seconds",type=float,default=10.0,
+        help="Research-only timeout for the chunk forceload setup request.",
+    )
+    parser.add_argument(
         "--tick-stability-diagnostics", action="store_true",
         help="Research-only idle baseline gate and non-exclusionary event tick diagnostics.",
     )
@@ -270,6 +278,10 @@ def parse_args() -> object:
     args = parser.parse_args()
     if args.tick_stability_diagnostics and args.pre_event_idle_seconds < 8.0:
         parser.error("Research idle baseline requires at least 8 seconds")
+    if not 10.0 <= args.setup_rcon_timeout_seconds <= 60.0:
+        parser.error("Setup RCON timeout must be between 10 and 60 seconds")
+    if args.setup_rcon_timeout_seconds != 10.0 and args.startup_readiness_record is None:
+        parser.error("Long setup RCON timeout requires a startup readiness record")
     if args.stack == "vanilla" and args.compiler_mode != "off":
         parser.error("a compiler mode requires a Fabric stack")
     if args.stack == "vanilla" and args.count_command_callbacks:
@@ -287,6 +299,33 @@ def parse_args() -> object:
 
 def main() -> int:
     args = parse_args()
+    startup_history: list[dict[str, object]] = []
+    mining_started = False
+
+    def mark_startup(stage: str) -> None:
+        # The parent runner may retry only one very specific, recorded
+        # pre-intervention failure. An absent/corrupted stage must never be
+        # treated as proof that the player action has not started.
+        if args.startup_readiness_record is None:
+            return
+        startup_history.append({
+            "stage":stage,
+            "mining_started":mining_started,
+            "monotonic_ns":time.monotonic_ns(),
+        })
+        target=args.startup_readiness_record
+        target.parent.mkdir(parents=True,exist_ok=True)
+        payload={
+            "protocol":"SCHED-COMP-018R2",
+            "stage":stage,"mining_started":mining_started,
+            "stage_history":startup_history,
+            "setup_rcon_timeout_seconds":args.setup_rcon_timeout_seconds,
+        }
+        temporary=target.with_suffix(target.suffix+".tmp")
+        temporary.write_text(json.dumps(payload,indent=2)+"\n",encoding="utf-8")
+        temporary.replace(target)
+
+    mark_startup("runner_created")
     geometry = world_geometry(args.side)
     minimum = geometry["min"]
     maximum = geometry["max"]
@@ -494,6 +533,7 @@ def main() -> int:
             stderr=subprocess.STDOUT,
         )
         rcon = wait_for_rcon(server, rcon_port, password)
+        mark_startup("rcon_ready")
         datapacks_enabled = rcon.command("datapack list enabled")
         if PACK_NAME not in datapacks_enabled.casefold():
             raise RuntimeError(f"Vein Miner did not load: {datapacks_enabled!r}")
@@ -542,7 +582,18 @@ def main() -> int:
         x1, y1, z1 = maximum
         sx, sy, sz = source
         px, py, pz, yaw, pitch = player
-        rcon.command(f"forceload add {x0 - 8} {z0 - 8} {x1 + 8} {z1 + 8}")
+        # The R1 failure was a 10-second RCON receive timeout while the
+        # *first* chunk-forceload command was still blocking the server tick.
+        # The longer limit is only for this pre-mining setup command; revert
+        # to the previous socket timeout immediately after it, in all cases.
+        old_socket_timeout=rcon.socket.gettimeout()
+        mark_startup("forceload_pending")
+        try:
+            rcon.socket.settimeout(args.setup_rcon_timeout_seconds)
+            rcon.command(f"forceload add {x0 - 8} {z0 - 8} {x1 + 8} {z1 + 8}")
+            mark_startup("forceload_completed")
+        finally:
+            rcon.socket.settimeout(old_socket_timeout)
         rcon.command(f"fill {x0 - 8} 63 {z0 - 8} {x1 + 8} 63 {z1 + 8} minecraft:stone")
         rcon.command(f"fill {x0} {y0} {z0} {x1} {y1} {z1} minecraft:coal_ore")
 
@@ -630,6 +681,10 @@ def main() -> int:
             event_thread = (pid, tid)
             event_cpu_before = read_thread_schedstat(pid, tid)
             event_throttle_before = cgroup_throttle_count()
+        # Set the irreversible intervention boundary before attempting the
+        # first mining packet. Any failure from here is never retryable.
+        mining_started = True
+        mark_startup("mining_packet_started")
         event_started = time.monotonic()
         bot.send_player_action("start_destroy_block", sx, sy, sz, direction=1, sequence=0)
         time.sleep(args.mining_hold_seconds)
