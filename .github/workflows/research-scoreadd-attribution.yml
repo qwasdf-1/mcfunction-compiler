@@ -59,7 +59,7 @@ jobs:
       - name: Separate hot-path phase diagnostics and intervention activation
         timeout-minutes: 14
         run: python3 scripts/ci_scoreadd_attribution.py --phase diagnostic
-      - name: Run 12-JVM native/delegate/typed/objective crossover
+      - name: Run 10-JVM native/wrapper/typed/cached/objective crossover
         timeout-minutes: 65
         run: python3 scripts/ci_scoreadd_attribution.py --phase timing
       - name: Archive all phase records, paired CPU windows and server logs
