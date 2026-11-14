@@ -39,6 +39,22 @@ public final class ProbeConfiguration {
         return readBoolean("FC_SCORE_ADD_TIMING", false);
     }
 
+    // Entirely disabled in ordinary runs. These hard-coded research
+    // namespaces must not become general compiler heuristics.
+    private static final boolean SCORE_ADD_ATTRIBUTION_ENABLED =
+            readBoolean("FC_SCORE_ADD_ATTRIBUTION", false);
+    private static final boolean SCORE_ADD_PHASE_TIMERS_ENABLED =
+            readBoolean("FC_SCORE_ADD_PHASE_TIMERS", false);
+
+    public static boolean scoreAddAttributionEnabled() {
+        return SCORE_ADD_ATTRIBUTION_ENABLED;
+    }
+
+    public static boolean scoreAddPhaseTimersForFunction(net.minecraft.resources.Identifier id) {
+        return SCORE_ADD_PHASE_TIMERS_ENABLED && id != null
+                && "fc_attr_typed".equals(id.getNamespace());
+    }
+
     public static boolean fusedRegionPrototypeEnabled() {
         return readBoolean("FC_FUSED_REGION_PROTOTYPE", CompilerConfig.isFusedRegions());
     }
