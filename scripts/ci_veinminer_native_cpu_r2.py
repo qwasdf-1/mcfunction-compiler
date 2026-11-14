@@ -78,33 +78,89 @@ def percent(treatment:float,control:float)->float:
     return 100*(treatment/control-1)
 
 
-def run_arm(arm:str,triplet:int,position:int)->dict:
-    if arm not in MODES:
-        raise ValueError(arm)
+def record_startup_attempt(phase:str,budget:dict,entry:dict)->None:
+    budget["attempts"].append(entry)
+    # Durable, phase-specific ledger after every fresh boot, including failed
+    # attempts, rather than only after an arm produces performance data.
+    (OUT/f"startup-attempts-{phase}.json").write_text(json.dumps({
+        "phase":phase,"experiment":EXPERIMENT,
+        "maximum_premining_retries_per_phase":MAX_RETRIES_PER_PHASE,
+        "retries_used":budget["used"],"attempts":budget["attempts"],
+    },indent=2)+"\n",encoding="utf-8")
+
+
+def run_arm(arm:str,triplet:int,position:int,phase:str,budget:dict)->dict:
+    if arm not in MODES:raise ValueError(arm)
     enabled=arm=="cached"
-    cmd=[
+    base_cmd=[
         sys.executable,str(ROOT/"scripts/run_veinminer_profile.py"),
         "--stack","fabric",
         "--compiler-mode","score-add" if enabled else "off",
         "--side",str(SIDE),"--capture-timeout","150",
         "--no-spark","--capture-server-thread-cpu",
         "--tick-stability-diagnostics","--pre-event-idle-seconds","9",
+        "--setup-rcon-timeout-seconds",str(SETUP_RCON_TIMEOUT_SECONDS),
     ]
     env=dict(os.environ)
     env.pop("GRADLE_RO_DEP_CACHE",None)
     env["GRADLE_USER_HOME"]=str(OUT/"gradle-user-home")
     env.pop("FC_SCORE_ADD_LEGACY_NAMESPACE",None)
-    # Both baselines use exactly the same command and environment. The
-    # only intervention is the production runner's score-add mode switch.
-    complete=subprocess.run(cmd,cwd=ROOT,env=env,text=True,
-                            stdout=subprocess.PIPE,stderr=subprocess.PIPE,
-                            timeout=750,check=False)
-    if complete.returncode!=0:
-        raise RuntimeError(
-            f"Triplet={triplet} position={position} arm={arm} "
-            f"native event runner exit={complete.returncode};"
-            f"stdout={complete.stdout[-2600:]!r};"
-            f"stderr={complete.stderr[-2600:]!r}")
+    attempts_before=len(budget["attempts"])
+    for attempt in (1,2):
+        label=f"{phase}-triplet-{triplet:02d}-pos{position}-{arm}-attempt{attempt}"
+        stage_file=OUT/"startup_attempts"/f"{label}.stage.json"
+        stage_file.parent.mkdir(parents=True,exist_ok=True)
+        cmd=base_cmd+["--startup-readiness-record",str(stage_file)]
+        try:
+            complete=subprocess.run(
+                cmd,cwd=ROOT,env=env,text=True,stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,timeout=750,check=False)
+        except subprocess.TimeoutExpired as error:
+            record_startup_attempt(phase,budget,{
+                "label":label,"arm":arm,"triplet":triplet,
+                "position":position,"attempt":attempt,
+                "stage":inspect_stage_file(stage_file),"exit":"whole-process timeout",
+                "retry_granted":False,"classification":"fatal_possible_mining_activity",
+            })
+            raise RuntimeError(f"Process timed out, not eligible for restart: {label}") from error
+        stage=inspect_stage_file(stage_file)
+        if complete.returncode!=0:
+            retry=allowed_retry(
+                attempt,budget["used"],complete.returncode,
+                complete.stderr,stage
+            )
+            if retry:budget["used"]+=1
+            record_startup_attempt(phase,budget,{
+                "label":label,"arm":arm,"triplet":triplet,
+                "position":position,"attempt":attempt,
+                "exit_code":complete.returncode,"stage":stage,
+                "retry_granted":retry,
+                "classification":("verified_pre_mining_forceload_rcon_timeout"
+                                  if retry else "fatal_not_eligible_for_restart"),
+                "stderr_tail":complete.stderr[-3000:],
+                "stdout_tail":complete.stdout[-800:],
+            })
+            if retry:
+                print(f"R2_PREMINING_RESTART {label} "
+                      f"global_retries_used={budget['used']}",flush=True)
+                continue
+            raise RuntimeError(
+                f"R2 stopped: {label}, stage={stage.get('stage')!r}, "
+                f"exit_code={complete.returncode}, stderr={complete.stderr[-2300:]!r}")
+        record_startup_attempt(phase,budget,{
+            "label":label,"arm":arm,"triplet":triplet,"position":position,
+            "attempt":attempt,"exit_code":0,"stage":stage,
+            "retry_granted":False,"classification":"complete",
+        })
+        if not (stage.get("protocol")==EXPERIMENT and
+                stage.get("stage")=="mining_packet_started" and
+                stage.get("mining_started") is True):
+            raise AssertionError(
+                f"Missing verified post-intervention marker after successful event: {label} {stage}")
+        break
+    else:
+        raise AssertionError(f"Exhausted premining boot attempts: {arm}")
+
     payload=json.loads(complete.stdout)
     result=payload["results"]
     mode="score-add" if enabled else "off"
@@ -163,6 +219,8 @@ def run_arm(arm:str,triplet:int,position:int)->dict:
         "queue_score_add_compiled":score_compiled,
         "valid_native_workload":True,"valid_activation":True,
         "tick_query_after_capture":result.get("tick_query_after_capture"),
+        "startup_attempts_for_arm":len(budget["attempts"])-attempts_before,
+        "premining_boot_restarted":len(budget["attempts"])-attempts_before>1,
     }
 
 
