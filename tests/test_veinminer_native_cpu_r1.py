@@ -145,7 +145,8 @@ class CPUEventContracts(unittest.TestCase):
         self.assertAlmostEqual(tick["average_ms"],296.9)
         self.assertAlmostEqual(tick["p95_ms"],805.2)
         self.assertFalse(proc.event_tick_diagnostic(tick)["severe_overload_observed"])
-        failed=good.replace("296.9ms","631.7ms").replace("805.2ms","3073.4ms")
+        failed=(good.replace("296.9ms","631.7ms").replace("805.2ms","3073.4ms")
+                .replace("1264.5ms","4627.4ms"))
         self.assertTrue(proc.event_tick_diagnostic(
             proc.parse_tick_query(failed))["severe_overload_observed"])
         with self.assertRaises(ValueError):
