@@ -5,7 +5,7 @@ Three independent, non-comparable JVMs for:
   1. optimizer-off reference, no counters, true Server-thread CPU;
   2. cached ScoreAdd reference, no counters, true Server-thread CPU;
   3. typed ScoreAdd with BOTH execution and ordinary-callback counters;
-All four use exactly the same playerbot/native 215-block Vein Miner event.
+All three use exactly the same playerbot/native 215-block Vein Miner event.
 Counts are NEVER converted into CPU fractions; an independent
 sampling profiler can follow only if these counts justify one. No significance inference
 from one unpaired CPU reference per arm, and no performance promotion.
@@ -55,7 +55,8 @@ def run_native(arm:str,mode:str,count:bool,spark:bool)->dict:
         "--capture-server-thread-cpu",
     ]
     if not spark:command.append("--no-spark")
-    if count:command.append("--count-command-callbacks")
+    if count:
+        command.extend(("--count-command-callbacks","--scoreadd-path-coverage-diagnostic"))
     environment=dict(os.environ)
     environment.pop("GRADLE_RO_DEP_CACHE",None)
     environment["GRADLE_USER_HOME"]=str(OUT/"gradle-user-home")
@@ -94,9 +95,8 @@ def run_native(arm:str,mode:str,count:bool,spark:bool)->dict:
             not data.get("server_thread_stack_node_count")):
             raise AssertionError("Missing Spark Server-thread sampled coverage")
     if count:
-        if (not data.get("valid_instrumented_invocation_diagnostic")
-            or not data.get("valid_command_callback_metric_diagnostic")):
-            raise AssertionError("Counter diagnostic did not validate callback attribution")
+        if not data.get("valid_scoreadd_path_coverage_diagnostic"):
+            raise AssertionError("Independently scoped ScoreAdd/callback entry diagnostic invalid")
     return {
         "arm":arm,"mode":mode,"counter_instrumentation":count,
         "spark_instrumentation":spark,"source_output":payload.get("output"),
@@ -106,6 +106,9 @@ def run_native(arm:str,mode:str,count:bool,spark:bool)->dict:
         "queue_score_add_compiled":compiled,
         "queue_score_add_executed_delta":data.get("queue_score_add_executed_delta"),
         "ray_score_add_executed_delta":data.get("ray_score_add_executed_delta"),
+        "global_score_add_executed_delta":data.get("score_add_executed_delta"),
+        "valid_scoreadd_path_coverage_diagnostic":
+            data.get("valid_scoreadd_path_coverage_diagnostic"),
         "callback_metrics":data.get("command_callback_metrics"),
         "event_cpu":cpu,
         "event_seconds":data.get("operation_completion_seconds"),
@@ -128,13 +131,26 @@ def interpret(records:dict)->dict:
     generic=callbacks["generic_leaf_callbacks"]
     tracked=callbacks["score_add_executed_counter_delta"]
     all_leaf=callbacks["total_ordinary_leaf_callbacks"]
+    entries=callbacks["typed_score_add_callback_entries"]
+    scoped=callbacks["typed_score_add_callback_entries_in_scope"]
     drain=instrumented["queue_score_add_executed_delta"]
-    if (not all(isinstance(n,int) for n in (optimized,generic,tracked,all_leaf,drain))
-        or optimized<=0 or generic<0 or optimized!=tracked
-        or optimized+generic!=all_leaf
-        or not callbacks["specialized_counter_matches"]
-        or drain!=QUEUE_STEPS_EXPECTED):
-        raise AssertionError(f"Actual ScoreAdd execution counts inconsistent: {callbacks}, queue={drain}")
+    ray=instrumented["ray_score_add_executed_delta"]
+    compiled=instrumented["queue_score_add_compiled"]
+    # The queue's four *actual compiled commands* each execute on all 1,952
+    # queue steps. Neither that count nor a nested Brigadier leaf-wrapper
+    # count is identical to the single queue-head advancement count.
+    expected_queue=QUEUE_STEPS_EXPECTED*compiled
+    if (not all(type(n) is int for n in (
+            optimized,generic,tracked,all_leaf,entries,scoped,drain,ray,compiled
+        )) or compiled!=4 or drain!=expected_queue or ray<=0
+        or tracked<drain+ray or tracked!=instrumented["global_score_add_executed_delta"]
+        or all_leaf!=optimized+generic or generic<0
+        or not (0<optimized<=scoped<=entries and 0<tracked<=entries)
+        or instrumented["valid_scoreadd_path_coverage_diagnostic"] is not True):
+        raise AssertionError(
+            f"Incompatible real ScoreAdd execution path accounting: "
+            f"callbacks={callbacks}, queue={drain}, ray={ray}, compiled={compiled}"
+        )
     cpu_off=records["off_cpu"]["event_cpu"]["server_thread_cpu_running_ns"]
     cpu_cached=records["cached_cpu"]["event_cpu"]["server_thread_cpu_running_ns"]
     if cpu_off<=0 or cpu_cached<=0:
@@ -142,15 +158,37 @@ def interpret(records:dict)->dict:
     return {
         "diagnostic_valid":True,
         "event_state_consistent":True,
-        "event_scoreadd_execution_count":tracked,
+        "diagnostic_only":True,
+        "actual_successful_typed_scoreadd_executions":tracked,
+        "actual_typed_scoreadd_callback_entries":entries,
+        "actual_typed_scoreadd_entries_in_queue_callback_scope":scoped,
+        "actual_typed_scoreadd_entries_outside_scope":entries-scoped,
+        "successful_typed_callbacks_minus_entries":tracked-entries,
+        "directly_wrapped_optimized_leaf_callbacks":optimized,
+        "scoped_typed_entries_not_seen_as_direct_optimized_leaf":scoped-optimized,
         "queue_drain_scoreadd_executions":drain,
+        "queue_scoreadd_compiled_commands":compiled,
+        "queue_head_advances":QUEUE_STEPS_EXPECTED,
+        "queue_expected_executions":expected_queue,
+        "ray_scoreadd_executions":ray,
+        "other_function_scoreadd_executions":tracked-drain-ray,
         "ordinary_generic_leaf_callbacks":generic,
         "ordinary_total_leaf_callbacks":all_leaf,
         "scoreadd_fraction_of_observed_ordinary_leaf_callbacks":optimized/all_leaf,
+        "direct_leaf_coverage_of_scoped_typed_callback_entries":optimized/scoped,
+        "counter_domains":{
+            "score_add_executed":"successful typed ScoreAddCommand mutation callbacks in all compiled functions; metrics-enabled, independent of scope",
+            "score_add_callback_entries":"all calls entering typed ScoreAddCommand.run, including modifier-delegated and unscoped; diagnostic-only",
+            "score_add_callback_entries_in_scope":"typed ScoreAddCommand.run entries while ExecutionContext runCommandQueue callback scope is active, diagnostic-only",
+            "optimized_score_add_leaf_callbacks":"instrumented CallbackMetricCommand wrappers directly around ScoreAddCommand in eligible plain-text function Brigadier executable contexts; queue scope only; counts before delegating",
+            "generic_leaf_callbacks":"instrumented Brigadier leaf wrappers around other command objects, which may indirectly call typed ScoreAdd; not a disjoint category of all underlying command work",
+            "queue_score_add_executed":"typed successful callbacks attributable to vm:queue/drain; four compiled ScoreAdd callbacks per queue head step",
+        },
         "limitations_of_fraction":(
-            "Frequency share of instrumented ordinary Brigadier leaf callbacks,"
-            " NOT a CPU-time fraction. Other command execution, world updates,"
-            " and server tick work are not represented by this denominator."
+            "Only the fraction of instrumented ordinary Brigadier leaf-wrapper"
+            " callbacks, NOT the fraction of total underlying typed calls or CPU."
+            " Modifier-delegated typed callbacks may be under a generic wrapper,"
+            " and unwrapped/custom contexts are outside this denominator."
         ),
         "uninstrumented_cpu_reference_ns":{
             "off":cpu_off,"cached":cpu_cached,
