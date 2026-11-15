@@ -2,12 +2,6 @@ name: SCHED-COMP-020 real Vein Miner ScoreAdd execution coverage
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - scripts/ci_scoreadd_workload_share.py
-      - tests/test_scoreadd_workload_share.py
-      - docs/research/scoreadd-command-share-SCHED-COMP-020.md
-      - .github/workflows/research-scoreadd-workload-share.yml
 
 permissions:
   contents: read
