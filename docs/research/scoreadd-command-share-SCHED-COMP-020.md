@@ -15,7 +15,7 @@ Use the exact pinned publisher Vein Miner 5.3.0+26.3 ZIP (SHA-256 `fa5fbfc08b54a
 
 1. **Off CPU reference:** `--compiler-mode off --no-spark --capture-server-thread-cpu`. Requires all 215 ore operations, complete queue drain, valid Server-thread clock, and no ScoreAdd compilation. Used only as an absolute event CPU denominator.
 2. **Cached CPU reference:** `--compiler-mode score-add --no-spark --capture-server-thread-cpu`. Exact same event with cached immutable-env override and genuine ScoreAdd specialization. No per-callback or Spark instrumentation. Used only to obtain an independent absolute event CPU scale; **do not calculate a significant off-vs-cached effect from these two unpaired single boots**.
-3. **Counted compiled diagnostic:** `--compiler-mode score-add-instrumented --count-command-callbacks --no-spark`. Counts actual per-function ScoreAdd executions and ordinary function-queue leaf callbacks during the real event. Must verify **four compiled ScoreAdd commands in `vm:queue/drain`, hence `4 × 1952 = 7808` successful queue callbacks**, not 1952. A global successful typed-ScoreAdd counter, the separate entry count in `ScoreAddCommand.run`, its in-scope subset, and the instrumented plain-text leaf-wrapper count are separately checked using actual code-path inclusion relationships. These counters are **not required to be equal**. This mode adds instrumentation and wrappers, so **none of its timings are comparable** with the uninstrumented CPU arms.
+3. **Counted compiled diagnostic:** `--compiler-mode score-add-instrumented --count-command-callbacks --no-spark`. Counts actual per-function ScoreAdd executions and ordinary function-queue leaf callbacks during the real event. Must verify **four commands in `vm:queue/drain` counted by the shared ScoreAdd-family compilation metric, hence `4 × 1952 = 7808` successful queue callbacks**, not 1952. A global successful typed-ScoreAdd counter, the separate entry count in `ScoreAddCommand.run`, its in-scope subset, and the instrumented plain-text leaf-wrapper count are separately checked using actual code-path inclusion relationships. These counters are **not required to be equal**. This mode adds instrumentation and wrappers, so **none of its timings are comparable** with the uninstrumented CPU arms.
 
 No JFR, Spark or CPU attribution inference is made in this first diagnostic. All three worlds are fresh and all source/gameplay conditions are identical; no observed result is filtered after the mining packet begins. Any incomplete queue, tick instability before the event, unreadable Server thread, mismatched publisher digest, invalid command counter, or mismatched ore/marker state invalidates the diagnostic. Preserve every stdout/stderr and native event result; never pool previous experiments into this study.
 
@@ -50,10 +50,10 @@ Archived observations and exact source-code attribution:
 
 | Counter/source | Archived actual | What it measures |
 | --- | ---: | --- |
-| `vm:queue/drain` compiled ScoreAdd instructions | 4 | Four separately compiled source commands |
-| `vm:queue/drain` executed ScoreAdds | **7,808** | Four successfully executed commands on each of 1,952 queue-head steps |
-| `vm:detection/ray_step` executed ScoreAdds | 1,638 | A separate typed function's successfully executed commands |
-| Global typed `score_add_executed` event delta | **26,415** | Successful ScoreAddCommand typed mutations **across all functions**, recorded after response/feedback, regardless of leaf callback wrapper or execution scope |
+| `vm:queue/drain` compiled shared-family instructions | 4 | Four specialized source commands recorded under a shared family metric, not necessarily four direct ADD commands |
+| `vm:queue/drain` shared-family increments | **7,808** | Four metric-bearing executions on each of 1,952 queue-head steps; not exclusively direct ScoreAddCommand |
+| `vm:detection/ray_step` shared-family increments | 1,638 | A separate function's mixed-family counter increments, not exclusively direct ScoreAddCommand |
+| Global `score_add_executed` event delta | **26,415** | **Mixed aggregate** of several specialized command types and composites; cannot be used as the number of successful direct ScoreAddCommand calls |
 | Optimized Brigadier leaf-wrapper callbacks | **10,769** | Only eligible `CallbackMetricCommand` instances directly wrapping a typed ScoreAddCommand, counted before delegation and only while the callback-metrics scope is active |
 | Generic Brigadier leaf-wrapper callbacks | 40,785 | Other instrumented ordinary Brigadier leaf wrappers; a generic wrapper **can itself delegate into typed commands** |
 | Total instrumented leaf-wrapper callbacks | 51,554 | The sum of the two **wrapper domains**, not all Minecraft CPU work |
