@@ -86,7 +86,7 @@ def run_native(arm:str,mode:str,count:bool,spark:bool)->dict:
     compiled=data.get("queue_score_add_compiled")
     if mode=="off" and compiled not in (None,0):
         raise AssertionError(f"Off arm specialized commands: {compiled}")
-    if mode!="off" and not isinstance(compiled,int) or mode!="off" and compiled<=0:
+    if mode!="off" and (not isinstance(compiled,int) or compiled<=0):
         raise AssertionError(f"{arm} has no compiled ScoreAdd candidates")
     if spark:
         if (not data.get("spark_capture_enabled") or
