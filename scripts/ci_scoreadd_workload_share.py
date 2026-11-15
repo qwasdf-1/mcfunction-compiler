@@ -82,6 +82,8 @@ def run_native(arm:str,mode:str,count:bool,spark:bool)->dict:
     cpu=data.get("server_thread_event_cpu")
     if not isinstance(cpu,dict) or not cpu.get("cpu_measurement_valid"):
         raise AssertionError(f"{arm} has no Server-thread CPU identity")
+    if not cpu.get("host_quality_pass"):
+        raise AssertionError(f"{arm} has unstable host CPU/runqueue quality")
     compiled=data.get("queue_score_add_compiled")
     if mode=="off" and compiled not in (None,0):
         raise AssertionError(f"Off arm specialized commands: {compiled}")
