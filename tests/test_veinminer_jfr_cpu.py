@@ -38,7 +38,11 @@ class JfrCpuAttributionTests(unittest.TestCase):
         self.assertEqual(_category([SCORE_ADD, MODIFIER, SCHEDULER]), "typed-scoreadd")
         self.assertEqual(_category([MODIFIER, SCHEDULER]), "other-specialized")
         self.assertEqual(_category([SCHEDULER, QUEUE]), "function-queue-or-nested")
-        self.assertEqual(_category([WORLD]), "other-minecraft")
+        self.assertEqual(_category([WORLD]), "world-updates")
+        self.assertEqual(
+            _category([("dev.functioncompiler.UnknownWrapper", "run"), SCHEDULER]),
+            "other-compiler"
+        )
 
     def test_every_valid_sample_is_classified_exactly_once(self):
         events = ([sample(SCORE_ADD, MODIFIER, SCHEDULER)] * 80
