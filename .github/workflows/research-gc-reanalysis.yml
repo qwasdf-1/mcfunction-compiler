@@ -1,12 +1,6 @@
 name: SCHED-GC-006 offline reconstruction contracts
 
 on:
-  pull_request:
-    paths:
-      - scripts/gc_cycle_reconstruction.py
-      - scripts/analyze_gc006_archive.py
-      - tests/test_gc_cycle_reconstruction.py
-      - .github/workflows/research-gc-reanalysis.yml
   workflow_dispatch:
 
 permissions:

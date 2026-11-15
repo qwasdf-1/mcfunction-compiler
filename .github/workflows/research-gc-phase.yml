@@ -2,13 +2,6 @@ name: SCHED-GC-006 GC phase attribution A/A
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - scripts/gc_phase_telemetry.py
-      - scripts/ci_gc_phase_attribution.py
-      - scripts/ci_compiler_off_stability.py
-      - tests/test_gc_phase_telemetry.py
-      - .github/workflows/research-gc-phase.yml
 
 permissions:
   contents: read

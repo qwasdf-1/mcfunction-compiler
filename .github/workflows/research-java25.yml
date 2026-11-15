@@ -1,7 +1,6 @@
 name: Research toolchain (Java 25)
 
 on:
-  pull_request:
   workflow_dispatch:
 
 permissions:

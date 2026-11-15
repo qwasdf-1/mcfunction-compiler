@@ -2,12 +2,6 @@ name: SCHED-BENCH-007 benchmark sensitivity controls
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - scripts/ci_benchmark_sensitivity.py
-      - tests/test_benchmark_sensitivity.py
-      - docs/research/benchmark-sensitivity-SCHED-BENCH-007.md
-      - .github/workflows/research-benchmark-sensitivity.yml
 
 permissions:
   contents: read

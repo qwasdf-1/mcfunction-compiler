@@ -2,16 +2,6 @@ name: SCHED-COMP-012 Blastback and Simple Timer fusion coverage
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - src/main/java/dev/functioncompiler/ProbeMetrics.java
-      - src/main/java/dev/functioncompiler/FusedRegionPrototype.java
-      - src/main/java/dev/functioncompiler/FunctionCompilerMod.java
-      - scripts/ci_real_fusion_coverage.py
-      - scripts/ci_fetch_real_fusion_packs.py
-      - tests/test_real_fusion_coverage.py
-      - docs/research/real-fusion-coverage-SCHED-COMP-012.md
-      - .github/workflows/research-real-fusion-coverage.yml
 
 permissions:
   contents: read

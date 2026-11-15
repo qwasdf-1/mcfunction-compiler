@@ -2,16 +2,6 @@ name: SCHED-ARCH-013 vanilla queue versus typed versus fused
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - src/main/java/dev/functioncompiler/ProbeConfiguration.java
-      - src/main/java/dev/functioncompiler/ProbeMetrics.java
-      - src/main/java/dev/functioncompiler/ProbeStatus.java
-      - src/main/java/dev/functioncompiler/mixin/ExecutionContextMixin.java
-      - scripts/ci_scheduler_arch_attribution.py
-      - tests/test_scheduler_arch_attribution.py
-      - docs/research/scheduler-architecture-SCHED-ARCH-013.md
-      - .github/workflows/research-scheduler-architecture.yml
 
 permissions:
   contents: read

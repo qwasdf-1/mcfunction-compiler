@@ -1,11 +1,6 @@
 name: SCHED-HOOK-003 paired disabled compiler cost
 
 on:
-  pull_request:
-    paths:
-      - scripts/ci_compiler_off_paired.py
-      - tests/test_compiler_off_paired.py
-      - .github/workflows/research-hook-paired.yml
   workflow_dispatch:
 
 permissions:

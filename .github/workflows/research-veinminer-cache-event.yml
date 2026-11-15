@@ -2,12 +2,6 @@ name: SCHED-COMP-017 real Vein Miner cached vs legacy ScoreAdd
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - scripts/ci_veinminer_cache_event.py
-      - tests/test_veinminer_cache_event.py
-      - docs/research/veinminer-scoreadd-cache-SCHED-COMP-017.md
-      - .github/workflows/research-veinminer-cache-event.yml
 
 permissions:
   contents: read

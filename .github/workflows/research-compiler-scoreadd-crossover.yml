@@ -2,12 +2,6 @@ name: SCHED-COMP-009 actual ScoreAdd specialization crossover
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - scripts/ci_compiler_scoreadd_crossover.py
-      - tests/test_compiler_scoreadd_crossover.py
-      - docs/research/scoreadd-crossover-SCHED-COMP-009.md
-      - .github/workflows/research-compiler-scoreadd-crossover.yml
 
 permissions:
   contents: read

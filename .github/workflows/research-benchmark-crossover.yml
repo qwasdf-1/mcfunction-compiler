@@ -2,12 +2,6 @@ name: SCHED-BENCH-008 within-JVM crossover sensitivity
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - scripts/ci_benchmark_crossover.py
-      - tests/test_benchmark_crossover.py
-      - docs/research/benchmark-crossover-SCHED-BENCH-008.md
-      - .github/workflows/research-benchmark-crossover.yml
 
 permissions:
   contents: read

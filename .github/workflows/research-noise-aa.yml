@@ -1,12 +1,6 @@
 name: SCHED-NOISE-005 same-binary A/A noise calibration
 
 on:
-  pull_request:
-    paths:
-      - scripts/benchmark_noise_telemetry.py
-      - scripts/ci_noise_aa_calibration.py
-      - tests/test_noise_aa_calibration.py
-      - .github/workflows/research-noise-aa.yml
   workflow_dispatch:
 
 permissions:

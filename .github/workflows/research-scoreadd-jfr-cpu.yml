@@ -2,14 +2,6 @@ name: SCHED-COMP-021 Vein Miner JFR Server-thread CPU-time attribution
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - scripts/run_veinminer_profile.py
-      - scripts/analyze_veinminer_jfr_cpu.py
-      - scripts/ci_scoreadd_cpu_attribution.py
-      - tests/test_veinminer_jfr_cpu.py
-      - docs/research/scoreadd-jfr-cpu-SCHED-COMP-021.md
-      - .github/workflows/research-scoreadd-jfr-cpu.yml
 
 permissions:
   contents: read

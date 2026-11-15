@@ -1,11 +1,6 @@
 name: SCHED-HOOK-004 stability-first compiler-off CPU comparison
 
 on:
-  pull_request:
-    paths:
-      - scripts/ci_compiler_off_stability.py
-      - tests/test_compiler_off_stability.py
-      - .github/workflows/research-hook-stability.yml
   workflow_dispatch:
 
 permissions:
