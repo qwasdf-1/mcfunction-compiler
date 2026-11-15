@@ -69,6 +69,10 @@ public final class ProbeMetrics {
     // the command mutation ultimately succeeds.
     private static long SCORE_ADD_CALLBACK_ENTRIES;
     private static long SCORE_ADD_CALLBACK_ENTRIES_IN_SCOPE;
+    // Exclusive to successfully finished ScoreAddCommand.runUntimed, unlike
+    // the older scoreAddExecuted metric shared with operations, resets,
+    // stores, modifier composites and fork composites.
+    private static long SCORE_ADD_DIRECT_SUCCESSES;
     private static long SELECTIVE_MACRO_ARGUMENT_CALLS;
     private static final ConcurrentMap<String, AtomicLong> SELECTIVE_MACRO_UNSUPPORTED_PROVIDER_CLASSES = new ConcurrentHashMap<>();
     private static long SELECTIVE_MACRO_ARGUMENT_ATTEMPTS;
@@ -382,6 +386,14 @@ public final class ProbeMetrics {
 
     public static long scoreAddCallbackEntriesInScope() {
         return SCORE_ADD_CALLBACK_ENTRIES_IN_SCOPE;
+    }
+
+    public static void scoreAddDirectSucceeded() {
+        SCORE_ADD_DIRECT_SUCCESSES++;
+    }
+
+    public static long scoreAddDirectSuccesses() {
+        return SCORE_ADD_DIRECT_SUCCESSES;
     }
 
     public static void selectiveMacroArgumentsUsed() {
