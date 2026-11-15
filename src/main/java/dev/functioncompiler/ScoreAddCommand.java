@@ -143,6 +143,7 @@ final class ScoreAddCommand implements FusableCommand {
                 ? ProbeConfiguration.scoreAddMetricsEnabledLegacy()
                 : ProbeConfiguration.scoreAddMetricsEnabled()) {
             ProbeMetrics.scoreAddExecuted(functionId);
+            ProbeMetrics.scoreAddDirectSucceeded();
         }
         return result;
     }
