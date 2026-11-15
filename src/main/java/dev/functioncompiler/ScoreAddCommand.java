@@ -127,9 +127,11 @@ final class ScoreAddCommand implements FusableCommand {
         // Diagnostic-only: count every entry into this typed callback,
         // including nested modifier paths and entries with no leaf-wrapper
         // coverage. Keep this branch OFF during every CPU benchmark.
+        // Cached scoreAddMetricsEnabled() first: it defaults to false and
+        // short-circuits the per-call getenv in commandCallbackMetricsEnabled().
         if (!fixedFlags
-                && ProbeConfiguration.commandCallbackMetricsEnabled()
-                && ProbeConfiguration.scoreAddMetricsEnabled()) {
+                && ProbeConfiguration.scoreAddMetricsEnabled()
+                && ProbeConfiguration.commandCallbackMetricsEnabled()) {
             ProbeMetrics.scoreAddCallbackEntered(ProbeMetrics.commandCallbackScopeActive());
         }
         if (!fixedFlags && (useLegacyFlagLookups
