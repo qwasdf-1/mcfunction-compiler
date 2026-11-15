@@ -236,6 +236,15 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--scoreadd-path-coverage-diagnostic",
+        action="store_true",
+        help=(
+            "Research-only: count typed ScoreAdd callback entries separately"
+            " from wrapped leaf callbacks. Require both ScoreAdd and callback"
+            " counters; preserve legacy strict diagnostic acceptance otherwise."
+        ),
+    )
+    parser.add_argument(
         "--count-selective-macro-arguments",
         action="store_true",
         help=(
@@ -276,6 +285,10 @@ def parse_args() -> object:
         help="Idle settling interval before baseline tick query (018R1, >=8s).",
     )
     args = parser.parse_args()
+    if args.scoreadd_path_coverage_diagnostic and not (
+        args.compiler_mode == "score-add-instrumented" and args.count_command_callbacks
+    ):
+        parser.error("ScoreAdd path coverage requires score-add-instrumented and --count-command-callbacks")
     if args.tick_stability_diagnostics and args.pre_event_idle_seconds < 8.0:
         parser.error("Research idle baseline requires at least 8 seconds")
     if not 10.0 <= args.setup_rcon_timeout_seconds <= 60.0:
@@ -816,6 +829,8 @@ def main() -> int:
 
         command_callback_metrics = None
         specialized_counter_matches = None
+        score_add_callback_entries_delta = None
+        score_add_callback_entries_in_scope_delta = None
         if callback_metrics_enabled:
             if compiler_status_before is None or compiler_status_after is None:
                 raise RuntimeError("Callback metric run did not capture probe status")
@@ -839,6 +854,15 @@ def main() -> int:
                 if score_add_metrics_active
                 else None
             )
+            if args.scoreadd_path_coverage_diagnostic:
+                score_add_callback_entries_delta = (
+                    stats_int(compiler_status_after, "score_add_callback_entries")
+                    - stats_int(compiler_status_before, "score_add_callback_entries")
+                )
+                score_add_callback_entries_in_scope_delta = (
+                    stats_int(compiler_status_after, "score_add_callback_entries_in_scope")
+                    - stats_int(compiler_status_before, "score_add_callback_entries_in_scope")
+                )
             command_callback_metrics = {
                 "scope": "all execution queues",
                 "window": "immediately before the native mine packet through observed completion",
@@ -851,6 +875,8 @@ def main() -> int:
                     score_add_executed_delta if score_add_metrics_active else None
                 ),
                 "specialized_counter_matches": specialized_counter_matches,
+                "typed_score_add_callback_entries": score_add_callback_entries_delta,
+                "typed_score_add_callback_entries_in_scope": score_add_callback_entries_in_scope_delta,
                 "limitations": (
                     "Counts ordinary Brigadier leaf callbacks parsed in function queues. "
                     "Modifier operations and custom command executors are excluded."
@@ -897,6 +923,18 @@ def main() -> int:
                     f"delta={selective_macro_argument_calls_delta}; "
                     f"before={compiler_status_before!r}; after={compiler_status_after!r}"
                 )
+
+        valid_scoreadd_path_coverage_diagnostic = (
+            args.scoreadd_path_coverage_diagnostic
+            and command_callback_metrics is not None
+            and score_add_metrics_active
+            and score_add_callback_entries_delta is not None
+            and score_add_callback_entries_in_scope_delta is not None
+            and 0 < score_add_executed_delta <= score_add_callback_entries_delta
+            and 0 < optimized_score_add_callbacks <= score_add_callback_entries_in_scope_delta
+            <= score_add_callback_entries_delta
+            and generic_callbacks >= 0
+        )
 
         valid_command_callback_metric_diagnostic = (
             callback_metrics_enabled
@@ -1029,6 +1067,7 @@ def main() -> int:
                 - function_stats_value(queue_stats_before, "score_add_executed")
                 == head_after_capture - head_before
             ),
+            "valid_scoreadd_path_coverage_diagnostic": valid_scoreadd_path_coverage_diagnostic,
             "valid_command_callback_metric_diagnostic": (
                 valid_command_callback_metric_diagnostic
                 if callback_metrics_enabled
@@ -1093,9 +1132,17 @@ def main() -> int:
             raise RuntimeError(f"Native workload integrity failed: {json.dumps(result, indent=2)}")
         if args.compiler_mode == "score-add" and not result["valid_score_add_profile"]:
             raise RuntimeError(f"ScoreAdd profile gate failed: {json.dumps(result, indent=2)}")
-        if args.compiler_mode == "score-add-instrumented" and not result["valid_instrumented_invocation_diagnostic"]:
+        if args.compiler_mode == "score-add-instrumented" and not (
+            result["valid_instrumented_invocation_diagnostic"]
+            or (args.scoreadd_path_coverage_diagnostic
+                and result["valid_scoreadd_path_coverage_diagnostic"])
+        ):
             raise RuntimeError(f"Instrumented invocation gate failed: {json.dumps(result, indent=2)}")
-        if callback_metrics_enabled and not result["valid_command_callback_metric_diagnostic"]:
+        if callback_metrics_enabled and not (
+            result["valid_command_callback_metric_diagnostic"]
+            or (args.scoreadd_path_coverage_diagnostic
+                and result["valid_scoreadd_path_coverage_diagnostic"])
+        ):
             raise RuntimeError(
                 f"Command callback diagnostic gate failed: {json.dumps(result, indent=2)}"
             )
