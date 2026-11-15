@@ -1,6 +1,6 @@
 # SCHED-COMP-016 — Production-safe immutable environment overrides, directly versus vanilla
 
-**Status:** Predeclared protocol and implementation. No performance result until the current CI test, native/legacy/cached crossover, placebo, and host-quality gates pass.
+**Status:** **Completed, accepted against the predeclared gates** on November 14, 2026; dynamic config reload and quota parity passed, all 12 independent JVM boots passed host quality and native A/A median interval includes zero. A direct small gain over native was supported on the specified synthetic scoreboard workload, not real gameplay.
 
 ## Motivation and code boundary
 
@@ -56,3 +56,34 @@ If semantic reload or quota parity fails, **stop before timing** and fix the act
 The 015 benchmark's speculative summed intermediate effects are not substituted for this direct randomized comparison. Do not generalize these results to arbitrary selectors, callbacks, objective rules, or the scheduler replacement research.
 
 **Files:** `src/main/java/dev/functioncompiler/ProbeConfiguration.java`, `ScoreAddCommand.java`, `scripts/ci_safe_config_cache.py`, `tests/test_safe_config_cache.py`, `.github/workflows/research-scoreadd-config-cache.yml`. Raw output: `build/benchmarks/SCHED-COMP-016/{reload,diagnostic,timing}.json` and every Minecraft boot log. CPU harness dependencies are pinned copies from earlier validated research and pinned `mc-tooling` checkout; they do not enable other research optimizations.
+
+## Completed results — 12-JVM SCHED-COMP-016
+
+**Authoritative run:** [GitHub Actions #43561655160](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43561655160). Raw artifact [`sched-comp-016-safe-config-cache`, ID 14100897767](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43561655160/artifacts/14100897767) contains the separate reload, quota diagnostics, `timing.json`, and per-boot server logs.
+
+### Semantic proof
+
+The separate **no-environment-override** JVM demonstrated configuration `score_add` on → off → on through the actual `function_compiler_probe reload` command, with actual typed callback increments **4 → 0 → 4** and identical scoreboard work **4 → 4 → 4**. This proves the fast accessor does **not** accidentally freeze live `CompilerConfig` when the environment override is absent. In the second diagnostic JVM, the explicitly set environment override remained authoritative even with JSON `score_add=false`.
+
+The Minecraft 26.3 `minecraft:max_command_sequence_length` gamerule was actually set and read back, and produced **exactly equal command results** in native, original-getenv and cached variants at quotas 2,3,4,8,16,32,64: **1,2,3,7,15,16,16**, respectively. These are verified truncation values; the earlier 014 invalid-old-gamerule test is not used.
+
+### Main controlled CPU result
+
+All **12 independent JVMs** completed, with four ABBA/BAAB contrasts and four timed windows each (**192 total windows**), exactly **440,000 scoreboard additions per timed window**, and no failed host-quality gates. The placebo interval includes 0; one boot (boot 1) contained an unusually large A/A effect **−50.28 signed log-%**. That boot and all other observations were retained, not excluded to improve the result.
+
+| Contrast (B vs A) | Median signed log-% | Exact 96.1426%-coverage median interval (signed log-%) | Ordinary median CPU difference |
+| --- | ---: | --- | ---: |
+| Native placebo vs native | +1.9834 | [−2.7900, +3.5675] | +2.0% |
+| Legacy per-command getenv ScoreAdd vs native | +22.2565 | [+17.4057, +23.9698] | +24.9% |
+| Cached immutable env override ScoreAdd vs legacy | **−28.7286** | **[−34.1968, −26.0843]** | **−25.0%** |
+| Cached immutable env override ScoreAdd vs native | **−8.9230** | **[−10.9948, −7.3180]** | **−8.5%** |
+
+Positive = slower and negative = faster server-thread CPU per exact source command. Signed log-% is `100×ln(B/A)`; convert to ordinary percent as `100×(exp(logpercent/100)−1)`. The direct cached-vs-native interval corresponds to approximately **7.1%–10.4% lower CPU** on the exact fixture.
+
+**Preregistered verdict:** `cached_path_small_gain_vs_native_supported`. It is a supported directly randomized *synthetic* performance effect, below the 15 signed log-percent materiality threshold. It is **not** a claim that all compiled mcfunctions, all scoreboard commands, or real gameplay are faster. Because of the one unusually large placebo-window contrast, independent replication before production promotion would be prudent despite the original A/A median interval rule passing.
+
+### Implementation and production disposition
+
+The research branch also includes a named `FC_SCORE_ADD_LEGACY_NAMESPACE` comparison path and copied CPU harness dependencies, so do not merge its whole diff as a production optimization. The pure production change is isolated in [draft PR #15](https://github.com/qwasdf-1/mcfunction-compiler/pull/15), consisting only of the three immutable env override accessors with live config fallback. Keep it a draft until real-datapack screening and broader semantic/regression review.
+
+The follow-up [SCHED-COMP-017](https://github.com/qwasdf-1/mcfunction-compiler/pull/14) is a separate native Vein Miner playerbot event comparing **legacy vs cached ScoreAdd** on a verified publisher datapack. It does not change the conclusions or validity of the controlled CPU test; a real null result would limit practical relevance without negating the synthetic mechanism.
