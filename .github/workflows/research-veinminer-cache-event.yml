@@ -1,0 +1,100 @@
+name: SCHED-COMP-017 real Vein Miner cached vs legacy ScoreAdd
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/ci_veinminer_cache_event.py
+      - tests/test_veinminer_cache_event.py
+      - docs/research/veinminer-scoreadd-cache-SCHED-COMP-017.md
+      - .github/workflows/research-veinminer-cache-event.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sched-comp-017-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-veinminer-event:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 105
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Check out compiler research branch
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Check out pinned mc-tooling harness
+        uses: actions/checkout@v4
+        with:
+          repository: qwasdf-1/mc-tooling
+          ref: 9b63c9e554a0cb55855c51f53b6ebe0664eefbc3
+          path: mc-tooling
+          persist-credentials: false
+          token: ${{ secrets.MC_TOOLING_READ_TOKEN }}
+      - name: Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Verify compiler production build
+        run: ./gradlew --no-daemon --stacktrace build
+      - name: Unit contracts for real event parity and paired inference
+        run: |
+          python3 -m unittest discover -s tests -p test_veinminer_cache_event.py -v
+          python3 -m py_compile scripts/run_veinminer_profile.py scripts/ci_veinminer_cache_event.py
+      - name: Fetch and verify exact pinned Vein Miner datapack
+        env:
+          MC_VEINMINER_REFERENCE_URL: ${{ secrets.MC_VEINMINER_REFERENCE_URL }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          import urllib.request
+          expected="fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e"
+          target=Path("references/real-world/candidates/VeinMiner-5.3.0+26.3.zip")
+          target.parent.mkdir(parents=True,exist_ok=True)
+          if target.exists():
+              payload=target.read_bytes()
+          else:
+              url=os.environ.get("MC_VEINMINER_REFERENCE_URL")
+              if not url:
+                  req=urllib.request.Request("https://api.modrinth.com/v2/version/5jzz5SkG",headers={"User-Agent":"MCFC-research-SCHED-COMP-017/1.0"})
+                  with urllib.request.urlopen(req,timeout=45) as response:
+                      version=json.load(response)
+                  matches=[f for f in version["files"] if f["filename"]=="VeinMiner-5.3.0+26.3.zip"]
+                  if len(matches)!=1:
+                      raise RuntimeError("Pinned datapack filename not found in publisher's version record")
+                  url=matches[0]["url"]
+              req=urllib.request.Request(url,headers={"User-Agent":"MCFC-research-SCHED-COMP-017/1.0"})
+              with urllib.request.urlopen(req,timeout=60) as response:
+                  payload=response.read()
+          observed=hashlib.sha256(payload).hexdigest()
+          print("Publisher datapack sha256:",observed)
+          if observed!=expected:
+              raise SystemExit("PINNED ARTIFACT MISMATCH: no experiment run; need exact original Vein Miner ZIP")
+          target.write_bytes(payload)
+          print("Verified pinned Vein Miner archive",len(payload),"bytes")
+          PY
+      - name: Run ten paired real ore-mining events with cached vs legacy ScoreAdd
+        timeout-minutes: 90
+        run: python3 scripts/ci_veinminer_cache_event.py
+      - name: Upload complete real-workload raw results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sched-comp-017-veinminer-cache-raw
+          path: |
+            function-compiler/build/benchmarks/SCHED-COMP-017/results.json
+            function-compiler/build/benchmarks/PERF-011-veinminer/vein-*/results.json
+            function-compiler/build/benchmarks/PERF-011-veinminer/vein-*/*.log
+          if-no-files-found: warn
+          retention-days: 21

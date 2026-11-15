@@ -205,6 +205,10 @@ final class ProbeStatus {
                 + " generic_leaf_callbacks=" + ProbeMetrics.genericLeafCallbacks()
                 + " optimized_score_add_leaf_callbacks="
                 + ProbeMetrics.optimizedScoreAddLeafCallbacks()
+                + " score_add_callback_entries=" + ProbeMetrics.scoreAddCallbackEntries()
+                + " score_add_callback_entries_in_scope="
+                + ProbeMetrics.scoreAddCallbackEntriesInScope()
+                + " score_add_direct_successes=" + ProbeMetrics.scoreAddDirectSuccesses()
                 + " wrappers_created=" + ProbeMetrics.wrappersCreated()
                 + " wrapper_instantiations=" + ProbeMetrics.wrapperInstantiations()
                 + " probe_function_parses=" + ProbeMetrics.probeFunctionParseCount();

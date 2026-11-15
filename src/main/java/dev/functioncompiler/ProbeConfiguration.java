@@ -8,6 +8,48 @@ public final class ProbeConfiguration {
     private ProbeConfiguration() {
     }
 
+    /**
+     * Environment variables are process immutable in the supported Java
+     * launcher. Null means no nonblank override: recompute the fallback from
+     * live CompilerConfig on every invocation so /reload still takes effect.
+     * Parsing preserves the prior Boolean.parseBoolean/blank behavior.
+     */
+    private static Boolean envOverride(String name) {
+        String value = System.getenv(name);
+        return value == null || value.isBlank() ? null : Boolean.parseBoolean(value);
+    }
+
+    private static final Boolean SCORE_ADD_OVERRIDE = envOverride("FC_SCORE_ADD_PROTOTYPE");
+    private static final Boolean SCORE_ADD_METRICS_OVERRIDE = envOverride("FC_SCORE_ADD_METRICS");
+    private static final Boolean SCORE_ADD_TIMING_OVERRIDE = envOverride("FC_SCORE_ADD_TIMING");
+
+    // Diagnostic-only same-JVM control. Never defaults to a real namespace.
+    // This intentionally executes the old getenv path for an exactly named
+    // benchmark namespace; no other function is affected.
+    private static final String LEGACY_SCORE_ADD_NAMESPACE =
+            System.getenv("FC_SCORE_ADD_LEGACY_NAMESPACE");
+
+    public static boolean legacyScoreAddLookupForFunction(
+            net.minecraft.resources.Identifier id) {
+        return LEGACY_SCORE_ADD_NAMESPACE != null
+                && !LEGACY_SCORE_ADD_NAMESPACE.isBlank()
+                && id != null
+                && LEGACY_SCORE_ADD_NAMESPACE.equals(id.getNamespace());
+    }
+
+    public static boolean scoreAddPrototypeEnabledLegacy() {
+        return readBoolean("FC_SCORE_ADD_PROTOTYPE",
+                CompilerConfig.isScoreAddEnabled() || fusedRegionPrototypeEnabled());
+    }
+
+    public static boolean scoreAddMetricsEnabledLegacy() {
+        return readBoolean("FC_SCORE_ADD_METRICS", false);
+    }
+
+    public static boolean scoreAddTimingEnabledLegacy() {
+        return readBoolean("FC_SCORE_ADD_TIMING", false);
+    }
+
     public static boolean wrapperEnabled() {
         return readBoolean("FC_WRAPPER_PROBE", CompilerConfig.isEnabled());
     }
@@ -25,18 +67,19 @@ public final class ProbeConfiguration {
     }
 
     public static boolean scoreAddPrototypeEnabled() {
-        return readBoolean(
-                "FC_SCORE_ADD_PROTOTYPE",
-                CompilerConfig.isScoreAddEnabled() || fusedRegionPrototypeEnabled()
-        );
+        // The fallback must remain dynamic; a null override never freezes
+        // the reloadable score_add or fused_regions config gates.
+        return SCORE_ADD_OVERRIDE != null
+                ? SCORE_ADD_OVERRIDE.booleanValue()
+                : CompilerConfig.isScoreAddEnabled() || fusedRegionPrototypeEnabled();
     }
 
     public static boolean scoreAddMetricsEnabled() {
-        return readBoolean("FC_SCORE_ADD_METRICS", false);
+        return SCORE_ADD_METRICS_OVERRIDE != null && SCORE_ADD_METRICS_OVERRIDE;
     }
 
     public static boolean scoreAddTimingEnabled() {
-        return readBoolean("FC_SCORE_ADD_TIMING", false);
+        return SCORE_ADD_TIMING_OVERRIDE != null && SCORE_ADD_TIMING_OVERRIDE;
     }
 
     // Entirely disabled in ordinary runs. These hard-coded research

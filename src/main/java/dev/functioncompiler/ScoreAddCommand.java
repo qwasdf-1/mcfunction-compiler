@@ -69,6 +69,7 @@ final class ScoreAddCommand implements FusableCommand {
         }
         return ResearchMode.NORMAL;
     }
+    private final boolean useLegacyFlagLookups;
 
     ScoreAddCommand(
             Command<CommandSourceStack> vanillaCommand,
@@ -117,11 +118,23 @@ final class ScoreAddCommand implements FusableCommand {
         this.functionId = functionId;
         this.objectiveName = objectiveName;
         this.researchMode = researchMode(functionId, objectiveName, holder, isSelfSelector, operation);
+        this.useLegacyFlagLookups = ProbeConfiguration.legacyScoreAddLookupForFunction(functionId);
     }
 
     @Override
     public int run(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        if (!usesFixedResearchFlags() && ProbeConfiguration.scoreAddTimingEnabled()) {
+        boolean fixedFlags = usesFixedResearchFlags();
+        // Diagnostic-only: count every entry into this typed callback,
+        // including nested modifier paths and entries with no leaf-wrapper
+        // coverage. Keep this branch OFF during every CPU benchmark.
+        if (!fixedFlags
+                && ProbeConfiguration.commandCallbackMetricsEnabled()
+                && ProbeConfiguration.scoreAddMetricsEnabled()) {
+            ProbeMetrics.scoreAddCallbackEntered(ProbeMetrics.commandCallbackScopeActive());
+        }
+        if (!fixedFlags && (useLegacyFlagLookups
+                ? ProbeConfiguration.scoreAddTimingEnabledLegacy()
+                : ProbeConfiguration.scoreAddTimingEnabled())) {
             long started = System.nanoTime();
             try {
                 return runUntimed(context);
@@ -135,7 +148,9 @@ final class ScoreAddCommand implements FusableCommand {
     private int runUntimed(CommandContext<CommandSourceStack> context)
             throws CommandSyntaxException {
         boolean fixedFlags = usesFixedResearchFlags();
-        if ((!fixedFlags && !ProbeConfiguration.scoreAddPrototypeEnabled())
+        if ((!fixedFlags && !(useLegacyFlagLookups
+                ? ProbeConfiguration.scoreAddPrototypeEnabledLegacy()
+                : ProbeConfiguration.scoreAddPrototypeEnabled()))
                 || researchMode == ResearchMode.DELEGATING_WRAPPER) {
             // Measures cost of the ScoreAddCommand callback layer without
             // changing the underlying scoreboard command or scheduler.
@@ -217,8 +232,11 @@ final class ScoreAddCommand implements FusableCommand {
             long t3 = System.nanoTime();
             ProbeMetrics.scoreAddPhases(t1 - t0, t2 - t1, t3 - t2);
         }
-        if (!fixedFlags && ProbeConfiguration.scoreAddMetricsEnabled()) {
+        if (!fixedFlags && (useLegacyFlagLookups
+                ? ProbeConfiguration.scoreAddMetricsEnabledLegacy()
+                : ProbeConfiguration.scoreAddMetricsEnabled())) {
             ProbeMetrics.scoreAddExecuted(functionId);
+            ProbeMetrics.scoreAddDirectSucceeded();
         }
         return result;
     }

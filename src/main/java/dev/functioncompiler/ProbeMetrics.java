@@ -138,6 +138,16 @@ public final class ProbeMetrics {
     private static int COMMAND_CALLBACK_SCOPE_DEPTH;
     private static long GENERIC_LEAF_CALLBACKS;
     private static long OPTIMIZED_SCORE_ADD_LEAF_CALLBACKS;
+    // Diagnostic-only counters on the ScoreAddCommand.run entry itself.
+    // Unlike CallbackMetricCommand (plain-function leaf wrapper), this
+    // includes nested/other callback paths and is independent of whether
+    // the command mutation ultimately succeeds.
+    private static long SCORE_ADD_CALLBACK_ENTRIES;
+    private static long SCORE_ADD_CALLBACK_ENTRIES_IN_SCOPE;
+    // Exclusive to successfully finished ScoreAddCommand.runUntimed, unlike
+    // the older scoreAddExecuted metric shared with operations, resets,
+    // stores, modifier composites and fork composites.
+    private static long SCORE_ADD_DIRECT_SUCCESSES;
     private static long SELECTIVE_MACRO_ARGUMENT_CALLS;
     private static final ConcurrentMap<String, AtomicLong> SELECTIVE_MACRO_UNSUPPORTED_PROVIDER_CLASSES = new ConcurrentHashMap<>();
     private static long SELECTIVE_MACRO_ARGUMENT_ATTEMPTS;
@@ -504,6 +514,29 @@ public final class ProbeMetrics {
 
     public static long optimizedScoreAddLeafCallbacks() {
         return OPTIMIZED_SCORE_ADD_LEAF_CALLBACKS;
+    }
+
+    public static void scoreAddCallbackEntered(boolean callbackScopeActive) {
+        SCORE_ADD_CALLBACK_ENTRIES++;
+        if (callbackScopeActive) {
+            SCORE_ADD_CALLBACK_ENTRIES_IN_SCOPE++;
+        }
+    }
+
+    public static long scoreAddCallbackEntries() {
+        return SCORE_ADD_CALLBACK_ENTRIES;
+    }
+
+    public static long scoreAddCallbackEntriesInScope() {
+        return SCORE_ADD_CALLBACK_ENTRIES_IN_SCOPE;
+    }
+
+    public static void scoreAddDirectSucceeded() {
+        SCORE_ADD_DIRECT_SUCCESSES++;
+    }
+
+    public static long scoreAddDirectSuccesses() {
+        return SCORE_ADD_DIRECT_SUCCESSES;
     }
 
     public static void selectiveMacroArgumentsUsed() {
