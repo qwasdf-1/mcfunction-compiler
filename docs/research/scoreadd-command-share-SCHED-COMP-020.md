@@ -1,6 +1,6 @@
 # SCHED-COMP-020 — Why did ScoreAdd's synthetic CPU gain disappear in the real mining event?
 
-**Status:** **Revising the counter model after two completed-gameplay but rejected diagnostic attempts.** Original [CI #43689591524](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43689591524) and second [CI #43692072354](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43692072354) both completed the 215-ore gameplay event in all three JVMs, but rejected invalid cross-domain counter invariants. Source inspection established the cause: the legacy `score_add_executed` metric is shared by several *different* specialized commands and composite wrappers. A new exclusive `ScoreAddCommand` success counter is being used for the next diagnostic. No production flags, optimization paths, or 30-server performance observations are changed.
+**Status:** **Three-server path-coverage diagnostic completed and passed on 2026-11-15** ([CI #43692883388](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43692883388), [raw artifact 14153550537](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43692883388/artifacts/14153550537)). Earlier runs [#43689591524](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43689591524) and [#43692072354](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43692072354) completed the 215-ore event but failed invalid cross-domain counter invariants; neither was a successful diagnostic. The legacy `score_add_executed` metric is shared by multiple specialized commands and composite wrappers. The validated run instead uses a new exclusive successful `ScoreAddCommand` counter. This is **execution-path evidence only, not proof of Amdahl dilution or of a causal CPU effect**. No production flags, optimization paths, or 30-server performance observations are changed.
 
 ## Existing evidence and motivating hypotheses
 
@@ -67,3 +67,32 @@ The revision introduces diagnostic-only counters at `ScoreAddCommand.run` entry:
 The historical uninstrumented compiler-off reference was **13,757,473,431 Server-thread running CPU nanoseconds**. The previous **78.1 microsecond** illustrative saving-per-command estimate used the **mixed** 26,415-increment aggregate as its denominator. That was **not a valid exclusive ScoreAdd denominator**, so the estimate is withdrawn. The second diagnostic run [#43692072354](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43692072354), [raw archive 14153101378](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43692072354/artifacts/14153101378), established **10,978 ScoreAddCommand entries, all in callback scope, with 10,353 direct optimized leaf-wrapper callbacks**: the missing 625 direct-leaf counts are *not* explained by scope being inactive. That same event had **25,939 aggregate family increments**, which source-code inspection proves cannot be interpreted as 25,939 exclusive ScoreAdds. To compute an honest diagnostic Amdahl budget, use the next run's exclusive successful `ScoreAddCommand` count; its CPU reference will remain **unpaired and noncausal**, not a direct measure of callback CPU.
 
 **Revision discipline:** The prior run and raw data remain accessible unchanged. New tests explicitly accept the archived real inequalities, enforce actual four-per-head work, reject impossible ordering of new entry/scope counters, and preserve the conservative noncausal interpretation. Only the independent **three-JVM diagnostic** is rerun; the previously completed 30-event SCHED-COMP-018R2 CPU study is not repeated or reanalyzed to seek significance.
+
+## Completed diagnostic — 2026-11-15, CI #43692883388
+
+The dedicated [three-JVM workflow](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43692883388) passed its Python contract tests (8 tests), Java build, publisher ZIP digest check, native-event validation, counter accounting, and artifact upload. The [raw archive](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43692883388/artifacts/14153550537) contains the diagnostic JSON and independent native run records. The three arms remained **separate unpaired diagnostic boots**. No performance or causality claim follows from their CPU difference.
+
+| Validated metric | Observed |
+| --- | ---: |
+| Ore work / queue heads | 215 / 1,952 |
+| Compiled mixed-family callbacks in `vm:queue/drain` per head | 4 |
+| `vm:queue/drain` shared-family increments | **7,808** |
+| `vm:detection/ray_step` shared-family increments | 1,332 |
+| Global mixed `score_add_executed` increments | **26,206** |
+| Exclusive successful `ScoreAddCommand.runUntimed` callbacks (ADD/SET/REMOVE) | **11,124** |
+| Typed `ScoreAddCommand.run` entries / entries within scope | **11,124 / 11,124** |
+| Directly instrumented optimized leaf wrappers | **10,485** |
+| In-scope typed entries outside direct optimized-wrapper domain | **639** |
+| Generic leaf wrappers / total leaf wrappers | 41,297 / 51,782 |
+| Optimized direct wrappers / all instrumented leaf wrappers | **20.248%** |
+| Direct optimized wrapper coverage of scoped typed entries | **94.256%** |
+| Uninstrumented compiler-off event Server-thread running CPU | **17,907,425,481 ns** |
+| Uninstrumented cached-ScoreAdd event Server-thread running CPU | **17,694,329,165 ns** |
+| Hypothetical per-callback saving to reduce *off* event CPU by 15% | **241,470 ns (241.47 µs)** |
+| Hypothetical per-callback saving to reduce *cached* event CPU by 15% | **238,597 ns (238.60 µs)** |
+
+**Interpretation.** The 26,206 shared-family increments cannot be used as a denominator for direct ScoreAdd costs. Exactly 11,124 successful typed callbacks were counted, and all typed entries in this run were in the callback scope. The 639 difference between typed entries and directly instrumented optimized leaf wrappers is **not a scope leak**; it is a difference between instrumentation coverage domains, which can include nested commands and modifier-delegated execution. The direct-leaf ratio of 20.248% is **not an estimate of CPU time, a denominator for all actual Minecraft commands, or evidence that ScoreAdd accounts for 20.248% of event CPU**. The 241.47 µs requirement is a *counterfactual saving* computed from a separate uninstrumented CPU boot, not a measured per-command cost.
+
+The two uninstrumented event CPU values differ by about 1.19% relative to the compiler-off value, but the two boots are not paired or randomized; this is **not** evidence for an optimization effect. The earlier failed path-coverage run counted 10,978 typed entries, versus 11,124 here, despite the same 215 ore operations and 1,952 queue steps. Therefore exact final workload parity does not imply a universal fixed number of typed callbacks across all runs.
+
+**Conclusion and next gate.** SCHED-COMP-020 **passes execution-reach and instrumentation consistency**, resolving the original false-equality failure. It **does not establish actual exclusive ScoreAdd CPU share**, so Amdahl dilution remains plausible, not proved. A follow-on independent Server-thread CPU sampling/attribution study should determine the exclusive cost of eligible ScoreAdd callbacks versus function scheduling, queue dispatch, modifiers, and world updates before making a performance diagnosis or proposing another 30-event comparison. The older 30-server SCHED-COMP-018R2 performance study is not rerun as part of 020.
