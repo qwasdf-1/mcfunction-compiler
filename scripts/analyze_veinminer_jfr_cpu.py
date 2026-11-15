@@ -21,8 +21,16 @@ MAX_LOST_FRACTION = 0.05
 CATEGORIES = (
     "typed-scoreadd", "other-specialized", "vanilla-scoreboard",
     "execute-control", "function-queue-or-nested", "brigadier-dispatch",
-    "other-minecraft", "other-runtime",
+    "other-compiler", "world-updates", "other-minecraft", "other-runtime",
 )
+
+OTHER_SPECIALIZED_CLASSES = {
+    "dev.functioncompiler.ScoreOperationCommand",
+    "dev.functioncompiler.ScoreResetCommand",
+    "dev.functioncompiler.ScoreStoreCommand",
+    "dev.functioncompiler.ContextModifierCommand",
+    "dev.functioncompiler.InlinedForkingCommand",
+}
 
 def _frames(values: dict[str, Any]) -> list[tuple[str, str]]:
     trace = values.get("stackTrace")
@@ -43,7 +51,7 @@ def _category(frames: list[tuple[str, str]]) -> str:
     names = [clazz for clazz, _ in frames]
     if any(c == "dev.functioncompiler.ScoreAddCommand" for c in names):
         return "typed-scoreadd"
-    if any(c.startswith("dev.functioncompiler.") for c in names):
+    if any(c in OTHER_SPECIALIZED_CLASSES for c in names):
         return "other-specialized"
     if any(c.startswith("net.minecraft.server.commands.ScoreboardCommand")
            for c in names):
@@ -59,6 +67,12 @@ def _category(frames: list[tuple[str, str]]) -> str:
     if any(c.startswith(("com.mojang.brigadier.", "net.minecraft.commands.CommandDispatcher"))
            for c in names):
         return "brigadier-dispatch"
+    if any(c.startswith("dev.functioncompiler.") for c in names):
+        return "other-compiler"
+    if any(c.startswith(("net.minecraft.server.level.ServerLevel",
+                         "net.minecraft.world.level."))
+           for c in names):
+        return "world-updates"
     if any(c.startswith("net.minecraft.") for c in names):
         return "other-minecraft"
     return "other-runtime"
