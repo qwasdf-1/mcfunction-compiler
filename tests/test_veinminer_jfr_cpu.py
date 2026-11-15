@@ -44,6 +44,17 @@ class JfrCpuAttributionTests(unittest.TestCase):
             "other-compiler"
         )
 
+    def test_compiler_callbacks_beat_dispatch_but_not_vanilla_fallbacks(self):
+        unknown = ("dev.functioncompiler.InlinedFunctionCommand", "run")
+        brigadier = ("com.mojang.brigadier.context.ContextChain", "executeAll")
+        vanilla_score = ("net.minecraft.server.commands.ScoreboardCommand", "addScore")
+        execute = ("net.minecraft.server.commands.ExecuteCommand", "lambda$run")
+        self.assertEqual(_category([unknown, brigadier, QUEUE, SCHEDULER]), "other-compiler")
+        self.assertEqual(_category([vanilla_score, unknown, QUEUE]), "vanilla-scoreboard")
+        self.assertEqual(_category([execute, unknown, QUEUE]), "execute-control")
+        self.assertEqual(_category([brigadier, QUEUE]), "function-queue-or-nested")
+        self.assertEqual(_category([brigadier]), "brigadier-dispatch")
+
     def test_every_valid_sample_is_classified_exactly_once(self):
         events = ([sample(SCORE_ADD, MODIFIER, SCHEDULER)] * 80
                   + [sample(MODIFIER, SCHEDULER)] * 30

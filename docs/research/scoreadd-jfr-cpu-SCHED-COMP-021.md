@@ -1,6 +1,6 @@
 # SCHED-COMP-021 — Server-thread CPU-time attribution for Vein Miner
 
-**Status:** Implementation committed; CI blocked before runner startup (no native measurements yet). Preregistered follow-up to the completed [SCHED-COMP-020 execution-coverage diagnostic](scoreadd-command-share-SCHED-COMP-020.md). **Diagnostic only; no implementation or performance claim.** Source branch: `research/sched-comp-021-jfr-cpu-attribution`.
+**Status:** Implementation committed; CI blocked before runner startup (no native measurements yet). Preregistered follow-up to the completed [SCHED-COMP-020 execution-coverage diagnostic](scoreadd-command-share-SCHED-COMP-020.md). **Diagnostic only; no implementation or performance claim.** Source branch: `research/sched-comp-021-jfr-cpu-attribution` (merged into `main` 2026-11-15).
 
 ## Why this experiment is distinct
 
@@ -17,7 +17,15 @@ In contrast, Spark's legacy execution sampling is a **wall-clock execution stack
 - Launch `jcmd JFR.start` on the **actual Minecraft JVM child**, not Gradle, with `jdk.CPUTimeSample#enabled=true`, `jdk.CPUTimeSample#throttle=5ms` and `jdk.CPUTimeSamplesLost#enabled=true` (disable generic `jdk.ExecutionSample`). Archive the original `.jfr` and its SHA-256, full native event manifests, setup/host-quality results, stdout/stderr and aggregate report.
 - Resolve `eventThread.osThreadId` to the exact thread ID identified via Linux `/proc/<pid>/task`; never include other threads or substitute thread-name-only matches.
 - Reject empty/unsupported CPU sampler, fewer than **150 valid Server-thread CPU samples**, **more than 10% failed/stackless** Server-thread events, **more than 5% lost** Server-thread CPU samples, invalid /proc CPU identity, host-quality failure, mismatched publisher file, unstable pre-event baseline or different native final states.
-- Classify each **valid CPU-time sample exactly once** based on the stack: typed `ScoreAddCommand` (including its descendant work); other named specialized compiler callbacks; vanilla scoreboard; execute-control; function queue/scheduler or nested work; Brigadier; other compiler overhead; identifiable world-level updates; other Minecraft; other runtime. Record biased samples, counts of failed/lost samples, and the top observed innermost methods. Do **not** add the inclusive method weights from multiple nested frames together.
+- Classify each **valid CPU-time sample exactly once** based on the stack, first match wins, in this precedence order (**amended 2026-11-15 before any data; see [Protocol amendment](#protocol-amendment--classification-precedence)**): typed `ScoreAddCommand` (including its descendant work); other named specialized compiler callbacks; vanilla scoreboard; execute-control; other compiler overhead; function queue/scheduler or nested work; Brigadier; identifiable world-level updates; other Minecraft; other runtime. Record biased samples, counts of failed/lost samples, and the top observed innermost methods. Do **not** add the inclusive method weights from multiple nested frames together.
+
+## Protocol amendment — classification precedence
+
+**Recorded 2026-11-15, before any SCHED-COMP-021 sample was collected** (the only CI attempt was blocked before runner startup, so no trace exists to have informed this change).
+
+The original order placed *function queue/scheduler or nested work* and *Brigadier* before *other compiler overhead*. Compiler command callbacks always execute beneath `ServerFunctionManager` / `net.minecraft.commands.execution.*` and Brigadier dispatch frames, so under first-match classification the *other compiler overhead* category was effectively unreachable: every sample inside an unnamed compiler callback (for example `InlinedFunctionCommand`, or macro specialization in `ProbeFunctionWrapper.instantiate`) would have been counted as scheduler or Brigadier cost. The synthetic contract test asserting that an unnamed compiler frame beneath the scheduler classifies as *other compiler* was failing against the implementation for this reason.
+
+*Other compiler overhead* now precedes *function queue/scheduler* and *Brigadier*. It intentionally stays **below** *vanilla scoreboard* and *execute-control*, so vanilla work reached through a compiler fallback remains attributed to the vanilla command. Typed `ScoreAddCommand` and other named specialized callbacks are unchanged. The amended order is implemented in `scripts/analyze_veinminer_jfr_cpu.py` (`CATEGORIES`, `_category`) and pinned by `tests/test_veinminer_jfr_cpu.py`. All gates, arms and thresholds are unchanged.
 
 ## What would constitute evidence?
 

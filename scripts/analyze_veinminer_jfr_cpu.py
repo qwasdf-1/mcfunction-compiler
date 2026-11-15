@@ -18,10 +18,11 @@ from typing import Any
 MIN_VALID_SERVER_SAMPLES = 150
 MAX_INVALID_FRACTION = 0.10
 MAX_LOST_FRACTION = 0.05
+# Listed in classification precedence order; the first matching category wins.
 CATEGORIES = (
     "typed-scoreadd", "other-specialized", "vanilla-scoreboard",
-    "execute-control", "function-queue-or-nested", "brigadier-dispatch",
-    "other-compiler", "world-updates", "other-minecraft", "other-runtime",
+    "execute-control", "other-compiler", "function-queue-or-nested",
+    "brigadier-dispatch", "world-updates", "other-minecraft", "other-runtime",
 )
 
 OTHER_SPECIALIZED_CLASSES = {
@@ -59,6 +60,12 @@ def _category(frames: list[tuple[str, str]]) -> str:
     if any(c.startswith("net.minecraft.server.commands.ExecuteCommand")
            for c in names):
         return "execute-control"
+    # Compiler callbacks always run beneath the function queue and Brigadier
+    # dispatch frames, so other-compiler must precede both or it is unreachable.
+    # It stays below vanilla scoreboard/execute so vanilla fallbacks invoked
+    # from a compiler callback remain attributed to the vanilla command.
+    if any(c.startswith("dev.functioncompiler.") for c in names):
+        return "other-compiler"
     if any(c.startswith(("net.minecraft.server.ServerFunctionManager",
                          "net.minecraft.commands.execution.",
                          "net.minecraft.commands.functions."))
@@ -67,8 +74,6 @@ def _category(frames: list[tuple[str, str]]) -> str:
     if any(c.startswith(("com.mojang.brigadier.", "net.minecraft.commands.CommandDispatcher"))
            for c in names):
         return "brigadier-dispatch"
-    if any(c.startswith("dev.functioncompiler.") for c in names):
-        return "other-compiler"
     if any(c.startswith(("net.minecraft.server.level.ServerLevel",
                          "net.minecraft.world.level."))
            for c in names):
