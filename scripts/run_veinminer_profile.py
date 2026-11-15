@@ -831,6 +831,7 @@ def main() -> int:
         specialized_counter_matches = None
         score_add_callback_entries_delta = None
         score_add_callback_entries_in_scope_delta = None
+        score_add_direct_successes_delta = None
         if callback_metrics_enabled:
             if compiler_status_before is None or compiler_status_after is None:
                 raise RuntimeError("Callback metric run did not capture probe status")
@@ -863,6 +864,10 @@ def main() -> int:
                     stats_int(compiler_status_after, "score_add_callback_entries_in_scope")
                     - stats_int(compiler_status_before, "score_add_callback_entries_in_scope")
                 )
+                score_add_direct_successes_delta = (
+                    stats_int(compiler_status_after, "score_add_direct_successes")
+                    - stats_int(compiler_status_before, "score_add_direct_successes")
+                )
             command_callback_metrics = {
                 "scope": "all execution queues",
                 "window": "immediately before the native mine packet through observed completion",
@@ -877,6 +882,7 @@ def main() -> int:
                 "specialized_counter_matches": specialized_counter_matches,
                 "typed_score_add_callback_entries": score_add_callback_entries_delta,
                 "typed_score_add_callback_entries_in_scope": score_add_callback_entries_in_scope_delta,
+                "typed_score_add_direct_successes": score_add_direct_successes_delta,
                 "limitations": (
                     "Counts ordinary Brigadier leaf callbacks parsed in function queues. "
                     "Modifier operations and custom command executors are excluded."
@@ -930,7 +936,9 @@ def main() -> int:
             and score_add_metrics_active
             and score_add_callback_entries_delta is not None
             and score_add_callback_entries_in_scope_delta is not None
-            and 0 < score_add_executed_delta <= score_add_callback_entries_delta
+            and score_add_direct_successes_delta is not None
+            and 0 < score_add_direct_successes_delta <= score_add_callback_entries_delta
+            and score_add_executed_delta >= score_add_direct_successes_delta
             and 0 < optimized_score_add_callbacks <= score_add_callback_entries_in_scope_delta
             <= score_add_callback_entries_delta
             and generic_callbacks >= 0
