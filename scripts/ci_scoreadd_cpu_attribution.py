@@ -67,7 +67,7 @@ def run_native(arm: str, mode: str) -> dict:
         or data.get("spark_capture_enabled")
         or data.get("command_callback_metrics_enabled")
         or data.get("selective_macro_arguments_metrics_enabled")
-        or data.get("score_add_executed_delta") is None):
+        or not data.get("jfr_cpu_profile_sha256")):
         raise AssertionError(f"{arm}: invalid event, CPU, artifact, or sampling contract")
     compiled = data.get("queue_score_add_compiled")
     if mode == "off" and compiled not in (0, None):
