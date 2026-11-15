@@ -68,6 +68,13 @@ final class ScoreAddCommand implements FusableCommand {
 
     @Override
     public int run(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        // Diagnostic-only: count every entry into this typed callback,
+        // including nested modifier paths and entries with no leaf-wrapper
+        // coverage. Keep this branch OFF during every CPU benchmark.
+        if (ProbeConfiguration.commandCallbackMetricsEnabled()
+                && ProbeConfiguration.scoreAddMetricsEnabled()) {
+            ProbeMetrics.scoreAddCallbackEntered(ProbeMetrics.commandCallbackScopeActive());
+        }
         if (useLegacyFlagLookups
                 ? ProbeConfiguration.scoreAddTimingEnabledLegacy()
                 : ProbeConfiguration.scoreAddTimingEnabled()) {
