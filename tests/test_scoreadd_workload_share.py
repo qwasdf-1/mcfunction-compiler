@@ -83,7 +83,7 @@ class RealScoreAddReachTests(unittest.TestCase):
 
     def test_publisher_sha_and_arms_must_match(self):
         rows=valid()
-        rows["compiled_sampled"]["pinned_pack"]="fake"
+        rows["compiled_counter"]["pinned_pack"]="fake"
         with self.assertRaises(AssertionError):
             a.interpret(rows)
         rows=valid()
