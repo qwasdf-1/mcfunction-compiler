@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  documentation-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check local documentation boundary
+        run: python3 scripts/check_doc_boundary.py
+
+  build:
+    name: build (26.3 fabric)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the Gradle JVM
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build mod jar
+        run: ./gradlew build
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Run unit and doc hygiene tests
+        run: PYTHONPATH=. uv run --with pytest pytest tests/test_doc_hygiene.py tests/test_config_flag_semantics.py
