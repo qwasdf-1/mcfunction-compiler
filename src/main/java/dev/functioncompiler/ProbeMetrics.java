@@ -14,6 +14,81 @@ public final class ProbeMetrics {
     private static final AtomicLong SCORE_ADD_EXECUTED = new AtomicLong();
     private static final AtomicLong FUSED_REGIONS_COMPILED = new AtomicLong();
     private static final AtomicLong FUSED_REGIONS_EXECUTED = new AtomicLong();
+    // Research-only phase stopwatch totals, accumulated only on the server
+    // thread and only for fc_attr_typed in an independent diagnostic JVM.
+    // These wall-clock spans include nanoTime/attribution overhead and are
+    // NOT exclusive CPU cost or comparable to uninstrumented native execution.
+    private static long SCORE_PHASE_OBJECTIVE_NS;
+    private static long SCORE_PHASE_MUTATION_NS;
+    private static long SCORE_PHASE_FEEDBACK_NS;
+    private static long SCORE_PHASE_SAMPLES;
+    private static long SCORE_ATTR_DELEGATE_CALLS;
+    private static long SCORE_ATTR_CACHED_CALLS;
+
+    public static void scoreAttrCachedCall() {
+        SCORE_ATTR_CACHED_CALLS++;
+    }
+
+    public static long scoreAttrCachedCalls() {
+        return SCORE_ATTR_CACHED_CALLS;
+    }
+
+    private static long SCORE_ATTR_FAST_OBJECTIVE_HITS;
+
+    public static void scoreAttrDelegateCalled() {
+        SCORE_ATTR_DELEGATE_CALLS++;
+    }
+
+    public static void scoreAttrFastObjectiveHit() {
+        SCORE_ATTR_FAST_OBJECTIVE_HITS++;
+    }
+
+    public static long scoreAttrDelegateCalls() {
+        return SCORE_ATTR_DELEGATE_CALLS;
+    }
+
+    public static long scoreAttrFastObjectiveHits() {
+        return SCORE_ATTR_FAST_OBJECTIVE_HITS;
+    }
+
+
+    public static void scoreAddPhases(long objectiveNs, long mutationNs, long feedbackNs) {
+        SCORE_PHASE_OBJECTIVE_NS += objectiveNs;
+        SCORE_PHASE_MUTATION_NS += mutationNs;
+        SCORE_PHASE_FEEDBACK_NS += feedbackNs;
+        SCORE_PHASE_SAMPLES++;
+    }
+
+    public static long scoreAddPhaseObjectiveNanos() {
+        return SCORE_PHASE_OBJECTIVE_NS;
+    }
+
+    public static long scoreAddPhaseMutationNanos() {
+        return SCORE_PHASE_MUTATION_NS;
+    }
+
+    public static long scoreAddPhaseFeedbackNanos() {
+        return SCORE_PHASE_FEEDBACK_NS;
+    }
+
+    public static long scoreAddPhaseSamples() {
+        return SCORE_PHASE_SAMPLES;
+    }
+    // Server-thread-only, opt-in scheduler attribution diagnostic counters.
+    // These are not CPU timers and include queue work from RCON commands.
+    private static long ARCH_NONEMPTY_QUEUE_VISITS;
+    private static long ARCH_QUOTA_DEBITS;
+    // Opt-in research measurements outside timed function execution.
+    private static final AtomicLong SCORE_ADD_COMPILE_WALL_NS = new AtomicLong();
+    private static final AtomicLong FUSED_COMPILE_WALL_NS = new AtomicLong();
+    private static final ConcurrentMap<Identifier, AtomicLong> SCORE_ADD_COMPILE_BY_FUNCTION =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Identifier, AtomicLong> FUSED_COMPILE_BY_FUNCTION =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Identifier, AtomicLong> FUSED_REGIONS_BY_FUNCTION =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Identifier, AtomicLong> FUSED_EXECUTED_BY_FUNCTION =
+            new ConcurrentHashMap<>();
     private static final AtomicLong BYTECODE_REGIONS_COMPILED = new AtomicLong();
     private static final AtomicLong BYTECODE_REGIONS_COMPILE_FAILED = new AtomicLong();
     private static final AtomicLong BYTECODE_REGIONS_EXECUTED = new AtomicLong();
@@ -76,6 +151,22 @@ public final class ProbeMetrics {
     private static long SELECTIVE_MACRO_MISSING_SELECTED_KEYS;
 
     private ProbeMetrics() {
+    }
+
+    public static void archQueueBoundaryVisit() {
+        ARCH_NONEMPTY_QUEUE_VISITS++;
+    }
+
+    public static void archQuotaDebit() {
+        ARCH_QUOTA_DEBITS++;
+    }
+
+    public static long archQueueBoundaryVisits() {
+        return ARCH_NONEMPTY_QUEUE_VISITS;
+    }
+
+    public static long archQuotaDebits() {
+        return ARCH_QUOTA_DEBITS;
     }
 
     public static void wrapperCreated() {
@@ -148,6 +239,32 @@ public final class ProbeMetrics {
         return snapshot;
     }
 
+
+    public static void compileWallTime(Identifier id, boolean fused, long nanos) {
+        if (nanos < 0) {
+            throw new IllegalArgumentException("Negative compile duration");
+        }
+        (fused ? FUSED_COMPILE_WALL_NS : SCORE_ADD_COMPILE_WALL_NS).addAndGet(nanos);
+        if (id != null) {
+            (fused ? FUSED_COMPILE_BY_FUNCTION : SCORE_ADD_COMPILE_BY_FUNCTION)
+                    .computeIfAbsent(id, ignored -> new AtomicLong()).addAndGet(nanos);
+        }
+    }
+
+    public static long scoreAddCompileWallNanos() {
+        return SCORE_ADD_COMPILE_WALL_NS.get();
+    }
+
+    public static long fusedCompileWallNanos() {
+        return FUSED_COMPILE_WALL_NS.get();
+    }
+
+    public static long compileWallNanos(Identifier id, boolean fused) {
+        AtomicLong value = (fused ? FUSED_COMPILE_BY_FUNCTION :
+                SCORE_ADD_COMPILE_BY_FUNCTION).get(id);
+        return value == null ? 0L : value.get();
+    }
+
     public static long scoreAddsCompiled() {
         return SCORE_ADD_COMPILED.get();
     }
@@ -210,8 +327,34 @@ public final class ProbeMetrics {
         FUSED_REGIONS_COMPILED.addAndGet(count);
     }
 
+    public static void fusedRegionsCompiled(Identifier functionId, int count) {
+        fusedRegionsCompiled(count);
+        if (functionId != null) {
+            FUSED_REGIONS_BY_FUNCTION.computeIfAbsent(functionId, ignored -> new AtomicLong())
+                    .addAndGet(count);
+        }
+    }
+
+    public static long fusedRegionsCompiled(Identifier functionId) {
+        AtomicLong count = FUSED_REGIONS_BY_FUNCTION.get(functionId);
+        return count == null ? 0 : count.get();
+    }
+
     public static void fusedRegionExecuted() {
         FUSED_REGIONS_EXECUTED.incrementAndGet();
+    }
+
+    public static void fusedRegionExecuted(Identifier functionId) {
+        fusedRegionExecuted();
+        if (functionId != null) {
+            FUSED_EXECUTED_BY_FUNCTION.computeIfAbsent(functionId, ignored -> new AtomicLong())
+                    .incrementAndGet();
+        }
+    }
+
+    public static long fusedRegionsExecuted(Identifier functionId) {
+        AtomicLong value = FUSED_EXECUTED_BY_FUNCTION.get(functionId);
+        return value == null ? 0L : value.get();
     }
 
     public static long fusedRegionsCompiled() {

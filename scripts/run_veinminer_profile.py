@@ -71,6 +71,31 @@ MODE_OPTIONS = (
 SUBSTITUTES_COMPILATION = {"fused", "fused-timed", "bytecode-emitted"}
 
 
+def configure_gradle_cache_environment(environment: dict[str, str]) -> dict[str, str]:
+    """Avoid registering the writable Gradle cache as read-only.
+
+    Gradle's shared read-only dependency cache requires a *distinct* cache
+    directory. The old auto-configuration used ~/.gradle/caches, which is also
+    Gradle's writable cache in a standard GitHub Actions runner. A nested
+    runServer invocation then aborted with "already open with different lock
+    options" before Minecraft started.
+    """
+    environment = environment.copy()
+    project_cache = ROOT / ".gradle-user-home"
+    if "GRADLE_USER_HOME" not in environment and project_cache.is_dir():
+        environment["GRADLE_USER_HOME"] = str(project_cache)
+    # Do not automatically set GRADLE_RO_DEP_CACHE. This is an explicit
+    # opt-in Gradle feature, not an alias for the normal writable cache.
+    writable_home = Path(
+        environment.get("GRADLE_USER_HOME", str(Path.home() / ".gradle"))
+    ).expanduser().resolve()
+    readonly = environment.get("GRADLE_RO_DEP_CACHE")
+    if readonly and Path(readonly).expanduser().resolve() == writable_home / "caches":
+        # Prefer the already-warm writable cache instead of conflicting locks.
+        environment.pop("GRADLE_RO_DEP_CACHE")
+    return environment
+
+
 def free_port() -> int:
     with socket.socket() as probe:
         probe.bind((SERVER_HOST, 0))
@@ -408,13 +433,7 @@ def main() -> int:
             cwd = work
             environment = None
         else:
-            environment = os.environ.copy()
-            project_cache = ROOT / ".gradle-user-home"
-            if "GRADLE_USER_HOME" not in environment and project_cache.is_dir():
-                environment["GRADLE_USER_HOME"] = str(project_cache)
-            shared_cache = Path.home() / ".gradle/caches"
-            if "GRADLE_RO_DEP_CACHE" not in environment and shared_cache.is_dir():
-                environment["GRADLE_RO_DEP_CACHE"] = str(shared_cache)
+            environment = configure_gradle_cache_environment(os.environ.copy())
             wrapper_enabled = compiler_enabled or callback_metrics_enabled
             score_add_enabled = args.compiler_mode in {
                 "score-add",
@@ -464,6 +483,7 @@ def main() -> int:
             command = [str(ROOT / "gradlew"), *gradle]
             cwd = ROOT
 
+        launched_at = time.monotonic()
         server = subprocess.Popen(
             command,
             cwd=cwd,
@@ -472,6 +492,7 @@ def main() -> int:
             stderr=subprocess.STDOUT,
         )
         rcon = wait_for_rcon(server, rcon_port, password)
+        launch_to_rcon_seconds = time.monotonic() - launched_at
         datapacks_enabled = rcon.command("datapack list enabled")
         if PACK_NAME not in datapacks_enabled.casefold():
             raise RuntimeError(f"Vein Miner did not load: {datapacks_enabled!r}")
@@ -835,6 +856,19 @@ def main() -> int:
             "queue_stats_after": queue_stats_after,
             "ray_stats_before": ray_stats_before,
             "ray_stats_after": ray_stats_after,
+            "launch_to_rcon_seconds": launch_to_rcon_seconds,
+            "score_add_compile_wall_ns": (
+                stats_int(compiler_status, "score_add_compile_wall_ns")
+                if compiler_status is not None else None
+            ),
+            "fused_compile_wall_ns": (
+                stats_int(compiler_status, "fused_compile_wall_ns")
+                if compiler_status is not None else None
+            ),
+            "vm_detection_acquire_target_fused_compiled": function_stats_value(
+                function_stats(rcon, "vm:detection/acquire_target", compiler_enabled),
+                "fused_regions_compiled",
+            ),
             "queue_score_add_compiled": function_stats_value(queue_stats_after, "score_add_compiled"),
             "queue_score_add_executed_delta": (
                 function_stats_value(queue_stats_after, "score_add_executed")

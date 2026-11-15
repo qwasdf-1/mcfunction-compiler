@@ -32,15 +32,15 @@ public final class FusedRegionPrototype {
             PlainTextFunction<CommandSourceStack> original
     ) {
         return compile(original, commands -> {
-            ProbeMetrics.fusedRegionsCompiled(1);
-            return new FusedScoreAddRegion(commands);
+            ProbeMetrics.fusedRegionsCompiled(original.id(), 1);
+            return new FusedScoreAddRegion(original.id(), commands);
         });
     }
 
     public static UnboundEntryAction<CommandSourceStack> createInterpretedRegion(
             List<FusedCommand> commands
     ) {
-        return new FusedScoreAddRegion(commands);
+        return new FusedScoreAddRegion(null, commands);
     }
 
     static InstantiatedFunction<CommandSourceStack> compile(
@@ -178,8 +178,10 @@ public final class FusedRegionPrototype {
     private static final class FusedScoreAddRegion
             implements UnboundEntryAction<CommandSourceStack> {
         private final List<FusedCommand> commands;
+        private final Identifier functionId;
 
-        private FusedScoreAddRegion(List<FusedCommand> commands) {
+        private FusedScoreAddRegion(Identifier functionId, List<FusedCommand> commands) {
+            this.functionId = functionId;
             this.commands = commands;
         }
 
@@ -190,7 +192,7 @@ public final class FusedRegionPrototype {
                 Frame frame
         ) {
             if (ProbeConfiguration.scoreAddMetricsEnabled()) {
-                ProbeMetrics.fusedRegionExecuted();
+                ProbeMetrics.fusedRegionExecuted(functionId);
             }
             for (FusedCommand command : commands) {
                 if (!executeCommand(command, source, context, frame)) {

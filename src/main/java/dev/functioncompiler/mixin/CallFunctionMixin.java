@@ -1,6 +1,12 @@
 package dev.functioncompiler.mixin;
 
 import dev.functioncompiler.FusedRegionPrototype;
+import dev.functioncompiler.DirectSchedulerPrototype;
+import net.minecraft.commands.CommandResultCallback;
+import net.minecraft.commands.execution.ExecutionContext;
+import net.minecraft.commands.execution.Frame;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.commands.ExecutionCommandSource;
 import net.minecraft.commands.execution.TraceCallbacks;
 import net.minecraft.commands.execution.tasks.CallFunction;
@@ -15,6 +21,24 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(CallFunction.class)
 abstract class CallFunctionMixin<T extends ExecutionCommandSource<T>> {
     @Shadow @Final private InstantiatedFunction<T> function;
+    @Shadow @Final private CommandResultCallback resultCallback;
+    @Shadow @Final private boolean returnParentFrame;
+
+    /**
+     * Bypass the child function frame only in the proven straight-line island.
+     * Any callback, trace, control-flow or unsupported command falls through
+     * to CallFunction.execute and the original fused-region representation.
+     */
+    @Inject(method = "execute", at = @At("HEAD"), cancellable = true)
+    private void functionCompiler$directCallIfSafe(
+            T source, ExecutionContext<T> context, Frame frame, CallbackInfo ci
+    ) {
+        if (DirectSchedulerPrototype.tryExecute(
+                function, source, context, frame, resultCallback, returnParentFrame)) {
+            ci.cancel();
+        }
+    }
+
 
     @Redirect(
             method = "execute",
@@ -32,7 +56,9 @@ abstract class CallFunctionMixin<T extends ExecutionCommandSource<T>> {
         tracer.onCall(
                 depth,
                 functionId,
-                FusedRegionPrototype.traceEntryCount(function, compiledEntryCount)
+                DirectSchedulerPrototype.traceEntryCount(
+                        function,
+                        FusedRegionPrototype.traceEntryCount(function, compiledEntryCount))
         );
     }
 }

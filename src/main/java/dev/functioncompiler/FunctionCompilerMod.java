@@ -86,6 +86,13 @@ public final class FunctionCompilerMod implements ModInitializer {
 
         String message = "FC_STATS function=" + functionId
                 + " score_add_compiled=" + ProbeMetrics.scoreAddsCompiled(functionId)
+                + " fused_regions_compiled=" + ProbeMetrics.fusedRegionsCompiled(functionId)
+                + " fused_regions_executed=" + ProbeMetrics.fusedRegionsExecuted(functionId)
+                + " direct_scheduler_compiled=" + DirectSchedulerPrototype.compiled(functionId)
+                + " direct_scheduler_executed=" + DirectSchedulerPrototype.executed(functionId)
+                + " direct_scheduler_fallbacks=" + DirectSchedulerPrototype.fallbackInvocations(functionId)
+                + " score_add_compile_wall_ns=" + ProbeMetrics.compileWallNanos(functionId, false)
+                + " fused_compile_wall_ns=" + ProbeMetrics.compileWallNanos(functionId, true)
                 + " score_add_executed=" + ProbeMetrics.scoreAddsExecuted(functionId)
                 + " score_add_timed_calls=" + ProbeMetrics.scoreAddTimedCalls(functionId);
         source.sendSuccess(() -> Component.literal(message), false);

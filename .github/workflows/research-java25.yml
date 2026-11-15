@@ -1,0 +1,105 @@
+name: Research toolchain (Java 25)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  java25-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Check out compiler at sibling workspace path
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Check out pinned private mc-tooling workspace
+        id: tooling_checkout
+        uses: actions/checkout@v4
+        with:
+          repository: qwasdf-1/mc-tooling
+          ref: 9b63c9e554a0cb55855c51f53b6ebe0664eefbc3
+          path: mc-tooling
+          persist-credentials: false
+          # Cross-repository private access requires a read-only token.
+          token: ${{ secrets.MC_TOOLING_READ_TOKEN }}
+      - name: Install Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Install Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Set up Gradle dependency cache
+        uses: gradle/actions/setup-gradle@v4
+      - name: Record runtime and toolchain versions
+        run: |
+          java --version
+          javac --version
+          python3 --version
+          ./gradlew --version
+          cat gradle.properties
+          cat gradle/wrapper/gradle-wrapper.properties
+      - name: Resolve dependencies and build mod
+        run: ./gradlew --no-daemon --stacktrace build
+      - name: Static Python compilation
+        run: python3 -m compileall -q scripts tests
+      - name: Full harness version / workspace check
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+          harness = (Path.cwd().parent / "mc-tooling" / "mc-harness").resolve()
+          sys.path.insert(0, str(harness))
+          from mc_harness import assert_version
+          assert_version("1.0.0")
+          print(f"Verified pinned mc_harness 1.0.0 at {harness}")
+          PY
+      - name: Full Python unit suite (with pinned mc-harness)
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Real Minecraft 26.3 Fabric server smoke
+        run: python3 scripts/ci_smoke_server.py
+      - name: SCHED-ATTR-001 scheduler CPU-stack screening (not a promotion test)
+        timeout-minutes: 12
+        run: python3 scripts/ci_scheduler_attribution.py
+      - name: Upload scheduler screening profile and machine-readable report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-scheduler-attribution-screening
+          path: |
+            function-compiler/build/benchmarks/SCHED-ATTR-001/results.json
+            function-compiler/build/benchmarks/SCHED-ATTR-001/*.jfr
+            function-compiler/build/benchmarks/SCHED-ATTR-001/minecraft-server.log
+          if-no-files-found: warn
+          retention-days: 14
+      - name: SCHED-ATTR-002 same-runner native three-stack CPU comparison
+        timeout-minutes: 18
+        run: python3 scripts/ci_native_cross_mode_attribution.py
+      - name: Upload cross-mode CPU results and independent JFR diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-native-cross-mode-attribution
+          path: |
+            function-compiler/build/benchmarks/SCHED-ATTR-002/results.json
+            function-compiler/build/benchmarks/SCHED-ATTR-002/*.jfr
+            function-compiler/build/benchmarks/SCHED-ATTR-002/*.log
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload server smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-research-java25-server-logs
+          path: function-compiler/build/reports/ci-server-smoke/*.log
+          if-no-files-found: ignore
+          retention-days: 7

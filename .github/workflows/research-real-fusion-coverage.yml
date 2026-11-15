@@ -1,0 +1,83 @@
+name: SCHED-COMP-012 Blastback and Simple Timer fusion coverage
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - src/main/java/dev/functioncompiler/ProbeMetrics.java
+      - src/main/java/dev/functioncompiler/FusedRegionPrototype.java
+      - src/main/java/dev/functioncompiler/FunctionCompilerMod.java
+      - scripts/ci_real_fusion_coverage.py
+      - scripts/ci_fetch_real_fusion_packs.py
+      - tests/test_real_fusion_coverage.py
+      - docs/research/real-fusion-coverage-SCHED-COMP-012.md
+      - .github/workflows/research-real-fusion-coverage.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sched-comp-012-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fusion-coverage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 62
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Check out research code
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Check out pinned external harness
+        uses: actions/checkout@v4
+        with:
+          repository: qwasdf-1/mc-tooling
+          ref: 9b63c9e554a0cb55855c51f53b6ebe0664eefbc3
+          path: mc-tooling
+          token: ${{ secrets.MC_TOOLING_READ_TOKEN }}
+          persist-credentials: false
+      - name: Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Build compiler with per-function diagnostic counters
+        run: ./gradlew --no-daemon --stacktrace build
+      - name: Validate coverage gates and statistical contracts
+        run: |
+          python3 -m unittest discover -s tests -p test_real_fusion_coverage.py -v
+          python3 -m py_compile scripts/ci_real_fusion_coverage.py scripts/ci_fetch_real_fusion_packs.py
+      - name: Acquire exact Blastback and bounded Simple Timer datapacks
+        run: python3 scripts/ci_fetch_real_fusion_packs.py
+      - name: Blastback native explosion/capture coverage diagnostic
+        continue-on-error: true
+        run: python3 scripts/ci_real_fusion_coverage.py --pack blastback --stage diagnostic
+      - name: Simple Timer native player tick coverage diagnostic
+        continue-on-error: true
+        run: python3 scripts/ci_real_fusion_coverage.py --pack simple_timer --stage diagnostic
+      - name: Simple Timer paired active-tick performance (only if activated)
+        timeout-minutes: 43
+        run: |
+          if test -s build/benchmarks/SCHED-COMP-012/simple_timer-diagnostic.json; then
+            python3 scripts/ci_real_fusion_coverage.py --pack simple_timer --stage timing
+          else
+            echo 'No completed Timer diagnostic artifact; timed experiment not eligible'
+          fi
+      - name: Upload diagnostics and all raw sample logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sched-comp-012-real-fusion-coverage
+          path: |
+            function-compiler/build/benchmarks/SCHED-COMP-012/*.json
+            function-compiler/build/benchmarks/SCHED-COMP-012/*.log
+          if-no-files-found: warn
+          retention-days: 21
