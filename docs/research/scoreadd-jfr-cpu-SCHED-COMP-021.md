@@ -1,6 +1,6 @@
 # SCHED-COMP-021 — Server-thread CPU-time attribution for Vein Miner
 
-**Status:** Preregistered follow-up to the completed [SCHED-COMP-020 execution-coverage diagnostic](scoreadd-command-share-SCHED-COMP-020.md). **Diagnostic only; no implementation or performance claim.** Source branch: `research/sched-comp-021-jfr-cpu-attribution`.
+**Status:** Implementation committed; CI blocked before runner startup (no native measurements yet). Preregistered follow-up to the completed [SCHED-COMP-020 execution-coverage diagnostic](scoreadd-command-share-SCHED-COMP-020.md). **Diagnostic only; no implementation or performance claim.** Source branch: `research/sched-comp-021-jfr-cpu-attribution`.
 
 ## Why this experiment is distinct
 
@@ -40,3 +40,9 @@ Define `f = (# valid Server-thread CPU samples whose stack contains ScoreAddComm
 **Decision gate:** Do not change the cached ScoreAdd optimization or rerun an expensive performance campaign solely because of a stack fraction. Use the measured distribution first to decide whether to optimize per-callback behavior, scheduler overhead, or something else entirely.
 
 **References:** [JDK 25 experimental CPU-Time Sampling](https://openjdk.org/jeps/509), [Java 25 JFR event definitions](https://sap.github.io/jfrevents/25.html), [JDK 25 `jfr print` JSON options](https://docs.oracle.com/en/java/javase/25/docs/specs/man/jfr.html).
+
+## CI execution status, 2026-11-15
+
+The PR-triggered dedicated workflow [run #43742409829](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43742409829) failed within seconds of creation and returned an Actions job with **no steps** or retrievable job log (log endpoint returned BlobNotFound). [Run #43742579265](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/43742579265) on the subsequent analyzer revision likewise failed with **no runner steps**. A retry of its job also failed before any steps began. Because no checkout, unit test, build, Java 25 process, JFR capture or native Minecraft event occurred, **none of these CI failures can establish whether the code or sampling experiment would pass**. The underlying GitHub Actions startup failure has not been diagnosed and may require repository/runner-level inspection.
+
+**No SCHED-COMP-021 sampled CPU fraction exists yet.** Leave all performance conclusions unchanged and keep this PR in draft until a real runner execution provides archived traces and validated reports. Triggering or rerunning the dedicated workflow is the remaining execution step; do not substitute counts from SCHED-COMP-020 or other boot profiles.
