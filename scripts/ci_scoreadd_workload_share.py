@@ -107,6 +107,9 @@ def run_native(arm:str,mode:str,count:bool,spark:bool)->dict:
         "queue_score_add_executed_delta":data.get("queue_score_add_executed_delta"),
         "ray_score_add_executed_delta":data.get("ray_score_add_executed_delta"),
         "global_score_add_executed_delta":data.get("score_add_executed_delta"),
+        "typed_score_add_direct_successes_delta":(
+            data.get("command_callback_metrics") or {}
+        ).get("typed_score_add_direct_successes"),
         "valid_scoreadd_path_coverage_diagnostic":
             data.get("valid_scoreadd_path_coverage_diagnostic"),
         "callback_metrics":data.get("command_callback_metrics"),
@@ -133,6 +136,7 @@ def interpret(records:dict)->dict:
     all_leaf=callbacks["total_ordinary_leaf_callbacks"]
     entries=callbacks["typed_score_add_callback_entries"]
     scoped=callbacks["typed_score_add_callback_entries_in_scope"]
+    direct_success=callbacks["typed_score_add_direct_successes"]
     drain=instrumented["queue_score_add_executed_delta"]
     ray=instrumented["ray_score_add_executed_delta"]
     compiled=instrumented["queue_score_add_compiled"]
@@ -141,11 +145,13 @@ def interpret(records:dict)->dict:
     # count is identical to the single queue-head advancement count.
     expected_queue=QUEUE_STEPS_EXPECTED*compiled
     if (not all(type(n) is int for n in (
-            optimized,generic,tracked,all_leaf,entries,scoped,drain,ray,compiled
+            optimized,generic,tracked,all_leaf,entries,scoped,direct_success,drain,ray,compiled
         )) or compiled!=4 or drain!=expected_queue or ray<=0
         or tracked<drain+ray or tracked!=instrumented["global_score_add_executed_delta"]
+        or direct_success!=instrumented["typed_score_add_direct_successes_delta"]
         or all_leaf!=optimized+generic or generic<0
-        or not (0<optimized<=scoped<=entries and 0<tracked<=entries)
+        or not (0<optimized<=scoped<=entries and 0<direct_success<=entries
+                and direct_success<=tracked)
         or instrumented["valid_scoreadd_path_coverage_diagnostic"] is not True):
         raise AssertionError(
             f"Incompatible real ScoreAdd execution path accounting: "
@@ -159,11 +165,13 @@ def interpret(records:dict)->dict:
         "diagnostic_valid":True,
         "event_state_consistent":True,
         "diagnostic_only":True,
-        "actual_successful_typed_scoreadd_executions":tracked,
+        "actual_successful_typed_scoreadd_executions":direct_success,
+        "aggregate_family_scoreadd_executed_increments":tracked,
+        "aggregate_family_increments_beyond_direct_scoreadd":tracked-direct_success,
         "actual_typed_scoreadd_callback_entries":entries,
         "actual_typed_scoreadd_entries_in_queue_callback_scope":scoped,
         "actual_typed_scoreadd_entries_outside_scope":entries-scoped,
-        "successful_typed_callbacks_minus_entries":tracked-entries,
+        "direct_successes_minus_entries":direct_success-entries,
         "directly_wrapped_optimized_leaf_callbacks":optimized,
         "scoped_typed_entries_not_seen_as_direct_optimized_leaf":scoped-optimized,
         "queue_drain_scoreadd_executions":drain,
@@ -171,18 +179,19 @@ def interpret(records:dict)->dict:
         "queue_head_advances":QUEUE_STEPS_EXPECTED,
         "queue_expected_executions":expected_queue,
         "ray_scoreadd_executions":ray,
-        "other_function_scoreadd_executions":tracked-drain-ray,
+        "other_function_shared_family_counter_increments":tracked-drain-ray,
         "ordinary_generic_leaf_callbacks":generic,
         "ordinary_total_leaf_callbacks":all_leaf,
         "scoreadd_fraction_of_observed_ordinary_leaf_callbacks":optimized/all_leaf,
         "direct_leaf_coverage_of_scoped_typed_callback_entries":optimized/scoped,
         "counter_domains":{
-            "score_add_executed":"successful typed ScoreAddCommand mutation callbacks in all compiled functions; metrics-enabled, independent of scope",
+            "score_add_executed":"SHARED family counter: incremented by ScoreAddCommand, ScoreOperationCommand, ScoreResetCommand, ScoreStoreCommand, and composite ContextModifierCommand and InlinedForkingCommand; not an exclusive ScoreAdd count and may double-count inner work",
+            "score_add_direct_successes":"exclusive ScoreAddCommand.runUntimed successes counted after mutation and feedback, diagnostic only; includes ADD, SET, REMOVE modes",
             "score_add_callback_entries":"all calls entering typed ScoreAddCommand.run, including modifier-delegated and unscoped; diagnostic-only",
             "score_add_callback_entries_in_scope":"typed ScoreAddCommand.run entries while ExecutionContext runCommandQueue callback scope is active, diagnostic-only",
             "optimized_score_add_leaf_callbacks":"instrumented CallbackMetricCommand wrappers directly around ScoreAddCommand in eligible plain-text function Brigadier executable contexts; queue scope only; counts before delegating",
             "generic_leaf_callbacks":"instrumented Brigadier leaf wrappers around other command objects, which may indirectly call typed ScoreAdd; not a disjoint category of all underlying command work",
-            "queue_score_add_executed":"typed successful callbacks attributable to vm:queue/drain; four compiled ScoreAdd callbacks per queue head step",
+            "queue_score_add_executed":"shared family counter attributable to vm:queue/drain; four compiled metric-bearing callbacks per queue head step, NOT proof of four direct ADD operations",
         },
         "limitations_of_fraction":(
             "Only the fraction of instrumented ordinary Brigadier leaf-wrapper"
@@ -194,12 +203,12 @@ def interpret(records:dict)->dict:
             "off":cpu_off,"cached":cpu_cached,
         },
         "required_15pct_whole_event_saving_ns_per_eligible_scoreadd":{
-            "relative_to_off_cpu":(0.15*cpu_off)/tracked,
-            "relative_to_cached_cpu":(0.15*cpu_cached)/tracked,
+            "relative_to_off_cpu":(0.15*cpu_off)/direct_success,
+            "relative_to_cached_cpu":(0.15*cpu_cached)/direct_success,
         },
         "required_saving_interpretation":(
             "Amdahl budgeting counterfactual: to reduce whole-event CPU by"
-            " 15% solely through the observed eligible ScoreAdd invocations,"
+            " 15% solely through observed direct successful ScoreAddCommand invocations,"
             " each must save this many ns on average while every other task"
             " remains unchanged. This is NOT an observed command cost or speedup."
         ),
