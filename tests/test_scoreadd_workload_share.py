@@ -26,8 +26,9 @@ def record(name:str)->dict:
         "event_cpu":{"server_thread_cpu_running_ns":13_757_473_431},
         "queue_score_add_compiled":4 if name=="compiled_counter" else 0,
         "queue_score_add_executed_delta":7808 if name=="compiled_counter" else 0,
-        "ray_score_add_executed_delta":1638 if name=="compiled_counter" else 0,
-        "global_score_add_executed_delta":26415 if name=="compiled_counter" else 0,
+        "ray_score_add_executed_delta":1254 if name=="compiled_counter" else 0,
+        "global_score_add_executed_delta":25939 if name=="compiled_counter" else 0,
+        "typed_score_add_direct_successes_delta":10978 if name=="compiled_counter" else 0,
         "valid_scoreadd_path_coverage_diagnostic":name=="compiled_counter",
         "callback_metrics":None,
     }
@@ -38,12 +39,13 @@ def valid()->dict:
     # are representative synthetic values: real run must independently
     # validate scoped<=all and direct-wrapper<=scoped.
     result["compiled_counter"]["callback_metrics"]={
-        "optimized_score_add_leaf_callbacks":10769,
-        "generic_leaf_callbacks":40785,
-        "score_add_executed_counter_delta":26415,
-        "total_ordinary_leaf_callbacks":51554,
-        "typed_score_add_callback_entries":26415,
-        "typed_score_add_callback_entries_in_scope":14000,
+        "optimized_score_add_leaf_callbacks":10353,
+        "generic_leaf_callbacks":40533,
+        "score_add_executed_counter_delta":25939,
+        "total_ordinary_leaf_callbacks":50886,
+        "typed_score_add_callback_entries":10978,
+        "typed_score_add_callback_entries_in_scope":10978,
+        "typed_score_add_direct_successes":10978,
         "specialized_counter_matches":False,
     }
     return result
@@ -55,19 +57,20 @@ class RealScoreAddReachTests(unittest.TestCase):
         self.assertEqual(report["queue_scoreadd_compiled_commands"],4)
         self.assertEqual(report["queue_head_advances"],1952)
         self.assertEqual(report["queue_drain_scoreadd_executions"],4*1952)
-        self.assertEqual(report["other_function_scoreadd_executions"],26415-7808-1638)
+        self.assertEqual(report["other_function_shared_family_counter_increments"],25939-7808-1254)
 
     def test_independent_counter_domains_not_falsely_equal(self):
         report=a.interpret(valid())
-        self.assertEqual(report["actual_successful_typed_scoreadd_executions"],26415)
-        self.assertEqual(report["directly_wrapped_optimized_leaf_callbacks"],10769)
-        self.assertEqual(report["actual_typed_scoreadd_entries_outside_scope"],12415)
-        self.assertEqual(report["scoped_typed_entries_not_seen_as_direct_optimized_leaf"],3231)
+        self.assertEqual(report["actual_successful_typed_scoreadd_executions"],10978)
+        self.assertEqual(report["aggregate_family_scoreadd_executed_increments"],25939)
+        self.assertEqual(report["aggregate_family_increments_beyond_direct_scoreadd"],14961)
+        self.assertEqual(report["directly_wrapped_optimized_leaf_callbacks"],10353)
+        self.assertEqual(report["actual_typed_scoreadd_entries_outside_scope"],0)
+        self.assertEqual(report["scoped_typed_entries_not_seen_as_direct_optimized_leaf"],625)
         self.assertAlmostEqual(
-            report["scoreadd_fraction_of_observed_ordinary_leaf_callbacks"],10769/51554)
+            report["scoreadd_fraction_of_observed_ordinary_leaf_callbacks"],10353/50886)
         self.assertIn("NOT the fraction",report["limitations_of_fraction"])
-        self.assertEqual(report["counter_domains"]["score_add_executed"][:10],
-                         "successful")
+        self.assertIn("SHARED family counter",report["counter_domains"]["score_add_executed"])
         self.assertTrue(report["diagnostic_only"])
 
     def test_counter_domain_budget_not_observed_cpu(self):
@@ -75,7 +78,7 @@ class RealScoreAddReachTests(unittest.TestCase):
         self.assertAlmostEqual(
             report["required_15pct_whole_event_saving_ns_per_eligible_scoreadd"][
                 "relative_to_off_cpu"],
-            .15*13_757_473_431/26415)
+            .15*13_757_473_431/10978)
         self.assertIn("NOT an observed command cost",report["required_saving_interpretation"])
 
     def test_queue_callback_mismatch_fails(self):
@@ -90,7 +93,7 @@ class RealScoreAddReachTests(unittest.TestCase):
         for field,value in (
             ("typed_score_add_callback_entries",10000),
             ("typed_score_add_callback_entries_in_scope",10000),
-            ("score_add_executed_counter_delta",27000),
+            ("typed_score_add_direct_successes",11000),
             ("total_ordinary_leaf_callbacks",1),
         ):
             records=valid()
@@ -101,6 +104,9 @@ class RealScoreAddReachTests(unittest.TestCase):
     def test_global_and_per_function_count_consistency(self):
         records=valid()
         records["compiled_counter"]["global_score_add_executed_delta"]=1
+        with self.assertRaises(AssertionError):a.interpret(records)
+        records=valid()
+        records["compiled_counter"]["typed_score_add_direct_successes_delta"]=1
         with self.assertRaises(AssertionError):a.interpret(records)
         records=valid()
         records["compiled_counter"]["ray_score_add_executed_delta"]=0
