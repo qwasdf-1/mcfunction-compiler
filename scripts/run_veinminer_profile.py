@@ -261,6 +261,15 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--capture-jfr-cpu",
+        action="store_true",
+        help=(
+            "Research-only JDK 25 Linux CPUTimeSample JFR capture restricted"
+            " to the native mining event. Requires --no-spark and"
+            " --capture-server-thread-cpu; never combines with callback counters."
+        ),
+    )
+    parser.add_argument(
         "--capture-server-thread-cpu",
         action="store_true",
         help=(
@@ -302,6 +311,17 @@ def parse_args() -> object:
     if args.count_selective_macro_arguments and args.compiler_mode != "selective-macro":
         parser.error(
             "--count-selective-macro-arguments requires --compiler-mode selective-macro"
+        )
+    if args.capture_jfr_cpu and not (
+        args.no_spark and args.capture_server_thread_cpu
+        and not args.count_command_callbacks
+        and not args.count_selective_macro_arguments
+        and args.compiler_mode in ("off", "score-add")
+        and args.stack != "vanilla"
+    ):
+        parser.error(
+            "JFR CPU sampling requires Fabric compiler off/score-add,"
+            " --no-spark, --capture-server-thread-cpu, and no counters"
         )
     if args.capture_timeout < 5:
         parser.error("--capture-timeout must be at least 5 seconds")
@@ -356,6 +376,7 @@ def main() -> int:
         "fused",
     }
     capture_spark = not args.no_spark
+    capture_jfr_cpu = args.capture_jfr_cpu
     compiler_probe_active = compiler_enabled or callback_metrics_enabled
     diagnostics = []
     if callback_metrics_enabled:
@@ -373,6 +394,13 @@ def main() -> int:
         if diagnostics
         else "no Spark agent or Function Compiler timing/counter metrics"
     )
+
+    if capture_jfr_cpu:
+        timing_instrumentation = (
+            "JDK 25 JFR CPUTimeSample (5ms CPU-time period),"
+            " no Spark or Function Compiler callback counters;"
+            " event-level CPU total is separately read from /proc"
+        )
 
     pinned_artifacts = [(PACK, PACK_SHA256, "Vein Miner 5.3.0 datapack")]
     if capture_spark:
@@ -413,6 +441,11 @@ def main() -> int:
     server: subprocess.Popen[bytes] | None = None
     log_handle = None
     profile_path: Path | None = None
+    jfr_path: Path | None = None
+    jfr_pid: int | None = None
+    jfr_started = False
+    jfr_start_message: str | None = None
+    jfr_stop_message: str | None = None
     succeeded = False
     manifest_path = output / "results.json"
 
@@ -694,6 +727,31 @@ def main() -> int:
             event_thread = (pid, tid)
             event_cpu_before = read_thread_schedstat(pid, tid)
             event_throttle_before = cgroup_throttle_count()
+        if capture_jfr_cpu:
+            # Attach to the actual Minecraft child JVM rather than Gradle.
+            # Start after idle stability and all baseline RCON commands;
+            # stop immediately after the event CPU clock is closed.
+            if event_thread is None:
+                raise RuntimeError("JFR capture needs an identified Server thread")
+            jfr_pid = event_thread[0]
+            jfr_path = output / "veinminer-cpu.jfr"
+            jfr_cmd = [
+                "jcmd", str(jfr_pid), "JFR.start",
+                "name=fc_comp_021", "settings=profile",
+                "jdk.CPUTimeSample#enabled=true",
+                "jdk.CPUTimeSample#throttle=5ms",
+                "jdk.CPUTimeSample#stackTrace=true",
+                "jdk.CPUTimeSamplesLost#enabled=true",
+                "jdk.ExecutionSample#enabled=false",
+            ]
+            jfr_start = subprocess.run(
+                jfr_cmd, text=True, capture_output=True, timeout=30, check=True)
+            jfr_start_message = jfr_start.stdout
+            jfr_started = True
+            # Exclude attach/setup time from the /proc CPU denominator.
+            pid, tid = event_thread
+            event_cpu_before = read_thread_schedstat(pid, tid)
+            event_throttle_before = cgroup_throttle_count()
         # Set the irreversible intervention boundary before attempting the
         # first mining packet. Any failure from here is never retryable.
         mining_started = True
@@ -748,6 +806,16 @@ def main() -> int:
             event_cpu["work_expected"]=expected_work
             event_cpu["cpu_ns_per_affected_block"]=(
                 event_cpu["server_thread_cpu_running_ns"]/expected_work)
+        if jfr_started:
+            assert jfr_pid is not None and jfr_path is not None
+            jfr_stop = subprocess.run(
+                ["jcmd", str(jfr_pid), "JFR.stop", "name=fc_comp_021",
+                 f"filename={jfr_path.resolve()}"],
+                text=True, capture_output=True, timeout=40, check=True)
+            jfr_stop_message = jfr_stop.stdout
+            jfr_started = False
+            if not jfr_path.is_file() or jfr_path.stat().st_size == 0:
+                raise RuntimeError("JFR CPU sampler did not save a recording")
         compiler_status_after = (
             rcon.command("function_compiler_probe status") if compiler_probe_active else None
         )
@@ -964,6 +1032,15 @@ def main() -> int:
             "spark": "1.10.194 standalone-agent" if capture_spark else None,
             "spark_sha256": sha256(SPARK_AGENT) if capture_spark else None,
             "spark_capture_enabled": capture_spark,
+            "jfr_cpu_capture_enabled": capture_jfr_cpu,
+            "jfr_cpu_profile_path": (
+                str(jfr_path.relative_to(ROOT)) if jfr_path else None
+            ),
+            "jfr_cpu_profile_sha256": (
+                sha256(jfr_path) if jfr_path and jfr_path.is_file() else None
+            ),
+            "jfr_cpu_start_message": jfr_start_message,
+            "jfr_cpu_stop_message": jfr_stop_message,
             "timing_instrumentation": timing_instrumentation,
             "stack": args.stack,
             "mods": {
@@ -981,7 +1058,7 @@ def main() -> int:
             "callback_metrics_forced_wrapper": (
                 callback_metrics_enabled and not compiler_enabled
             ),
-            "diagnostic_only": bool(diagnostics),
+            "diagnostic_only": bool(diagnostics) or capture_jfr_cpu,
             "compiler_status_before": compiler_status_before,
             "compiler_status_after": compiler_status_after,
             "command_callback_metrics": command_callback_metrics,
@@ -1172,6 +1249,16 @@ def main() -> int:
         print(json.dumps({"output": str(output), "results": result}, indent=2))
         return 0
     finally:
+        if jfr_started and jfr_pid is not None and jfr_path is not None:
+            # An interrupted/failed gameplay event must not be retried; save
+            # best-effort raw samples for forensic review without reclassification.
+            try:
+                subprocess.run(
+                    ["jcmd", str(jfr_pid), "JFR.stop", "name=fc_comp_021",
+                     f"filename={jfr_path.resolve()}"],
+                    text=True, capture_output=True, timeout=15, check=False)
+            except (OSError, subprocess.SubprocessError):
+                pass
         if spark is not None:
             try:
                 stop_spark_shell(spark)
