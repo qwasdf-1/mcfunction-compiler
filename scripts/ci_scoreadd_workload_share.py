@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """SCHED-COMP-020: diagnose actual ScoreAdd reach and Amdahl dilution in Vein Miner.
 
-Independent, non-comparable JVMs for:
+Three independent, non-comparable JVMs for:
   1. optimizer-off reference, no counters, true Server-thread CPU;
   2. cached ScoreAdd reference, no counters, true Server-thread CPU;
   3. typed ScoreAdd with BOTH execution and ordinary-callback counters;
-  4. typed ScoreAdd with Spark Server-thread sampling, no counters.
 All four use exactly the same playerbot/native 215-block Vein Miner event.
-Counts are NEVER converted into CPU fractions. No significance inference
+Counts are NEVER converted into CPU fractions; an independent
+sampling profiler can follow only if these counts justify one. No significance inference
 from one unpaired CPU reference per arm, and no performance promotion.
 """
 from __future__ import annotations
@@ -26,7 +26,6 @@ ARMS=(
     ("off_cpu","off",False,False),
     ("cached_cpu","score-add",False,False),
     ("compiled_counter","score-add-instrumented",True,False),
-    ("compiled_sampled","score-add",False,True),
 )
 STATE_FIELDS=(
     "player_mined_source_stat","work_after","work_expected",
@@ -108,10 +107,6 @@ def run_native(arm:str,mode:str,count:bool,spark:bool)->dict:
         "callback_metrics":data.get("command_callback_metrics"),
         "event_cpu":cpu,
         "event_seconds":data.get("operation_completion_seconds"),
-        "spark_profile_path":data.get("profile_path"),
-        "spark_profile_summary":data.get("profile_summary"),
-        "spark_server_function_execute_weighted_ms":
-            data.get("server_function_manager_execute_weighted_ms"),
         "tick_diagnostics":data.get("tick_post_event_diagnostic"),
     }
 
@@ -169,10 +164,6 @@ def interpret(records:dict)->dict:
             " remains unchanged. This is NOT an observed command cost or speedup."
         ),
         "cpu_pair_interpretation":"Two unpaired independent CPU samples are diagnostics, not a supported causal performance result",
-        "sampled_profile_interpretation":"Spark call stacks are sampling-biased diagnostics, not exclusive ScoreAdd CPU attribution",
-        "spark_profile_path":records["compiled_sampled"]["spark_profile_path"],
-        "spark_server_function_execute_weighted_ms":
-            records["compiled_sampled"]["spark_server_function_execute_weighted_ms"],
     }
 
 
