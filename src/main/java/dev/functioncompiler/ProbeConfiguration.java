@@ -5,6 +5,13 @@ public final class ProbeConfiguration {
     // trace flag is consulted on every queue boundary and command cost debit;
     // avoid a System.getenv() hash-map lookup for every single command.
     private static final boolean TRACE_ENABLED = readBoolean("FC_RUNTIME_TRACE", false);
+    // Env-only diagnostic flags (constant false default, no CompilerConfig
+    // fallback), read at every ExecutionContext.runCommandQueue boundary and on
+    // typed callback paths; cache them for the same reason as TRACE_ENABLED.
+    private static final boolean COMMAND_CALLBACK_METRICS_ENABLED =
+            readBoolean("FC_COMMAND_CALLBACK_METRICS", false);
+    private static final boolean COMMAND_CALLBACK_METRICS_ALL_QUEUES =
+            readBoolean("FC_COMMAND_CALLBACK_METRICS_ALL_QUEUES", false);
     private ProbeConfiguration() {
     }
 
@@ -160,11 +167,11 @@ public final class ProbeConfiguration {
     }
 
     public static boolean commandCallbackMetricsEnabled() {
-        return readBoolean("FC_COMMAND_CALLBACK_METRICS", false);
+        return COMMAND_CALLBACK_METRICS_ENABLED;
     }
 
     public static boolean commandCallbackMetricsAllQueues() {
-        return readBoolean("FC_COMMAND_CALLBACK_METRICS_ALL_QUEUES", false);
+        return COMMAND_CALLBACK_METRICS_ALL_QUEUES;
     }
 
     public static boolean selectiveMacroArgumentsEnabled() {
