@@ -5,6 +5,7 @@ import dev.functioncompiler.FunctionCompilerMod;
 import dev.functioncompiler.ProbeConfiguration;
 import dev.functioncompiler.ProbeMetrics;
 import dev.functioncompiler.ProbeRuntimeTrace;
+import dev.functioncompiler.SchedulerQueueCpuProbe;
 import net.minecraft.commands.execution.CommandQueueEntry;
 import net.minecraft.commands.execution.ExecutionContext;
 import org.objectweb.asm.Opcodes;
@@ -46,6 +47,17 @@ abstract class ExecutionContextMixin<T> {
                     ProbeRuntimeTrace.label(), commandQuota,
                     next == null ? "empty" : next.getClass().getSimpleName());
         }
+    }
+
+    // Opt-in CPU accounting; the ordinary mode compiles to a static false gate.
+    @Inject(method = "runCommandQueue", at = @At("HEAD"))
+    private void functionCompiler$queueCpuBegin(CallbackInfo callback) {
+        SchedulerQueueCpuProbe.queueEnter();
+    }
+
+    @Inject(method = "runCommandQueue", at = @At("RETURN"))
+    private void functionCompiler$queueCpuEnd(CallbackInfo callback) {
+        SchedulerQueueCpuProbe.queueExit();
     }
 
     @Inject(method = "runCommandQueue", at = @At("HEAD"))
