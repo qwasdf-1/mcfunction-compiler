@@ -286,6 +286,17 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--scheduler-cpu-harness",
+        action="store_true",
+        help="Research-only SCHED-ATTR-023 event-window RCON capture commands.",
+    )
+    parser.add_argument(
+        "--scheduler-queue-cpu-probe",
+        choices=("off", "empty", "timed"),
+        default="off",
+        help="Research-only queue/entry ThreadMXBean CPU clocks; requires --scheduler-cpu-harness.",
+    )
+    parser.add_argument(
         "--capture-jfr-cpu",
         action="store_true",
         help=(
@@ -337,6 +348,22 @@ def parse_args() -> object:
         parser.error(
             "--count-selective-macro-arguments requires --compiler-mode selective-macro"
         )
+    if args.scheduler_cpu_harness and not (
+        args.stack == "fabric"
+        and args.compiler_mode == "score-add"
+        and args.no_spark
+        and args.capture_server_thread_cpu
+        and not args.capture_jfr_cpu
+        and not args.count_command_callbacks
+        and not args.count_selective_macro_arguments
+        and not args.scoreadd_path_coverage_diagnostic
+    ):
+        parser.error(
+            "Scheduler CPU harness requires Fabric score-add, --no-spark,"
+            " --capture-server-thread-cpu, without other instrumentation."
+        )
+    if args.scheduler_queue_cpu_probe != "off" and not args.scheduler_cpu_harness:
+        parser.error("Scheduler CPU probe requires --scheduler-cpu-harness")
     if args.capture_jfr_cpu and not (
         args.no_spark and args.capture_server_thread_cpu
         and not args.count_command_callbacks
@@ -402,6 +429,8 @@ def main() -> int:
     }
     capture_spark = not args.no_spark
     capture_jfr_cpu = args.capture_jfr_cpu
+    scheduler_cpu_harness = args.scheduler_cpu_harness
+    scheduler_cpu_mode = args.scheduler_queue_cpu_probe
     compiler_probe_active = compiler_enabled or callback_metrics_enabled
     diagnostics = []
     if callback_metrics_enabled:
@@ -419,6 +448,12 @@ def main() -> int:
         if diagnostics
         else "no Spark agent or Function Compiler timing/counter metrics"
     )
+
+    if scheduler_cpu_harness:
+        timing_instrumentation = (
+            f"SCHED-ATTR-023 ThreadMXBean queue/entry CPU clocks ({scheduler_cpu_mode});"
+            " native event begin/end via research RCON; no Spark/JFR/command metrics"
+        )
 
     if capture_jfr_cpu:
         timing_instrumentation = (
@@ -552,6 +587,11 @@ def main() -> int:
                 {
                     "FC_WRAPPER_PROBE": str(wrapper_enabled).lower(),
                     "FC_SCORE_ADD_PROTOTYPE": str(score_add_enabled).lower(),
+                    "FC_SCHED_QUEUE_CPU_HARNESS": str(scheduler_cpu_harness).lower(),
+                    "FC_SCHED_QUEUE_CPU_PROBE": scheduler_cpu_mode,
+                    "FC_SCHED_ARCH_COUNTERS": "false" if scheduler_cpu_harness else environment.get("FC_SCHED_ARCH_COUNTERS", "false"),
+                    "FC_SCORE_ADD_TIMING": "false" if scheduler_cpu_harness else environment.get("FC_SCORE_ADD_TIMING", "false"),
+                    "FC_SCORE_ADD_PHASE_TIMERS": "false" if scheduler_cpu_harness else environment.get("FC_SCORE_ADD_PHASE_TIMERS", "false"),
                     "FC_SCORE_ADD_METRICS": str(
                         args.compiler_mode in {"score-add-instrumented", "fused"}
                     ).lower(),
@@ -738,6 +778,10 @@ def main() -> int:
                 raise RuntimeError(
                     "Pre-event idle tick stability gate failed; not measuring or "
                     f"excluding this arm after observing treatment outcome: {tick_pre_event_stability}")
+        if scheduler_cpu_harness:
+            response = rcon.command("fc_sched_cpu begin")
+            if f"FC_SCHED_CPU_BEGIN mode={scheduler_cpu_mode}" not in response:
+                raise RuntimeError(f"Scheduler CPU begin command failed: {response!r}")
         event_thread = None
         event_cpu_before = None
         event_throttle_before = None
@@ -815,8 +859,15 @@ def main() -> int:
                 break
             time.sleep(0.5)
 
-        # Close the CPU window immediately when the exact ore work completes,
-        # before collecting compiler stats, RCON post-run context, or Spark.
+        # For SCHED-ATTR-023, include the final RCON stop command in both
+        # the Linux /proc CPU denominator and the queue-level probe. This
+        # produces a deliberately wider diagnostic window than ordinary
+        # native-event timing; it is never compared as a causal speedup.
+        if scheduler_cpu_harness:
+            response = rcon.command("fc_sched_cpu end")
+            if f"FC_SCHED_CPU_END mode={scheduler_cpu_mode}" not in response:
+                raise RuntimeError(f"Scheduler CPU end command failed: {response!r}")
+        # Close the CPU window after exact native work (and optional stop).
         event_cpu = None
         if args.capture_server_thread_cpu:
             assert event_thread is not None and event_cpu_before is not None
@@ -1019,6 +1070,56 @@ def main() -> int:
                     f"before={compiler_status_before!r}; after={compiler_status_after!r}"
                 )
 
+        scheduler_cpu_probe = None
+        if scheduler_cpu_harness:
+            if compiler_status_before is None or compiler_status_after is None:
+                raise RuntimeError("Scheduler CPU probe requires pre/post probe status")
+            expected_mode = f"sched_cpu_mode={scheduler_cpu_mode}"
+            if expected_mode not in compiler_status_before or expected_mode not in compiler_status_after:
+                raise RuntimeError("Scheduler CPU mode mismatch across snapshots")
+            def sched_delta(key: str) -> int:
+                return stats_int(compiler_status_after, key) - stats_int(compiler_status_before, key)
+            if ("sched_cpu_recording=false" not in compiler_status_after
+                    or sched_delta("sched_cpu_begins") != 1
+                    or sched_delta("sched_cpu_ends") != 1
+                    or stats_int(compiler_status_after, "sched_cpu_queue_depth") != 0
+                    or stats_int(compiler_status_after, "sched_cpu_entry_depth") != 0
+                    or sched_delta("sched_cpu_nested_queue") != 0
+                    or sched_delta("sched_cpu_nested_entry") != 0):
+                raise RuntimeError("Scheduler CPU session/nesting accounting invalid")
+            measured_fields = {
+                "queue_samples": sched_delta("sched_cpu_queue_samples"),
+                "entry_samples": sched_delta("sched_cpu_entry_samples"),
+                "queue_cpu_ns": sched_delta("sched_cpu_queue_ns"),
+                "entry_cpu_ns": sched_delta("sched_cpu_entry_ns"),
+                "queue_zero_deltas": sched_delta("sched_cpu_queue_zeros"),
+                "entry_zero_deltas": sched_delta("sched_cpu_entry_zeros"),
+            }
+            if scheduler_cpu_mode == "off":
+                if any(measured_fields.values()):
+                    raise RuntimeError("Scheduler CPU off control unexpectedly collected clock data")
+            else:
+                if "sched_cpu_clock_ready=true" not in compiler_status_after:
+                    raise RuntimeError("Scheduler CPU clock is unsupported or disabled")
+                if (measured_fields["queue_samples"] < 20
+                        or measured_fields["entry_samples"] < 100
+                        or any(v < 0 for v in measured_fields.values())
+                        or measured_fields["queue_zero_deltas"] > measured_fields["queue_samples"]
+                        or measured_fields["entry_zero_deltas"] > measured_fields["entry_samples"]):
+                    raise RuntimeError("Scheduler CPU sample/clock counters invalid")
+            scheduler_cpu_probe = {
+                "mode": scheduler_cpu_mode,
+                "clock_ready": scheduler_cpu_mode != "off",
+                "java_thread_id": stats_int(compiler_status_after, "sched_cpu_java_thread_id"),
+                "sessions_started": sched_delta("sched_cpu_begins"),
+                "sessions_ended": sched_delta("sched_cpu_ends"),
+                "nested_queue_events": sched_delta("sched_cpu_nested_queue"),
+                "nested_entry_events": sched_delta("sched_cpu_nested_entry"),
+                **measured_fields,
+                "window": "RCON begin after idle gate; RCON end after 215-ore completion, before /proc CPU end",
+                "interpretation": "Inclusive queue vs nested entry CPU; residual includes clock/Mixin overhead and does not represent all scheduler CPU",
+            }
+
         valid_scoreadd_path_coverage_diagnostic = (
             args.scoreadd_path_coverage_diagnostic
             and command_callback_metrics is not None
@@ -1054,6 +1155,9 @@ def main() -> int:
             "spark_sha256": sha256(SPARK_AGENT) if capture_spark else None,
             "spark_capture_enabled": capture_spark,
             "jfr_cpu_capture_enabled": capture_jfr_cpu,
+            "scheduler_cpu_probe_harness": scheduler_cpu_harness,
+            "scheduler_cpu_probe_mode": scheduler_cpu_mode,
+            "scheduler_cpu_probe": scheduler_cpu_probe,
             "jfr_cpu_profile_path": (
                 str(jfr_path.relative_to(ROOT)) if jfr_path else None
             ),
@@ -1079,7 +1183,7 @@ def main() -> int:
             "callback_metrics_forced_wrapper": (
                 callback_metrics_enabled and not compiler_enabled
             ),
-            "diagnostic_only": bool(diagnostics) or capture_jfr_cpu,
+            "diagnostic_only": bool(diagnostics) or capture_jfr_cpu or scheduler_cpu_harness,
             "compiler_status_before": compiler_status_before,
             "compiler_status_after": compiler_status_after,
             "command_callback_metrics": command_callback_metrics,
