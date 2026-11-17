@@ -75,6 +75,7 @@ final class ProbeStatus {
     }
 
     static int status(CommandSourceStack source) {
+        SchedulerTaskCpuProbe.ensureReady();
         ServerFunctionManager manager = source.getServer().getFunctions();
         Optional<CommandFunction<CommandSourceStack>> found = manager.get(PROBE_FUNCTION);
         if (found.isEmpty()) {
@@ -143,6 +144,34 @@ final class ProbeStatus {
                 + " sched_path_execute_command=" + SchedulerPathCensus.executeCommandCount()
                 + " sched_path_call_function=" + SchedulerPathCensus.callFunctionCount()
                 + " sched_path_continuation=" + SchedulerPathCensus.continuationCount()
+                + " sched_task_cpu_mode=" + SchedulerTaskCpuProbe.modeName()
+                + " sched_task_cpu_clock_ready=" + SchedulerTaskCpuProbe.clockReady()
+                + " sched_task_cpu_sample_denominator=" + SchedulerTaskCpuProbe.SAMPLE_DENOMINATOR
+                + " sched_task_cpu_thread_id=" + SchedulerTaskCpuProbe.ownerThreadId()
+                + " sched_task_build_calls=" + SchedulerTaskCpuProbe.calls(SchedulerTaskCpuProbe.Path.BUILD)
+                + " sched_task_build_samples=" + SchedulerTaskCpuProbe.samples(SchedulerTaskCpuProbe.Path.BUILD)
+                + " sched_task_build_cpu_ns=" + SchedulerTaskCpuProbe.cpuNanos(SchedulerTaskCpuProbe.Path.BUILD)
+                + " sched_task_build_zero_deltas=" + SchedulerTaskCpuProbe.zeroDeltas(SchedulerTaskCpuProbe.Path.BUILD)
+                + " sched_task_build_nested=" + SchedulerTaskCpuProbe.nested(SchedulerTaskCpuProbe.Path.BUILD)
+                + " sched_task_build_depth=" + SchedulerTaskCpuProbe.depth(SchedulerTaskCpuProbe.Path.BUILD)
+                + " sched_task_execute_calls=" + SchedulerTaskCpuProbe.calls(SchedulerTaskCpuProbe.Path.EXECUTE)
+                + " sched_task_execute_samples=" + SchedulerTaskCpuProbe.samples(SchedulerTaskCpuProbe.Path.EXECUTE)
+                + " sched_task_execute_cpu_ns=" + SchedulerTaskCpuProbe.cpuNanos(SchedulerTaskCpuProbe.Path.EXECUTE)
+                + " sched_task_execute_zero_deltas=" + SchedulerTaskCpuProbe.zeroDeltas(SchedulerTaskCpuProbe.Path.EXECUTE)
+                + " sched_task_execute_nested=" + SchedulerTaskCpuProbe.nested(SchedulerTaskCpuProbe.Path.EXECUTE)
+                + " sched_task_execute_depth=" + SchedulerTaskCpuProbe.depth(SchedulerTaskCpuProbe.Path.EXECUTE)
+                + " sched_task_call_calls=" + SchedulerTaskCpuProbe.calls(SchedulerTaskCpuProbe.Path.CALL)
+                + " sched_task_call_samples=" + SchedulerTaskCpuProbe.samples(SchedulerTaskCpuProbe.Path.CALL)
+                + " sched_task_call_cpu_ns=" + SchedulerTaskCpuProbe.cpuNanos(SchedulerTaskCpuProbe.Path.CALL)
+                + " sched_task_call_zero_deltas=" + SchedulerTaskCpuProbe.zeroDeltas(SchedulerTaskCpuProbe.Path.CALL)
+                + " sched_task_call_nested=" + SchedulerTaskCpuProbe.nested(SchedulerTaskCpuProbe.Path.CALL)
+                + " sched_task_call_depth=" + SchedulerTaskCpuProbe.depth(SchedulerTaskCpuProbe.Path.CALL)
+                + " sched_task_continuation_calls=" + SchedulerTaskCpuProbe.calls(SchedulerTaskCpuProbe.Path.CONTINUATION)
+                + " sched_task_continuation_samples=" + SchedulerTaskCpuProbe.samples(SchedulerTaskCpuProbe.Path.CONTINUATION)
+                + " sched_task_continuation_cpu_ns=" + SchedulerTaskCpuProbe.cpuNanos(SchedulerTaskCpuProbe.Path.CONTINUATION)
+                + " sched_task_continuation_zero_deltas=" + SchedulerTaskCpuProbe.zeroDeltas(SchedulerTaskCpuProbe.Path.CONTINUATION)
+                + " sched_task_continuation_nested=" + SchedulerTaskCpuProbe.nested(SchedulerTaskCpuProbe.Path.CONTINUATION)
+                + " sched_task_continuation_depth=" + SchedulerTaskCpuProbe.depth(SchedulerTaskCpuProbe.Path.CONTINUATION)
                 + " arch_nonempty_queue_visits=" + ProbeMetrics.archQueueBoundaryVisits()
                 + " arch_quota_debits=" + ProbeMetrics.archQuotaDebits()
                 + " bytecode_regions_compiled=" + ProbeMetrics.bytecodeRegionsCompiled()
