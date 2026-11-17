@@ -75,6 +75,7 @@ final class ProbeStatus {
     }
 
     static int status(CommandSourceStack source) {
+        SchedulerQueueCpuProbe.requireReady();
         ServerFunctionManager manager = source.getServer().getFunctions();
         Optional<CommandFunction<CommandSourceStack>> found = manager.get(PROBE_FUNCTION);
         if (found.isEmpty()) {
@@ -114,6 +115,22 @@ final class ProbeStatus {
                 + " score_add_prototype_enabled=" + ProbeConfiguration.scoreAddPrototypeEnabled()
                 + " score_add_metrics_enabled=" + ProbeConfiguration.scoreAddMetricsEnabled()
                 + " score_add_timing_enabled=" + ProbeConfiguration.scoreAddTimingEnabled()
+                + " sched_cpu_mode=" + SchedulerQueueCpuProbe.modeName()
+                + " sched_cpu_clock_ready=" + SchedulerQueueCpuProbe.clockReady()
+                + " sched_cpu_recording=" + SchedulerQueueCpuProbe.recording()
+                + " sched_cpu_begins=" + SchedulerQueueCpuProbe.begins()
+                + " sched_cpu_ends=" + SchedulerQueueCpuProbe.ends()
+                + " sched_cpu_java_thread_id=" + SchedulerQueueCpuProbe.ownerThreadId()
+                + " sched_cpu_queue_depth=" + SchedulerQueueCpuProbe.queueDepth()
+                + " sched_cpu_entry_depth=" + SchedulerQueueCpuProbe.entryDepth()
+                + " sched_cpu_nested_queue=" + SchedulerQueueCpuProbe.nestedQueueEntries()
+                + " sched_cpu_nested_entry=" + SchedulerQueueCpuProbe.nestedCommandEntries()
+                + " sched_cpu_queue_samples=" + SchedulerQueueCpuProbe.queueSamples()
+                + " sched_cpu_entry_samples=" + SchedulerQueueCpuProbe.entrySamples()
+                + " sched_cpu_queue_ns=" + SchedulerQueueCpuProbe.queueCpuNanos()
+                + " sched_cpu_entry_ns=" + SchedulerQueueCpuProbe.entryCpuNanos()
+                + " sched_cpu_queue_zeros=" + SchedulerQueueCpuProbe.queueZeroDelta()
+                + " sched_cpu_entry_zeros=" + SchedulerQueueCpuProbe.entryZeroDelta()
                 + " score_add_attr_enabled=" + ProbeConfiguration.scoreAddAttributionEnabled()
                 + " score_attr_diag_enabled=" + ProbeConfiguration.scoreAddAttributionDiagnosticsEnabled()
                 + " score_attr_delegate_calls=" + ProbeMetrics.scoreAttrDelegateCalls()
