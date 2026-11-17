@@ -4,7 +4,7 @@ name: SCHED-ATTR-025 sparse sampled CPU of four execution tasks
 on:
   workflow_dispatch:
   pull_request:
-    branches: [research/sched-attr-025-entry-path-census]
+    branches: [research/sched-attr-024-entry-path-census]
     paths:
       - src/main/java/dev/functioncompiler/SchedulerTaskCpuProbe.java
       - src/main/java/dev/functioncompiler/ProbeStatus.java
