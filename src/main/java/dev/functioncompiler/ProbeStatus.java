@@ -75,6 +75,9 @@ final class ProbeStatus {
     }
 
     static int status(CommandSourceStack source) {
+        // Fail before beginning a native event if a research-only CPU timer is
+        // unsupported or disabled in the active JDK.
+        ScoreAddCpuProbe.ensureReady();
         ServerFunctionManager manager = source.getServer().getFunctions();
         Optional<CommandFunction<CommandSourceStack>> found = manager.get(PROBE_FUNCTION);
         if (found.isEmpty()) {
