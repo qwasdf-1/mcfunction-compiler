@@ -132,6 +132,22 @@ final class ScoreAddCommand implements FusableCommand {
                 && ProbeConfiguration.commandCallbackMetricsEnabled()) {
             ProbeMetrics.scoreAddCallbackEntered(ProbeMetrics.commandCallbackScopeActive());
         }
+        // SCHED-COMP-022: identical two-clock-read overhead in both independent
+        // diagnostic arms. EMPTY reads both clocks before the real callback;
+        // TIMED places the same reads around it. No extra probe in ordinary runs.
+        if (ScoreAddCpuProbe.enabled()) {
+            if (ScoreAddCpuProbe.mode() == ScoreAddCpuProbe.Mode.EMPTY) {
+                long started = ScoreAddCpuProbe.begin();
+                ScoreAddCpuProbe.end(started);
+                return runUntimed(context);
+            }
+            long started = ScoreAddCpuProbe.begin();
+            try {
+                return runUntimed(context);
+            } finally {
+                ScoreAddCpuProbe.end(started);
+            }
+        }
         if (!fixedFlags && (useLegacyFlagLookups
                 ? ProbeConfiguration.scoreAddTimingEnabledLegacy()
                 : ProbeConfiguration.scoreAddTimingEnabled())) {
@@ -237,6 +253,11 @@ final class ScoreAddCommand implements FusableCommand {
                 : ProbeConfiguration.scoreAddMetricsEnabled())) {
             ProbeMetrics.scoreAddExecuted(functionId);
             ProbeMetrics.scoreAddDirectSucceeded();
+        }
+        if (ScoreAddCpuProbe.enabled()) {
+            // Only reached after the typed scoreboard mutation and feedback
+            // succeeded; delegated vanilla fallbacks do not increment this.
+            ScoreAddCpuProbe.directSuccess();
         }
         return result;
     }
