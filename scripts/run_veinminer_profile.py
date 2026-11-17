@@ -286,6 +286,17 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--scoreadd-cpu-probe",
+        choices=("off", "empty", "timed"),
+        default="off",
+        help=(
+            "SCHED-COMP-022 only: two ThreadMXBean reads per ScoreAdd callback;"
+            " empty is a back-to-back clock overhead control, timed brackets"
+            " the real callback. Requires Fabric score-add, --no-spark and"
+            " --capture-server-thread-cpu. Never combine with other probes."
+        ),
+    )
+    parser.add_argument(
         "--capture-jfr-cpu",
         action="store_true",
         help=(
@@ -336,6 +347,20 @@ def parse_args() -> object:
     if args.count_selective_macro_arguments and args.compiler_mode != "selective-macro":
         parser.error(
             "--count-selective-macro-arguments requires --compiler-mode selective-macro"
+        )
+    if args.scoreadd_cpu_probe != "off" and not (
+        args.stack == "fabric"
+        and args.compiler_mode == "score-add"
+        and args.no_spark
+        and args.capture_server_thread_cpu
+        and not args.capture_jfr_cpu
+        and not args.count_command_callbacks
+        and not args.count_selective_macro_arguments
+        and not args.scoreadd_path_coverage_diagnostic
+    ):
+        parser.error(
+            "CPU probe requires Fabric score-add, --no-spark,"
+            " --capture-server-thread-cpu and no other diagnostics"
         )
     if args.capture_jfr_cpu and not (
         args.no_spark and args.capture_server_thread_cpu
@@ -402,6 +427,7 @@ def main() -> int:
     }
     capture_spark = not args.no_spark
     capture_jfr_cpu = args.capture_jfr_cpu
+    cpu_probe_mode = args.scoreadd_cpu_probe
     compiler_probe_active = compiler_enabled or callback_metrics_enabled
     diagnostics = []
     if callback_metrics_enabled:
@@ -419,6 +445,13 @@ def main() -> int:
         if diagnostics
         else "no Spark agent or Function Compiler timing/counter metrics"
     )
+
+    if cpu_probe_mode != "off":
+        timing_instrumentation = (
+            f"JDK ThreadMXBean current-thread CPU probe ({cpu_probe_mode});"
+            " two clock reads per typed ScoreAdd callback; no Spark/JFR"
+            " and no ordinary callback or shared-family execution counters"
+        )
 
     if capture_jfr_cpu:
         timing_instrumentation = (
@@ -552,6 +585,9 @@ def main() -> int:
                 {
                     "FC_WRAPPER_PROBE": str(wrapper_enabled).lower(),
                     "FC_SCORE_ADD_PROTOTYPE": str(score_add_enabled).lower(),
+                    "FC_SCORE_ADD_CPU_PROBE": cpu_probe_mode,
+                    "FC_SCORE_ADD_TIMING": "false" if cpu_probe_mode != "off" else environment.get("FC_SCORE_ADD_TIMING", "false"),
+                    "FC_SCORE_ADD_PHASE_TIMERS": "false" if cpu_probe_mode != "off" else environment.get("FC_SCORE_ADD_PHASE_TIMERS", "false"),
                     "FC_SCORE_ADD_METRICS": str(
                         args.compiler_mode in {"score-add-instrumented", "fused"}
                     ).lower(),
@@ -1019,6 +1055,44 @@ def main() -> int:
                     f"before={compiler_status_before!r}; after={compiler_status_after!r}"
                 )
 
+        score_cpu_probe = None
+        if cpu_probe_mode != "off":
+            if compiler_status_before is None or compiler_status_after is None:
+                raise RuntimeError("CPU probe requires pre/post server-thread status snapshots")
+            mode_marker = f"score_cpu_probe_mode={cpu_probe_mode}"
+            if (mode_marker not in compiler_status_before
+                    or mode_marker not in compiler_status_after
+                    or "score_cpu_probe_clock_ready=true" not in compiler_status_before
+                    or "score_cpu_probe_clock_ready=true" not in compiler_status_after):
+                raise RuntimeError("CPU probe mode/clock readiness not verified by server")
+            def cpu_probe_delta(key: str) -> int:
+                return stats_int(compiler_status_after, key) - stats_int(compiler_status_before, key)
+            samples = cpu_probe_delta("score_cpu_probe_calls")
+            cpu_ns = cpu_probe_delta("score_cpu_probe_cpu_ns")
+            successes = cpu_probe_delta("score_cpu_probe_direct_successes")
+            zero_deltas = cpu_probe_delta("score_cpu_probe_zero_deltas")
+            before_tid = stats_int(compiler_status_before, "score_cpu_probe_thread_id")
+            after_tid = stats_int(compiler_status_after, "score_cpu_probe_thread_id")
+            if (samples <= 0 or successes <= 0 or successes > samples
+                    or cpu_ns < 0 or zero_deltas < 0 or zero_deltas > samples
+                    or after_tid <= 0 or before_tid not in (-1, after_tid)):
+                raise RuntimeError("Invalid ScoreAdd CPU clock probe counters")
+            score_cpu_probe = {
+                "mode": cpu_probe_mode,
+                "callback_samples": samples,
+                "direct_successes": successes,
+                "measured_cpu_ns": cpu_ns,
+                "zero_delta_samples": zero_deltas,
+                "java_thread_id": after_tid,
+                "sampled_cpu_ns_per_callback": cpu_ns / samples,
+                "control_interpretation": (
+                    "timed: CPU between clocks bracketing typed callback; "
+                    "empty: two clocks adjacent before invoking same typed callback. "
+                    "The difference is a separate-boot overhead correction, not an "
+                    "exact exclusive CPU timer or causal CPU saving."
+                ),
+            }
+
         valid_scoreadd_path_coverage_diagnostic = (
             args.scoreadd_path_coverage_diagnostic
             and command_callback_metrics is not None
@@ -1054,6 +1128,8 @@ def main() -> int:
             "spark_sha256": sha256(SPARK_AGENT) if capture_spark else None,
             "spark_capture_enabled": capture_spark,
             "jfr_cpu_capture_enabled": capture_jfr_cpu,
+            "score_add_cpu_probe_mode": cpu_probe_mode,
+            "score_add_cpu_probe": score_cpu_probe,
             "jfr_cpu_profile_path": (
                 str(jfr_path.relative_to(ROOT)) if jfr_path else None
             ),
@@ -1079,7 +1155,7 @@ def main() -> int:
             "callback_metrics_forced_wrapper": (
                 callback_metrics_enabled and not compiler_enabled
             ),
-            "diagnostic_only": bool(diagnostics) or capture_jfr_cpu,
+            "diagnostic_only": bool(diagnostics) or capture_jfr_cpu or cpu_probe_mode != "off",
             "compiler_status_before": compiler_status_before,
             "compiler_status_after": compiler_status_after,
             "command_callback_metrics": command_callback_metrics,
