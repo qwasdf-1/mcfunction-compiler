@@ -422,7 +422,7 @@ def main() -> int:
 
     if capture_jfr_cpu:
         timing_instrumentation = (
-            "JDK 25 JFR CPUTimeSample (10ms CPU-time period; R1 quality pilot),"
+            "JDK 25 JFR CPUTimeSample (20ms CPU-time period; R2 final quality pilot),"
             " no Spark or Function Compiler callback counters;"
             " event-level CPU total is separately read from /proc"
         )
@@ -760,7 +760,7 @@ def main() -> int:
                 "jcmd", str(jfr_pid), "JFR.start",
                 "name=fc_comp_021", "settings=profile",
                 "jdk.CPUTimeSample#enabled=true",
-                "jdk.CPUTimeSample#throttle=10ms",
+                "jdk.CPUTimeSample#throttle=20ms",
                 "jdk.CPUTimeSample#stackTrace=true",
                 "jdk.CPUTimeSamplesLost#enabled=true",
                 "jdk.ExecutionSample#enabled=false",
