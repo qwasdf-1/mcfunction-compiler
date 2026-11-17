@@ -18,7 +18,7 @@ import threading
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests" / "runtime"))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "vendor" / "mc-harness"))
 from player_bot import PacketIds, PlayerBot  # noqa: E402
 from mod_artifacts import MODS, MODS_DIR, STACK_MODS  # noqa: E402
 from mc_harness import assert_version  # noqa: E402

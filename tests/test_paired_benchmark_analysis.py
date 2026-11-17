@@ -4,7 +4,7 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "vendor" / "mc-harness"))
 
 from mc_harness.paired_stats import (  # noqa: E402
     no_regression_decision,

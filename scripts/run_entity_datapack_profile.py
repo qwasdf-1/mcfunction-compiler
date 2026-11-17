@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests" / "runtime"))
 sys.path.insert(0, str(ROOT / "scripts"))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "vendor" / "mc-harness"))
 
 from player_bot import PacketIds, PlayerBot  # noqa: E402
 from run_dynamic_lights_profile import (  # noqa: E402

@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "vendor" / "mc-harness"))
 from mc_harness import assert_version, host_gate  # noqa: E402
 from mc_harness.paired_stats import (  # noqa: E402
     paired_percent_changes,

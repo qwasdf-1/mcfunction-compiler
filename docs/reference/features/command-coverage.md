@@ -1049,7 +1049,7 @@ pre-declared baseline gate on this host (batch 16).
 
 **Batch 20 - the harness extraction, roadmap step 6 (no table rows changed).**
 The engine-agnostic harness now lives in the version-pinned sibling package
-`mc-harness` v1.0.0 (`mc-mods/mc-tooling/mc-harness`): the pinned 26.3 Fabric
+`mc-harness` v1.0.0 (frozen, vendored at `vendor/mc-harness`): the pinned 26.3 Fabric
 mod-stack matrix, the exact sign/order-statistic paired-campaign analysis,
 the server lifecycle (RCON clients, pinned server-jar location and
 fingerprint, Mojang packet-report extraction, RCON readiness, server

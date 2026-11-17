@@ -1,8 +1,9 @@
 """The mc-harness version pin and the projects that consume it.
 
-Roadmap step 6 extracts the engine-agnostic harness into the sibling project
-`../mc-tooling/mc-harness` with its own version pinning. These tests keep the
-pin honest: the package resolves, its version is the recorded one, the
+Roadmap step 6 extracted the engine-agnostic harness into its own package with
+its own version pinning; frozen at 1.0.0, it is vendored at `vendor/mc-harness`
+so the repository runs on its own. These tests keep the pin honest: the
+package resolves, its version is the recorded one, the
 function-compiler scripts re-export the harness pieces their call sites import,
 and the protocol client stays project-owned (AGENTS.md: pinned to 26.3
 protocol 777, never extracted).
@@ -17,7 +18,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
-HARNESS_ROOT = Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"
+HARNESS_ROOT = PROJECT_ROOT / "vendor" / "mc-harness"
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(PROJECT_ROOT / "tests" / "runtime"))
@@ -40,7 +41,7 @@ HARNESS_PIN = "1.0.0"
 
 
 class McHarnessPinTests(unittest.TestCase):
-    def test_package_resolves_at_the_sibling_path(self) -> None:
+    def test_package_resolves_at_the_vendored_path(self) -> None:
         self.assertTrue((HARNESS_ROOT / "pyproject.toml").is_file())
         self.assertEqual(mc_harness.__file__, str(HARNESS_ROOT / "mc_harness" / "__init__.py"))
 
@@ -52,11 +53,10 @@ class McHarnessPinTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             assert_version("0.0.1")
 
-    def test_workspace_registers_the_package(self) -> None:
-        workspace = HARNESS_ROOT.parent / "pyproject.toml"
-        text = workspace.read_text(encoding="utf-8")
-        self.assertIn('"mc-harness"', text)
-        self.assertIn('mc-harness = { workspace = true }', text)
+    def test_vendored_metadata_records_the_pin(self) -> None:
+        text = (HARNESS_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertIn('name = "mc-harness"', text)
+        self.assertIn(f'version = "{HARNESS_PIN}"', text)
 
 
 class HarnessBehaviourTests(unittest.TestCase):

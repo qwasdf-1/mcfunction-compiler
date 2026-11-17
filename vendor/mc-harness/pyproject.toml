@@ -1,0 +1,13 @@
+[project]
+name = "mc-harness"
+version = "1.0.0"
+description = "Engine-agnostic Minecraft differential-oracle harness: mod-stack pins, paired statistics, server lifecycle, campaign primitives, host gate"
+requires-python = ">=3.14"
+dependencies = []
+
+[project.scripts]
+mc-harness-version = "mc_harness:print_version"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

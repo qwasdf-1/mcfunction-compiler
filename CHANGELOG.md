@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Vendor the frozen `mc-harness` 1.0.0 at `vendor/mc-harness` (code identical
+  to the shared workspace copy every recorded campaign was verified against)
+  and point the scripts, tests and research workflows at it, so the repository
+  builds and runs without the private sibling `mc-tooling` checkout. The
+  research workflows no longer check out `mc-tooling` or read
+  `MC_TOOLING_READ_TOKEN`. No measurement, default or matrix row changed.
+
 - Run the predeclared H4 confirmatory and clear the real-workload promotion
   gate (batch 27). Ten counterbalanced compiler-off vs selective-macro pairs
   on Vein Miner 5.3.0 side 6 (plain Fabric stack, native event, no Spark,

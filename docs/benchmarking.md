@@ -165,8 +165,8 @@ performance comparisons and record the compatibility failure separately.
    distinguished. Record both in the campaign report before its first trial.
    Report paired median change, full pair range, and a paired confidence
    interval with achieved coverage. The shared helper
-   [`mc-harness/mc_harness/paired_stats.py`](../../mc-tooling/mc-harness/mc_harness/paired_stats.py)
-   (the sibling harness, version-pinned - see roadmap step 6) calculates a
+   [`mc-harness/mc_harness/paired_stats.py`](../vendor/mc-harness/mc_harness/paired_stats.py)
+   (the vendored harness, version-pinned - see roadmap step 6) calculates a
    distribution-free exact order-statistic interval for the median paired change. For a metric where lower is better, the interval must
    lie entirely at or beyond the preselected gain to meet the threshold. An
    interval that overlaps the threshold is inconclusive; an interval entirely

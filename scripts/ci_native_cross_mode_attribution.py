@@ -27,7 +27,7 @@ import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT.parent / "mc-tooling" / "mc-harness"))
+sys.path.insert(0, str(ROOT / "vendor" / "mc-harness"))
 
 from ci_smoke_server import Rcon, unused_port, wait_for_rcon
 from ci_scheduler_attribution import jcmd

@@ -14,7 +14,7 @@ How much of a Minecraft 26.3 function's execution cost comes from queue scheduli
 - Baseline raw [JFR + JSON](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/42887087889), compiler revision `18cddcf5`.
 - Cached-flag raw [JFR + JSON](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/42888533071), compiler revision `bb10467d`.
 - Both are GitHub-hosted **Ubuntu 24.04**, **Temurin Java 25**, **Minecraft 26.3**, Fabric Loader `0.20.1`, Fabric API `0.165.0+26.3`; Gradle build and full 110-test Python suite passed in both.
-- The artifacts have finite GitHub Actions retention. Re-run the workflow using the pinned sibling `mc-tooling` checkout to regenerate the recordings.
+- The artifacts have finite GitHub Actions retention. Re-run the workflow (it uses the vendored `vendor/mc-harness`) to regenerate the recordings.
 
 ### Declared workload
 

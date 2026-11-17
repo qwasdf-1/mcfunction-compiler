@@ -69,7 +69,7 @@ import tempfile
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "vendor" / "mc-harness"))
 from mc_harness import assert_version, host_gate  # noqa: E402
 from run_runtime_probe import (  # noqa: E402
     LEVEL,

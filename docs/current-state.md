@@ -940,9 +940,9 @@ scoreboard, lifecycle, fallback, and trace assertions as well.
   [coverage table](reference/features/command-coverage.md).
 
 - Batch 20 completed roadmap step 6: the engine-agnostic harness was extracted
-  into a version-pinned sibling package,
-  [`mc-harness`](../../mc-tooling/mc-harness/README.md) v1.0.0 in the
-  `mc-tooling` workspace. It owns the machinery that had been copied per
+  into a version-pinned sibling package, `mc-harness` v1.0.0 in the shared
+  `mc-tooling` workspace; frozen at 1.0.0, it is now vendored unchanged at
+  [`vendor/mc-harness`](../vendor/mc-harness/README.md). It owns the machinery that had been copied per
   project: the pinned 26.3 Fabric mod-stack matrix, the exact
   sign/order-statistic paired-campaign analysis, the server lifecycle (RCON
   clients including the split-response-draining variant, pinned server-jar

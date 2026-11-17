@@ -330,7 +330,8 @@ pass actually implements:
    paired statistics and the host gate) into a sibling project, with its own
    version pinning, once steps 1–3 have stabilised.
    **Done (batch 20, 2026-11-09)**: the sibling workspace gained
-   [`mc-harness`](../../../../mc-tooling/mc-harness/README.md) v1.0.0, holding
+   `mc-harness` v1.0.0 (frozen, and now vendored at
+   [`vendor/mc-harness`](../../../vendor/mc-harness/README.md)), holding
    the mod-stack pin matrix, the exact paired-campaign statistics, the server
    lifecycle (RCON clients, pinned-jar location, packet-report extraction,
    readiness), the counterbalanced-campaign primitives, and the host gate

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Pinned Minecraft 26.3 Fabric mod artifacts shared by runtime harnesses.
 
-The canonical pin data and stack definitions live in the sibling harness
-(`mc-tooling/mc-harness`, `mc_harness.mod_stacks`) so every mc-mods project
-differential run loads the same pinned versions. This module is the
+The canonical pin data and stack definitions live in the vendored harness
+(`vendor/mc-harness`, `mc_harness.mod_stacks`) so every differential run
+loads the same pinned versions. This module is the
 function-compiler adapter: it resolves this project's retained jar directory
 and re-exports the shared pins. Verify a jar before loading it with
 `mc_harness.mod_stacks.verify_mod_jar`, or with the project's own checks where
@@ -15,8 +15,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# The sibling harness package lives at ../mc-tooling/mc-harness (roadmap step 6).
-MC_HARNESS_ROOT = Path(__file__).resolve().parents[2] / "mc-tooling" / "mc-harness"
+# The harness package is vendored at vendor/mc-harness (frozen at 1.0.0).
+MC_HARNESS_ROOT = Path(__file__).resolve().parents[1] / "vendor" / "mc-harness"
 if str(MC_HARNESS_ROOT) not in sys.path:
     sys.path.insert(0, str(MC_HARNESS_ROOT))
 
