@@ -1,6 +1,6 @@
 # SCHED-ATTR-023 — Server-thread CPU in the queue loop versus dequeued entries
 
-**Status:** Research-only native diagnostic preregistered on `research/sched-attr-023-queue-exclusive-cpu`; no native measurements have been accepted. No scheduler rewrite, no optimizer default change.
+**Status:** Completed three-arm native diagnostic (2026-11-17), passing all preregistered workload/clock/host gates. The instrumented queue-loop residual is small and **below the timer-overhead sensitivity scale**, so exclusive queue-loop CPU remains unresolved at the sub-percent level. No scheduler rewrite, no optimizer default change.
 
 ## Why this study
 
@@ -64,6 +64,45 @@ For sensitivity only, `C` = mean EMPTY control CPU between two adjacent clock re
 - `scripts/run_veinminer_profile.py`: exact 215-ore event with the expanded begin/end probe window.
 - `scripts/ci_scheduler_queue_cpu.py`: independent three-arm driver and validity/interpretation.
 - `tests/test_scheduler_queue_cpu_clock.py`, `tests/test_scheduler_queue_cpu.py`: standalone Java mode and synthetic quality-gate tests.
-- `.github/workflows/research-scheduler-queue-cpu.yml`: isolated manual-only research workflow, with temporary PR-triggered validation before merge (remove trigger after initial execution).
+- `.github/workflows/research-scheduler-queue-cpu.yml`: isolated **manual-only** research workflow; the temporary PR validation trigger was removed after the accepted campaign.
 
 **Stop rule:** Preserve actual failures. Do not loosen gates until an accepted result appears or redesign the instrumented method to handle the observed source-level problem, reporting the amendment explicitly. Do not promote a global scheduler rewrite or production default from this diagnostic.
+
+## First completed native screen — 2026-11-17
+
+**Authoritative Actions run:** [#44173954824](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44173954824), **success**. Original [raw artifact `sched-attr-023-queue-vs-entry-cpu` #14370465273](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44173954824/artifacts/14370465273), includes `SCHED-ATTR-023/diagnostic.json`, all three full native `results.json`, three setup histories and stdout/stderr logs. The Java mode/clock contracts, Python analysis contracts, pinned publisher ZIP verification, and Minecraft Fabric build all passed.
+
+Every boot completed the exact 215-ore player mining event with **1,952 queue-head advances**, the same final scoreboard/block/marker state (source stat 1, ore work 215, run 0, remaining ore 0, original source removed, 0 operation/target markers), 4 compiled shared-family queue/drain commands, correct publisher SHA-256, 9-second pre-event idle stability gate, and zero cgroup throttling. Server-thread runqueue wait fraction was **0.119%**, **0.106%** and **0.158%** respectively: all under the predeclared 25% host quality bound.
+
+| Arm | Native event completion | Server-thread running CPU | Queue runs recorded | Entry executions recorded |
+|---|---:|---:|---:|---:|
+| Plain / OFF | 20.135 s | **18.519282 s** | Not instrumented | Not instrumented |
+| EMPTY clock control | 20.897 s | **19.337932 s** | 153 | 198,870 |
+| TIMED nested intervals | 20.486 s | **18.955856 s** | 152 | 198,064 |
+
+The EMPTY/TIMED queue-call counts differ by **1/153 = 0.65%** and inner-action counts by **806/198,870 = 0.41%**, under the preregistered 25% exposure criterion. Both timed zero-delta fractions are **0%**; there are no nested queue or entry intervals or unclosed scopes. TIMED vs PLAIN independently booted total Server-thread CPU differs by **2.36%**, under the coarse predeclared 30% perturbation gate, **not** proof that instrumentation costs 2.36%.
+
+### Primary descriptive decomposition — timed arm only
+
+| Disjoint/overlapping CPU observation | Measured CPU nanoseconds | Share of *timed* Server-thread CPU |
+|---|---:|---:|
+| **Q:** entire `runCommandQueue` (inclusive of entries) | 18,406,634,121 | **97.103%** |
+| **E:** inside dequeued `CommandQueueEntry.execute` (part of Q) | 18,224,248,363 | **96.140%** |
+| **R = Q − E:** raw loop residual (Q and E **must not be added**) | **182,385,758** | **0.9622%** |
+| Outside the measured queue driver | 549,221,602 | 2.897% |
+
+The outer queue contains almost all observed server-thread CPU because **actual commands/world operations execute inside the queued actions**; 97.10% is **not** the CPU cost of queue bookkeeping. The raw measured non-entry remainder is small, but carries timer overhead.
+
+### Control and timer-resolution sensitivity
+
+- EMPTY clock-pair mean: **2,231.484 ns** per outer queue and **811.037 ns** per dequeued entry.
+- A two-entry-clock sensitivity allowance of **2 × 811.037 ns × 198,064 = 321,274,566 ns** **exceeds the entire 182,385,758 ns raw residual**.
+- The signed `R_s = R − two-clock allowance` is **−138,888,808 ns** (**−0.733%** of timed CPU). This **does not** mean the true queue loop has negative CPU cost. It demonstrates that the residual lies **below an approximate instrumentation scale**; clock reads are not fully calibrated by this expression, nor are Mixin/aggregation costs.
+- The inner entry sum dominates because it includes not only gameplay work but also `BuildContexts`, `ExecuteCommand`, Brigadier, result callbacks, and nested function/scoreboard logic. This study **does not isolate those costs** from the actual world mutations.
+- The independent 20.1–20.9-second native events and 18.5–19.3-second CPU totals should **not** be compared causally against the earlier 14–15-second studies or against one another: JVM/JIT and host allocation may differ, the new Mixin is always installed (even if its clock is off), and the RCON capture window is wider.
+
+**Predeclared quality decision:** `valid_nested_queue_cost_screen`. **Mechanistic interpretation:** the observed outer-loop residual is approximately **0.96% raw** but is **not resolved from measurement overhead**; no validated exact exclusive scheduling-cost percentage, statistical interval, or realizable whole-event speedup is established. The evidence strongly argues **against immediately replacing the global `ExecutionContext` loop**, especially given SCHED-ARCH-014's prior direct-path regression. This does **not** prove Brigadier/context-building, frame/continuation actions or other per-entry execution machinery negligible.
+
+**Next focused diagnostic (not yet executed):** attribute CPU **within** the `CommandQueueEntry.execute` subtree to `BuildContexts`, `ExecuteCommand`, `CallFunction`/continuations, custom modifiers and world-action callbacks, with each sample exclusively partitioned or with overlap explicitly recorded. Use a separately powered method that does not amplify hundreds of thousands of cheap entry executions into an unresolvable timer floor. Preserve vanilla semantic parity and a mod-free reference. Do not implement an alternative queue backend solely on this inclusive timing result.
+
+**Workflow status:** SCHED-ATTR-023 was restored to `workflow_dispatch`-only after this valid three-arm diagnostic. This branch/PR remains **draft**; no global scheduler changes or production optimization flags were promoted.
