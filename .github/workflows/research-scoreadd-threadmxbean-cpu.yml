@@ -1,0 +1,102 @@
+name: SCHED-COMP-022 calibrated ScoreAdd ThreadMXBean CPU attribution
+
+# Research branch PR trigger for initial validation only: remove before
+# merging, to keep all multi-server campaigns manual-only on main.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/main/java/dev/functioncompiler/ScoreAddCommand.java
+      - src/main/java/dev/functioncompiler/ScoreAddCpuProbe.java
+      - src/main/java/dev/functioncompiler/ProbeStatus.java
+      - scripts/run_veinminer_profile.py
+      - scripts/ci_scoreadd_cpu_timing.py
+      - tests/test_scoreadd_cpu_probe.py
+      - tests/test_scoreadd_cpu_timing.py
+      - docs/research/scoreadd-threadmxbean-cpu-SCHED-COMP-022.md
+      - .github/workflows/research-scoreadd-threadmxbean-cpu.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sched-comp-022-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  callback-cpu-with-empty-read-control:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Checkout compiler research branch
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Verify ThreadMXBean mode and control/analysis contracts
+        run: |
+          python3 -m py_compile scripts/run_veinminer_profile.py scripts/ci_scoreadd_cpu_timing.py
+          python3 -m unittest discover -s tests -p test_scoreadd_cpu_probe.py -v
+          python3 -m unittest discover -s tests -p test_scoreadd_cpu_timing.py -v
+      - name: Build compiler
+        run: ./gradlew --no-daemon --stacktrace build
+      - name: Fetch and verify exact pinned Vein Miner datapack
+        env:
+          MC_VEINMINER_REFERENCE_URL: ${{ secrets.MC_VEINMINER_REFERENCE_URL }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          import urllib.request
+          expected="fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e"
+          target=Path("references/real-world/candidates/VeinMiner-5.3.0+26.3.zip")
+          target.parent.mkdir(parents=True,exist_ok=True)
+          if target.exists():
+              payload=target.read_bytes()
+          else:
+              url=os.environ.get("MC_VEINMINER_REFERENCE_URL")
+              if not url:
+                  req=urllib.request.Request("https://api.modrinth.com/v2/version/5jzz5SkG",headers={"User-Agent":"MCFC-research-SCHED-COMP-022/1.0"})
+                  with urllib.request.urlopen(req,timeout=45) as response:
+                      version=json.load(response)
+                  matches=[f for f in version["files"] if f["filename"]=="VeinMiner-5.3.0+26.3.zip"]
+                  if len(matches)!=1:
+                      raise RuntimeError("Pinned datapack filename not found in publisher's version record")
+                  url=matches[0]["url"]
+              req=urllib.request.Request(url,headers={"User-Agent":"MCFC-research-SCHED-COMP-022/1.0"})
+              with urllib.request.urlopen(req,timeout=60) as response:
+                  payload=response.read()
+          observed=hashlib.sha256(payload).hexdigest()
+          print("Publisher datapack sha256:",observed)
+          if observed!=expected:
+              raise SystemExit("PINNED ARTIFACT MISMATCH: no experiment run; need exact original Vein Miner ZIP")
+          target.write_bytes(payload)
+          print("Verified pinned Vein Miner archive",len(payload),"bytes")
+          PY
+      - name: Measure three independent cached ScoreAdd CPU clock calibration arms
+        timeout-minutes: 35
+        run: python3 scripts/ci_scoreadd_cpu_timing.py
+      - name: Archive raw per-arm calibration and native event records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sched-comp-022-cpu-callback-calibration
+          path: |
+            function-compiler/build/benchmarks/SCHED-COMP-022/*.json
+            function-compiler/build/benchmarks/SCHED-COMP-022/*.log
+            function-compiler/build/benchmarks/PERF-011-veinminer/vein-*/*.json
+            function-compiler/build/benchmarks/PERF-011-veinminer/vein-*/*.log
+          if-no-files-found: warn
+          retention-days: 21
