@@ -1,6 +1,6 @@
 # SCHED-ATTR-024 — Real Vein Miner execution-task path census
 
-**Status:** Preregistered on `research/sched-attr-024-entry-path-census`; **no native measurements accepted yet**. This is the *path-frequency stage* of a larger within-entry cost investigation. It is not a scheduler rewrite, a CPU-share estimate or a new production optimization.
+**Status:** Native **one-server method-entry census accepted** in the corrected 2026-11-17 run, after the separately archived initial Mixin descriptor startup failure. The next sparse CPU timing experiment has not yet run. This is the *path-frequency stage* of a larger within-entry cost investigation. It is not a scheduler rewrite, a CPU-share estimate or a new production optimization.
 
 ## Existing evidence that constrains the question
 
@@ -63,3 +63,26 @@ Only after this count stage passes should a **separate protocol and separate dat
 [Public GitHub Actions run #44188099631](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44188099631) passed standalone contract tests, the Java 25 Fabric build, and SHA-256 verification of the pinned publisher datapack, but the runtime rejected the `SchedulerContinuationCensusMixin` **before any mining packet**. It failed the datapack-list startup check with a generic RCON message. The original Minecraft failure log in [artifact #14374938142](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44188099631/artifacts/14374938142) identifies the concrete cause: `InvalidInjectionException` because `ContinuationTask` **does not** have `execute(ExecutionCommandSource,ExecutionContext,Frame)V`. This is a research instrumentation bug; there are **zero accepted task-frequency observations** in the failed run. Do not treat the elapsed startup interval as an event result.
 
 The 26.3 continuation task has the distinct entry descriptor `execute(ExecutionContext,Frame)V` (two arguments, unlike `CallFunction.execute` and `ExecuteCommand.execute`). Correct only that Mixin target and rerun the **same pinned event and validity gates**, retaining both failed and successful raw attempts separately. This is a mapping correction before any native event data, not selection or retuning based on an observed path frequency.
+
+## Completed corrected census — 2026-11-17
+
+[Actions #44188671911](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44188671911) **passed**, including all standalone Java / Python tests, Fabric build, 26.3 continuation Mixin application, publisher ZIP hash, exactly **215 ore operations**, **1,952 queue-head advances**, correct final state, stable 9-second idle baseline (average 4.9 mspt; P95 6.4 mspt), and native Server-thread host gates (runqueue wait **0.295%**; zero cgroup throttling). [Raw artifact #14375507746](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44188671911/artifacts/14375507746) retains the complete `diagnostic.json` and native `results.json`.
+
+| Observed method entry in *this one diagnostic event* | Calls | Calls / total dequeued entries |
+|---|---:|---:|
+| All `CommandQueueEntry.execute` | **194,017** | 100% (definition) |
+| `BuildContexts.execute` | **80,799** | 41.645% |
+| `ContinuationTask.execute` | **58,770** | 30.291% |
+| `ExecuteCommand.execute` | **28,265** | 14.568% |
+| `CallFunction.execute` | **26,145** | 13.476% |
+| Sum of the four named method counters | **193,979** | 99.980% |
+
+**Critical non-equivalence:** The four named counters total only 38 below the dequeued-entry count, but **this arithmetic does not establish that the four types form an exhaustive or mutually exclusive partition**. These are separately instrumented method entries; an action can call another method, and other task types or custom executors can run. The residual 38 is *not* proven to be exactly 38 instances of a fifth task type. The per-entry ratios are **not** sampled CPU time shares or CPU budget fractions.
+
+The measured Linux Server-thread **13,145,044,289 ns** of event CPU is retained as a whole-event reference and a host-quality check. **No milliseconds have been attributed to any named task**. The event-window instrumentation also includes RCON progression queries and the final diagnostic stop command; these figures are not exclusive datapack-only counts. The initial failed run [#44188099631](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44188099631) was rejected before mining and is not pooled.
+
+### Decision after density screening
+
+All four specific task methods have enough observed invocations (lowest **26,145**) to justify **sparse, randomized-over-index CPU clocks** at each method's typed entry/return boundary. The highest exposure is `BuildContexts`, then `ContinuationTask`. A follow-on SCHED-ATTR-025 study should predeclare a fixed selection probability (e.g. about 1/32 invocations per task type) to keep CPU clock pairs to at most a few thousand per method, rather than repeating ~200,000 per-action clock reads. Independently run PLAIN, matched EMPTY and TIMED boots, verify clock resolution, owner thread, sample and total call coverage, exact event state, and native host gates. Compute *inclusive* per-task cost estimates separately, never summing overlapping task intervals as disjoint shares. A weighted sample mean is not a causal speedup or strict avoidable-overhead bound.
+
+The present SCHED-ATTR-024 workflow was restored to **manual-only**, the PR stays draft, and no production flags or scheduler default changed.
