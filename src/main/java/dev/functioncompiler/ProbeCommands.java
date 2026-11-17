@@ -22,6 +22,22 @@ final class ProbeCommands {
     }
 
     static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        if (SchedulerPathCensus.enabled()) {
+            dispatcher.register(Commands.literal("fc_sched_path")
+                    .then(Commands.literal("begin").executes(context -> {
+                        SchedulerPathCensus.begin();
+                        context.getSource().sendSuccess(
+                                () -> Component.literal("FC_SCHED_PATH_BEGIN"), false);
+                        return 1;
+                    }))
+                    .then(Commands.literal("end").executes(context -> {
+                        SchedulerPathCensus.end();
+                        context.getSource().sendSuccess(
+                                () -> Component.literal("FC_SCHED_PATH_END"), false);
+                        return 1;
+                    })));
+        }
+
         // CI-only scheduler-cost experiment. Never register these commands in
         // ordinary installations; the optional leaf increments a server-thread
         // local counter so the research harness can prove exact work completion.
