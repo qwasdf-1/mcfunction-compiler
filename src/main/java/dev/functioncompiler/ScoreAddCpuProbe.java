@@ -71,6 +71,17 @@ final class ScoreAddCpuProbe {
         if (!enabled()) {
             return;
         }
+        // Deliberately incompatible with other timing/counter modes: these
+        // would add extra hot-path instrumentation to just one arm.
+        for (String flag : new String[] {
+                "FC_SCORE_ADD_TIMING", "FC_SCORE_ADD_METRICS",
+                "FC_SCORE_ADD_PHASE_TIMERS", "FC_COMMAND_CALLBACK_METRICS",
+                "FC_SELECTIVE_MACRO_ARGUMENTS_METRICS"}) {
+            if ("true".equalsIgnoreCase(System.getenv(flag))) {
+                throw new IllegalStateException(
+                        "FC_SCORE_ADD_CPU_PROBE incompatible with " + flag);
+            }
+        }
         // CPU clock must already be active. Do not silently switch it on,
         // because doing so could perturb treatment and control differently.
         if (!clockSupportedAndEnabled()) {
