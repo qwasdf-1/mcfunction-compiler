@@ -7,6 +7,7 @@
     "CallFunctionMixin",
     "FunctionBuilderMixin",
     "ExecutionContextMixin",
+    "CommandQueueEntryMixin",
     "CommandFunctionMixin",
     "FunctionCommandMixin",
     "SelectiveMacroArgumentsMixin",
