@@ -286,6 +286,13 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--scheduler-task-cpu-probe",
+        choices=("off", "empty", "timed"),
+        default="off",
+        help="SCHED-ATTR-025: 1/32 sampled CPU intervals within four task methods;"
+             " requires --scheduler-path-census and no other timers.",
+    )
+    parser.add_argument(
         "--scheduler-path-census",
         action="store_true",
         help="SCHED-ATTR-024: count native event BuildContexts, ExecuteCommand, "
@@ -343,6 +350,8 @@ def parse_args() -> object:
         parser.error(
             "--count-selective-macro-arguments requires --compiler-mode selective-macro"
         )
+    if args.scheduler_task_cpu_probe != "off" and not args.scheduler_path_census:
+        parser.error("Sparse task CPU probe requires --scheduler-path-census")
     if args.scheduler_path_census and not (
         args.stack == "fabric"
         and args.compiler_mode == "score-add"
@@ -420,6 +429,7 @@ def main() -> int:
     capture_spark = not args.no_spark
     capture_jfr_cpu = args.capture_jfr_cpu
     scheduler_path_census = args.scheduler_path_census
+    task_cpu_mode = args.scheduler_task_cpu_probe
     compiler_probe_active = compiler_enabled or callback_metrics_enabled
     diagnostics = []
     if callback_metrics_enabled:
@@ -438,7 +448,12 @@ def main() -> int:
         else "no Spark agent or Function Compiler timing/counter metrics"
     )
 
-    if scheduler_path_census:
+    if task_cpu_mode != "off":
+        timing_instrumentation = (
+            f"SCHED-ATTR-025 deterministic 1/32 sampled CPU clock ({task_cpu_mode}); "
+            "event-bounded task path census, no Spark/JFR/other counters"
+        )
+    if scheduler_path_census and task_cpu_mode == "off":
         timing_instrumentation = (
             "SCHED-ATTR-024 event-bounded method invocation counters for "
             "four task paths and all dequeued queue entries, not CPU attribution"
@@ -577,6 +592,7 @@ def main() -> int:
                     "FC_WRAPPER_PROBE": str(wrapper_enabled).lower(),
                     "FC_SCORE_ADD_PROTOTYPE": str(score_add_enabled).lower(),
                     "FC_SCHED_PATH_CENSUS": str(scheduler_path_census).lower(),
+                    "FC_SCHED_TASK_CPU_PROBE": task_cpu_mode,
                     "FC_SCHED_ARCH_COUNTERS": "false" if scheduler_path_census else environment.get("FC_SCHED_ARCH_COUNTERS", "false"),
                     "FC_SCORE_ADD_TIMING": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_TIMING", "false"),
                     "FC_SCORE_ADD_PHASE_TIMERS": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_PHASE_TIMERS", "false"),
@@ -1121,6 +1137,8 @@ def main() -> int:
             "spark_capture_enabled": capture_spark,
             "jfr_cpu_capture_enabled": capture_jfr_cpu,
             "scheduler_path_census_enabled": scheduler_path_census,
+            "scheduler_task_cpu_probe_mode": task_cpu_mode,
+            "scheduler_task_cpu_probe": task_cpu_probe,
             "scheduler_path_census": scheduler_path_counts,
             "jfr_cpu_profile_path": (
                 str(jfr_path.relative_to(ROOT)) if jfr_path else None
