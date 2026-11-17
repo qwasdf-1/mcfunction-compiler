@@ -1,6 +1,6 @@
 # SCHED-COMP-021 — Server-thread CPU-time attribution for Vein Miner
 
-**Status:** Implementation committed; CI blocked before runner startup (no native measurements yet). Preregistered follow-up to the completed [SCHED-COMP-020 execution-coverage diagnostic](scoreadd-command-share-SCHED-COMP-020.md). **Diagnostic only; no implementation or performance claim.** Source branch: `research/sched-comp-021-jfr-cpu-attribution` (merged into `main` 2026-11-15).
+**Status:** Incomplete / rejected by the preregistered 5% lost-sample gate after three public sampler feasibility attempts. Raw native-event traces exist, but no validated two-arm CPU-share result. Preregistered follow-up to the completed [SCHED-COMP-020 execution-coverage diagnostic](scoreadd-command-share-SCHED-COMP-020.md). **Diagnostic only; no implementation or performance claim.** Source branch: `research/sched-comp-021-jfr-cpu-attribution` (merged into `main` 2026-11-15).
 
 ## Why this experiment is distinct
 
@@ -74,3 +74,26 @@ The reduced sample rate improved the lost fraction from 6.35% to 5.31% but did *
 The R2 boot order is explicitly changed to **cached-first, then off**. The primary question is the sampled on-CPU share within `ScoreAddCommand`, which is only observable in the cached mode. Running cached first preserves an original trace for the primary question even if the independent off-mode control subsequently breaches its quality gate. The two arms are **not paired** and must **not** be used to infer a causal CPU improvement. A quality-rejected cached trace can be examined as exploratory evidence only, not promoted to a validated CPU-share estimate. Record the observed `biased` fraction and explicitly state its potential safepoint-bias limitation.
 
 **Stop rule:** Do not continue changing sample intervals or relax the sample loss threshold in response to further results. If R2 still exceeds the 5% loss cap, mark this experimental JDK 25 sampler protocol as not reproducible under the current runner conditions, and design a different CPU-attribution method rather than repeatedly retuning the gate.
+
+### Final R2 outcome and stop decision — 2026-11-17
+
+[Public Actions run #44166608002](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44166608002) finished all setup, tests, build, and publisher ZIP verification. Its **cached-first** native Vein Miner event completed successfully: **215/215 operations; 1,952 queue-head steps; no cgroup throttling; valid idle host gate and native workload; 13,679,843,160 ns Server-thread CPU; 15.238 seconds elapsed**. The optimized path was enabled and the queue/drain function reported **4 statically compiled ScoreAdd callbacks** (dynamic per-callback metrics deliberately disabled for this profiling arm). The sampler nevertheless lost **47 / (647 valid + 47 lost) = 6.7723%**, above the original unchanged 5% limit. **189 / 647 = 29.21%** of captured samples were marked safepoint-biased. The required independent off-mode control did not run. The diagnostic was therefore **rejected**, not a complete two-arm experiment. [Original R2 raw JFR/artifact #14366700214](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44166608002/artifacts/14366700214).
+
+A separate *exploratory* offline inspection of the preserved cached recording using the JDK JFR consumer (647 recorded valid Server-thread CPUTimeSample events, exact OS thread ID 2787) classified each sampled stack once, using the same class-precedence model as the preregistered analyzer:
+
+| Stack category (exploratory, rejected recording) | Captured events |
+|---|---:|
+| Typed `ScoreAddCommand` callback subtree | 0 |
+| Other named specialized callbacks | 17 |
+| Other compiler | 30 |
+| Vanilla scoreboard | 1 |
+| Execute-control | 93 |
+| Function queue or nested | 147 |
+| Brigadier dispatch | 11 |
+| World-level updates | 170 |
+| Other Minecraft | 178 |
+| **Captured Server-thread events** | **647** |
+
+Specifically, sampled stacks included `DataGetCommand` (38 events) and `ScoreStoreCommand` (17 events), but **none with an explicit `ScoreAddCommand` frame**. This does **not** establish zero CPU cost or zero executions: the execution metric is disabled in this ordinary cached arm, callbacks are statically compiled but not exhaustively traced, JIT inlining can affect stack visibility, the sampling interval was coarse, 6.77% of samples are absent, and ~29% of captured stacks are marked safepoint-biased. The fractions **must not** be cited as validated CPU attribution or a causal speedup, and the two missing/biased phenomena cannot be assumed independent of callback activity. Even if these samples suggest ScoreAdd is unlikely to dominate this workload, the preregistered acceptance rule did not pass.
+
+**Protocol stop rule applied.** Three sampling rates (5, 10, 20 ms) were tried transparently, and **all exceeded the fixed 5% lost-sample maximum**. Further JFR CPU-time interval tuning or posthoc relaxing the gate is out of scope. The SCHED-COMP-021 workflow was restored to manual-only after this test. This study is **inconclusive on exclusive ScoreAdd CPU share**; next research should evaluate an independent attribution approach (for example opt-in `ThreadMXBean` CPU-time accounting around typed callbacks, calibrated for measurement overhead and checked against independent Server-thread CPU totals) instead of presenting rejected JFR captures as accepted measurements.
