@@ -1,6 +1,6 @@
 # SCHED-COMP-022 — calibrated typed ScoreAdd Server-thread CPU time
 
-**Status:** Implementation and preregistration on the isolated `research/sched-comp-022-threadmxbean-cpu` branch; **no real results yet**. This is a **mechanism/measurement diagnostic**, not a causal speedup experiment and not a production optimization.
+**Status:** First three-arm native diagnostic **complete and accepted against its preregistered mechanism/measurement gates** on 2026-11-17. This establishes a descriptive overhead-controlled CPU-time estimate, not a statistical or causal optimization result. This is a **mechanism/measurement diagnostic**, not a causal speedup experiment and not a production optimization.
 
 ## Motivation and inherited evidence
 
@@ -49,3 +49,29 @@ A clock with nanosecond **precision** but insufficient effective resolution, ove
 **Decision gate:** After verified CI and all three native work/callback gates, examine `D`, `f`, the control's mean overhead, and each arm's total Server-thread CPU before choosing any new optimization. Leave ScoreAdd's production default off and the unrelated research campaigns manual-only.
 
 **API reference:** [JDK 25 ThreadMXBean CPU time](https://docs.oracle.com/en/java/javase/25/docs/api/java.management/java/lang/management/ThreadMXBean.html).
+
+## Completed first native diagnostic — 2026-11-17
+
+Dedicated [GitHub Actions run #44169241336](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44169241336) **passed** the Java mode/clock contract, Python calibration-contract tests, Minecraft 26.3 Fabric Gradle build, pinned Vein Miner ZIP SHA-256, all three real native events, exact native-state parity, probe gate, and artifact archive. [Raw artifact #14367636370](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44169241336/artifacts/14367636370) includes `SCHED-COMP-022/diagnostic.json`, stdout/stderr for all arms, startup readiness records, and the three complete native event results.
+
+**All three independent boots:** 215 completed work operations; 1,952 queue-head advances; source ore removed; 0 remaining ore; 0 operation or target markers; correct publisher hash; stable pre-event idle tick gate; valid Server-thread /proc CPU and host-quality gates; 4 compiled queue/drain ScoreAdd callbacks in each; no old shared ScoreAdd metrics, callback wrappers, Spark or JFR.
+
+| Arm | Event elapsed | Server-thread CPU | Typed callback entries | Direct successes | CPU between probe clocks | Zero CPU deltas |
+|---|---:|---:|---:|---:|---:|---:|
+| `plain` | 14.577 s | 13.018457228 s | *Not instrumented* | *Not instrumented* | — | — |
+| `empty_control` | 14.333 s | 12.791600217 s | 11,400 | 11,400 | 7,922,482 ns | 0 |
+| `timed_callback` | 14.514 s | 12.960433236 s | 11,010 | 11,010 | 25,023,600 ns | 0 |
+
+Instrumented exposure differs by **390 / 11,400 = 3.421%**, inside the declared 10% threshold; all instrumented entries completed the direct typed path. Both had zero samples with a zero-duration CPU-clock delta; the 20% timed zero-floor threshold passed.
+
+**Predeclared control subtraction:**
+- Back-to-back clock cost: **694.955 ns per control callback**.
+- Two-clock bracket including real typed callback: **2,272.807 ns per timed callback**.
+- Difference **D = 1,577.852 ns (1.578 µs) per callback**.
+- Projected callback contribution in the timed run: **D × 11,010 = 17.371 million CPU ns**, or **0.13404%** of that same run's **12.9604 billion Server-thread CPU ns**.
+
+The earlier [SCHED-COMP-020](scoreadd-command-share-SCHED-COMP-020.md) **241,470 ns** average saving needed *per eligible callback* for 15% whole-event improvement was an Amdahl counterfactual, not a measured saving. This study's overhead-controlled **1,578 ns total callback CPU** estimate is ~153× smaller, suggesting the originally sought whole-event speedup is implausible **from optimizing only this narrow ScoreAdd callback family** in this workload. This comparison cannot establish a universal upper bound or test the potential benefit of wider scheduler/command-queue optimizations.
+
+**Interpretation limits:** This is *one run per independent boot*, not a paired treatment experiment. Clock resolution, per-mode JIT state, background CPU, exact callback exposure and direct-success counter overhead can bias `D`; the empty and timed event totals are not direct causal comparisons. The direct-success increment occurs inside the timed interval but outside the control interval, introducing slight **upward** bias. The callback includes scoreboard mutation, feedback and descendants; **the config-cache flag lookup is only a subset**, so `D` is not the CPU saved by the existing cache. The fraction is a descriptive estimate of native Server-thread CPU for this exact 215-operation Vein Miner scenario, not a confidence interval, universal Minecraft claim or time share of all Minecraft servers.
+
+**Research decision:** The mechanism diagnostic reached its intended validity gate and strongly points away from the typed ScoreAdd callback as the high-impact optimization target. Leave ScoreAdd's disabled-by-default production configuration unchanged. Future performance attribution should target the broader function scheduling/queue and modifier execution path with independently validated controls, rather than trying to extract a 15% CPU benefit solely from the narrow typed ScoreAdd callback. The temporary PR trigger was removed and the dedicated research workflow restored to manual-only after this completed run.
