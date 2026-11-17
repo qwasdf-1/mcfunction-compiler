@@ -23,7 +23,9 @@ from ci_scoreadd_workload_share import (  # noqa: E402
 from analyze_veinminer_jfr_cpu import analyze_jfr  # noqa: E402
 
 OUTPUT = ROOT / "build" / "benchmarks" / "SCHED-COMP-021"
-ARMS = (("off_jfr", "off"), ("cached_jfr", "score-add"))
+# R2 feasibility trial: capture the primary optimized-callback share first.
+# Independent boots are diagnostic only; never compare their CPU totals causally.
+ARMS = (("cached_jfr", "score-add"), ("off_jfr", "off"))
 
 
 def run_native(arm: str, mode: str) -> dict:
