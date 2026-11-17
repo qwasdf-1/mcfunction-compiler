@@ -1,24 +1,7 @@
 name: SCHED-ATTR-023 nested queue-driver vs entry Server-thread CPU
 
-# The PR trigger is temporary for one research-branch validation.
-# Restore workflow_dispatch-only before merge into main.
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - src/main/java/dev/functioncompiler/SchedulerQueueCpuProbe.java
-      - src/main/java/dev/functioncompiler/mixin/ExecutionContextMixin.java
-      - src/main/java/dev/functioncompiler/mixin/CommandQueueEntryMixin.java
-      - src/main/java/dev/functioncompiler/ProbeStatus.java
-      - src/main/java/dev/functioncompiler/ProbeCommands.java
-      - src/main/resources/function_compiler.mixins.json
-      - scripts/run_veinminer_profile.py
-      - scripts/ci_scheduler_queue_cpu.py
-      - tests/test_scheduler_queue_cpu_clock.py
-      - tests/test_scheduler_queue_cpu.py
-      - docs/research/scheduler-queue-cpu-SCHED-ATTR-023.md
-      - .github/workflows/research-scheduler-queue-cpu.yml
 
 permissions:
   contents: read
