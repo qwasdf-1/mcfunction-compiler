@@ -75,3 +75,25 @@ The earlier [SCHED-COMP-020](scoreadd-command-share-SCHED-COMP-020.md) **241,470
 **Interpretation limits:** This is *one run per independent boot*, not a paired treatment experiment. Clock resolution, per-mode JIT state, background CPU, exact callback exposure and direct-success counter overhead can bias `D`; the empty and timed event totals are not direct causal comparisons. The direct-success increment occurs inside the timed interval but outside the control interval, introducing slight **upward** bias. The callback includes scoreboard mutation, feedback and descendants; **the config-cache flag lookup is only a subset**, so `D` is not the CPU saved by the existing cache. The fraction is a descriptive estimate of native Server-thread CPU for this exact 215-operation Vein Miner scenario, not a confidence interval, universal Minecraft claim or time share of all Minecraft servers.
 
 **Research decision:** The mechanism diagnostic reached its intended validity gate and strongly points away from the typed ScoreAdd callback as the high-impact optimization target. Leave ScoreAdd's disabled-by-default production configuration unchanged. Future performance attribution should target the broader function scheduling/queue and modifier execution path with independently validated controls, rather than trying to extract a 15% CPU benefit solely from the narrow typed ScoreAdd callback. The temporary PR trigger was removed and the dedicated research workflow restored to manual-only after this completed run.
+
+## Unplanned exploratory repeat — 2026-11-17 (not part of the preregistered first campaign)
+
+A documentation-only PR update before restoration of dispatch-only research workflow inadvertently triggered [Actions run #44170251809](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44170251809). The repeat ran the **same pre-registered three-arm code and fixed acceptance gates**, but it was **not planned as a confirmatory repetition or statistical sample**. It independently passed the unit tests, full Fabric build, pinned publisher ZIP and all three exact native event/host/CPU and callback exposure gates. [Raw artifact #14368146540](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44170251809/artifacts/14368146540) contains the second complete set of JSON event records.
+
+| Metric | First completed diagnostic | Exploratory repeat |
+|---|---:|---:|
+| Plain arm Server-thread CPU | 13.0185 s | 12.6887 s |
+| Empty-control Server-thread CPU | 12.7916 s | 13.7772 s |
+| Timed Server-thread CPU | 12.9604 s | 12.8452 s |
+| Empty-control typed callbacks | 11,400 | 11,010 |
+| Timed typed callbacks | 11,010 | 11,048 |
+| Control clock interval/callback | 694.95 ns | 674.48 ns |
+| Timed clock bracket/callback | 2,272.81 ns | 1,967.06 ns |
+| **Signed difference D** | **1,577.85 ns** | **1,292.58 ns** |
+| **Descriptive CPU share f** | **0.13404%** | **0.11117%** |
+| Timed zero-delta fraction | 0% | 0% |
+| Diagnostic quality decision | Accepted | Accepted |
+
+Both runs completed 215 work operations / 1,952 queue steps in every arm, and both accepted timed arms had all typed callback entries complete the direct-success path. The difference between the first and exploratory repeat is compatible with JVM/host and runtime variability; neither run had within-boot randomized pairing. The **observed range (1.29–1.58 µs per callback; 0.111–0.134% of total Server-thread CPU)** is descriptive, **not** a confidence interval or a bound on a production optimizer. Unpaired whole-event CPU totals were not used to calculate speedup.
+
+The dedicated workflow is now **manual-only**, so subsequent documentation edits cannot automatically schedule new CPU experiments.
