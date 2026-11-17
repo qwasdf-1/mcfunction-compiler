@@ -1,6 +1,6 @@
 # SCHED-ATTR-025 — Sparse CPU timing of BuildContexts, ExecuteCommand, CallFunction and ContinuationTask
 
-**Status:** Preregistered follow-up to [accepted SCHED-ATTR-024](scheduler-entry-census-SCHED-ATTR-024.md) native task-path counts; **no SCHED-ATTR-025 native results yet**. This is a deliberately small CPU-attribution diagnostic, **not** a scheduler replacement or a causal optimization benchmark.
+**Status:** First three-arm native sparse CPU-time screen **completed and passed the preregistered mechanism/host/sample-integrity gates on 2026-11-17**. The estimates are descriptive, inclusive, noncausal, and sampling representativeness is not proven. In particular, the two small scheduling-task corrections are near the clock-read floor. This is a deliberately small CPU-attribution diagnostic, **not** a scheduler replacement or a causal optimization benchmark.
 
 ## Preceding evidence and scope
 
@@ -59,3 +59,40 @@ The 024 branch is the required base: `SchedulerPathCensus`, four typed task Mixi
 - `.github/workflows/research-scheduler-task-cpu.yml` (temporary PR trigger for only the initial validation, later returned to manual-only). Original records under `build/benchmarks/SCHED-ATTR-025` plus three native result directories.
 
 **Stop rule:** If any Mixin target fails or event/counter parity fails, preserve the failed run and fix the measurement mechanism before considering another dataset. Do not loosen the 1/32 selection, sample-count or host rules post hoc to manufacture a favorable CPU estimate.
+
+## Completed three-arm sparse sampling — 2026-11-17
+
+**Authoritative run:** [GitHub Actions #44190487217](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44190487217), **success**. The original [raw artifact #14377425739](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44190487217/artifacts/14377425739) contains the complete three-arm `SCHED-ATTR-025/diagnostic.json`, native `results.json`, idle tick baselines, startup records and original stdout/stderr. The JDK 25 Java mode/clock contracts, Python analysis tests, Minecraft Fabric build, exact publisher ZIP hash, three native workload events, and host/clock-quality gates all passed.
+
+Every boot produced **215 ore operations, 1,952 queue-head advances**, the identical final source/block/marker/scoreboard state, and exact cached ScoreAdd activation. Native pre-event average tick time was 5.5–5.6 ms; P95 7.2–7.7 ms; all passed idle stability. No cgroup throttling occurred. Server-thread runqueue-wait fractions were **0.197%, 0.136%, 0.206%** in PLAIN, EMPTY and TIMED. No JFR, Spark or other command instrumentation was active.
+
+| Arm | Actual event completion | Server-thread running CPU | Execution-task CPU clock mode |
+|---|---:|---:|---|
+| PLAIN | 14.3305 s | 12.7942 s | No CPU reads, same event path census |
+| EMPTY | 14.6263 s | 13.1008 s | 1/32 sample with two adjacent CPU reads |
+| TIMED | 14.7293 s | 13.1802 s | 1/32 sample with two CPU reads bracketing real task |
+
+TIMED vs PLAIN Server-thread CPU differed by **3.016%**, under the preregistered 30% *coarse perturbation/host* veto; these are independent JVM boots and this **is not evidence of a causal instrumentation penalty**.
+
+### Per-task sampled CPU observations
+
+| Method path | EMPTY calls / samples | TIMED calls / samples | Mean EMPTY clock pair | Mean TIMED inclusive interval | **Signed difference D** | Descriptive projected *inclusive* share of timed Server-thread CPU |
+|---|---:|---:|---:|---:|---:|---:|
+| **BuildContexts** | 80,799 / 2,512 | 81,127 / 2,523 | 817.73 ns | 59,935.01 ns | **59,117.27 ns (59.1 µs)** | **36.388%** |
+| **ExecuteCommand** | 28,253 / 872 | 28,374 / 872 | 785.11 ns | 267,586.02 ns | **266,800.90 ns (266.8 µs)** | **57.436%** |
+| CallFunction | 26,145 / 786 | 26,167 / 788 | 955.12 ns | 1,121.26 ns | 166.14 ns (0.166 µs) | 0.033% |
+| ContinuationTask | 58,770 / 1,802 | 59,085 / 1,814 | 724.17 ns | 888.93 ns | 164.76 ns (0.165 µs) | 0.074% |
+
+All four task types had **zero timed zero-delta samples**, **zero same-type nesting**, **zero leaked scopes**, correct thread identity and matching per-path census counts. EMPTY and TIMED method-call and sample-count differences were within the frozen limits. Every path passed the *declared basic clock gate*, and the three independent native boots passed the exact-workload and host-quality gates.
+
+### Scientific interpretation and critical precision qualifications
+
+**The material diagnostic signal is in `BuildContexts` and `ExecuteCommand`.** Their sampled inclusive spans are tens to hundreds of microseconds, far above the ~0.8 µs clock-pair control. The descriptive extrapolations suggest a large portion of real event CPU happens inside these two task methods. This is consistent with SCHED-ATTR-023 locating much of execution CPU inside dequeued queue entries. **It does not establish which portion is unavoidable game-state work or avoidable compilation/scheduling overhead.**
+
+**`CallFunction` and `ContinuationTask` are *near the clock-resolution/control subtraction floor*.** Their 0.165–0.166 µs signed corrections are less than **one quarter** of their respective 0.724–0.955 µs empty clock-pair means. A zero observed zero-delta fraction only proves the clock intervals themselves were detectable; it does **not** make the much smaller difference between independent JVMs precise. Their projected sub-0.1% CPU shares should be presented as **exploratory, not reliable estimates of tiny exclusive method cost or hard ceilings**. The original analysis program's `clock_resolved=true` flag means *only* its preregistered basic positive-sign/zero-delta check passed; it is **not** a demonstrated precision floor or an empirical confidence interval.
+
+**None of these four percentages may be added to construct a disjoint CPU histogram** without first verifying exclusive stack nesting and coverage: sampled `BuildContexts` and `ExecuteCommand` intervals can include nested work, and methods may run different amounts of actual gameplay work. The 1/32 deterministic ordinal-hash selection was frozen before results, but **its representativeness has not been empirically established** (periodicity and variance within method call types can skew the extrapolation). Only one independent JVM per arm was measured, so no rigorous interval or causal optimization gain exists. The PLAIN, EMPTY and TIMED CPU totals are not a randomized compiler A/B comparison, and the additive method-share fractions are **not** an Amdahl-law ceiling on a future scheduler/backend.
+
+**Decision:** Further work should prioritize *inside* `BuildContexts` (modifier/source expansion, creating `ExecuteCommand` tasks) and then *inside* `ExecuteCommand` (Brigadier `ContextChain.runExecutable`, command callbacks, actual world/scoreboard/NBT operations). Keep result/exception/selector semantics, quota debits, and vanilla fallback. **Do not promote** the restricted SCHED-ARCH-014 direct scheduler or build a global `ExecutionContext` rewrite on the strength of these inclusive timings. Distinguishing dispatch cost from real command mutation requires a new separately preregistered within-method mechanism study, not another generic CPU benchmark.
+
+The dedicated workflow was restored to **`workflow_dispatch` only** after the accepted run. This remains a draft, stacked research PR (depends on SCHED-ATTR-024), with no production optimization default changes and no claim about installed-but-disabled instrumentation overhead.
