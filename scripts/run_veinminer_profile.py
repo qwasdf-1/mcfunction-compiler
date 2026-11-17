@@ -286,6 +286,12 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--scheduler-path-census",
+        action="store_true",
+        help="SCHED-ATTR-024: count native event BuildContexts, ExecuteCommand, "
+             "CallFunction, ContinuationTask and dequeued entry invocations.",
+    )
+    parser.add_argument(
         "--capture-jfr-cpu",
         action="store_true",
         help=(
@@ -337,6 +343,17 @@ def parse_args() -> object:
         parser.error(
             "--count-selective-macro-arguments requires --compiler-mode selective-macro"
         )
+    if args.scheduler_path_census and not (
+        args.stack == "fabric"
+        and args.compiler_mode == "score-add"
+        and args.no_spark and args.capture_server_thread_cpu
+        and not args.capture_jfr_cpu
+        and not args.count_command_callbacks
+        and not args.count_selective_macro_arguments
+        and not args.scoreadd_path_coverage_diagnostic
+    ):
+        parser.error("Scheduler path census requires Fabric cached ScoreAdd, "
+                     "--no-spark, --capture-server-thread-cpu and no other counters")
     if args.capture_jfr_cpu and not (
         args.no_spark and args.capture_server_thread_cpu
         and not args.count_command_callbacks
@@ -402,6 +419,7 @@ def main() -> int:
     }
     capture_spark = not args.no_spark
     capture_jfr_cpu = args.capture_jfr_cpu
+    scheduler_path_census = args.scheduler_path_census
     compiler_probe_active = compiler_enabled or callback_metrics_enabled
     diagnostics = []
     if callback_metrics_enabled:
@@ -419,6 +437,12 @@ def main() -> int:
         if diagnostics
         else "no Spark agent or Function Compiler timing/counter metrics"
     )
+
+    if scheduler_path_census:
+        timing_instrumentation = (
+            "SCHED-ATTR-024 event-bounded method invocation counters for "
+            "four task paths and all dequeued queue entries, not CPU attribution"
+        )
 
     if capture_jfr_cpu:
         timing_instrumentation = (
@@ -552,6 +576,10 @@ def main() -> int:
                 {
                     "FC_WRAPPER_PROBE": str(wrapper_enabled).lower(),
                     "FC_SCORE_ADD_PROTOTYPE": str(score_add_enabled).lower(),
+                    "FC_SCHED_PATH_CENSUS": str(scheduler_path_census).lower(),
+                    "FC_SCHED_ARCH_COUNTERS": "false" if scheduler_path_census else environment.get("FC_SCHED_ARCH_COUNTERS", "false"),
+                    "FC_SCORE_ADD_TIMING": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_TIMING", "false"),
+                    "FC_SCORE_ADD_PHASE_TIMERS": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_PHASE_TIMERS", "false"),
                     "FC_SCORE_ADD_METRICS": str(
                         args.compiler_mode in {"score-add-instrumented", "fused"}
                     ).lower(),
