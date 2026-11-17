@@ -1101,6 +1101,59 @@ def main() -> int:
                         "build_contexts", "execute_command", "call_function", "continuation"))):
                 raise RuntimeError(f"Scheduler path census counters invalid: {scheduler_path_counts}")
 
+        task_cpu_probe = None
+        if scheduler_path_census:
+            if compiler_status_before is None or compiler_status_after is None:
+                raise RuntimeError("Sparse task clock requires event-status snapshots")
+            flag = f"sched_task_cpu_mode={task_cpu_mode}"
+            if flag not in compiler_status_before or flag not in compiler_status_after:
+                raise RuntimeError("Sparse task CPU mode mismatched in server snapshots")
+            def task_delta(name: str) -> int:
+                return stats_int(compiler_status_after, name) - stats_int(compiler_status_before, name)
+            if stats_int(compiler_status_after, "sched_task_cpu_sample_denominator") != 32:
+                raise RuntimeError("Sparse task sampling denominator changed")
+            expected = {
+                "build": "build_contexts", "execute": "execute_command",
+                "call": "call_function", "continuation": "continuation",
+            }
+            measurements = {}
+            for task, census_key in expected.items():
+                fields = {
+                    "calls": task_delta(f"sched_task_{task}_calls"),
+                    "samples": task_delta(f"sched_task_{task}_samples"),
+                    "cpu_ns": task_delta(f"sched_task_{task}_cpu_ns"),
+                    "zero_deltas": task_delta(f"sched_task_{task}_zero_deltas"),
+                    "nested": task_delta(f"sched_task_{task}_nested"),
+                    "final_depth": stats_int(compiler_status_after, f"sched_task_{task}_depth"),
+                }
+                if (fields["nested"] or fields["final_depth"]
+                        or any(v < 0 for v in fields.values())):
+                    raise RuntimeError(f"Sparse task clock nested, leaked or negative in {task}: {fields}")
+                if task_cpu_mode == "off":
+                    if any(fields.values()):
+                        raise RuntimeError(f"Clock activity in off arm: {task} {fields}")
+                else:
+                    if "sched_task_cpu_clock_ready=true" not in compiler_status_after:
+                        raise RuntimeError("Sparse task current-thread CPU clock unavailable")
+                    if fields["calls"] != scheduler_path_counts[census_key]:
+                        raise RuntimeError(f"Task probe/census call count disagreement {task}: {fields}")
+                    if (fields["samples"] < 200 or fields["cpu_ns"] < 0
+                            or fields["cpu_ns"] > event_cpu["server_thread_cpu_running_ns"]
+                            or fields["zero_deltas"] > fields["samples"]):
+                        raise RuntimeError(f"Sparse task sample count/CPU quality invalid: {task} {fields}")
+                measurements[task] = fields
+            task_cpu_probe = {
+                "mode": task_cpu_mode,
+                "clock_ready": task_cpu_mode != "off",
+                "sample_denominator": 32,
+                "owner_java_thread_id": stats_int(compiler_status_after, "sched_task_cpu_thread_id"),
+                "streams": measurements,
+                "sample_selection": "fixed per-type ordinal hash; 1/32 inclusion probability",
+                "interpretation": "Inclusive CPU samples, not disjoint scheduler overhead; task timings may overlap",
+            }
+            if task_cpu_mode != "off" and task_cpu_probe["owner_java_thread_id"] <= 0:
+                raise RuntimeError("Sparse task clock never ran on Server thread")
+
         valid_scoreadd_path_coverage_diagnostic = (
             args.scoreadd_path_coverage_diagnostic
             and command_callback_metrics is not None
