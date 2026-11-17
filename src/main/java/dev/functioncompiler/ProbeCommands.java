@@ -22,6 +22,25 @@ final class ProbeCommands {
     }
 
     static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        // Exact native-event timing window. Disabled in normal installations;
+        // no game command is added without this explicit CI-only opt-in.
+        if (Boolean.parseBoolean(System.getenv("FC_SCHED_QUEUE_CPU_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_sched_cpu")
+                    .then(Commands.literal("begin").executes(context -> {
+                        SchedulerQueueCpuProbe.begin();
+                        context.getSource().sendSuccess(
+                                () -> Component.literal(
+                                        "FC_SCHED_CPU_BEGIN mode=" + SchedulerQueueCpuProbe.modeName()), false);
+                        return 1;
+                    }))
+                    .then(Commands.literal("end").executes(context -> {
+                        SchedulerQueueCpuProbe.end();
+                        context.getSource().sendSuccess(
+                                () -> Component.literal(
+                                        "FC_SCHED_CPU_END mode=" + SchedulerQueueCpuProbe.modeName()), false);
+                        return 1;
+                    })));
+        }
         // CI-only scheduler-cost experiment. Never register these commands in
         // ordinary installations; the optional leaf increments a server-thread
         // local counter so the research harness can prove exact work completion.
