@@ -56,6 +56,12 @@ processResources {
     }
 }
 
+tasks.withType(Jar).configureEach {
+    from(rootProject.file('LICENSE')) {
+        rename { "LICENSE_${project.base.archivesName.get()}" }
+    }
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.release = 25
 }

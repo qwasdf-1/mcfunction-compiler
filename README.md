@@ -109,3 +109,7 @@ FC_GRADLE_OFFLINE=true ./gradlew build --offline
 ```
 
 The output jar is located in `build/libs/function-compiler-0.1.0-SNAPSHOT.jar`.
+
+## License
+
+Apache License 2.0. See [`LICENSE`](LICENSE).

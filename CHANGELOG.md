@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- License the project under the Apache License 2.0 (`LICENSE`, the
+  `license` field in `fabric.mod.json`, and the license file packed into the
+  mod jar), matching Soul Link and Terra Rasa.
+
 - Vendor the frozen `mc-harness` 1.0.0 at `vendor/mc-harness` (code identical
   to the shared workspace copy every recorded campaign was verified against)
   and point the scripts, tests and research workflows at it, so the repository

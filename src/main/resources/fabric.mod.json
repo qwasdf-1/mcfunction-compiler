@@ -4,6 +4,7 @@
   "version": "${version}",
   "name": "Function Compiler",
   "description": "A research prototype for preserving Minecraft function behavior while testing construction hooks.",
+  "license": "Apache-2.0",
   "environment": "server",
   "entrypoints": {
     "main": [
