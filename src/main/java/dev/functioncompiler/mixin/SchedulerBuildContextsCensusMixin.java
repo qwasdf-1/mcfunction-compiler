@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(BuildContexts.class)
 abstract class SchedulerBuildContextsCensusMixin {
-    @Inject(method = "execute", at = @At("HEAD"))
+    @Inject(method = "execute(Lnet/minecraft/commands/ExecutionCommandSource;Ljava/util/List;Lnet/minecraft/commands/execution/ExecutionContext;Lnet/minecraft/commands/execution/Frame;Lnet/minecraft/commands/execution/ChainModifiers;)V", at = @At("HEAD"))
     private void functionCompiler$countBuildContexts(CallbackInfo ci) {
         SchedulerPathCensus.buildContexts();
     }
