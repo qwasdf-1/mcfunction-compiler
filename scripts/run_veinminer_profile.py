@@ -766,6 +766,10 @@ def main() -> int:
                 raise RuntimeError(
                     "Pre-event idle tick stability gate failed; not measuring or "
                     f"excluding this arm after observing treatment outcome: {tick_pre_event_stability}")
+        if scheduler_path_census:
+            reply = rcon.command("fc_sched_path begin")
+            if "FC_SCHED_PATH_BEGIN" not in reply:
+                raise RuntimeError(f"Scheduler path census did not start: {reply!r}")
         event_thread = None
         event_cpu_before = None
         event_throttle_before = None
@@ -843,8 +847,13 @@ def main() -> int:
                 break
             time.sleep(0.5)
 
-        # Close the CPU window immediately when the exact ore work completes,
-        # before collecting compiler stats, RCON post-run context, or Spark.
+        # Close the census before status/verification RCON commands.
+        # The final stop command itself contributes one leaf call/entry.
+        if scheduler_path_census:
+            reply = rcon.command("fc_sched_path end")
+            if "FC_SCHED_PATH_END" not in reply:
+                raise RuntimeError(f"Scheduler path census did not stop: {reply!r}")
+        # Close the CPU window after mining (and optional diagnostic stop).
         event_cpu = None
         if args.capture_server_thread_cpu:
             assert event_thread is not None and event_cpu_before is not None
@@ -1047,6 +1056,35 @@ def main() -> int:
                     f"before={compiler_status_before!r}; after={compiler_status_after!r}"
                 )
 
+        scheduler_path_counts = None
+        if scheduler_path_census:
+            if compiler_status_before is None or compiler_status_after is None:
+                raise RuntimeError("Missing scheduler path census status snapshots")
+            if ("sched_path_enabled=true" not in compiler_status_before
+                    or "sched_path_enabled=true" not in compiler_status_after
+                    or "sched_path_recording=false" not in compiler_status_after):
+                raise RuntimeError("Scheduler path census mode/stop status invalid")
+            def path_delta(key: str) -> int:
+                return stats_int(compiler_status_after, key) - stats_int(compiler_status_before, key)
+            if (path_delta("sched_path_sessions_started") != 1
+                    or path_delta("sched_path_sessions_stopped") != 1):
+                raise RuntimeError("Scheduler path census start/stop mismatch")
+            scheduler_path_counts = {
+                "queue_entries": path_delta("sched_path_queue_entries"),
+                "build_contexts": path_delta("sched_path_build_contexts"),
+                "execute_command": path_delta("sched_path_execute_command"),
+                "call_function": path_delta("sched_path_call_function"),
+                "continuation": path_delta("sched_path_continuation"),
+                "owner_java_thread_id": stats_int(compiler_status_after, "sched_path_thread_id"),
+                "session_count": 1,
+                "event_scope": "RCON begin after pre-event idle; end just after 215 ores, includes stop leaf",
+            }
+            if (scheduler_path_counts["queue_entries"] < 1000
+                    or scheduler_path_counts["owner_java_thread_id"] <= 0
+                    or any(scheduler_path_counts[key] < 0 for key in (
+                        "build_contexts", "execute_command", "call_function", "continuation"))):
+                raise RuntimeError(f"Scheduler path census counters invalid: {scheduler_path_counts}")
+
         valid_scoreadd_path_coverage_diagnostic = (
             args.scoreadd_path_coverage_diagnostic
             and command_callback_metrics is not None
@@ -1082,6 +1120,8 @@ def main() -> int:
             "spark_sha256": sha256(SPARK_AGENT) if capture_spark else None,
             "spark_capture_enabled": capture_spark,
             "jfr_cpu_capture_enabled": capture_jfr_cpu,
+            "scheduler_path_census_enabled": scheduler_path_census,
+            "scheduler_path_census": scheduler_path_counts,
             "jfr_cpu_profile_path": (
                 str(jfr_path.relative_to(ROOT)) if jfr_path else None
             ),
@@ -1107,7 +1147,7 @@ def main() -> int:
             "callback_metrics_forced_wrapper": (
                 callback_metrics_enabled and not compiler_enabled
             ),
-            "diagnostic_only": bool(diagnostics) or capture_jfr_cpu,
+            "diagnostic_only": bool(diagnostics) or capture_jfr_cpu or scheduler_path_census,
             "compiler_status_before": compiler_status_before,
             "compiler_status_after": compiler_status_after,
             "command_callback_metrics": command_callback_metrics,
