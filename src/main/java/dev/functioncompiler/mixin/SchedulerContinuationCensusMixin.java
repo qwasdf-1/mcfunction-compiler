@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ContinuationTask.class)
 abstract class SchedulerContinuationCensusMixin {
-    @Inject(method = "execute", at = @At("HEAD"))
+    @Inject(method = "execute(Lnet/minecraft/commands/ExecutionCommandSource;Lnet/minecraft/commands/execution/ExecutionContext;Lnet/minecraft/commands/execution/Frame;)V", at = @At("HEAD"))
     private void functionCompiler$countContinuation(CallbackInfo ci) {
         SchedulerPathCensus.continuation();
     }
