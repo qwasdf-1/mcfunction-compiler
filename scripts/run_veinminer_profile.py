@@ -1474,7 +1474,11 @@ def main() -> int:
             if (site_real!=owners
                     or groups["NO_SITE"]["calls"]!=empties
                     or groups["MULTIPLE"]["calls"]!=0):
-                raise RuntimeError("ExecuteCommand owner/EMPTY callback site coverage mismatch")
+                raise RuntimeError(
+                    "ExecuteCommand owner/EMPTY callback site coverage mismatch; "
+                    f"owner={owners} empty={empties} site_real={site_real}; "
+                    f"site_trace={site_trace!r}; delegate_trace={delegate_trace!r}"
+                )
 
         valid_scoreadd_path_coverage_diagnostic = (
             args.scoreadd_path_coverage_diagnostic
