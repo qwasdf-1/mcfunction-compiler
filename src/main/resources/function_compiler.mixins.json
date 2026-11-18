@@ -10,6 +10,7 @@
     "SchedulerPathQueueEntryMixin",
     "SchedulerBuildContextsCensusMixin",
     "SchedulerExecuteCommandCensusMixin",
+    "SchedulerBrigadierCommandCensusMixin",
     "SchedulerCallFunctionCensusMixin",
     "SchedulerContinuationCensusMixin",
     "CommandFunctionMixin",
