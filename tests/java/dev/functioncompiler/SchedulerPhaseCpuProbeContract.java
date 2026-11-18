@@ -38,7 +38,25 @@ public final class SchedulerPhaseCpuProbeContract {
             SchedulerTaskCpuProbe.enter(SchedulerTaskCpuProbe.Path.EXECUTE);
             long outer = SchedulerPhaseCpuProbe.begin(SchedulerPhaseCpuProbe.Phase.EXECUTABLE);
             try {
+                if (SchedulerPhaseCpuProbe.plumbingEnabled()) {
+                    long copy = SchedulerPhaseCpuProbe.begin(SchedulerPhaseCpuProbe.Phase.COPY);
+                    try {
+                        work();
+                    } finally {
+                        SchedulerPhaseCpuProbe.end(SchedulerPhaseCpuProbe.Phase.COPY, copy);
+                        SchedulerPhaseCpuProbe.observedCopy(copy, i % 2 == 0);
+                    }
+                }
                 runPhase(SchedulerPhaseCpuProbe.Phase.COMMAND);
+                if (SchedulerPhaseCpuProbe.plumbingEnabled()) {
+                    long result = SchedulerPhaseCpuProbe.begin(SchedulerPhaseCpuProbe.Phase.RESULT);
+                    try {
+                        work();
+                    } finally {
+                        SchedulerPhaseCpuProbe.end(SchedulerPhaseCpuProbe.Phase.RESULT, result);
+                        SchedulerPhaseCpuProbe.observedResult(result, i % 3 != 0);
+                    }
+                }
             } finally {
                 SchedulerPhaseCpuProbe.end(SchedulerPhaseCpuProbe.Phase.EXECUTABLE, outer);
             }
@@ -50,8 +68,10 @@ public final class SchedulerPhaseCpuProbeContract {
             long samples = SchedulerPhaseCpuProbe.samples(phase);
             check(SchedulerPhaseCpuProbe.depth(phase) == 0, "scope leaked");
             check(SchedulerPhaseCpuProbe.nested(phase) == 0, "nested same phase");
-            if (mode.equals("off")) {
-                check(samples == 0, "disabled mode sampled CPU");
+            boolean extra = phase == SchedulerPhaseCpuProbe.Phase.COPY
+                    || phase == SchedulerPhaseCpuProbe.Phase.RESULT;
+            if (mode.equals("off") || (extra && !SchedulerPhaseCpuProbe.plumbingEnabled())) {
+                check(samples == 0, "disabled phase sampled CPU");
             } else {
                 check(samples > 450 && samples < 800, "wrong 1/32 parent selection");
                 check(samples == SchedulerPhaseCpuProbe.calls(phase), "missing clock close");
@@ -62,6 +82,19 @@ public final class SchedulerPhaseCpuProbeContract {
         check(SchedulerPhaseCpuProbe.samples(SchedulerPhaseCpuProbe.Phase.EXECUTABLE)
               == SchedulerPhaseCpuProbe.samples(SchedulerPhaseCpuProbe.Phase.COMMAND),
               "Nested executable and command selection not aligned");
+        if (!mode.equals("off") && SchedulerPhaseCpuProbe.plumbingEnabled()) {
+            check(SchedulerPhaseCpuProbe.copyReused()
+                + SchedulerPhaseCpuProbe.copyAllocated()
+                == SchedulerPhaseCpuProbe.samples(SchedulerPhaseCpuProbe.Phase.COPY),
+                "context identity classification mismatch");
+            check(SchedulerPhaseCpuProbe.resultSuccess()
+                + SchedulerPhaseCpuProbe.resultFailure()
+                == SchedulerPhaseCpuProbe.samples(SchedulerPhaseCpuProbe.Phase.RESULT),
+                "result success/failure classification mismatch");
+            check(SchedulerPhaseCpuProbe.resultFailure()>0
+                && SchedulerPhaseCpuProbe.copyAllocated()>0,
+                "synthetic failure/allocation branches not exercised");
+        }
         if (!mode.equals("off")) {
             check(SchedulerPhaseCpuProbe.ownerThreadId()
                   == Thread.currentThread().threadId(), "wrong clock thread");
