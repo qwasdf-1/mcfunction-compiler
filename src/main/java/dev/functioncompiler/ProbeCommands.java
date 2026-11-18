@@ -22,6 +22,16 @@ final class ProbeCommands {
     }
 
     static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        if (SchedulerResultSiteTrace.enabled()) {
+            dispatcher.register(Commands.literal("fc_sched_site_summary")
+                    .executes(context -> {
+                        String summary = SchedulerResultSiteTrace.summary();
+                        context.getSource().sendSuccess(
+                                () -> Component.literal(summary), false);
+                        return 1;
+                    }));
+        }
+
         if (SchedulerResultDelegateTrace.enabled()) {
             dispatcher.register(Commands.literal("fc_sched_delegate_summary")
                     .executes(context -> {
