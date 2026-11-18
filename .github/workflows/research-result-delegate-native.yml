@@ -4,7 +4,7 @@ name: SCHED-ATTR-028 native callback delegate implementation census
 on:
   workflow_dispatch:
   pull_request:
-    branches: [research/sched-attr-028-brigadier-context-callback-cpu]
+    branches: [research/sched-attr-027-brigadier-context-callback-cpu]
     paths:
       - src/main/java/dev/functioncompiler/SchedulerResultDelegateTrace.java
       - src/main/java/dev/functioncompiler/SchedulerPhaseCpuProbe.java
