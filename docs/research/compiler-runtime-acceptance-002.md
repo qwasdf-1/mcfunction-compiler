@@ -15,7 +15,7 @@ These observations identify a coverage question. They do **not** establish a sem
 
 ## Diagnostic mechanism
 
-- Opt-in `FC_COMPILER_ACCEPTANCE_AUDIT=true` **and required namespace** `FC_COMPILER_ACCEPTANCE_NAMESPACE=vm`. The audit does nothing with just one switch. No new Mixin or live command substitution is introduced by the diagnostic.
+- Opt-in `FC_COMPILER_ACCEPTANCE_AUDIT=true` **and required namespace** `FC_COMPILER_ACCEPTANCE_NAMESPACE=vm`. The audit does nothing with just one switch. An existing function-builder Mixin admits macro-function wrappers **only for that audited namespace** even when normal parser prototypes are off; no new Mixin or command substitution is introduced. This control is not an uninstrumented production-default configuration.
 - `function_compiler_probe acceptance` (or `functioncompiler acceptance`) dumps sorted, bounded records to the server log, with begin/end event and key-count conservation controls. Maximum 4096 unique records, input excerpt at most 240 characters. The command prints a small summary via RCON.
 - **Parser outcomes:** `plain_parser_gate_off` (function seen without the compiler gate); `bare_declined`; `bare_terminal_installed`; `chain_missing_parts`; `chain_executable_declined`; `chain_terminal_only`; `chain_fully_lowered`.
 - **Macro outcomes:** `macro_new_expansion`, `macro_parameter_cache_hit`, `macro_plaintext_eligible`, `macro_not_eligible`, `macro_parser_visited`, and `macro_parser_gate_off`. Macro parameter-cache reuse is **not** proof a cached result is compiled or executed. Expanded macro lines may be compiled repeatedly across distinct argument tuples.
@@ -27,7 +27,7 @@ These observations identify a coverage question. They do **not** establish a sem
 
 | Arm | Enabled behavior | What can be concluded |
 | --- | --- | --- |
-| `selective-macro` | Existing default-on selective extraction, parser prototypes off; opt-in selective argument hit counter | Tests macro calls/fast-path use while explicitly distinguishing the parser's disabled gate |
+| `selective-macro` | Existing default-on selective extraction, parser prototypes off; opt-in selective argument hit counter **and namespace-gated diagnostic macro wrapper** | Tests macro calls/fast-path use while explicitly distinguishing the parser's disabled gate; not an exact production-default runtime stack |
 | `score-add` | Opt-in ScoreAdd compiler/parser path, selective argument extraction off in this harness mode | Tests parser acceptance, terminal-only chain outcomes and expanded macro specialization, not a default-on production speedup |
 
 Both arms must complete the exact source-pinned mining event and its post-event invariants. The diagnostic dump is requested **after event completion**, then `acceptance.log` and all row counts are archived. The output is `build/benchmarks/COMPILER-ACCEPTANCE-002/results.json` plus per-arm logs. The offline `scripts/analyze_compiler_acceptance.py` requires a single begin/end, exact event conservation and namespace containment; synthetic tests cover these contracts.
