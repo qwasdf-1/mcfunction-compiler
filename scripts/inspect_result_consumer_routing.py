@@ -22,6 +22,8 @@ CLASSES=(
     "net.minecraft.commands.ExecutionCommandSource",
     "net.minecraft.commands.CommandSourceStack",
     "net.minecraft.commands.CommandResultCallback",
+    "net.minecraft.commands.CommandResultCallback$1",
+    "net.minecraft.server.commands.ExecuteCommand",
     "net.minecraft.commands.execution.Frame",
     "net.minecraft.commands.execution.ExecutionContext",
     "net.minecraft.commands.execution.tasks.ExecuteCommand",
