@@ -1,14 +1,7 @@
 name: SCHED-ATTR-028 inspect native command result-consumer routing
 
-# One-time stacked PR inspection trigger; restore dispatch-only after capture.
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [research/sched-attr-027-brigadier-context-callback-cpu]
-    paths:
-      - scripts/inspect_result_consumer_routing.py
-      - docs/research/result-callback-routing-SCHED-ATTR-028.md
-      - .github/workflows/research-result-consumer-routing.yml
 
 permissions:
   contents: read
