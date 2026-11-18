@@ -76,6 +76,7 @@ final class ProbeStatus {
 
     static int status(CommandSourceStack source) {
         SchedulerTaskCpuProbe.ensureReady();
+        SchedulerPhaseCpuProbe.ensureReady();
         ServerFunctionManager manager = source.getServer().getFunctions();
         Optional<CommandFunction<CommandSourceStack>> found = manager.get(PROBE_FUNCTION);
         if (found.isEmpty()) {
@@ -144,6 +145,27 @@ final class ProbeStatus {
                 + " sched_path_execute_command=" + SchedulerPathCensus.executeCommandCount()
                 + " sched_path_call_function=" + SchedulerPathCensus.callFunctionCount()
                 + " sched_path_continuation=" + SchedulerPathCensus.continuationCount()
+                + " sched_phase_cpu_mode=" + SchedulerPhaseCpuProbe.modeName()
+                + " sched_phase_cpu_clock_ready=" + SchedulerPhaseCpuProbe.clockReady()
+                + " sched_phase_cpu_thread_id=" + SchedulerPhaseCpuProbe.ownerThreadId()
+                + " sched_phase_modifier_calls=" + SchedulerPhaseCpuProbe.calls(SchedulerPhaseCpuProbe.Phase.MODIFIER)
+                + " sched_phase_modifier_samples=" + SchedulerPhaseCpuProbe.samples(SchedulerPhaseCpuProbe.Phase.MODIFIER)
+                + " sched_phase_modifier_cpu_ns=" + SchedulerPhaseCpuProbe.cpuNs(SchedulerPhaseCpuProbe.Phase.MODIFIER)
+                + " sched_phase_modifier_zero_deltas=" + SchedulerPhaseCpuProbe.zeroDeltas(SchedulerPhaseCpuProbe.Phase.MODIFIER)
+                + " sched_phase_modifier_nested=" + SchedulerPhaseCpuProbe.nested(SchedulerPhaseCpuProbe.Phase.MODIFIER)
+                + " sched_phase_modifier_depth=" + SchedulerPhaseCpuProbe.depth(SchedulerPhaseCpuProbe.Phase.MODIFIER)
+                + " sched_phase_executable_calls=" + SchedulerPhaseCpuProbe.calls(SchedulerPhaseCpuProbe.Phase.EXECUTABLE)
+                + " sched_phase_executable_samples=" + SchedulerPhaseCpuProbe.samples(SchedulerPhaseCpuProbe.Phase.EXECUTABLE)
+                + " sched_phase_executable_cpu_ns=" + SchedulerPhaseCpuProbe.cpuNs(SchedulerPhaseCpuProbe.Phase.EXECUTABLE)
+                + " sched_phase_executable_zero_deltas=" + SchedulerPhaseCpuProbe.zeroDeltas(SchedulerPhaseCpuProbe.Phase.EXECUTABLE)
+                + " sched_phase_executable_nested=" + SchedulerPhaseCpuProbe.nested(SchedulerPhaseCpuProbe.Phase.EXECUTABLE)
+                + " sched_phase_executable_depth=" + SchedulerPhaseCpuProbe.depth(SchedulerPhaseCpuProbe.Phase.EXECUTABLE)
+                + " sched_phase_command_calls=" + SchedulerPhaseCpuProbe.calls(SchedulerPhaseCpuProbe.Phase.COMMAND)
+                + " sched_phase_command_samples=" + SchedulerPhaseCpuProbe.samples(SchedulerPhaseCpuProbe.Phase.COMMAND)
+                + " sched_phase_command_cpu_ns=" + SchedulerPhaseCpuProbe.cpuNs(SchedulerPhaseCpuProbe.Phase.COMMAND)
+                + " sched_phase_command_zero_deltas=" + SchedulerPhaseCpuProbe.zeroDeltas(SchedulerPhaseCpuProbe.Phase.COMMAND)
+                + " sched_phase_command_nested=" + SchedulerPhaseCpuProbe.nested(SchedulerPhaseCpuProbe.Phase.COMMAND)
+                + " sched_phase_command_depth=" + SchedulerPhaseCpuProbe.depth(SchedulerPhaseCpuProbe.Phase.COMMAND)
                 + " sched_task_cpu_mode=" + SchedulerTaskCpuProbe.modeName()
                 + " sched_task_cpu_clock_ready=" + SchedulerTaskCpuProbe.clockReady()
                 + " sched_task_cpu_sample_denominator=" + SchedulerTaskCpuProbe.SAMPLE_DENOMINATOR
