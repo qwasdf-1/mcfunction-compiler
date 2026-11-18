@@ -1,5 +1,6 @@
 package dev.functioncompiler.mixin;
 
+import dev.functioncompiler.CompilerAcceptanceAudit;
 import dev.functioncompiler.ProbeConfiguration;
 import dev.functioncompiler.ProbeMetrics;
 import dev.functioncompiler.ProbeFunctionWrapper;
@@ -33,7 +34,8 @@ abstract class FunctionBuilderMixin {
         boolean compileMacroExpansion = built instanceof MacroFunction
                 && (ProbeConfiguration.scoreAddPrototypeEnabled()
                 || ProbeConfiguration.scoreAddTimingEnabled()
-                || ProbeConfiguration.commandCallbackMetricsEnabled());
+                || ProbeConfiguration.commandCallbackMetricsEnabled()
+                || CompilerAcceptanceAudit.enabledFor(id));
         if (built instanceof PlainTextFunction<?> || compileMacroExpansion) {
             // "Covered" is counted where the specialization actually happens
             // (ProbeMetrics.scoreAddCompiled), not here: a wrapped function in an
