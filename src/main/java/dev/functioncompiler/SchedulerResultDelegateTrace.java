@@ -67,7 +67,9 @@ public final class SchedulerResultDelegateTrace {
     public static void observe(Object source, boolean success, long token, long rawNs) {
         if (!ENABLED || token == SchedulerPhaseCpuProbe.SKIP
                 || token == SchedulerPhaseCpuProbe.NESTED) return;
-        if (!SchedulerPathCensus.recording()) return;
+        // A selected final RCON stop command can end the event census before
+        // its own result callback. The selected timing token, not the
+        // now-closed window flag, proves this observation belongs to scope.
         if (!"Server thread".equals(Thread.currentThread().getName())) {
             throw new IllegalStateException("Delegate census ran outside Server thread");
         }
