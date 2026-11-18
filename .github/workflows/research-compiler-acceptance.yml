@@ -6,6 +6,7 @@ on:
       - 'src/main/java/dev/functioncompiler/CompilerAcceptanceAudit.java'
       - 'src/main/java/dev/functioncompiler/ScoreAddPrototype.java'
       - 'src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java'
+      - 'src/main/java/dev/functioncompiler/mixin/FunctionBuilderMixin.java'
       - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
       - 'scripts/ci_compiler_acceptance.py'
       - 'scripts/analyze_compiler_acceptance.py'
