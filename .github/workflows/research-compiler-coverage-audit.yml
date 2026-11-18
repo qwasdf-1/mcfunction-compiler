@@ -1,0 +1,62 @@
+name: Compiler coverage audit (read-only pinned datapack)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Checkout compiler audit branch
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Unit-test source classifications and existing H2 census
+        run: |
+          python3 -m unittest discover -s tests -p test_specialization_inventory.py -v
+          python3 -m unittest discover -s tests -p test_audit_compiler_coverage.py -v
+      - name: Fetch exact SHA-pinned Vein Miner publisher ZIP (no server)
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,urllib.request
+          from pathlib import Path
+          target=Path("references/real-world/candidates/VeinMiner-5.3.0+26.3.zip")
+          target.parent.mkdir(parents=True,exist_ok=True)
+          req=urllib.request.Request(
+              "https://api.modrinth.com/v2/version/5jzz5SkG",
+              headers={"User-Agent":"MCFC-COMPILER-COVERAGE-001/1.0"}
+          )
+          with urllib.request.urlopen(req,timeout=40) as response:
+              manifest=json.load(response)
+          files=[f for f in manifest["files"]
+                 if f["filename"]=="VeinMiner-5.3.0+26.3.zip"]
+          if len(files)!=1: raise SystemExit("Pinned publisher file missing/ambiguous")
+          req=urllib.request.Request(
+              files[0]["url"],headers={"User-Agent":"MCFC-COMPILER-COVERAGE-001/1.0"})
+          with urllib.request.urlopen(req,timeout=90) as response:
+              payload=response.read()
+          digest=hashlib.sha256(payload).hexdigest()
+          required="fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e"
+          if digest!=required: raise SystemExit("Publisher SHA-256 mismatch")
+          target.write_bytes(payload)
+          print(f"Verified original publisher ZIP: {digest}")
+          PY
+      - name: Audit compiler candidates and existing H2 baseline
+        run: |
+          python3 scripts/audit_compiler_coverage.py --pack veinminer
+          python3 scripts/run_specialization_inventory.py --packs veinminer --output build/benchmarks/COMPILER-COVERAGE-AUDIT-001/h2
+      - name: Preserve complete source audit (not publisher ZIP)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-coverage-audit-veinminer-pinned
+          path: function-compiler/build/benchmarks/COMPILER-COVERAGE-AUDIT-001/
+          if-no-files-found: warn
+          retention-days: 21
