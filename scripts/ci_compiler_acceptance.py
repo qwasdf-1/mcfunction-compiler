@@ -50,6 +50,11 @@ def run_arm(mode: str) -> dict:
     audit = parse_acceptance_log(result_dir / "acceptance.log")
     if audit["namespace"] != "vm":
         raise AssertionError("Acceptance census was not restricted to vm")
+    if audit["outcomes"].get("bounded-key-overflow", 0):
+        raise AssertionError(
+            f"Acceptance census lost {audit['outcomes']['bounded-key-overflow']} "
+            "events to the key bound; expand capacity and rerun"
+        )
     shutil.copy2(result_dir / "acceptance.log", OUT / f"{mode}-acceptance.log")
     if mode == "selective-macro":
         if audit["outcomes"].get("macro_parser_gate_off", 0) <= 0:
