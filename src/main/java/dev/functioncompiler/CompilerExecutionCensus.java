@@ -156,7 +156,8 @@ public final class CompilerExecutionCensus {
         if (text.length() > MAX_EXAMPLE_CHARS) {
             text = text.substring(0, MAX_EXAMPLE_CHARS);
         }
-        return SITES.computeIfAbsent(key, k -> new Site(k, text));
+        final String sample = text;
+        return SITES.computeIfAbsent(key, k -> new Site(k, sample));
     }
 
     private record CountedInstantiation<T extends ExecutionCommandSource<T>>(
