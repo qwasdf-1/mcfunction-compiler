@@ -402,8 +402,17 @@ def main() -> int:
     }
     capture_spark = not args.no_spark
     capture_jfr_cpu = args.capture_jfr_cpu
+    acceptance_audit_enabled = os.environ.get(
+        "FC_COMPILER_ACCEPTANCE_AUDIT", "").lower() in {"true", "1"}
+    if acceptance_audit_enabled and (
+        args.stack == "vanilla"
+        or not os.environ.get("FC_COMPILER_ACCEPTANCE_NAMESPACE")
+    ):
+        raise ValueError("Acceptance audit requires Fabric and an explicit namespace")
     compiler_probe_active = compiler_enabled or callback_metrics_enabled
     diagnostics = []
+    if acceptance_audit_enabled:
+        diagnostics.append("namespace-scoped compiler acceptance census")
     if callback_metrics_enabled:
         diagnostics.append("command callback counters")
     if selective_macro_metrics_enabled:
@@ -840,6 +849,14 @@ def main() -> int:
         compiler_status_after = (
             rcon.command("function_compiler_probe status") if compiler_probe_active else None
         )
+        acceptance_dump_status = (
+            rcon.command("function_compiler_probe acceptance")
+            if acceptance_audit_enabled else None
+        )
+        if acceptance_audit_enabled and (
+            acceptance_dump_status is None or "FC_ACCEPTANCE entries=" not in acceptance_dump_status
+        ):
+            raise RuntimeError(f"Acceptance audit dump failed: {acceptance_dump_status!r}")
         queue_stats_after = function_stats(rcon, "vm:queue/drain", compiler_enabled)
         ray_stats_after = function_stats(rcon, "vm:detection/ray_step", compiler_enabled)
         head_after_capture = read_score_or_zero(rcon, "#head", "vmr.runtime")
@@ -1070,6 +1087,11 @@ def main() -> int:
             },
             "compiler_mode": args.compiler_mode if args.stack != "vanilla" else None,
             "command_callback_metrics_enabled": callback_metrics_enabled,
+            "compiler_acceptance_audit_enabled": acceptance_audit_enabled,
+            "compiler_acceptance_audit_namespace": (
+                os.environ.get("FC_COMPILER_ACCEPTANCE_NAMESPACE") if acceptance_audit_enabled else None
+            ),
+            "compiler_acceptance_dump_status": acceptance_dump_status,
             "selective_macro_arguments_metrics_enabled": selective_macro_metrics_enabled,
             "selective_macro_argument_calls_delta": selective_macro_argument_calls_delta,
             "selective_macro_diagnostics_delta": selective_macro_diagnostics_delta,
@@ -1317,6 +1339,17 @@ def main() -> int:
                     server.wait()
         if log_handle is not None:
             log_handle.close()
+        if acceptance_audit_enabled and (work / "server.log").is_file():
+            # Preserve the complete bounded audit independently of the temporary server.
+            # This is a post-event diagnostic, never a wall/CPU timing sample.
+            audit_rows = [
+                line for line in (work / "server.log").read_text(
+                    errors="replace").splitlines()
+                if "FC_ACCEPTANCE_" in line
+            ]
+            (output / "acceptance.log").write_text(
+                "\n".join(audit_rows) + "\n", encoding="utf-8"
+            )
         if not succeeded and (work / "server.log").is_file():
             (output / "failure.log").write_text(
                 (work / "server.log").read_text(errors="replace")[-16000:],
