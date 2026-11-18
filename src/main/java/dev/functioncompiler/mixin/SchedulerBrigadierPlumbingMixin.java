@@ -5,6 +5,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ContextChain;
 import dev.functioncompiler.SchedulerPhaseCpuProbe;
 import dev.functioncompiler.SchedulerResultDelegateTrace;
+import dev.functioncompiler.SchedulerResultSiteTrace;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -65,6 +66,7 @@ abstract class SchedulerBrigadierPlumbingMixin {
             ResultConsumer<?> original, CommandContext<?> command,
             boolean success, int result
     ) {
+        SchedulerResultSiteTrace.openSelectedScope();
         long token = SchedulerPhaseCpuProbe.begin(SchedulerPhaseCpuProbe.Phase.RESULT);
         try {
             ((ResultConsumer) original).onCommandComplete((CommandContext) command,
@@ -73,6 +75,7 @@ abstract class SchedulerBrigadierPlumbingMixin {
             long inclusiveCpuNs = SchedulerPhaseCpuProbe.endWithDuration(
                     SchedulerPhaseCpuProbe.Phase.RESULT, token);
             SchedulerPhaseCpuProbe.observedResult(token, success);
+            SchedulerResultSiteTrace.closeSelectedScope(token, inclusiveCpuNs);
             SchedulerResultDelegateTrace.observe(
                     command.getSource(), success, token, inclusiveCpuNs);
         }
