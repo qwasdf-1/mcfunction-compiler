@@ -1,32 +1,41 @@
-name: SCHED-ATTR-026 verify exact BuildContexts and dispatch bytecode
+name: SCHED-ATTR-026 verified modifier/Brigadier/command phase CPU
 
-# Temporary read-only inspection run on stacked PR. After bytecode capture,
-# remove PR trigger; a future native experiment must be separately enabled.
+# Temporary PR trigger for the first preregistered phase-mechanism diagnostic.
+# Restore workflow_dispatch-only after the native run and acceptance review.
 on:
   workflow_dispatch:
   pull_request:
-    branches: [research/sched-attr-025-sparse-task-cpu]
+    branches: [research/sched-attr-026-nested-phase-cpu]
     paths:
-      - scripts/inspect_task_phase_calls.py
-      - docs/research/task-internal-phase-SCHED-ATTR-026.md
+      - src/main/java/dev/functioncompiler/SchedulerPhaseCpuProbe.java
+      - src/main/java/dev/functioncompiler/SchedulerTaskCpuProbe.java
+      - src/main/java/dev/functioncompiler/ProbeStatus.java
+      - src/main/java/dev/functioncompiler/mixin/SchedulerBuildContextsCensusMixin.java
+      - src/main/java/dev/functioncompiler/mixin/SchedulerExecuteCommandCensusMixin.java
+      - src/main/java/dev/functioncompiler/mixin/SchedulerBrigadierCommandCensusMixin.java
+      - src/main/resources/function_compiler.mixins.json
+      - scripts/run_veinminer_profile.py
+      - scripts/ci_scheduler_phase_cpu.py
+      - tests/test_scheduler_phase_cpu_clock.py
+      - tests/test_scheduler_phase_cpu.py
       - .github/workflows/research-scheduler-task-internals.yml
 
 permissions:
   contents: read
 
 concurrency:
-  group: sched-attr-026-inspect-${{ github.ref }}
+  group: sched-attr-026-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  exact-bytecode-inspection:
+  nested-phase-cpu:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: function-compiler
     steps:
-      - name: Checkout research branch
+      - name: Checkout compiler research branch
         uses: actions/checkout@v4
         with:
           path: function-compiler
@@ -35,15 +44,69 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - name: Fingerprint and compile against Minecraft 26.3
+      - name: Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Verify path census and nested phase CPU clock quality contracts
+        run: |
+          python3 -m py_compile scripts/run_veinminer_profile.py scripts/ci_scheduler_phase_cpu.py
+          python3 -m unittest discover -s tests -p test_scheduler_path_census.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_entry_census.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_task_cpu_clock.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_task_cpu.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_phase_cpu_clock.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_phase_cpu.py -v
+      - name: Build compiler
         run: ./gradlew --no-daemon --stacktrace build
-      - name: Inspect exact task and Brigadier method callsites
+      - name: Fetch and verify exact pinned Vein Miner datapack
+        env:
+          MC_VEINMINER_REFERENCE_URL: ${{ secrets.MC_VEINMINER_REFERENCE_URL }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          import urllib.request
+          expected="fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e"
+          target=Path("references/real-world/candidates/VeinMiner-5.3.0+26.3.zip")
+          target.parent.mkdir(parents=True,exist_ok=True)
+          if target.exists():
+              payload=target.read_bytes()
+          else:
+              url=os.environ.get("MC_VEINMINER_REFERENCE_URL")
+              if not url:
+                  req=urllib.request.Request("https://api.modrinth.com/v2/version/5jzz5SkG",headers={"User-Agent":"MCFC-research-SCHED-ATTR-026/1.0"})
+                  with urllib.request.urlopen(req,timeout=45) as response:
+                      version=json.load(response)
+                  matches=[f for f in version["files"] if f["filename"]=="VeinMiner-5.3.0+26.3.zip"]
+                  if len(matches)!=1:
+                      raise RuntimeError("Pinned datapack filename not found in publisher's version record")
+                  url=matches[0]["url"]
+              req=urllib.request.Request(url,headers={"User-Agent":"MCFC-research-SCHED-ATTR-026/1.0"})
+              with urllib.request.urlopen(req,timeout=60) as response:
+                  payload=response.read()
+          observed=hashlib.sha256(payload).hexdigest()
+          print("Publisher datapack sha256:",observed)
+          if observed!=expected:
+              raise SystemExit("PINNED ARTIFACT MISMATCH: no experiment run; need exact original Vein Miner ZIP")
+          target.write_bytes(payload)
+          print("Verified pinned Vein Miner archive",len(payload),"bytes")
+          PY
+      - name: Verify exact Minecraft 26.3 command callsites
         run: python3 scripts/inspect_task_phase_calls.py
-      - name: Archive source inspection and SHA-256
+      - name: Measure three native modifier/Brigadier/command phase modes
+        timeout-minutes: 35
+        run: python3 scripts/ci_scheduler_phase_cpu.py
+      - name: Archive exact bytecode and raw nested task CPU intervals
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sched-attr-026-exact-javap-inventory
-          path: function-compiler/build/benchmarks/SCHED-ATTR-026/*
+          name: sched-attr-026-nested-phase-cpu
+          path: |
+            function-compiler/build/benchmarks/SCHED-ATTR-026/*.json
+            function-compiler/build/benchmarks/SCHED-ATTR-026/*.txt
+            function-compiler/build/benchmarks/SCHED-ATTR-026/*.log
+            function-compiler/build/benchmarks/PERF-011-veinminer/vein-*/*.json
+            function-compiler/build/benchmarks/PERF-011-veinminer/vein-*/*.log
           if-no-files-found: warn
           retention-days: 21
