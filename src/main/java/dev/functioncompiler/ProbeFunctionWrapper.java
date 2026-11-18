@@ -84,6 +84,15 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         } else {
             compiledInstantiation = null;
         }
+        if (!excluded && CompilerAcceptanceAudit.enabledFor(delegate.id())
+                && delegate instanceof PlainTextFunction<?>
+                && !ProbeConfiguration.scoreAddPrototypeEnabled()
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()
+                && !directThisFunction) {
+            CompilerAcceptanceAudit.record(delegate.id(), "plain_parser_gate_off", "");
+        }
         if (!excluded && ProbeConfiguration.commandCallbackMetricsEnabled()) {
             CommandCallbackMetricPrototype.compile(delegate);
         }
@@ -112,17 +121,21 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
             if (argValues != null) {
                 InstantiatedFunction<T> cached = parameterizedMacroCache.get(argValues);
                 if (cached != null) {
+                    CompilerAcceptanceAudit.record(delegate.id(), "macro_parameter_cache_hit", "");
                     return cached;
                 }
             }
             InstantiatedFunction<T> instantiated = delegate.instantiate(arguments, dispatcher);
+            CompilerAcceptanceAudit.record(delegate.id(), "macro_new_expansion", "");
             if (isEligibleMacro(instantiated)) {
+                CompilerAcceptanceAudit.record(delegate.id(), "macro_plaintext_eligible", "");
                 InstantiatedFunction<T> compiled = specializeMacro((PlainTextFunction<?>) instantiated);
                 if (argValues != null) {
                     parameterizedMacroCache.put(argValues, compiled);
                 }
                 return compiled;
             }
+            CompilerAcceptanceAudit.record(delegate.id(), "macro_not_eligible", "");
             return instantiated;
         }
         return delegate.instantiate(arguments, dispatcher);
@@ -142,6 +155,7 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
                 || ProbeConfiguration.fusedRegionPrototypeEnabled()
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled();
         if (!shouldSpecialize && !ProbeConfiguration.commandCallbackMetricsEnabled()) {
+            CompilerAcceptanceAudit.record(delegate.id(), "macro_parser_gate_off", "");
             return (InstantiatedFunction<T>) plainTextFunction;
         }
         InstantiatedFunction<T> cached = macroCompilationCache.get(plainTextFunction);
@@ -149,7 +163,10 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
             return cached;
         }
         if (shouldSpecialize) {
+            CompilerAcceptanceAudit.record(delegate.id(), "macro_parser_visited", "");
             ScoreAddPrototype.compile(plainTextFunction, delegate.id());
+        } else {
+            CompilerAcceptanceAudit.record(delegate.id(), "macro_parser_gate_off", "");
         }
         if (ProbeConfiguration.commandCallbackMetricsEnabled()) {
             CommandCallbackMetricPrototype.compile(plainTextFunction);
