@@ -1,6 +1,6 @@
 # SCHED-ATTR-028 — concrete result-consumer routing and callback effects
 
-**Status:** Phase A exact Minecraft 26.3 callback-routing inspection completed. Phase B native sampled delegate-class attribution **preregistered below, no native measurements accepted yet**. Research-only branch stacked on accepted [SCHED-ATTR-027](brigadier-plumbing-SCHED-ATTR-027.md).
+**Status:** Phase A exact source-routing inspection and Phase B three-arm native delegate-class attribution **completed with all predeclared workload/clock/histogram gates passing on 2026-11-18 UTC**. Phase C exact source inspection of the dominant ExecuteCommand-owned lambda family is in progress; no new CPU measurements are authorized by Phase C. Research-only branch stacked on accepted [SCHED-ATTR-027](brigadier-plumbing-SCHED-ATTR-027.md).
 
 ## Hypothesis and important limits
 
@@ -46,3 +46,27 @@ Activate `FC_SCHED_RESULT_DELEGATE_TRACE` only for this study. **Do not add anot
 **Analysis and limitations:** Sort the TIMED class labels by **raw inclusive sampled callback CPU** and report within-sample fractions, counts and callback outcomes. This identifies the groups **dominating the observed sample**, not necessarily the population of all command callbacks. For context only, use SCHED-ATTR-027's global mean EMPTY result-clock pair as a *uniform* clock-cost sensitivity subtraction per class; this is **not a separately measured per-class calibration** or an exclusive CPU statistic. Preserve negative differences. One independent JVM per arm; no causal speedup, confidence interval or proof of 1/32 representativeness. Java lambda owner normalization may merge different concrete capture sites; `CommandResultCallback.chain` represents a wrapper and can conceal the underlying leaf callbacks. If **CHAIN dominates**, the next independent experiment must instrument its child delegations or trace exact callback construction before claiming that any specific command-effect implementation dominates.
 
 This is research-only, the new tracing class and query command must be **disabled by default**, the specific research workflow must return to `workflow_dispatch`-only after evaluation, and the PR must remain **draft**. Installed-but-disabled Mixin overhead has not yet been independently measured.
+
+## Phase B completed — native callback implementation families (2026-11-18 UTC)
+
+**Accepted run:** [Actions #44242914760](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44242914760), **success**; original [raw artifact #14400732108](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44242914760/artifacts/14400732108). Exact 215-ore / 1,952-queue-head work, same final game state in three arms, zero sampled cgroup throttling, matching callback counts and interval raw CPU conservation, verified publisher ZIP and official Minecraft 26.3 source, and host/clock-quality gates all passed. The earlier [#44242363382](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44242363382) failed **before a native server started** on a Java visibility access error; [#44242539927](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44242539927) completed its OFF mining arm but rejected the post-event delegate summary because the parser incorrectly required a positive thread ID in uninstrumented OFF mode (`thread=-1` is correct). Both rejected attempts remain public; neither contributed CPU samples to the accepted three-arm report. The fixes were implementation/parser correctness, not altered scientific thresholds or selected CPU outcomes.
+
+TIMED arm: **872 sampled `ResultConsumer` callbacks** contributed exactly **59,008,584 ns** of measured raw inclusive CPU, partitioned by the *underlying source's callback class*, not the universal Brigadier adapter:
+
+| Class/implementation family of underlying `CommandResultCallback` | Observed selected calls | Fraction of selected calls | Raw inclusive sampled CPU | Fraction of sampled callback CPU | Mean raw CPU per selected callback |
+|---|---:|---:|---:|---:|---:|
+| **`net.minecraft.server.commands.ExecuteCommand$$Lambda`** | **258** | **29.587%** | **58,619,275 ns** | **99.340%** | **227,206 ns** |
+| **`CommandResultCallback.EMPTY`** | 614 | 70.413% | 389,309 ns | 0.660% | 634 ns |
+| **Total** | **872** | **100%** | **59,008,584 ns** | **100%** | 67,670 ns |
+
+EMPTY arm class exposure: **275 ExecuteCommand-owned / 612 EMPTY** out of 887 selected callbacks, well within the locked 15% exposure-matching gate. TIMED callback outcomes: **858 success** and **14 caught-failure callbacks**; the original same-arm phase counters agree exactly. No class histogram overflow, missing callback interval, or non-execution source occurred. The three-arm whole-event total Server-thread CPU values were **10.074 s PLAIN**, **10.195 s EMPTY**, **9.717 s TIMED**, with TIMED vs PLAIN 3.54% relative absolute difference (within the coarse 30% instrumentation/host veto, NOT an A/B effect).
+
+Uniform EMPTY result-clock pair mean was **718.8 ns**. Subtracting this *global*, not class-specific, control floor leaves a descriptive projected **~19.49% of TIMED Server-thread CPU** in the ExecuteCommand-owned callback family. The EMPTY group's signed sensitivity is slightly negative and near the clock floor, **not negative CPU**. These estimates are descriptive, 1/32 ordinal-sampled, not independent causal optimization savings or precise interval estimates.
+
+**Mechanism result:** Most *observed sampled* callbacks are no-ops, but almost all *observed sampled callback CPU* lies behind a `net.minecraft.server.commands.ExecuteCommand` lambda. This is the **Minecraft `/execute` command implementation class**, distinct from `net.minecraft.commands.execution.tasks.ExecuteCommand`, the scheduler's generic dequeued action. The observed `$$Lambda` name is normalized to its owner: it may represent **multiple distinct lambda sites in the same source class**. Therefore the histogram alone does **NOT** prove a particular scoreboard, bossbar, block/entity data store, command-result propagation or other specific side effect.
+
+### Phase C source-level follow-up (inspection only)
+
+The next low-cost check is to inspect `net.minecraft.server.commands.ExecuteCommand`'s **exact 26.3 `javap -p -s -c` bytecode**, its synthetic `lambda$...` methods and `CommandResultCallback` factories, and separately inspect `CommandResultCallback$1` to verify the EMPTY implementation's actual no-op. This is a **read-only source verification**, not another CPU run or a new optimization. Distinguish scoreboard updates, NBT/data stores, bossbar mutations, entity/world actions, and chained callbacks only where actual bytecode supports the distinction. If multiple owner-lambda sites exist, a future study must identify those sites dynamically before claiming which individual site accounts for 99.34% of the measured callback CPU.
+
+The accepted `.github/workflows/research-result-delegate-native.yml` was returned to **manual-only** before the Phase C inspection edits; no expensive native rerun is required. This branch remains an unmerged draft, with no production scheduler/command changes.
