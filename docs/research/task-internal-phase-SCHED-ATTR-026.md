@@ -23,3 +23,7 @@ The earlier method-level SCHED-ATTR-025 36%/57% inclusive projections are **not 
 ## Change discipline
 
 Keep this work stacked on SCHED-ATTR-025, with the previous PRs remaining draft. Begin with a Java source/bytecode survey that creates archived diagnostics. No global scheduler rewrite, modified quotas, alternate function-call backend, or CI 30-boot campaign. Existing research workflows remain manual-only.
+
+## Phase A inspection provenance amendment — 2026-11-18
+
+The first [Actions inspection run #44231002304](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44231002304) built the Fabric mod successfully but **failed closed** before its source inventory because a freshly generated Loom Minecraft 26.3 classfile at the standard `minecraft-merged-deobf/26.3` path had SHA-256 `bf8e2d4fbaeac8e71179cac31f826262292fe9d6bc170143f893c38354d83597`, not either earlier source-inspection fingerprint. This is a **toolchain/cache provenance change**, not observed runtime CPU. Its observed hash is now recorded separately in `source-versions.lock`. The rerun is required to confirm the historical typed method descriptors against that new artifact. Brigadier's `ContextChain`/`CommandContext` must additionally be loaded from the resolved external Mojang Brigadier jar, not assumed present in the Minecraft merged jar. **No CPU timing or native game event is authorized from this fingerprint alone.**
