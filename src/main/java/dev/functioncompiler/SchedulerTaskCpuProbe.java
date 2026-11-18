@@ -154,6 +154,16 @@ public final class SchedulerTaskCpuProbe {
     }
 
     private static Stats get(Path path) { return STATS[path.ordinal()]; }
+    /** True only inside a selected parent task method's real execution body.
+     * This exposes the exact previously frozen 1/32 ordinal selection to
+     * nested SCHED-ATTR-026 probes without creating another random stream.
+     */
+    public static boolean activeSampled(Path p) {
+        if (MODE == Mode.OFF) return false;
+        Stats stat = get(p);
+        return stat.depth > 0 && stat.sampled;
+    }
+
     public static long ownerThreadId() { return ownerThreadId; }
     public static long calls(Path p) { return get(p).calls; }
     public static long samples(Path p) { return get(p).samples; }
