@@ -4,7 +4,7 @@ name: SCHED-ATTR-027 Brigadier context-copy and result-consumer native CPU
 on:
   workflow_dispatch:
   pull_request:
-    branches: [research/sched-attr-027-dispatch-phase-attribution]
+    branches: [research/sched-attr-026-dispatch-phase-attribution]
     paths:
       - src/main/java/dev/functioncompiler/SchedulerPhaseCpuProbe.java
       - src/main/java/dev/functioncompiler/ProbeStatus.java
@@ -97,12 +97,12 @@ jobs:
         run: python3 scripts/inspect_task_phase_calls.py
       - name: Measure three native Brigadier copy/callback CPU arms
         timeout-minutes: 35
-        run: python3 scripts/ci_scheduler_phase_cpu.py
+        run: python3 scripts/ci_scheduler_plumbing_cpu.py
       - name: Archive pinned bytecode plus raw Brigadier copy/callback CPU arms
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sched-attr-027-nested-phase-cpu
+          name: sched-attr-027-brigadier-plumbing-cpu
           path: |
             function-compiler/build/benchmarks/SCHED-ATTR-027/*.json
             function-compiler/build/benchmarks/SCHED-ATTR-027/*.txt
