@@ -1,0 +1,82 @@
+name: Compiler runtime acceptance census (native, diagnostic only)
+
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/functioncompiler/CompilerAcceptanceAudit.java'
+      - 'src/main/java/dev/functioncompiler/ScoreAddPrototype.java'
+      - 'src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java'
+      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
+      - 'scripts/ci_compiler_acceptance.py'
+      - 'scripts/analyze_compiler_acceptance.py'
+      - 'scripts/run_veinminer_profile.py'
+      - 'tests/test_compiler_acceptance.py'
+      - '.github/workflows/research-compiler-acceptance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Check out current compiler coverage work
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build and check census parser
+        run: |
+          ./gradlew build
+          python3 -m unittest discover -s tests -p test_compiler_acceptance.py -v
+          python3 -m py_compile scripts/ci_compiler_acceptance.py scripts/analyze_compiler_acceptance.py scripts/run_veinminer_profile.py
+      - name: Fetch exact SHA-pinned original publisher pack
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,urllib.request
+          from pathlib import Path
+          target=Path("references/real-world/candidates/VeinMiner-5.3.0+26.3.zip")
+          target.parent.mkdir(parents=True,exist_ok=True)
+          req=urllib.request.Request(
+              "https://api.modrinth.com/v2/version/5jzz5SkG",
+              headers={"User-Agent":"MCFC-COMPILER-ACCEPTANCE-002/1.0"})
+          with urllib.request.urlopen(req,timeout=40) as response:
+              manifest=json.load(response)
+          files=[f for f in manifest["files"]
+                 if f["filename"]=="VeinMiner-5.3.0+26.3.zip"]
+          if len(files)!=1:
+              raise SystemExit("Pinned publisher asset not found uniquely")
+          req=urllib.request.Request(
+              files[0]["url"],headers={"User-Agent":"MCFC-COMPILER-ACCEPTANCE-002/1.0"})
+          with urllib.request.urlopen(req,timeout=90) as response:
+              payload=response.read()
+          digest=hashlib.sha256(payload).hexdigest()
+          required="fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e"
+          if digest!=required:
+              raise SystemExit("Publisher SHA-256 does not match pin")
+          target.write_bytes(payload)
+          print("Verified Vein Miner ZIP SHA256",digest)
+          PY
+      - name: Run two native diagnostic arms with original event parity
+        run: python3 scripts/ci_compiler_acceptance.py
+      - name: Archive validation and bounded acceptance rows
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-acceptance-002-native-raw
+          path: function-compiler/build/benchmarks/COMPILER-ACCEPTANCE-002/
+          if-no-files-found: warn
+          retention-days: 21
