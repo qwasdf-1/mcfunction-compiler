@@ -1,0 +1,82 @@
+name: Compiler dynamic command execution census (native diagnostic)
+
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/functioncompiler/CompilerExecutionCensus.java'
+      - 'src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java'
+      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
+      - 'src/main/java/dev/functioncompiler/mixin/FunctionBuilderMixin.java'
+      - 'scripts/analyze_compiler_execution.py'
+      - 'scripts/ci_compiler_execution.py'
+      - 'scripts/run_veinminer_profile.py'
+      - 'tests/test_compiler_execution.py'
+      - '.github/workflows/research-compiler-execution.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-exec-census:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Check out compiler coverage branch
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify production Java build and diagnostic parser tests
+        run: |
+          ./gradlew build
+          python3 -m unittest discover -s tests -p test_compiler_execution.py -v
+          python3 -m py_compile scripts/ci_compiler_execution.py scripts/analyze_compiler_execution.py scripts/run_veinminer_profile.py
+      - name: Fetch original SHA-pinned Vein Miner publisher ZIP
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,urllib.request
+          from pathlib import Path
+          dest=Path("references/real-world/candidates/VeinMiner-5.3.0+26.3.zip")
+          dest.parent.mkdir(parents=True,exist_ok=True)
+          req=urllib.request.Request(
+              "https://api.modrinth.com/v2/version/5jzz5SkG",
+              headers={"User-Agent":"MCFC-COMPILER-EXEC-003/1.0"})
+          with urllib.request.urlopen(req,timeout=40) as response:
+              manifest=json.load(response)
+          matched=[f for f in manifest["files"]
+                   if f["filename"]=="VeinMiner-5.3.0+26.3.zip"]
+          if len(matched)!=1:
+              raise SystemExit("Publisher asset missing or ambiguous")
+          req=urllib.request.Request(
+              matched[0]["url"],headers={"User-Agent":"MCFC-COMPILER-EXEC-003/1.0"})
+          with urllib.request.urlopen(req,timeout=90) as response:
+              payload=response.read()
+          actual=hashlib.sha256(payload).hexdigest()
+          required="fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e"
+          if actual!=required:
+              raise SystemExit("Pinned publisher archive hash mismatch")
+          dest.write_bytes(payload)
+          print("Verified source SHA256",actual)
+          PY
+      - name: Execute exact native mining event in two diagnostic arms
+        run: python3 scripts/ci_compiler_execution.py
+      - name: Archive bounded command-level raw rows and parity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-exec-003-native-raw
+          path: function-compiler/build/benchmarks/COMPILER-EXEC-003/
+          if-no-files-found: warn
+          retention-days: 21
