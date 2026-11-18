@@ -1,13 +1,7 @@
 name: SCHED-ATTR-028 static NBT destination check (no game boot)
 
-# Temporary PR trigger for one read-only scan; restore dispatch-only after result.
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [research/sched-attr-027-brigadier-context-callback-cpu]
-    paths:
-      - scripts/inspect_veinminer_nbt_destinations.py
-      - .github/workflows/research-veinminer-nbt-targets.yml
 
 permissions:
   contents: read
