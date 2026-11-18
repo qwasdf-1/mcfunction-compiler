@@ -1,6 +1,6 @@
 # SCHED-ATTR-027 — Real Vein Miner context-copy versus result-consumer CPU inside Brigadier
 
-**Status:** Preregistered three-arm native diagnostic, pending execution. **No accepted SCHED-ATTR-027 CPU measurements yet.** This is research-only, stacked on SCHED-ATTR-026, not a production change or a scheduler replacement.
+**Status:** Three-arm native sparse CPU diagnostic **completed and passed all preregistered workload/host/clock/sample gates on 2026-11-18 UTC (November 17 EST)**. The observed result-consumer CPU signal is substantial, but it is **not proven avoidable scheduler overhead or a causal speedup**. This is research-only, stacked on SCHED-ATTR-026, not a production change or a scheduler replacement.
 
 ## Why this particular study
 
@@ -48,3 +48,53 @@ At these exact bytecode callsites, copy, command, result-consumer are sequential
 Retain a full per-arm native JSON and status record, original stdout/stderr, SHA-256 fingerprints and bytecode inventory; do not synthesize unobserved error-path measurements. If the result consumer dominates, next identify callback implementations and their original scoreboard/gameplay side effects before considering an optimization. If the copy is usually identity-reused, caching/removing `copyFor` would have less opportunity than assumed, but still requires semantics tests.
 
 **Stop rule:** Do not loosen the gates or select profitable-looking subcases after observing times. Keep the draft research PR, return workflow to **manual-only** after first completed/failure-preserved study, and make **no production change** without independent semantic and causal speed benchmarks.
+
+## Completed native screen — 2026-11-18 UTC
+
+**Authoritative accepted campaign:** [GitHub Actions #44238748694](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44238748694), **success**. Original [raw artifact `sched-attr-027-brigadier-plumbing-cpu` #14398144505](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44238748694/artifacts/14398144505) retains all `SCHED-ATTR-027/diagnostic.json` per-arm records, all native `PERF-011-veinminer/.../results.json`, stdout/stderr and startup/idle records, the exact code/official-source fingerprint and Brigadier bytecode. Original standalone Java and Python quality-gate tests, Fabric build and pinned official Minecraft 26.3 plus publisher datapack hashes all passed.
+
+Every native arm completed **215 real ore work operations, 1,952 queue head advances, source stat 1, original source removed, zero remaining ore and marker entities, run state zero, and four compiled ScoreAdd-family queue/drain commands** with identical final state. All pre-event idle gates passed, no measured cgroup throttling; /proc Server-thread runqueue-wait fractions were **0.088%, 0.071%, 0.157%** in PLAIN/EMPTY/TIMED respectively, well below 25%.
+
+| Independent JVM arm | Complete event elapsed time | Linux Server-thread running CPU |
+|---|---:|---:|
+| PLAIN (no clocks) | **14.534 s** | **13.00899 s** |
+| EMPTY pair reads | **14.227 s** | **12.69518 s** |
+| TIMED callsite brackets | **15.038 s** | **13.52331 s** |
+
+The TIMED vs PLAIN whole-event Server-thread CPU difference was **+3.954%**, under the previously locked 30% coarse host/instrumentation veto. The independent JVM clock totals **do not establish causal treatment or overhead effects**.
+
+### Matched selected-callback results
+
+The existing original parent 1/32 ordinal selection produced exactly **872 selected `ExecuteCommand` / `runExecutable` / `Command.run` calls in both EMPTY and TIMED arms**, with 872 selected `copyFor` and 872 selected result-consumer callbacks in each. All five scopes were on the correct Minecraft Server thread, with zero nested or leaked timing scopes and zero timed zero-delta intervals. Both success and caught-syntax-exception callback **bytecode injection sites were required by Mixin**; the native sample actually exercised 15 failure callbacks.
+
+| Nested invocation, TIMED arm | EMPTY pair mean | TIMED inclusive mean | Signed corrected mean | Projected *inclusive* event CPU fraction |
+|---|---:|---:|---:|---:|
+| `ContextChain.runExecutable` (enclosing scope) | 0.277 µs | 282.907 µs | **282.631 µs** | **59.02%** |
+| `Command.run` (real command gameplay work) | 0.263 µs | 176.610 µs | **176.347 µs** | **36.83%** |
+| **`ResultConsumer.onCommandComplete`** | **0.455 µs** | **103.066 µs** | **102.611 µs** | **21.43%** |
+| `CommandContext.copyFor` | **0.317 µs** | **0.407 µs** | **0.0906 µs** | **0.019% — unresolved clock floor** |
+
+**`copyFor` context identity in TIMED samples:** **1 returned the existing context**, and **871 returned a distinct context**, of 872 sampled calls (**0.115% fast-path reuse**). EMPTY separately observed 0 reuse and 872 distinct contexts in its selected sample. A distinct context is **shallowly copied** per verified bytecode, not deep-parsed or cloned through all argument maps; a very high distinct-context count **does not prove large CPU allocation overhead**.
+
+**Result-consumer outcomes in TIMED:** **857 success callbacks** and **15 failure callbacks** (1.72%) in 872 sampled calls. EMPTY observed exactly the same 857/15 distribution for the selected callsites; this is genuinely exercised failure-callback coverage for this real fixture, **not** comprehensive exception/selector/fork correctness testing.
+
+### Narrowed remainder, correctly qualified
+
+| Same-arm sampled extrapolation sensitivity | Projected CPU | Fraction of TIMED event Server-thread CPU |
+|---|---:|---:|
+| `runExecutable − Command.run` | **3.0016 s** | **22.195%** |
+| `ResultConsumer.onCommandComplete` | **2.8978 s** | **21.429%** |
+| `copyFor` | **2.56 ms** | **0.019% (below correction floor)** |
+| `runExecutable − Command.run − ResultConsumer − copyFor` | **101.15 ms** | **0.748%** |
+
+The result-consumer callback explains **most of the observed runExecutable-minus-Command.run difference** in this specific sample projection. It is a **measured inclusive callback interval**, not automatically Brigadier overhead, scheduler bookkeeping, or time a mod can eliminate. Its receiver is the ordinary `ResultConsumer` and may execute substantial necessary scoreboard, function, success/return, or user-defined callback effects. Eliminating, deferring, duplicating, or caching it could silently change state and trace/error semantics.
+
+The remaining ~**0.75%** is a signed sensitivity difference between separately EMPTY-corrected sparse method intervals. It can include nearby Java dispatch/scaffolding and timer/Mixin/aggregation perturbation; it is **not a reliable exclusive CPU-time budget or hard ceiling**. The `copyFor` signed difference of **90.6 ns** is far smaller than its **316.7 ns empty clock-pair** mean, making a precise positive cost **unresolved at this instrumentation floor**. Do not interpret 0.019% as an established exact share.
+
+No statistically powered confidence intervals, independent randomized treatment, sample representativeness proof or causal optimization gain were obtained. All displayed fractions are *nested*, control-adjusted extrapolations from one event per arm. The 15 error callbacks should not be interpreted as broad exception-path behavior across all datapacks or modpacks. The additional disabled Mixin wrapper cost remains unmeasured and should block casual integration into production.
+
+### Decision
+
+**No reason to rewrite Brigadier, skip `copyFor`, or change the outer scheduler based on this study.** The apparent ~23% dispatch gap is mostly required-or-potentially-required **result callback execution**. If the goal remains more CPU savings, inspect exactly which **`ResultConsumer` implementations** occur in the native Vein Miner fixture and which specific callback effects are produced. A follow-up must distinguish real scoreboard/game-state changes from recomputable overhead and prove full success/failure/trace/selector/fork parity before testing a *specific* transformation with independent causal CPU benchmarking. Do not treat callback suppression as a valid optimization.
+
+**Repository state:** This remains draft, stacked on SCHED-ATTR-026 / PR #6. The dedicated `.github/workflows/research-brigadier-plumbing-cpu.yml` workflow is back to **manual `workflow_dispatch` only** after the accepted native campaign. No production compiler or scheduler defaults have been changed.
