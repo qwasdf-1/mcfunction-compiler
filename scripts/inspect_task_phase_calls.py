@@ -100,7 +100,7 @@ def main()->int:
             marker="  public static <S> int runExecutable("
             if marker not in text:
                 raise RuntimeError("Brigadier runExecutable descriptor not found")
-            body=text.split(marker,1)[1].split("\\n  public ",1)[0]
+            body=text.split(marker,1)[1].split("\n  public ",1)[0]
             expected={
                 "CommandContext.copyFor:":1,
                 "Command.run:":1,
