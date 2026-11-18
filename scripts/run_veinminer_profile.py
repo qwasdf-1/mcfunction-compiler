@@ -1426,8 +1426,8 @@ def main() -> int:
             if not separator:
                 raise RuntimeError(f"Malformed callback-site census: {site_summary_raw!r}")
             def site_int(field: str) -> int:
-                pat=(rf"\\b{re.escape(field)}=(-?\\d+)" if field=="thread"
-                     else rf"\\b{re.escape(field)}=(\\d+)")
+                pat=(rf"\b{re.escape(field)}=(-?\d+)" if field=="thread"
+                     else rf"\b{re.escape(field)}=(\d+)")
                 match=re.search(pat,head)
                 if match is None:
                     raise RuntimeError(f"Missing callback-site {field}: {head!r}")
