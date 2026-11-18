@@ -80,6 +80,13 @@ class CoverageAuditTests(unittest.TestCase):
         self.assertTrue(c["forked_lexically"])
         self.assertEqual(c["category"],"lexically_forked_execute")
 
+    def test_existing_state_machine_parsers_are_not_mislabeled_vanilla(self):
+        for command in ("tag @s add test", "kill @e[tag=test]", "tp @s ~ ~ ~"):
+            with self.subTest(command=command):
+                c=line_classification(self.pack,command)
+                self.assertEqual(c["category"],"known_parser_root_not_proven")
+                self.assertTrue(c["candidate_only"])
+
     def test_report_includes_noncausal_warning(self):
         m=markdown(audit(self.pack))
         self.assertIn("not an estimate",m)
