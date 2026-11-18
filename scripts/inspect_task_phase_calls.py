@@ -28,6 +28,9 @@ CLASSES=[
 KNOWN={
     "10d6fed9e924f22f1a034fe55a619d92447b64b4f44043a4ba9a072822dc966e",
     "728e09ff352d7a4f715e85bc7947bbdd13ef4d436f92aa8bc766f2044b59dad7",
+    # Fresh Fabric Loom cache rebuilt on the 2026-11-18 GitHub CI image.
+    # New artifact fingerprint is retained in source-versions.lock.
+    "bf8e2d4fbaeac8e71179cac31f826262292fe9d6bc170143f893c38354d83597",
 }
 
 def find_classfile()->tuple[Path,str]:
@@ -49,10 +52,28 @@ def main()->int:
     jar,sha=find_classfile()
     (OUT/"classfile-sha256.txt").write_text(
         f"{sha}  {jar}\n",encoding="utf-8")
+    # Brigadier's ContextChain and CommandContext live in a separate mapped
+    # dependency jar, not necessarily in the merged Minecraft classfile.
+    brigadier_root=Path.home()/".gradle"/"caches"/"modules-2"/"files-2.1"/"com.mojang"/"brigadier"
+    brigadier=sorted(brigadier_root.rglob("brigadier-*.jar")) if brigadier_root.exists() else []
+    if not brigadier:
+        raise RuntimeError("Pinned Loom build did not resolve a Brigadier dependency jar")
+    classpath=os.pathsep.join([str(jar),str(brigadier[-1])])
+    (OUT/"brigadier-path.txt").write_text(str(brigadier[-1])+"\\n")
     for cls in CLASSES:
-        command=["javap","-p","-s","-c","-classpath",str(jar),cls]
+        command=["javap","-p","-s","-c","-classpath",classpath,cls]
         result=subprocess.run(command,capture_output=True,text=True,timeout=30,check=True)
         text=result.stdout
+        # Verify key typed descriptors against historical independently
+        # inspected 26.3 mapping, rather than only matching the filename.
+        if cls.endswith(".BuildContexts") and not all(t in text for t in (
+            "net.minecraft.commands.ExecutionCommandSource",
+            "net.minecraft.commands.execution.ChainModifiers",
+            "net.minecraft.commands.execution.Frame",
+        )):
+            raise RuntimeError("BuildContexts typed execute signature no longer matches 26.3")
+        if cls.endswith(".ExecuteCommand") and "net.minecraft.commands.execution.Frame" not in text:
+            raise RuntimeError("ExecuteCommand execute signature no longer matches 26.3")
         target=OUT/(cls.replace(".","_")+".javap.txt")
         target.write_text(text,encoding="utf-8")
         invokes=[
