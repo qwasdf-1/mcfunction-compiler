@@ -286,6 +286,16 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--scheduler-phase-cpu-probe",
+        choices=("off", "empty", "timed"),
+        default="off",
+        help=(
+            "SCHED-ATTR-026: sparse clocks inside verified modifier, "
+            "Brigadier runExecutable and Command.run callsites. Must match "
+            "the enclosing --scheduler-task-cpu-probe mode."
+        ),
+    )
+    parser.add_argument(
         "--scheduler-task-cpu-probe",
         choices=("off", "empty", "timed"),
         default="off",
@@ -350,6 +360,9 @@ def parse_args() -> object:
         parser.error(
             "--count-selective-macro-arguments requires --compiler-mode selective-macro"
         )
+    if (args.scheduler_phase_cpu_probe != "off"
+            and args.scheduler_phase_cpu_probe != args.scheduler_task_cpu_probe):
+        parser.error("Internal phase CPU probe must equal enclosing task CPU probe mode")
     if args.scheduler_task_cpu_probe != "off" and not args.scheduler_path_census:
         parser.error("Sparse task CPU probe requires --scheduler-path-census")
     if args.scheduler_path_census and not (
@@ -430,6 +443,7 @@ def main() -> int:
     capture_jfr_cpu = args.capture_jfr_cpu
     scheduler_path_census = args.scheduler_path_census
     task_cpu_mode = args.scheduler_task_cpu_probe
+    phase_cpu_mode = args.scheduler_phase_cpu_probe
     compiler_probe_active = compiler_enabled or callback_metrics_enabled
     diagnostics = []
     if callback_metrics_enabled:
@@ -448,7 +462,13 @@ def main() -> int:
         else "no Spark agent or Function Compiler timing/counter metrics"
     )
 
-    if task_cpu_mode != "off":
+    if phase_cpu_mode != "off":
+        timing_instrumentation = (
+            f"SCHED-ATTR-026 1/32 parent-selected CPU phases ({phase_cpu_mode}); "
+            "nested modifier/Brigadier/callback callsites from checked 26.3 bytecode; "
+            "no Spark/JFR/ordinary callback instrumentation"
+        )
+    if task_cpu_mode != "off" and phase_cpu_mode == "off":
         timing_instrumentation = (
             f"SCHED-ATTR-025 deterministic 1/32 sampled CPU clock ({task_cpu_mode}); "
             "event-bounded task path census, no Spark/JFR/other counters"
@@ -593,6 +613,7 @@ def main() -> int:
                     "FC_SCORE_ADD_PROTOTYPE": str(score_add_enabled).lower(),
                     "FC_SCHED_PATH_CENSUS": str(scheduler_path_census).lower(),
                     "FC_SCHED_TASK_CPU_PROBE": task_cpu_mode,
+                    "FC_SCHED_PHASE_CPU_PROBE": phase_cpu_mode,
                     "FC_SCHED_ARCH_COUNTERS": "false" if scheduler_path_census else environment.get("FC_SCHED_ARCH_COUNTERS", "false"),
                     "FC_SCORE_ADD_TIMING": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_TIMING", "false"),
                     "FC_SCORE_ADD_PHASE_TIMERS": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_PHASE_TIMERS", "false"),
