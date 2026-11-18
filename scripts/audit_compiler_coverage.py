@@ -48,6 +48,10 @@ PARSER_ROOTS={
     "clear":"clear",
     "rotate":"rotate",
     "item":"item",
+    "tag":"tag",
+    "kill":"kill",
+    "tp":"teleport",
+    "teleport":"teleport",
 }
 
 def canonical_root(command:str)->str:
