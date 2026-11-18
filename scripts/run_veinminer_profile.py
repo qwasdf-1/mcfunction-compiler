@@ -1466,7 +1466,7 @@ def main() -> int:
                     sum(v["raw_cpu_ns"] for v in groups.values())!=site_trace["raw_cpu_ns"]):
                 raise RuntimeError("Callback-site sums/thread/clock differ from native delegate census")
             owners=sum(g["calls"] for g in delegate_trace["groups"]
-                if g["type"]=="net.minecraft.server.commands.ExecuteCommand$Lambda")
+                if g["type"]==("net.minecraft.server.commands.ExecuteCommand" + "$" + "$" + "Lambda"))
             empties=sum(g["calls"] for g in delegate_trace["groups"]
                 if g["type"]=="EMPTY")
             site_real=sum(groups[name]["calls"] for name in
