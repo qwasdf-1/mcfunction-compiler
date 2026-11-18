@@ -21,7 +21,9 @@ public final class SchedulerPhaseCpuProbe {
     public enum Phase {
         MODIFIER(SchedulerTaskCpuProbe.Path.BUILD),
         EXECUTABLE(SchedulerTaskCpuProbe.Path.EXECUTE),
-        COMMAND(SchedulerTaskCpuProbe.Path.EXECUTE);
+        COMMAND(SchedulerTaskCpuProbe.Path.EXECUTE),
+        COPY(SchedulerTaskCpuProbe.Path.EXECUTE),
+        RESULT(SchedulerTaskCpuProbe.Path.EXECUTE);
 
         private final SchedulerTaskCpuProbe.Path parent;
         Phase(SchedulerTaskCpuProbe.Path parent) { this.parent = parent; }
@@ -32,6 +34,8 @@ public final class SchedulerPhaseCpuProbe {
     public static final long SKIP = Long.MIN_VALUE;
     private static final long NESTED = Long.MIN_VALUE + 1;
     private static final Mode MODE = fromEnvironment();
+    private static final boolean PLUMBING_ENABLED = Boolean.parseBoolean(
+            System.getenv("FC_SCHED_BRIGADIER_PLUMBING_PROBE"));
     private static final ThreadMXBean CLOCK =
             MODE == Mode.OFF ? null : ManagementFactory.getThreadMXBean();
     private static final Stats[] STATS = new Stats[Phase.values().length];
@@ -48,6 +52,10 @@ public final class SchedulerPhaseCpuProbe {
         long zeros;
         long nested;
         int depth;
+        long copyReused;
+        long copyAllocated;
+        long callbackSuccess;
+        long callbackFailure;
     }
 
     private SchedulerPhaseCpuProbe() {}
@@ -72,6 +80,9 @@ public final class SchedulerPhaseCpuProbe {
 
     public static void ensureReady() {
         if (MODE == Mode.OFF) return;
+        if (PLUMBING_ENABLED && !SchedulerPathCensus.enabled()) {
+            throw new IllegalStateException("Brigadier plumbing probe requires event census");
+        }
         SchedulerTaskCpuProbe.ensureReady();
         if (!SchedulerTaskCpuProbe.modeName().equals(modeName())) {
             throw new IllegalStateException(
@@ -94,6 +105,7 @@ public final class SchedulerPhaseCpuProbe {
      */
     public static long begin(Phase phase) {
         if (MODE == Mode.OFF
+                || ((phase == Phase.COPY || phase == Phase.RESULT) && !PLUMBING_ENABLED)
                 || !SchedulerTaskCpuProbe.activeSampled(phase.parent)) return SKIP;
 
         Stats stat = STATS[phase.ordinal()];
@@ -134,6 +146,25 @@ public final class SchedulerPhaseCpuProbe {
         stat.depth = 0;
     }
 
+    /**
+     * Diagnostic categories on selected calls only. copyFor may return the
+     * exact existing context (same-source fast path) or allocate a shallow
+     * copy. Success and failure use separate bytecode callback callsites.
+     */
+    public static void observedCopy(long token, boolean reused) {
+        if (token == SKIP || token == NESTED) return;
+        Stats stat = STATS[Phase.COPY.ordinal()];
+        if (reused) stat.copyReused++;
+        else stat.copyAllocated++;
+    }
+
+    public static void observedResult(long token, boolean success) {
+        if (token == SKIP || token == NESTED) return;
+        Stats stat = STATS[Phase.RESULT.ordinal()];
+        if (success) stat.callbackSuccess++;
+        else stat.callbackFailure++;
+    }
+
     private static void record(Stats stat, long ns) {
         if (ns < 0) throw new IllegalStateException("Server-thread CPU clock regressed");
         stat.samples = Math.addExact(stat.samples, 1L);
@@ -149,4 +180,9 @@ public final class SchedulerPhaseCpuProbe {
     public static long zeroDeltas(Phase p) { return stat(p).zeros; }
     public static long nested(Phase p) { return stat(p).nested; }
     public static int depth(Phase p) { return stat(p).depth; }
+    public static long copyReused() { return stat(Phase.COPY).copyReused; }
+    public static long copyAllocated() { return stat(Phase.COPY).copyAllocated; }
+    public static long resultSuccess() { return stat(Phase.RESULT).callbackSuccess; }
+    public static long resultFailure() { return stat(Phase.RESULT).callbackFailure; }
+    public static boolean plumbingEnabled() { return PLUMBING_ENABLED; }
 }
