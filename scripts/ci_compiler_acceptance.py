@@ -38,15 +38,15 @@ def run_arm(mode: str) -> dict:
     new = after - before
     if len(new) != 1:
         raise RuntimeError(f"Expected one new {mode} result, got {len(new)}")
-    result = json.loads(new.pop().read_text(encoding="utf-8"))
+    result_path = new.pop()
+    result = json.loads(result_path.read_text(encoding="utf-8"))
     if (not result.get("valid_native_workload")
             or result.get("datapack_sha256") != PACK_SHA
             or result.get("compiler_mode") != mode
             or not result.get("compiler_acceptance_audit_enabled")):
         raise AssertionError(f"Native event or source pin not accepted: {mode}")
-    source_log = Path(result["compiler_acceptance_dump_status"]) if False else None
     # The full audit is collected after the server shuts down.
-    result_dir = next(iter(after - before)).parent
+    result_dir = result_path.parent
     audit = parse_acceptance_log(result_dir / "acceptance.log")
     if audit["namespace"] != "vm":
         raise AssertionError("Acceptance census was not restricted to vm")
