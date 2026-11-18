@@ -134,16 +134,30 @@ public final class SchedulerPhaseCpuProbe {
     }
 
     public static void end(Phase phase, long token) {
-        if (token == SKIP) return;
+        endWithDuration(phase, token);
+    }
+
+    /**
+     * Returns raw inclusive CPU nanos only for a selected TIMED scope,
+     * otherwise -1. Shared timer/counter semantics remain unchanged.
+     * Caller may classify the source delegate AFTER this interval closes.
+     */
+    public static long endWithDuration(Phase phase, long token) {
+        if (token == SKIP) return -1L;
         Stats stat = STATS[phase.ordinal()];
         if (token == NESTED) {
             if (stat.depth < 2) throw new IllegalStateException("Nested phase stack unbalanced");
             stat.depth--;
-            return;
+            return -1L;
         }
         if (stat.depth != 1) throw new IllegalStateException("Phase scope leaked or unbalanced");
-        if (MODE == Mode.TIMED) record(stat, cpuTime() - token);
+        long elapsed = -1L;
+        if (MODE == Mode.TIMED) {
+            elapsed = cpuTime() - token;
+            record(stat, elapsed);
+        }
         stat.depth = 0;
+        return elapsed;
     }
 
     /**
