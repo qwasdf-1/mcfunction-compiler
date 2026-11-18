@@ -1175,6 +1175,61 @@ def main() -> int:
             if task_cpu_mode != "off" and task_cpu_probe["owner_java_thread_id"] <= 0:
                 raise RuntimeError("Sparse task clock never ran on Server thread")
 
+        phase_cpu_probe = None
+        if scheduler_path_census:
+            if compiler_status_before is None or compiler_status_after is None:
+                raise RuntimeError("Phase CPU probe requires native before/after status")
+            expected_mode = f"sched_phase_cpu_mode={phase_cpu_mode}"
+            if (expected_mode not in compiler_status_before
+                    or expected_mode not in compiler_status_after):
+                raise RuntimeError("Phase CPU probe mode mismatched between native snapshots")
+
+            def phase_delta(key: str) -> int:
+                return stats_int(compiler_status_after, key) - stats_int(compiler_status_before, key)
+
+            streams = {}
+            for phase in ("modifier", "executable", "command"):
+                row = {
+                    "calls": phase_delta(f"sched_phase_{phase}_calls"),
+                    "samples": phase_delta(f"sched_phase_{phase}_samples"),
+                    "cpu_ns": phase_delta(f"sched_phase_{phase}_cpu_ns"),
+                    "zero_deltas": phase_delta(f"sched_phase_{phase}_zero_deltas"),
+                    "nested": phase_delta(f"sched_phase_{phase}_nested"),
+                    "final_depth": stats_int(compiler_status_after, f"sched_phase_{phase}_depth"),
+                }
+                if any(type(v) is not int or v < 0 for v in row.values()):
+                    raise RuntimeError(f"Invalid phase CPU counters for {phase}: {row}")
+                if row["nested"] != 0 or row["final_depth"] != 0:
+                    raise RuntimeError(f"Nested/unclosed phase interval in {phase}: {row}")
+                if phase_cpu_mode == "off":
+                    if any(row.values()):
+                        raise RuntimeError(f"Internal phase CPU timer leaked in OFF mode: {row}")
+                else:
+                    if row["samples"] != row["calls"] or row["zero_deltas"] > row["samples"]:
+                        raise RuntimeError(f"Phase clock missed an invocation {phase}: {row}")
+                    if row["cpu_ns"] > event_cpu["server_thread_cpu_running_ns"]:
+                        raise RuntimeError(f"Phase CPU exceeds total Server-thread CPU: {row}")
+                streams[phase] = row
+
+            if phase_cpu_mode != "off":
+                if ("sched_phase_cpu_clock_ready=true" not in compiler_status_after
+                        or stats_int(compiler_status_after, "sched_phase_cpu_thread_id") <= 0):
+                    raise RuntimeError("Phase CPU clock not available on Server thread")
+            phase_cpu_probe = {
+                "mode": phase_cpu_mode,
+                "clock_ready": phase_cpu_mode != "off",
+                "owner_java_thread_id": stats_int(
+                    compiler_status_after, "sched_phase_cpu_thread_id"),
+                "streams": streams,
+                "sample_method": "same selected parent task invocations as SCHED-ATTR-025",
+                "tested_callsite_descriptors": {
+                    "modifier": "BuildContexts -> ContextChain.runModifier",
+                    "executable": "ExecuteCommand -> ContextChain.runExecutable",
+                    "command": "ContextChain.runExecutable -> Command.run",
+                },
+                "interpretation": "inclusive nested phase costs; raw residuals contain instrumentation overhead",
+            }
+
         valid_scoreadd_path_coverage_diagnostic = (
             args.scoreadd_path_coverage_diagnostic
             and command_callback_metrics is not None
@@ -1213,6 +1268,8 @@ def main() -> int:
             "scheduler_path_census_enabled": scheduler_path_census,
             "scheduler_task_cpu_probe_mode": task_cpu_mode,
             "scheduler_task_cpu_probe": task_cpu_probe,
+            "scheduler_phase_cpu_probe_mode": phase_cpu_mode,
+            "scheduler_phase_cpu_probe": phase_cpu_probe,
             "scheduler_path_census": scheduler_path_counts,
             "jfr_cpu_profile_path": (
                 str(jfr_path.relative_to(ROOT)) if jfr_path else None
