@@ -94,6 +94,26 @@ def main()->int:
             raise RuntimeError("BuildContexts typed execute signature no longer matches 26.3")
         if cls.endswith(".ExecuteCommand") and "net.minecraft.commands.execution.Frame" not in text:
             raise RuntimeError("ExecuteCommand execute signature no longer matches 26.3")
+        if cls.endswith(".ContextChain"):
+            # Fail closed if any required runExecutable bytecode callsite
+            # changes, including the catch branch's second result callback.
+            marker="  public static <S> int runExecutable("
+            if marker not in text:
+                raise RuntimeError("Brigadier runExecutable descriptor not found")
+            body=text.split(marker,1)[1].split("\\n  public ",1)[0]
+            expected={
+                "CommandContext.copyFor:":1,
+                "Command.run:":1,
+                "ResultConsumer.onCommandComplete:":2,
+            }
+            for callsite,count in expected.items():
+                actual=body.count(callsite)
+                if actual!=count:
+                    raise RuntimeError(
+                        f"Brigadier 26.3 runExecutable {callsite}: "
+                        f"expected {count} bytecode INVOKEs, found {actual}")
+            print("BRIGADIER_RUNEXECUTABLE verified copyFor=1 Command.run=1 "
+                  "ResultConsumer.onCommandComplete=2",flush=True)
         target=OUT/(cls.replace(".","_")+".javap.txt")
         target.write_text(text,encoding="utf-8")
         invokes=[
