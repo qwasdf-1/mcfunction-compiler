@@ -1,15 +1,7 @@
 name: Compiler coverage audit (read-only pinned datapack)
 
-# Temporary PR trigger for initial static-audit validation. Revert to
-# workflow_dispatch-only after accepting the first report.
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - scripts/audit_compiler_coverage.py
-      - tests/test_audit_compiler_coverage.py
-      - .github/workflows/research-compiler-coverage-audit.yml
 
 permissions:
   contents: read
