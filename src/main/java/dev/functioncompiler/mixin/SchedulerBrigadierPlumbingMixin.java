@@ -4,6 +4,7 @@ import com.mojang.brigadier.ResultConsumer;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ContextChain;
 import dev.functioncompiler.SchedulerPhaseCpuProbe;
+import dev.functioncompiler.SchedulerResultDelegateTrace;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -69,8 +70,11 @@ abstract class SchedulerBrigadierPlumbingMixin {
             ((ResultConsumer) original).onCommandComplete((CommandContext) command,
                     success, result);
         } finally {
-            SchedulerPhaseCpuProbe.end(SchedulerPhaseCpuProbe.Phase.RESULT, token);
+            long inclusiveCpuNs = SchedulerPhaseCpuProbe.endWithDuration(
+                    SchedulerPhaseCpuProbe.Phase.RESULT, token);
             SchedulerPhaseCpuProbe.observedResult(token, success);
+            SchedulerResultDelegateTrace.observe(
+                    command.getSource(), success, token, inclusiveCpuNs);
         }
     }
 }
