@@ -89,6 +89,22 @@ def main() -> int:
     try:
         for mode in MODES:
             report["arms"][mode] = run_arm(mode)
+            audit = report["arms"][mode]["acceptance"]
+            missed = [
+                row for row in audit["rows"]
+                if row["outcome"] in (
+                    "bare_declined", "chain_executable_declined", "chain_terminal_only")
+            ]
+            missed.sort(key=lambda row: (-row["count"], row["function"], row["input"]))
+            print("FC_ACCEPTANCE_SUMMARY " + json.dumps({
+                "mode": mode,
+                "source_sha256": report["arms"][mode]["source_sha256"],
+                "native_workload_valid": report["arms"][mode]["native_workload_valid"],
+                "selective_argument_hits": report["arms"][mode]["selective_argument_hits"],
+                "outcomes": audit["outcomes"],
+                "top_missed_patterns_by_compile_attempts": missed[:15],
+                "note": "Counts are parser/expansion events, not command execution or CPU.",
+            }, sort_keys=True), flush=True)
             (OUT / "results.json").write_text(
                 json.dumps(report, indent=2) + "\n", encoding="utf-8")
     except Exception as exc:
