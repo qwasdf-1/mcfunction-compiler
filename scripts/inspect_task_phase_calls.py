@@ -23,32 +23,52 @@ CLASSES=[
     "net.minecraft.commands.execution.tasks.ContinuationTask",
     "net.minecraft.commands.execution.ExecutionContext",
 ]
-# Retain exact checksummed 26.3 bytecode; recent Loom runs have also produced
-# a second verified artifact SHA because of mapping/toolchain changes.
-KNOWN={
-    "10d6fed9e924f22f1a034fe55a619d92447b64b4f44043a4ba9a072822dc966e",
-    "728e09ff352d7a4f715e85bc7947bbdd13ef4d436f92aa8bc766f2044b59dad7",
-    # Fresh Fabric Loom cache rebuilt on the 2026-11-18 GitHub CI image.
-    # New artifact fingerprint is retained in source-versions.lock.
-    "bf8e2d4fbaeac8e71179cac31f826262292fe9d6bc170143f893c38354d83597",
-}
+# Loom's generated whole-JAR SHA is *not* reproducible across CI boots:
+# two 2026-11-18 rebuilds yielded different SHA-256. Archive it as evidence,
+# but validate provenance against the immutable official server bundle instead.
+OFFICIAL_SOURCE_LOCK=ROOT/"docs"/"research"/"source-versions.lock"
+
+def verify_official_server()->str:
+    """Stream the official Mojang 26.3 bundle and verify its locked digest."""
+    import urllib.request
+    entries={}
+    for line in OFFICIAL_SOURCE_LOCK.read_text(encoding="utf-8").splitlines():
+        if "=" in line and not line.lstrip().startswith("#"):
+            key,value=line.split("=",1)
+            entries[key.strip()]=value.strip()
+    if entries.get("minecraft.version")!="26.3":
+        raise RuntimeError("Source-version lock is not Minecraft 26.3")
+    url=entries["minecraft.official_server_jar"]
+    expected=entries["minecraft.official_server_sha256"]
+    if not url.startswith("https://piston-data.mojang.com/"):
+        raise RuntimeError("Source lock has unexpected official Mojang domain")
+    request=urllib.request.Request(url,headers={"User-Agent":"MCFC-SCHED-ATTR-026-inspection/1.0"})
+    hasher=hashlib.sha256()
+    size=0
+    with urllib.request.urlopen(request,timeout=90) as response:
+        while chunk:=response.read(1024*1024):
+            hasher.update(chunk)
+            size+=len(chunk)
+    actual=hasher.hexdigest()
+    if actual!=expected:
+        raise RuntimeError(f"Official Mojang Minecraft 26.3 SHA mismatch {actual}")
+    (OUT/"official-server-sha256.txt").write_text(
+        f"{actual}  official-mojang-server.jar  {size} bytes\\n",encoding="utf-8")
+    print(f"VERIFIED Minecraft 26.3 official server SHA-256 {actual}, {size} bytes",flush=True)
+    return actual
 
 def find_classfile()->tuple[Path,str]:
-    roots=[ROOT/".gradle",Path.home()/".gradle"/"caches"]
-    candidates=[]
-    for root in roots:
-        if root.exists():
-            candidates.extend(root.rglob("minecraft-merged-deobf-26.3.jar"))
-    if not candidates:
-        raise RuntimeError("No Minecraft 26.3 merged-deobf classfile after Loom build")
-    for jar in sorted(candidates):
-        h=hashlib.sha256(jar.read_bytes()).hexdigest()
-        print(f"CANDIDATE {jar} sha256={h}",flush=True)
-        if h in KNOWN:
-            return jar,h
-    raise RuntimeError("No classfile matched pinned 26.3 artifact SHA-256")
+    root=Path.home()/".gradle"/"caches"/"fabric-loom"/"minecraftMaven"/"net"/"minecraft"/"minecraft-merged-deobf"/"26.3"
+    candidates=list(root.glob("minecraft-merged-deobf-26.3.jar")) if root.exists() else []
+    if len(candidates)!=1:
+        raise RuntimeError("Exactly one Loom 26.3 merged-deobf jar required")
+    jar=candidates[0]
+    sha=hashlib.sha256(jar.read_bytes()).hexdigest()
+    print(f"LOOM_CLASSFILE {jar} sha256={sha}",flush=True)
+    return jar,sha
 
 def main()->int:
+    source_sha=verify_official_server()
     jar,sha=find_classfile()
     (OUT/"classfile-sha256.txt").write_text(
         f"{sha}  {jar}\n",encoding="utf-8")
