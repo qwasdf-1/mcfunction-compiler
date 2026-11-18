@@ -1,0 +1,118 @@
+name: SCHED-ATTR-028 Phase D exact native result callback site census
+
+# One-time stacked PR trigger for the final SOURCE-SITE classification event.
+# Return to workflow_dispatch-only after collecting the original raw evidence.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [research/sched-attr-027-brigadier-context-callback-cpu]
+    paths:
+      - src/main/java/dev/functioncompiler/SchedulerResultSiteTrace.java
+      - src/main/java/dev/functioncompiler/mixin/SchedulerExecuteResultSitesMixin.java
+      - src/main/java/dev/functioncompiler/mixin/SchedulerBrigadierPlumbingMixin.java
+      - src/main/java/dev/functioncompiler/ProbeCommands.java
+      - src/main/resources/function_compiler.mixins.json
+      - scripts/run_veinminer_profile.py
+      - scripts/ci_scheduler_result_sites.py
+      - tests/test_scheduler_result_site_java.py
+      - tests/test_scheduler_result_sites.py
+      - docs/research/result-callback-routing-SCHED-ATTR-028.md
+      - .github/workflows/research-result-sites-native.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sched-attr-028-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  result-sites-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Checkout compiler research branch
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Verify source callback site and existing delegate CPU contracts
+        run: |
+          python3 -m py_compile scripts/run_veinminer_profile.py scripts/ci_scheduler_result_sites.py
+          python3 -m unittest discover -s tests -p test_scheduler_path_census.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_entry_census.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_task_cpu_clock.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_task_cpu.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_phase_cpu_clock.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_phase_cpu.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_plumbing_cpu_clock.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_plumbing_cpu.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_result_delegate_java.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_result_delegate.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_result_site_java.py -v
+          python3 -m unittest discover -s tests -p test_scheduler_result_sites.py -v
+      - name: Build compiler
+        run: ./gradlew --no-daemon --stacktrace build
+      - name: Fetch and verify exact pinned Vein Miner datapack
+        env:
+          MC_VEINMINER_REFERENCE_URL: ${{ secrets.MC_VEINMINER_REFERENCE_URL }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          import urllib.request
+          expected="fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e"
+          target=Path("references/real-world/candidates/VeinMiner-5.3.0+26.3.zip")
+          target.parent.mkdir(parents=True,exist_ok=True)
+          if target.exists():
+              payload=target.read_bytes()
+          else:
+              url=os.environ.get("MC_VEINMINER_REFERENCE_URL")
+              if not url:
+                  req=urllib.request.Request("https://api.modrinth.com/v2/version/5jzz5SkG",headers={"User-Agent":"MCFC-research-SCHED-ATTR-028/1.0"})
+                  with urllib.request.urlopen(req,timeout=45) as response:
+                      version=json.load(response)
+                  matches=[f for f in version["files"] if f["filename"]=="VeinMiner-5.3.0+26.3.zip"]
+                  if len(matches)!=1:
+                      raise RuntimeError("Pinned datapack filename not found in publisher's version record")
+                  url=matches[0]["url"]
+              req=urllib.request.Request(url,headers={"User-Agent":"MCFC-research-SCHED-ATTR-028/1.0"})
+              with urllib.request.urlopen(req,timeout=60) as response:
+                  payload=response.read()
+          observed=hashlib.sha256(payload).hexdigest()
+          print("Publisher datapack sha256:",observed)
+          if observed!=expected:
+              raise SystemExit("PINNED ARTIFACT MISMATCH: no experiment run; need exact original Vein Miner ZIP")
+          target.write_bytes(payload)
+          print("Verified pinned Vein Miner archive",len(payload),"bytes")
+          PY
+      - name: Verify exact command result consumer adapter and concrete callback routing
+        run: python3 scripts/inspect_result_consumer_routing.py
+      - name: Measure one actual native callback site attribution event
+        timeout-minutes: 35
+        run: python3 scripts/ci_scheduler_result_sites.py
+      - name: Archive site-specific callback CPU, complete native event and pinned bytecode
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sched-attr-028-result-sites-native
+          path: |
+            function-compiler/build/benchmarks/SCHED-ATTR-028-SITES/*.json
+            function-compiler/build/benchmarks/SCHED-ATTR-028/*.txt
+            function-compiler/build/benchmarks/SCHED-ATTR-026/*.txt
+            function-compiler/build/benchmarks/SCHED-ATTR-028-SITES/*.log
+            function-compiler/build/benchmarks/PERF-011-veinminer/vein-*/*.json
+            function-compiler/build/benchmarks/PERF-011-veinminer/vein-*/*.log
+          if-no-files-found: warn
+          retention-days: 21
