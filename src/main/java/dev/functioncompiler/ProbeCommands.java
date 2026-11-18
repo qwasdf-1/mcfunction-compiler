@@ -54,6 +54,8 @@ final class ProbeCommands {
         dispatcher.register(Commands.literal("function_compiler_probe")
                 .then(Commands.literal("status").executes(context -> ProbeStatus.status(context.getSource())))
                 .then(Commands.literal("metrics").executes(context -> ProbeStatus.metrics(context.getSource())))
+                .then(Commands.literal("acceptance").executes(context ->
+                        CompilerAcceptanceAudit.report(context.getSource())))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
@@ -73,6 +75,8 @@ final class ProbeCommands {
         dispatcher.register(Commands.literal("functioncompiler")
                 .then(Commands.literal("status").executes(context -> ProbeStatus.status(context.getSource())))
                 .then(Commands.literal("metrics").executes(context -> ProbeStatus.metrics(context.getSource())))
+                .then(Commands.literal("acceptance").executes(context ->
+                        CompilerAcceptanceAudit.report(context.getSource())))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
