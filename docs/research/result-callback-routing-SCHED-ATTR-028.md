@@ -1,6 +1,6 @@
 # SCHED-ATTR-028 — concrete result-consumer routing and callback effects
 
-**Status:** Phase A exact source-routing inspection and Phase B three-arm native delegate-class attribution **completed with all predeclared workload/clock/histogram gates passing on 2026-11-18 UTC**. Phase C exact source inspection of the dominant ExecuteCommand-owned lambda family is in progress; no new CPU measurements are authorized by Phase C. Research-only branch stacked on accepted [SCHED-ATTR-027](brigadier-plumbing-SCHED-ATTR-027.md).
+**Status:** Phase A exact source-routing inspection and Phase B three-arm native delegate-class attribution **completed with all predeclared workload/clock/histogram gates passing on 2026-11-18 UTC**. Phase C exact source inspection of the dominant ExecuteCommand-owned lambda family **completed**; the Phase D one-native-event site-specific callback census is preregistered below and has no accepted result yet. Research-only branch stacked on accepted [SCHED-ATTR-027](brigadier-plumbing-SCHED-ATTR-027.md).
 
 ## Hypothesis and important limits
 
@@ -70,3 +70,34 @@ Uniform EMPTY result-clock pair mean was **718.8 ns**. Subtracting this *global*
 The next low-cost check is to inspect `net.minecraft.server.commands.ExecuteCommand`'s **exact 26.3 `javap -p -s -c` bytecode**, its synthetic `lambda$...` methods and `CommandResultCallback` factories, and separately inspect `CommandResultCallback$1` to verify the EMPTY implementation's actual no-op. This is a **read-only source verification**, not another CPU run or a new optimization. Distinguish scoreboard updates, NBT/data stores, bossbar mutations, entity/world actions, and chained callbacks only where actual bytecode supports the distinction. If multiple owner-lambda sites exist, a future study must identify those sites dynamically before claiming which individual site accounts for 99.34% of the measured callback CPU.
 
 The accepted `.github/workflows/research-result-delegate-native.yml` was returned to **manual-only** before the Phase C inspection edits; no expensive native rerun is required. This branch remains an unmerged draft, with no production scheduler/command changes.
+
+## Phase C source-level side effects verified — 2026-11-18 UTC
+
+The second [read-only Actions inspection #44243765524](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44243765524), [archived `javap` artifact #14399948640](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44243765524/artifacts/14399948640), confirms the four `CommandResultCallback` factory sites and their exact synthetic methods in **`net.minecraft.server.commands.ExecuteCommand`** (the Minecraft `/execute` command parser/implementation, distinct from the similarly named scheduler dequeued-action type):
+
+| Factory/handler method | Verified effect, from exact Minecraft 26.3 bytecode |
+|---|---|
+| `storeValue(... Collection<ScoreHolder>, Scoreboard, Objective, boolean)` produces `lambda$storeValue$0` | Iterates score holders, calls `Scoreboard.getOrCreatePlayerScore` and `ScoreAccess.set(int)` for each. This is a **scoreboard state mutation**, not a no-op or generic scheduler dispatch. |
+| `storeValue(... CustomBossEvent, boolean, boolean)` produces `lambda$storeValue$1` | Computes the `result` or `success` value, then calls **`CustomBossEvent.setValue` or `setMax`** |
+| `storeData(DataAccessor, NbtPath, IntFunction<Tag>, boolean)` produces `lambda$storeData$0` | Reads NBT via `DataAccessor.getData`, runs `NbtPath.set`, and calls `DataAccessor.setData`, catching `CommandSyntaxException` |
+| Function-condition scheduling produces `lambda$scheduleFunctionConditionsAndTest$0` | Tests an `IntPredicate`, and **appends an execution source to a list** when the condition succeeds, influencing subsequent function execution |
+
+The separately inspected singleton `CommandResultCallback$1.onResult(boolean,int)` body is exactly **`return`**; `EMPTY` is a true no-op delegate. The owner-class `$$Lambda` histogram by itself **cannot** distinguish which of these four callback factories produced the observed 258 selected owner-class invocations or the ~58.62 ms raw sampled callback CPU.
+
+## Phase D preregistered site census — no additional CPU clock reads
+
+**Goal:** Split the accepted native ExecuteCommand-owned callback family into the **four exact synthetic handler methods**, not into speculative "optimization overhead" categories. Use one fresh independent native **TIMED** Minecraft 26.3 / Java 25 event with the unchanged pinned publisher ZIP, cached typed ScoreAdd, **215 real ore operations**, **1,952 queue-head advances**, final source/block/scoreboard/marker parity, stable 9-second pre-event tick baseline, positive `/proc` Server-thread CPU, ≤25% runqueue-wait fraction, zero measured cgroup throttling and existing phase clock/consistency gates. A single timed arm is sufficient for **descriptive within-sample site classification**, **not** control-subtracted CPU or causal optimization. Preserve original artifacts and failed attempts.
+
+Reuse the **same preexisting 1-in-32 selected `ExecuteCommand` parent ordinals**. Before the already-existing `RESULT` timer begins, open an opt-in `SchedulerResultSiteTrace` label scope; close the **original** timer, then attach its already-computed raw duration to the observed handler site. Four Mixin HEAD probes on the exact synthetic methods set a site label only when that selected callback scope is active. No ThreadMXBean call is introduced; all original `CommandResultCallback.onResult` methods execute exactly once with unchanged args/results and error semantics. The probes are disabled outside `FC_SCHED_RESULT_SITE_TRACE=true`.
+
+The **post-event** separate RCON command `fc_sched_site_summary` reports six non-overlapping categories: `SCORE_STORE`, `BOSSBAR_STORE`, `DATA_STORE`, `FUNCTION_CONDITION`, `NO_SITE`, `MULTIPLE`. Avoid extending the existing RCON `function_compiler_probe status` (already 4,096 bytes). The original `fc_sched_delegate_summary` remains active and separately reports owner-class CPU and the EMPTY no-op delegate.
+
+**Frozen native integrity gates:**
+
+1. The complete existing SCHED-ATTR-027 + SCHED-ATTR-028 native work/host/clock/delegate-conservation gates pass on the one TIMED arm; ≥200 selected result callbacks, correct Server thread, no nested/unclosed same-phase scopes or negative intervals.
+2. The six site counts sum **exactly** to the original selected result callbacks; their raw CPU nanos sum **exactly** to the original RESULT interval CPU nanos and the delegate class histogram raw CPU nanos.
+3. Every measured `net.minecraft.server.commands.ExecuteCommand$$Lambda` owner callback maps to **exactly one** of the four known synthetic method sites; every measured `EMPTY` callback maps to **NO_SITE**; `MULTIPLE` must be exactly zero. Every sampled callback is accounted for, without manufacturing unobserved data.
+4. Each synthetic site Mixin uses the exact source-verified method name and `require=1`. A Mixin integration error or nonmatching site/source class **rejects** the study, without modifying callback behavior or relaxing thresholds.
+5. Observe site counts, raw inclusive nanos per site, mean raw nanos per observed invocation, share of *sampled ExecuteCommand-owned callback CPU*, and share of all sampled callback CPU. Do **not** infer population proportions or percentage recoverable by optimization from one ordinal-sampled timed boot.
+
+**Interpretation/stop rule:** `SCORE_STORE` is semantic scoreboard creation/set; `BOSSBAR_STORE` and `DATA_STORE` mutate other persistent game state; `FUNCTION_CONDITION` influences queued function execution. None is automatically eliminable, regardless of its measured raw CPU. The new HEAD probes execute within the parent RESULT interval, adding a small **uncalibrated timer-free counter overhead**, so phase D CPU values are **raw descriptive shares only**, not a replacement for SCHED-ATTR-027/028 independently controlled inclusive cost estimates. Any optimization of a particular site requires proof of exact success/failure/fork/callback/scoreboard semantics and a separate causal vanilla-control benchmark. Keep PR draft and workflow manual-only after acceptance.
