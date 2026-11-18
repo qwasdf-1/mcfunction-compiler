@@ -73,22 +73,32 @@ public final class ScoreAddPrototype {
         }
 
         CommandContext<CommandSourceStack> context = chain.getTopContext();
-        if (compileScoreAdd(context, functionId)) {
-            return;
+        boolean audit = CompilerAcceptanceAudit.enabledFor(functionId);
+        Command<CommandSourceStack> before = audit ? context.getCommand() : null;
+        try {
+            if (compileScoreAdd(context, functionId)) {
+                return;
+            }
+            if (compileScoreOperation(context, functionId)) {
+                return;
+            }
+            if (compileScoreReset(context, functionId)) {
+                return;
+            }
+            if (DataStorageParser.compile(context, functionId)) {
+                return;
+            }
+            if (StateMachineParser.compile(context, functionId)) {
+                return;
+            }
+            LeafFunctionParser.compile(context, functionId);
+        } finally {
+            if (audit) {
+                CompilerAcceptanceAudit.record(functionId,
+                        context.getCommand() == before ? "bare_declined" : "bare_terminal_installed",
+                        context.getInput());
+            }
         }
-        if (compileScoreOperation(context, functionId)) {
-            return;
-        }
-        if (compileScoreReset(context, functionId)) {
-            return;
-        }
-        if (DataStorageParser.compile(context, functionId)) {
-            return;
-        }
-        if (StateMachineParser.compile(context, functionId)) {
-            return;
-        }
-        LeafFunctionParser.compile(context, functionId);
     }
 
     @SuppressWarnings("unchecked")
@@ -109,15 +119,23 @@ public final class ScoreAddPrototype {
         CommandContext<CommandSourceStack> executable =
                 chainAccessor.functionCompiler$getExecutable();
         if (modifiers == null || modifiers.isEmpty() || executable == null) {
+            CompilerAcceptanceAudit.record(functionId, "chain_missing_parts",
+                    chain.getTopContext().getInput());
             return;
         }
 
         if (!compileExecutable(executable, functionId)) {
+            CompilerAcceptanceAudit.record(functionId, "chain_executable_declined",
+                    chain.getTopContext().getInput());
             return;
         }
 
         List<Object> parsedModifiers = parseModifiers(modifiers);
         if (parsedModifiers == null) {
+            // The terminal callback may have been replaced already even though
+            // vanilla must continue to interpret the surrounding modifiers.
+            CompilerAcceptanceAudit.record(functionId, "chain_terminal_only",
+                    chain.getTopContext().getInput());
             return;
         }
 
@@ -135,6 +153,8 @@ public final class ScoreAddPrototype {
                 new ContextChain<>(List.of(), executable)
         );
         ProbeMetrics.scoreAddCompiled(functionId);
+        CompilerAcceptanceAudit.record(functionId, "chain_fully_lowered",
+                chain.getTopContext().getInput());
     }
 
     @FunctionalInterface
