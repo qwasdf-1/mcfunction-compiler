@@ -1338,7 +1338,9 @@ def main() -> int:
             if not sep:
                 raise RuntimeError("Native delegate summary omitted type breakdown")
             def delegate_int(field: str) -> int:
-                match=re.search(rf"\b{re.escape(field)}=(\d+)",header)
+                pattern = (rf"\b{re.escape(field)}=(-?\d+)" if field=="thread"
+                           else rf"\b{re.escape(field)}=(\d+)")
+                match=re.search(pattern,header)
                 if match is None:
                     raise RuntimeError(f"Native delegate summary missing {field}: {header!r}")
                 return int(match.group(1))
