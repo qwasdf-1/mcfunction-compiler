@@ -32,7 +32,7 @@ public final class SchedulerPhaseCpuProbe {
     public enum Mode { OFF, EMPTY, TIMED }
 
     public static final long SKIP = Long.MIN_VALUE;
-    private static final long NESTED = Long.MIN_VALUE + 1;
+    public static final long NESTED = Long.MIN_VALUE + 1;
     private static final Mode MODE = fromEnvironment();
     private static final boolean PLUMBING_ENABLED = Boolean.parseBoolean(
             System.getenv("FC_SCHED_BRIGADIER_PLUMBING_PROBE"));
