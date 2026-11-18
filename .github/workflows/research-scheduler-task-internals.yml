@@ -1,0 +1,49 @@
+name: SCHED-ATTR-026 verify exact BuildContexts and dispatch bytecode
+
+# Temporary read-only inspection run on stacked PR. After bytecode capture,
+# remove PR trigger; a future native experiment must be separately enabled.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [research/sched-attr-025-sparse-task-cpu]
+    paths:
+      - scripts/inspect_task_phase_calls.py
+      - docs/research/task-internal-phase-SCHED-ATTR-026.md
+      - .github/workflows/research-scheduler-task-internals.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sched-attr-026-inspect-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-bytecode-inspection:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Fingerprint and compile against Minecraft 26.3
+        run: ./gradlew --no-daemon --stacktrace build
+      - name: Inspect exact task and Brigadier method callsites
+        run: python3 scripts/inspect_task_phase_calls.py
+      - name: Archive source inspection and SHA-256
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sched-attr-026-exact-javap-inventory
+          path: function-compiler/build/benchmarks/SCHED-ATTR-026/*
+          if-no-files-found: warn
+          retention-days: 21
