@@ -286,6 +286,11 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--scheduler-result-delegate-trace",
+        action="store_true",
+        help="SCHED-ATTR-028: classify actual sampled CommandResultCallback delegate types outside the existing CPU interval and query separate RCON summary.",
+    )
+    parser.add_argument(
         "--scheduler-brigadier-plumbing",
         action="store_true",
         help="SCHED-ATTR-027: include exact runExecutable.copyFor and both result-consumer callsites in the existing sparse phase clock window.",
@@ -365,6 +370,8 @@ def parse_args() -> object:
         parser.error(
             "--count-selective-macro-arguments requires --compiler-mode selective-macro"
         )
+    if args.scheduler_result_delegate_trace and not args.scheduler_brigadier_plumbing:
+        parser.error("Result callback routing requires the parent Brigadier plumbing probe")
     if args.scheduler_brigadier_plumbing and not args.scheduler_path_census:
         parser.error("Brigadier plumbing capture requires event-scoped scheduler census")
     if (args.scheduler_phase_cpu_probe != "off"
@@ -452,6 +459,7 @@ def main() -> int:
     task_cpu_mode = args.scheduler_task_cpu_probe
     phase_cpu_mode = args.scheduler_phase_cpu_probe
     plumbing_enabled = args.scheduler_brigadier_plumbing
+    delegate_trace_enabled = args.scheduler_result_delegate_trace
     compiler_probe_active = compiler_enabled or callback_metrics_enabled
     diagnostics = []
     if callback_metrics_enabled:
@@ -470,7 +478,11 @@ def main() -> int:
         else "no Spark agent or Function Compiler timing/counter metrics"
     )
 
-    if plumbing_enabled:
+    if delegate_trace_enabled:
+        timing_instrumentation = (
+            f"SCHED-ATTR-028 fixed 1/32 selected delegate-class histogram with existing {phase_cpu_mode} callback CPU clocks; no new per-call clocks or result suppression"
+        )
+    if plumbing_enabled and not delegate_trace_enabled:
         timing_instrumentation = (
             f"SCHED-ATTR-027 sparse CPU plumbing ({phase_cpu_mode}) on selected "
             "ExecuteCommand parent method invocations, context copy and both "
@@ -629,6 +641,7 @@ def main() -> int:
                     "FC_SCHED_TASK_CPU_PROBE": task_cpu_mode,
                     "FC_SCHED_PHASE_CPU_PROBE": phase_cpu_mode,
                     "FC_SCHED_BRIGADIER_PLUMBING_PROBE": str(plumbing_enabled).lower(),
+                    "FC_SCHED_RESULT_DELEGATE_TRACE": str(delegate_trace_enabled).lower(),
                     "FC_SCHED_ARCH_COUNTERS": "false" if scheduler_path_census else environment.get("FC_SCHED_ARCH_COUNTERS", "false"),
                     "FC_SCORE_ADD_TIMING": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_TIMING", "false"),
                     "FC_SCORE_ADD_PHASE_TIMERS": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_PHASE_TIMERS", "false"),
@@ -928,6 +941,13 @@ def main() -> int:
                 raise RuntimeError("JFR CPU sampler did not save a recording")
         compiler_status_after = (
             rcon.command("function_compiler_probe status") if compiler_probe_active else None
+        )
+        # The existing general status is exactly 4096 bytes and cannot carry
+        # further fields reliably. Read this research-only histogram separately
+        # *after* the event CPU scope has been closed.
+        delegate_summary_raw = (
+            rcon.command("fc_sched_delegate_summary")
+            if delegate_trace_enabled else None
         )
         queue_stats_after = function_stats(rcon, "vm:queue/drain", compiler_enabled)
         ray_stats_after = function_stats(rcon, "vm:detection/ray_step", compiler_enabled)
@@ -1310,6 +1330,73 @@ def main() -> int:
                 "interpretation":"nested timed samples; includes actual callback game mutations",
             }
 
+        delegate_trace = None
+        if delegate_trace_enabled:
+            if not delegate_summary_raw or "FC_SCHED_DELEGATES" not in delegate_summary_raw:
+                raise RuntimeError(f"Missing separate native delegate RCON summary: {delegate_summary_raw!r}")
+            header,sep,body=delegate_summary_raw.partition(" types=")
+            if not sep:
+                raise RuntimeError("Native delegate summary omitted type breakdown")
+            def delegate_int(field: str) -> int:
+                match=re.search(rf"\\b{re.escape(field)}=(\\d+)",header)
+                if match is None:
+                    raise RuntimeError(f"Native delegate summary missing {field}: {header!r}")
+                return int(match.group(1))
+            if "enabled=true" not in header or f"mode={phase_cpu_mode}" not in header:
+                raise RuntimeError("Native delegate trace mode mismatch")
+            groups=[]
+            for item in body.strip().split(";"):
+                if not item:
+                    continue
+                parts=item.split("|")
+                if len(parts)!=6:
+                    raise RuntimeError(f"Malformed delegate type row: {item!r}")
+                label=parts[0]
+                if not label or any(c.isspace() for c in label):
+                    raise RuntimeError(f"Invalid callback delegate label: {label!r}")
+                fields=[int(value) for value in parts[1:]]
+                if any(value<0 for value in fields):
+                    raise RuntimeError(f"Negative callback delegate row: {item!r}")
+                groups.append({
+                    "type":label,"calls":fields[0],"raw_cpu_ns":fields[1],
+                    "timed_samples":fields[2],"success":fields[3],
+                    "failure":fields[4],
+                })
+            delegate_trace={
+                "mode":phase_cpu_mode,
+                "java_thread_id":delegate_int("thread"),
+                "calls":delegate_int("calls"),
+                "timed_samples":delegate_int("timed_samples"),
+                "raw_cpu_ns":delegate_int("raw_cpu_ns"),
+                "success":delegate_int("success"),
+                "failure":delegate_int("failure"),
+                "non_execution_source":delegate_int("non_source"),
+                "groups":groups,
+                "interpretation":"Class-name groups are underlying source callback delegates, not the common stateless Brigadier adapter. Lambda owner names may merge multiple sites; CHAIN group does not unwrap leaves.",
+            }
+            total=delegate_trace["calls"]
+            if (sum(g["calls"] for g in groups)!=total
+                    or sum(g["raw_cpu_ns"] for g in groups)!=delegate_trace["raw_cpu_ns"]
+                    or sum(g["timed_samples"] for g in groups)!=delegate_trace["timed_samples"]
+                    or sum(g["success"] for g in groups)!=delegate_trace["success"]
+                    or sum(g["failure"] for g in groups)!=delegate_trace["failure"]
+                    or delegate_trace["success"]+delegate_trace["failure"]!=total
+                    or delegate_trace["non_execution_source"]!=0):
+                raise RuntimeError("Callback delegate class histogram failed conservation")
+            if phase_cpu_mode == "off":
+                if total or delegate_trace["raw_cpu_ns"] or delegate_trace["timed_samples"]:
+                    raise RuntimeError("OFF callback class histogram was not inert")
+            else:
+                expected=plumbing_cpu_probe["streams"]["result"]
+                if (total!=expected["samples"]
+                        or delegate_trace["timed_samples"]!=(total if phase_cpu_mode=="timed" else 0)
+                        or delegate_trace["raw_cpu_ns"]!=(expected["cpu_ns"] if phase_cpu_mode=="timed" else 0)
+                        or delegate_trace["success"]!=plumbing_cpu_probe["callback_outcome"]["success"]
+                        or delegate_trace["failure"]!=plumbing_cpu_probe["callback_outcome"]["failure"]):
+                    raise RuntimeError("Underlying delegate groups do not match original callback timing and outcomes")
+                if delegate_trace["java_thread_id"]<=0:
+                    raise RuntimeError("Delegate class census never observed Server thread")
+
         valid_scoreadd_path_coverage_diagnostic = (
             args.scoreadd_path_coverage_diagnostic
             and command_callback_metrics is not None
@@ -1352,6 +1439,8 @@ def main() -> int:
             "scheduler_phase_cpu_probe": phase_cpu_probe,
             "scheduler_brigadier_plumbing_enabled": plumbing_enabled,
             "scheduler_brigadier_plumbing_probe": plumbing_cpu_probe,
+            "scheduler_result_delegate_trace_enabled": delegate_trace_enabled,
+            "scheduler_result_delegate_trace": delegate_trace,
             "scheduler_path_census": scheduler_path_counts,
             "jfr_cpu_profile_path": (
                 str(jfr_path.relative_to(ROOT)) if jfr_path else None
