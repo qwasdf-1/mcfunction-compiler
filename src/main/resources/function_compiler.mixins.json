@@ -12,6 +12,7 @@
     "SchedulerExecuteCommandCensusMixin",
     "SchedulerBrigadierCommandCensusMixin",
     "SchedulerBrigadierPlumbingMixin",
+    "SchedulerExecuteResultSitesMixin",
     "SchedulerCallFunctionCensusMixin",
     "SchedulerContinuationCensusMixin",
     "CommandFunctionMixin",
