@@ -286,6 +286,11 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--scheduler-result-site-trace",
+        action="store_true",
+        help="SCHED-ATTR-028 Phase D: classify the exact four ExecuteCommand result-callback lambda sites under the existing timed RESULT sample; no new CPU clocks.",
+    )
+    parser.add_argument(
         "--scheduler-result-delegate-trace",
         action="store_true",
         help="SCHED-ATTR-028: classify actual sampled CommandResultCallback delegate types outside the existing CPU interval and query separate RCON summary.",
@@ -370,6 +375,10 @@ def parse_args() -> object:
         parser.error(
             "--count-selective-macro-arguments requires --compiler-mode selective-macro"
         )
+    if args.scheduler_result_site_trace and not args.scheduler_result_delegate_trace:
+        parser.error("Callback site census requires the existing delegate classifier")
+    if args.scheduler_result_site_trace and args.scheduler_phase_cpu_probe != "timed":
+        parser.error("Callback site CPU grouping requires a TIMED parent clock")
     if args.scheduler_result_delegate_trace and not args.scheduler_brigadier_plumbing:
         parser.error("Result callback routing requires the parent Brigadier plumbing probe")
     if args.scheduler_brigadier_plumbing and not args.scheduler_path_census:
@@ -460,6 +469,7 @@ def main() -> int:
     phase_cpu_mode = args.scheduler_phase_cpu_probe
     plumbing_enabled = args.scheduler_brigadier_plumbing
     delegate_trace_enabled = args.scheduler_result_delegate_trace
+    site_trace_enabled = args.scheduler_result_site_trace
     compiler_probe_active = compiler_enabled or callback_metrics_enabled
     diagnostics = []
     if callback_metrics_enabled:
@@ -478,7 +488,11 @@ def main() -> int:
         else "no Spark agent or Function Compiler timing/counter metrics"
     )
 
-    if delegate_trace_enabled:
+    if site_trace_enabled:
+        timing_instrumentation = (
+            "SCHED-ATTR-028 Phase D exact ExecuteCommand synthetic callback site census, same 1/32 sampled RESULT CPU intervals, no new clock reads or changed callback semantics"
+        )
+    if delegate_trace_enabled and not site_trace_enabled:
         timing_instrumentation = (
             f"SCHED-ATTR-028 fixed 1/32 selected delegate-class histogram with existing {phase_cpu_mode} callback CPU clocks; no new per-call clocks or result suppression"
         )
@@ -642,6 +656,7 @@ def main() -> int:
                     "FC_SCHED_PHASE_CPU_PROBE": phase_cpu_mode,
                     "FC_SCHED_BRIGADIER_PLUMBING_PROBE": str(plumbing_enabled).lower(),
                     "FC_SCHED_RESULT_DELEGATE_TRACE": str(delegate_trace_enabled).lower(),
+                    "FC_SCHED_RESULT_SITE_TRACE": str(site_trace_enabled).lower(),
                     "FC_SCHED_ARCH_COUNTERS": "false" if scheduler_path_census else environment.get("FC_SCHED_ARCH_COUNTERS", "false"),
                     "FC_SCORE_ADD_TIMING": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_TIMING", "false"),
                     "FC_SCORE_ADD_PHASE_TIMERS": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_PHASE_TIMERS", "false"),
@@ -948,6 +963,10 @@ def main() -> int:
         delegate_summary_raw = (
             rcon.command("fc_sched_delegate_summary")
             if delegate_trace_enabled else None
+        )
+        site_summary_raw = (
+            rcon.command("fc_sched_site_summary")
+            if site_trace_enabled else None
         )
         queue_stats_after = function_stats(rcon, "vm:queue/drain", compiler_enabled)
         ray_stats_after = function_stats(rcon, "vm:detection/ray_step", compiler_enabled)
@@ -1399,6 +1418,64 @@ def main() -> int:
                 if delegate_trace["java_thread_id"]<=0:
                     raise RuntimeError("Delegate class census never observed Server thread")
 
+        site_trace = None
+        if site_trace_enabled:
+            if not site_summary_raw or "FC_SCHED_SITES" not in site_summary_raw:
+                raise RuntimeError("Missing post-event callback-site census response")
+            head,separator,raw_items=site_summary_raw.partition(" sites=")
+            if not separator:
+                raise RuntimeError(f"Malformed callback-site census: {site_summary_raw!r}")
+            def site_int(field: str) -> int:
+                pat=(rf"\\b{re.escape(field)}=(-?\\d+)" if field=="thread"
+                     else rf"\\b{re.escape(field)}=(\\d+)")
+                match=re.search(pat,head)
+                if match is None:
+                    raise RuntimeError(f"Missing callback-site {field}: {head!r}")
+                return int(match.group(1))
+            groups={}
+            for item in raw_items.strip().split(";"):
+                parts=item.split("|")
+                if len(parts)!=3:
+                    raise RuntimeError(f"Malformed callback-site group: {item!r}")
+                name=parts[0]
+                if name in groups:
+                    raise RuntimeError(f"Duplicate callback-site name: {name}")
+                count,nanos=(int(parts[1]),int(parts[2]))
+                if count<0 or nanos<0:
+                    raise RuntimeError(f"Negative callback-site count/CPU: {item!r}")
+                groups[name]={"calls":count,"raw_cpu_ns":nanos}
+            expected_sites={"SCORE_STORE","BOSSBAR_STORE","DATA_STORE","FUNCTION_CONDITION",
+                            "NO_SITE","MULTIPLE"}
+            if set(groups)!=expected_sites:
+                raise RuntimeError(f"Missing callback-site group(s): {groups}")
+            site_trace={
+                "mode":phase_cpu_mode,
+                "java_thread_id":site_int("thread"),
+                "callbacks":site_int("callbacks"),
+                "raw_cpu_ns":site_int("raw_cpu_ns"),
+                "nested":site_int("nested"),
+                "sites":groups,
+                "interpretation":"Each selected callback is classified at the exact four source lambda method heads; includes real state changes, not avoidable overhead",
+            }
+            if ("enabled=true" not in head or
+                    f"mode={phase_cpu_mode}" not in head or
+                    site_trace["nested"] or site_trace["java_thread_id"]<=0 or
+                    site_trace["callbacks"]!=delegate_trace["calls"] or
+                    site_trace["raw_cpu_ns"]!=delegate_trace["raw_cpu_ns"] or
+                    sum(v["calls"] for v in groups.values())!=site_trace["callbacks"] or
+                    sum(v["raw_cpu_ns"] for v in groups.values())!=site_trace["raw_cpu_ns"]):
+                raise RuntimeError("Callback-site sums/thread/clock differ from native delegate census")
+            owners=sum(g["calls"] for g in delegate_trace["groups"]
+                if g["type"]=="net.minecraft.server.commands.ExecuteCommand$Lambda")
+            empties=sum(g["calls"] for g in delegate_trace["groups"]
+                if g["type"]=="EMPTY")
+            site_real=sum(groups[name]["calls"] for name in
+                ("SCORE_STORE","BOSSBAR_STORE","DATA_STORE","FUNCTION_CONDITION"))
+            if (site_real!=owners
+                    or groups["NO_SITE"]["calls"]!=empties
+                    or groups["MULTIPLE"]["calls"]!=0):
+                raise RuntimeError("ExecuteCommand owner/EMPTY callback site coverage mismatch")
+
         valid_scoreadd_path_coverage_diagnostic = (
             args.scoreadd_path_coverage_diagnostic
             and command_callback_metrics is not None
@@ -1443,6 +1520,8 @@ def main() -> int:
             "scheduler_brigadier_plumbing_probe": plumbing_cpu_probe,
             "scheduler_result_delegate_trace_enabled": delegate_trace_enabled,
             "scheduler_result_delegate_trace": delegate_trace,
+            "scheduler_result_site_trace_enabled": site_trace_enabled,
+            "scheduler_result_site_trace": site_trace,
             "scheduler_path_census": scheduler_path_counts,
             "jfr_cpu_profile_path": (
                 str(jfr_path.relative_to(ROOT)) if jfr_path else None
