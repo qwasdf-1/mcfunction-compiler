@@ -402,6 +402,17 @@ def main() -> int:
     }
     capture_spark = not args.no_spark
     capture_jfr_cpu = args.capture_jfr_cpu
+    exec_census_enabled = os.environ.get(
+        "FC_COMPILER_EXEC_CENSUS", "").lower() in {"true", "1"}
+    if exec_census_enabled and (
+        args.stack == "vanilla"
+        or not os.environ.get("FC_COMPILER_EXEC_CENSUS_NAMESPACE")
+        or not os.environ.get("FC_COMPILER_EXEC_CENSUS_FUNCTIONS")
+        or args.compiler_mode not in ("wrapper", "score-add")
+    ):
+        raise ValueError(
+            "Execution census requires Fabric, wrapper/score-add, namespace and allowlist"
+        )
     acceptance_audit_enabled = os.environ.get(
         "FC_COMPILER_ACCEPTANCE_AUDIT", "").lower() in {"true", "1"}
     if acceptance_audit_enabled and (
@@ -413,6 +424,8 @@ def main() -> int:
     diagnostics = []
     if acceptance_audit_enabled:
         diagnostics.append("namespace-scoped compiler acceptance census")
+    if exec_census_enabled:
+        diagnostics.append("event-scoped selected command entry/callback counters")
     if callback_metrics_enabled:
         diagnostics.append("command callback counters")
     if selective_macro_metrics_enabled:
@@ -482,6 +495,9 @@ def main() -> int:
     jfr_stop_message: str | None = None
     succeeded = False
     manifest_path = output / "results.json"
+    exec_census_started = False
+    exec_census_start_status = None
+    exec_census_stop_status = None
 
     try:
         datapacks = work / "world/datapacks"
@@ -782,6 +798,13 @@ def main() -> int:
             pid, tid = event_thread
             event_cpu_before = read_thread_schedstat(pid, tid)
             event_throttle_before = cgroup_throttle_count()
+        if exec_census_enabled:
+            exec_census_start_status = rcon.command(
+                "function_compiler_probe exec-census-start")
+            if "FC_EXEC started namespace=" not in exec_census_start_status:
+                raise RuntimeError(
+                    f"Execution census failed to start: {exec_census_start_status!r}")
+            exec_census_started = True
         # Set the irreversible intervention boundary before attempting the
         # first mining packet. Any failure from here is never retryable.
         mining_started = True
@@ -846,6 +869,13 @@ def main() -> int:
             jfr_started = False
             if not jfr_path.is_file() or jfr_path.stat().st_size == 0:
                 raise RuntimeError("JFR CPU sampler did not save a recording")
+        if exec_census_started:
+            exec_census_stop_status = rcon.command(
+                "function_compiler_probe exec-census-stop")
+            if "FC_EXEC ended entries=" not in exec_census_stop_status:
+                raise RuntimeError(
+                    f"Execution census failed to stop: {exec_census_stop_status!r}")
+            exec_census_started = False
         compiler_status_after = (
             rcon.command("function_compiler_probe status") if compiler_probe_active else None
         )
@@ -1088,6 +1118,17 @@ def main() -> int:
             "compiler_mode": args.compiler_mode if args.stack != "vanilla" else None,
             "command_callback_metrics_enabled": callback_metrics_enabled,
             "compiler_acceptance_audit_enabled": acceptance_audit_enabled,
+            "compiler_exec_census_enabled": exec_census_enabled,
+            "compiler_exec_census_namespace": (
+                os.environ.get("FC_COMPILER_EXEC_CENSUS_NAMESPACE")
+                if exec_census_enabled else None
+            ),
+            "compiler_exec_census_targets": (
+                os.environ.get("FC_COMPILER_EXEC_CENSUS_FUNCTIONS")
+                if exec_census_enabled else None
+            ),
+            "compiler_exec_census_start_status": exec_census_start_status,
+            "compiler_exec_census_stop_status": exec_census_stop_status,
             "compiler_acceptance_audit_namespace": (
                 os.environ.get("FC_COMPILER_ACCEPTANCE_NAMESPACE") if acceptance_audit_enabled else None
             ),
@@ -1320,6 +1361,13 @@ def main() -> int:
                 stop_spark_shell(spark)
             except Exception:
                 spark.terminate()
+        if exec_census_started and rcon is not None:
+            # An incomplete event must not be interpreted as an accepted census.
+            # Preserve a partial dump for forensic review only.
+            try:
+                rcon.command("function_compiler_probe exec-census-stop")
+            except Exception:
+                pass
         if rcon is not None:
             try:
                 rcon.command("stop")
@@ -1339,6 +1387,15 @@ def main() -> int:
                     server.wait()
         if log_handle is not None:
             log_handle.close()
+        if exec_census_enabled and (work / "server.log").is_file():
+            audit_rows = [
+                line for line in (work / "server.log").read_text(
+                    errors="replace").splitlines()
+                if "FC_EXEC_" in line
+            ]
+            (output / "exec-census.log").write_text(
+                "\n".join(audit_rows) + "\n", encoding="utf-8"
+            )
         if acceptance_audit_enabled and (work / "server.log").is_file():
             # Preserve the complete bounded audit independently of the temporary server.
             # This is a post-event diagnostic, never a wall/CPU timing sample.
