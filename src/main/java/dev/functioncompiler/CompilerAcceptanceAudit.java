@@ -21,7 +21,7 @@ public final class CompilerAcceptanceAudit {
     private static final boolean ENABLED =
             Boolean.parseBoolean(System.getenv("FC_COMPILER_ACCEPTANCE_AUDIT"));
     private static final String NAMESPACE = System.getenv("FC_COMPILER_ACCEPTANCE_NAMESPACE");
-    private static final int MAX_KEYS = 4096;
+    private static final int MAX_KEYS = 16384;
     private static final int MAX_INPUT_CHARS = 240;
     private static final ConcurrentMap<Key, LongAdder> COUNTS = new ConcurrentHashMap<>();
 
