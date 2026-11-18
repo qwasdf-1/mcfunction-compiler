@@ -1,23 +1,7 @@
 name: SCHED-ATTR-027 Brigadier context-copy and result-consumer native CPU
 
-# Temporary stacked-PR trigger for first native diagnostic only.
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [research/sched-attr-026-dispatch-phase-attribution]
-    paths:
-      - src/main/java/dev/functioncompiler/SchedulerPhaseCpuProbe.java
-      - src/main/java/dev/functioncompiler/ProbeStatus.java
-      - src/main/java/dev/functioncompiler/mixin/SchedulerBrigadierPlumbingMixin.java
-      - src/main/resources/function_compiler.mixins.json
-      - scripts/inspect_task_phase_calls.py
-      - scripts/run_veinminer_profile.py
-      - scripts/ci_scheduler_plumbing_cpu.py
-      - tests/java/dev/functioncompiler/SchedulerPhaseCpuProbeContract.java
-      - tests/test_scheduler_plumbing_cpu_clock.py
-      - tests/test_scheduler_plumbing_cpu.py
-      - docs/research/brigadier-plumbing-SCHED-ATTR-027.md
-      - .github/workflows/research-brigadier-plumbing-cpu.yml
 
 permissions:
   contents: read
