@@ -180,7 +180,7 @@ def markdown(result:dict)->str:
     counts=result["classification_counts"]
     lines=[
         "# Compiler coverage audit: "+result["name"],"",
-        f"**Pinned publisher SHA-256:** \`{result['sha256']}\`.",
+        f"**Pinned publisher SHA-256:** `{result['sha256']}`.",
         f"**Scope:** {result['functions_reachable_or_scheduled']} reachable/scheduled"
         f" functions ({result['tick_or_scheduled_functions']} tick/scheduled)"
         f" of {result['functions_total']} total; "
@@ -192,7 +192,7 @@ def markdown(result:dict)->str:
         "| --- | ---: |",
     ]
     for k,n in sorted(counts.items(),key=lambda x:(-x[1],x[0])):
-        lines.append(f"| \`{k}\` | {n} |")
+        lines.append(f"| `{k}` | {n} |")
     lines.extend(["", "### H2 baseline already available", "",
         "The existing H2-first inventory is reused; it already counts non-forked"
         " adjacent fusable candidates, forked barriers, pure-leaf calls and"
@@ -204,7 +204,7 @@ def markdown(result:dict)->str:
     for fn in result["functions_review_ranked"][:18]:
         c=fn["categories"]
         lines.append(
-            f"| \`{fn['id']}\` | {'yes' if fn['in_tick_or_scheduled_scope'] else 'load/reachable'}"
+            f"| `{fn['id']}` | {'yes' if fn['in_tick_or_scheduled_scope'] else 'load/reachable'}"
             f" | {fn['lines']} | {fn['candidate_review_score_not_cpu_cost']}"
             f" | {c.get('selective_macro_candidate',0)}"
             f" | {c.get('lexically_forked_execute',0)}"
