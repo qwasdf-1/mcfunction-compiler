@@ -1,23 +1,7 @@
 name: SCHED-ATTR-028 Phase D exact native result callback site census
 
-# One-time stacked PR trigger for the final SOURCE-SITE classification event.
-# Return to workflow_dispatch-only after collecting the original raw evidence.
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [research/sched-attr-027-brigadier-context-callback-cpu]
-    paths:
-      - src/main/java/dev/functioncompiler/SchedulerResultSiteTrace.java
-      - src/main/java/dev/functioncompiler/mixin/SchedulerExecuteResultSitesMixin.java
-      - src/main/java/dev/functioncompiler/mixin/SchedulerBrigadierPlumbingMixin.java
-      - src/main/java/dev/functioncompiler/ProbeCommands.java
-      - src/main/resources/function_compiler.mixins.json
-      - scripts/run_veinminer_profile.py
-      - scripts/ci_scheduler_result_sites.py
-      - tests/test_scheduler_result_site_java.py
-      - tests/test_scheduler_result_sites.py
-      - docs/research/result-callback-routing-SCHED-ATTR-028.md
-      - .github/workflows/research-result-sites-native.yml
 
 permissions:
   contents: read
