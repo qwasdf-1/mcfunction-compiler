@@ -286,6 +286,11 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--scheduler-brigadier-plumbing",
+        action="store_true",
+        help="SCHED-ATTR-027: include exact runExecutable.copyFor and both result-consumer callsites in the existing sparse phase clock window.",
+    )
+    parser.add_argument(
         "--scheduler-phase-cpu-probe",
         choices=("off", "empty", "timed"),
         default="off",
@@ -360,6 +365,8 @@ def parse_args() -> object:
         parser.error(
             "--count-selective-macro-arguments requires --compiler-mode selective-macro"
         )
+    if args.scheduler_brigadier_plumbing and not args.scheduler_path_census:
+        parser.error("Brigadier plumbing capture requires event-scoped scheduler census")
     if (args.scheduler_phase_cpu_probe != "off"
             and args.scheduler_phase_cpu_probe != args.scheduler_task_cpu_probe):
         parser.error("Internal phase CPU probe must equal enclosing task CPU probe mode")
@@ -444,6 +451,7 @@ def main() -> int:
     scheduler_path_census = args.scheduler_path_census
     task_cpu_mode = args.scheduler_task_cpu_probe
     phase_cpu_mode = args.scheduler_phase_cpu_probe
+    plumbing_enabled = args.scheduler_brigadier_plumbing
     compiler_probe_active = compiler_enabled or callback_metrics_enabled
     diagnostics = []
     if callback_metrics_enabled:
@@ -462,7 +470,13 @@ def main() -> int:
         else "no Spark agent or Function Compiler timing/counter metrics"
     )
 
-    if phase_cpu_mode != "off":
+    if plumbing_enabled:
+        timing_instrumentation = (
+            f"SCHED-ATTR-027 sparse CPU plumbing ({phase_cpu_mode}) on selected "
+            "ExecuteCommand parent method invocations, context copy and both "
+            "result consumer branches, without Spark/JFR"
+        )
+    if phase_cpu_mode != "off" and not plumbing_enabled:
         timing_instrumentation = (
             f"SCHED-ATTR-026 1/32 parent-selected CPU phases ({phase_cpu_mode}); "
             "nested modifier/Brigadier/callback callsites from checked 26.3 bytecode; "
@@ -614,6 +628,7 @@ def main() -> int:
                     "FC_SCHED_PATH_CENSUS": str(scheduler_path_census).lower(),
                     "FC_SCHED_TASK_CPU_PROBE": task_cpu_mode,
                     "FC_SCHED_PHASE_CPU_PROBE": phase_cpu_mode,
+                    "FC_SCHED_BRIGADIER_PLUMBING_PROBE": str(plumbing_enabled).lower(),
                     "FC_SCHED_ARCH_COUNTERS": "false" if scheduler_path_census else environment.get("FC_SCHED_ARCH_COUNTERS", "false"),
                     "FC_SCORE_ADD_TIMING": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_TIMING", "false"),
                     "FC_SCORE_ADD_PHASE_TIMERS": "false" if scheduler_path_census else environment.get("FC_SCORE_ADD_PHASE_TIMERS", "false"),
@@ -1230,6 +1245,71 @@ def main() -> int:
                 "interpretation": "inclusive nested phase costs; raw residuals contain instrumentation overhead",
             }
 
+        plumbing_cpu_probe = None
+        if plumbing_enabled:
+            if compiler_status_before is None or compiler_status_after is None:
+                raise RuntimeError("Brigadier plumbing capture missing before/after status")
+            if ("sched_plumbing_enabled=true" not in compiler_status_before
+                    or "sched_plumbing_enabled=true" not in compiler_status_after):
+                raise RuntimeError("Brigadier plumbing probe was not enabled in native server")
+            def plumbing_delta(key: str) -> int:
+                return stats_int(compiler_status_after, key) - stats_int(compiler_status_before, key)
+
+            measurements = {}
+            for name in ("copy", "result"):
+                prefix=f"sched_plumbing_{name}_"
+                row={
+                    "calls":plumbing_delta(prefix+"calls"),
+                    "samples":plumbing_delta(prefix+"samples"),
+                    "cpu_ns":plumbing_delta(prefix+"cpu_ns"),
+                    "zero_deltas":plumbing_delta(prefix+"zero_deltas"),
+                    "nested":plumbing_delta(prefix+"nested"),
+                    "final_depth":stats_int(compiler_status_after,prefix+"depth"),
+                }
+                if (any(type(v) is not int or v<0 for v in row.values())
+                        or row["nested"]!=0 or row["final_depth"]!=0):
+                    raise RuntimeError(f"Brigadier plumbing interval malformed: {name} {row}")
+                if phase_cpu_mode == "off":
+                    if any(row.values()):
+                        raise RuntimeError(f"Disabled plumbing read leaked CPU: {name} {row}")
+                else:
+                    if (row["calls"]!=row["samples"]
+                            or row["zero_deltas"]>row["samples"]
+                            or row["cpu_ns"]>event_cpu["server_thread_cpu_running_ns"]):
+                        raise RuntimeError(f"Brigadier plumbing incomplete CPU interval: {name} {row}")
+                measurements[name]=row
+            identities={
+                "reused":plumbing_delta("sched_plumbing_copy_reused"),
+                "allocated":plumbing_delta("sched_plumbing_copy_allocated"),
+            }
+            outcomes={
+                "success":plumbing_delta("sched_plumbing_result_success"),
+                "failure":plumbing_delta("sched_plumbing_result_failure"),
+            }
+            if any(v<0 for v in (*identities.values(),*outcomes.values())):
+                raise RuntimeError("Negative Brigadier identity/callback classification")
+            if (sum(identities.values())>measurements["copy"]["calls"]
+                    or sum(outcomes.values())>measurements["result"]["calls"]):
+                raise RuntimeError("Brigadier identity/callback overcounts compared to method calls")
+            if phase_cpu_mode != "off":
+                # copyFor and callback must be invoked once in each ordinary
+                # runExecutable path; throws can skip a completed copy or callback.
+                # Preserve raw shortfalls and evaluate their interpretation in CI.
+                if (measurements["copy"]["calls"]==0
+                        or measurements["result"]["calls"]==0
+                        or sum(identities.values())!=measurements["copy"]["calls"]
+                        or sum(outcomes.values())!=measurements["result"]["calls"]):
+                    raise RuntimeError("Brigadier copy/callback observations did not close")
+            plumbing_cpu_probe={
+                "mode":phase_cpu_mode,
+                "clock_ready":phase_cpu_mode!="off",
+                "streams":measurements,
+                "copy_identity":identities,
+                "callback_outcome":outcomes,
+                "scope":"same selected ExecuteCommand ordinal hash as prior SCHED-ATTR-026",
+                "interpretation":"nested timed samples; includes actual callback game mutations",
+            }
+
         valid_scoreadd_path_coverage_diagnostic = (
             args.scoreadd_path_coverage_diagnostic
             and command_callback_metrics is not None
@@ -1270,6 +1350,8 @@ def main() -> int:
             "scheduler_task_cpu_probe": task_cpu_probe,
             "scheduler_phase_cpu_probe_mode": phase_cpu_mode,
             "scheduler_phase_cpu_probe": phase_cpu_probe,
+            "scheduler_brigadier_plumbing_enabled": plumbing_enabled,
+            "scheduler_brigadier_plumbing_probe": plumbing_cpu_probe,
             "scheduler_path_census": scheduler_path_counts,
             "jfr_cpu_profile_path": (
                 str(jfr_path.relative_to(ROOT)) if jfr_path else None
