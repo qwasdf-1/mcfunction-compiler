@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.LongAdder;
  * A namespace is required deliberately: setting the switch alone must not
  * instrument arbitrary datapacks in a normal server process.
  */
-final class CompilerAcceptanceAudit {
+public final class CompilerAcceptanceAudit {
     private static final boolean ENABLED =
             Boolean.parseBoolean(System.getenv("FC_COMPILER_ACCEPTANCE_AUDIT"));
     private static final String NAMESPACE = System.getenv("FC_COMPILER_ACCEPTANCE_NAMESPACE");
@@ -29,7 +29,7 @@ final class CompilerAcceptanceAudit {
 
     private CompilerAcceptanceAudit() {}
 
-    static boolean enabledFor(Identifier functionId) {
+    public static boolean enabledFor(Identifier functionId) {
         return ENABLED && NAMESPACE != null && !NAMESPACE.isBlank()
                 && functionId != null && NAMESPACE.equals(functionId.getNamespace());
     }
