@@ -1,22 +1,7 @@
 name: SCHED-ATTR-028 native callback delegate implementation census
 
-# One-time research PR validation; restore manual-only after accepted/failed result.
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [research/sched-attr-027-brigadier-context-callback-cpu]
-    paths:
-      - src/main/java/dev/functioncompiler/SchedulerResultDelegateTrace.java
-      - src/main/java/dev/functioncompiler/SchedulerPhaseCpuProbe.java
-      - src/main/java/dev/functioncompiler/ProbeCommands.java
-      - src/main/java/dev/functioncompiler/mixin/SchedulerBrigadierPlumbingMixin.java
-      - scripts/run_veinminer_profile.py
-      - scripts/ci_scheduler_result_delegate.py
-      - scripts/inspect_result_consumer_routing.py
-      - tests/test_scheduler_result_delegate.py
-      - tests/test_scheduler_result_delegate_java.py
-      - docs/research/result-callback-routing-SCHED-ATTR-028.md
-      - .github/workflows/research-result-delegate-native.yml
 
 permissions:
   contents: read
