@@ -35,12 +35,17 @@ abstract class SchedulerBrigadierPlumbingMixin {
             CommandContext<?> original, Object source
     ) {
         long token = SchedulerPhaseCpuProbe.begin(SchedulerPhaseCpuProbe.Phase.COPY);
+        CommandContext<?> copied = null;
+        boolean returned = false;
         try {
-            CommandContext<?> copied = ((CommandContext) original).copyFor(source);
-            SchedulerPhaseCpuProbe.observedCopy(token, copied == original);
+            copied = ((CommandContext) original).copyFor(source);
+            returned = true;
             return copied;
         } finally {
             SchedulerPhaseCpuProbe.end(SchedulerPhaseCpuProbe.Phase.COPY, token);
+            if (returned) {
+                SchedulerPhaseCpuProbe.observedCopy(token, copied == original);
+            }
         }
     }
 
@@ -60,12 +65,12 @@ abstract class SchedulerBrigadierPlumbingMixin {
             boolean success, int result
     ) {
         long token = SchedulerPhaseCpuProbe.begin(SchedulerPhaseCpuProbe.Phase.RESULT);
-        SchedulerPhaseCpuProbe.observedResult(token, success);
         try {
             ((ResultConsumer) original).onCommandComplete((CommandContext) command,
                     success, result);
         } finally {
             SchedulerPhaseCpuProbe.end(SchedulerPhaseCpuProbe.Phase.RESULT, token);
+            SchedulerPhaseCpuProbe.observedResult(token, success);
         }
     }
 }
