@@ -56,6 +56,10 @@ final class ProbeCommands {
                 .then(Commands.literal("metrics").executes(context -> ProbeStatus.metrics(context.getSource())))
                 .then(Commands.literal("acceptance").executes(context ->
                         CompilerAcceptanceAudit.report(context.getSource())))
+                .then(Commands.literal("exec-census-start").executes(context ->
+                        CompilerExecutionCensus.begin(context.getSource())))
+                .then(Commands.literal("exec-census-stop").executes(context ->
+                        CompilerExecutionCensus.finish(context.getSource())))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
@@ -77,6 +81,10 @@ final class ProbeCommands {
                 .then(Commands.literal("metrics").executes(context -> ProbeStatus.metrics(context.getSource())))
                 .then(Commands.literal("acceptance").executes(context ->
                         CompilerAcceptanceAudit.report(context.getSource())))
+                .then(Commands.literal("exec-census-start").executes(context ->
+                        CompilerExecutionCensus.begin(context.getSource())))
+                .then(Commands.literal("exec-census-stop").executes(context ->
+                        CompilerExecutionCensus.finish(context.getSource())))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
