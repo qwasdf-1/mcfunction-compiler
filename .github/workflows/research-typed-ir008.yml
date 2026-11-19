@@ -1,17 +1,6 @@
 name: Compiler typed IR direct scoreboard JVM lowering (IR-008)
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/research-typed-ir008.yml'
-      - 'src/main/java/dev/functioncompiler/TypedScoreIR.java'
-      - 'src/main/java/dev/functioncompiler/TypedScoreIRRuntime.java'
-      - 'src/main/java/dev/functioncompiler/TypedScoreIRBytecode.java'
-      - 'src/main/java/dev/functioncompiler/ScoreAddCommand.java'
-      - 'src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java'
-      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
-      - 'scripts/ci_typed_ir008.py'
-      - 'tests/test_typed_ir008.py'
   workflow_dispatch:
 
 permissions:
