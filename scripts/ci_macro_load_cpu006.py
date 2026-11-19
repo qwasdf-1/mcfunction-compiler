@@ -44,12 +44,15 @@ def verify_source() -> dict:
                  if line.strip() and not line.lstrip().startswith("#")]
     if len(lines) != 2:
         raise AssertionError(f"Expected exactly two load_next macro lines, got {len(lines)}")
-    if not lines[0].startswith("$data modify entity @s data.cursor set from entity @s data.frontier[$("):
-        raise AssertionError(f"Unexpected first indexed macro: {lines[0]}")
-    if not (lines[1].startswith("$execute unless data entity @s data.frontier[$(")
-            and lines[1].endswith(" run return run function vm:operation/complete")):
-        raise AssertionError(f"Unexpected second indexed macro: {lines[1]}")
-    variables = [re.findall(r"\$\(([a-zA-Z_][a-zA-Z0-9_]*)\)", line) for line in lines]
+    copies = [line for line in lines
+              if line.startswith("$data modify entity @s data.cursor set from entity @s data.frontier[$(")]
+    returns = [line for line in lines
+               if line.startswith("$execute unless data entity @s data.frontier[$(")
+               and line.endswith(" run return run function vm:operation/complete")]
+    if len(copies) != 1 or len(returns) != 1:
+        raise AssertionError(f"Expected one indexed NBT copy and one indexed return guard: {lines}")
+    variables = [re.findall(r"\$\(([a-zA-Z_][a-zA-Z0-9_]*)\)", line)
+                 for line in (copies[0], returns[0])]
     if len(variables[0]) != 1 or variables[0] != variables[1]:
         raise AssertionError(f"Macro indices must use the same one parameter: {variables}")
     result = {
