@@ -1,10 +1,6 @@
 name: Queue enqueue_match native dynamic census (COMPILER-QUEUE-005)
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/research-queue-exec005.yml'
-      - 'scripts/ci_queue_execution005.py'
   workflow_dispatch:
 
 permissions:
