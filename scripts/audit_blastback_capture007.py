@@ -108,6 +108,45 @@ def audit() -> dict:
                 if target not in reachable:
                     remaining.append((target, depth+1))
     in_closure = [c for c in candidates if c["function"] in reachable]
+    # Grounded *injected* fixture palette; not a claim that natural world
+    # terrain or explosion-created blocks contain only these values.
+    runner_source = (ROOT / "scripts/run_blastback_profile.py").read_text(
+        encoding="utf-8")
+    for invariant in (
+        "fill -4 63 -4 12 63 12 minecraft:stone",
+        '"gold": "gold_block"',
+        '"diamond_block": "diamond_block"',
+        '"redstone_block": "redstone_block"',
+        '"emerald_block": "emerald_block"',
+    ):
+        if invariant not in runner_source:
+            raise ValueError("Blastback source palette fixtures changed: " + invariant)
+    injected_palette = (
+        "stone", "gold_block", "diamond_block",
+        "redstone_block", "emerald_block", "tnt", "air"
+    )
+    palette_tables = []
+    for block in injected_palette:
+        name = "erb_generated:read_state/minecraft/" + block + "/root"
+        lines = function_commands.get(name)
+        palette_tables.append({
+            "block": block,
+            "function": name,
+            "source_present": lines is not None,
+            "command_lines": len(lines) if lines is not None else None,
+            "classifier_commands": sum(
+                bool(STATE_READ.fullmatch(line)) for line in (lines or [])),
+            "reached_during_capture": None,
+        })
+    selected_sources = {
+        function: function_commands.get(function, [])[:30]
+        for function in (
+            "erb:capture/store",
+            "erb_generated:read/root",
+            "erb:runtime_tick",
+            "erb:status/collect",
+        )
+    }
     existing = screen_pack(PACK, min_run=2, max_examples=10)
     result = {
         "study": "COMPILER-BLASTBACK-007", "status": "pinned-static-source-only",
@@ -117,6 +156,8 @@ def audit() -> dict:
         "classifier_tables_directly_reachable_from_capture_store": len(in_closure),
         "highest_exact_classifier_runs": candidates[:MAX_EXAMPLE_TABLES],
         "best_capture_reachable_classifiers": in_closure[:MAX_EXAMPLE_TABLES],
+        "known_injected_fixture_palette": palette_tables,
+        "selected_original_source_commands": selected_sources,
         "screen_totals": {
             tier: {
                 k: val for k, val in existing[tier].items()
@@ -143,6 +184,8 @@ def audit() -> dict:
         "capture_root_direct_reachable": len(reachable),
         "classifier_tables_in_capture_closure": len(in_closure),
         "best": candidates[:2], "capture_best": in_closure[:2],
+        "known_injected_fixture_palette": palette_tables,
+        "selected_original_source_commands": selected_sources,
         "screen": result["screen_totals"],
     }
     print("BLASTBACK007_STATIC " + json.dumps(summary, sort_keys=True), flush=True)
