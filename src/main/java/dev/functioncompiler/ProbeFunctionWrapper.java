@@ -20,6 +20,7 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
     private final CommandFunction<T> delegate;
     private final InstantiatedFunction<T> compiledInstantiation;
     private final InstantiatedFunction<T> countedPlainInstantiation;
+    private final InstantiatedFunction<T> timedPlainInstantiation;
     private final Map<List<String>, InstantiatedFunction<T>> parameterizedMacroCache =
             Collections.synchronizedMap(new LinkedHashMap<>(64, 0.75f, true) {
                 @Override
@@ -106,6 +107,13 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         } else {
             countedPlainInstantiation = null;
         }
+        if (!excluded && CompilerPositionedCpuProbe.enabledFor(delegate.id())
+                && delegate instanceof PlainTextFunction<?> plainTextFunction) {
+            timedPlainInstantiation = CompilerPositionedCpuProbe.instrument(
+                    (InstantiatedFunction<T>) plainTextFunction, delegate.id());
+        } else {
+            timedPlainInstantiation = null;
+        }
     }
 
     public CommandFunction<T> delegate() {
@@ -140,18 +148,24 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
             if (isEligibleMacro(instantiated)) {
                 CompilerAcceptanceAudit.record(delegate.id(), "macro_plaintext_eligible", "");
                 InstantiatedFunction<T> compiled = specializeMacro((PlainTextFunction<?>) instantiated);
-                InstantiatedFunction<T> counted =
-                        CompilerExecutionCensus.instrument(compiled, delegate.id());
+                InstantiatedFunction<T> counted = CompilerExecutionCensus.instrument(
+                        CompilerPositionedCpuProbe.instrument(compiled, delegate.id()),
+                        delegate.id());
                 if (argValues != null) {
                     parameterizedMacroCache.put(argValues, counted);
                 }
                 return counted;
             }
             CompilerAcceptanceAudit.record(delegate.id(), "macro_not_eligible", "");
-            return CompilerExecutionCensus.instrument(instantiated, delegate.id());
+            return CompilerExecutionCensus.instrument(
+                    CompilerPositionedCpuProbe.instrument(instantiated, delegate.id()),
+                    delegate.id());
         }
         if (countedPlainInstantiation != null) {
             return countedPlainInstantiation;
+        }
+        if (timedPlainInstantiation != null) {
+            return timedPlainInstantiation;
         }
         return delegate.instantiate(arguments, dispatcher);
     }
