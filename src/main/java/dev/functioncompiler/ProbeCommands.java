@@ -72,6 +72,8 @@ final class ProbeCommands {
                         CompilerMacroLoadCpuProbe.start(context.getSource())))
                 .then(Commands.literal("macro006-stop").executes(context ->
                         CompilerMacroLoadCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("ir008").executes(context ->
+                        TypedScoreIR.report(context.getSource())))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
@@ -109,6 +111,8 @@ final class ProbeCommands {
                         CompilerMacroLoadCpuProbe.start(context.getSource())))
                 .then(Commands.literal("macro006-stop").executes(context ->
                         CompilerMacroLoadCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("ir008").executes(context ->
+                        TypedScoreIR.report(context.getSource())))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
