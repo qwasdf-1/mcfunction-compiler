@@ -64,6 +64,10 @@ final class ProbeCommands {
                         CompilerPositionedCpuProbe.start(context.getSource())))
                 .then(Commands.literal("cpu004-stop").executes(context ->
                         CompilerPositionedCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu005-start").executes(context ->
+                        CompilerQueueCpuProbe.start(context.getSource())))
+                .then(Commands.literal("cpu005-stop").executes(context ->
+                        CompilerQueueCpuProbe.stop(context.getSource())))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
@@ -93,6 +97,10 @@ final class ProbeCommands {
                         CompilerPositionedCpuProbe.start(context.getSource())))
                 .then(Commands.literal("cpu004-stop").executes(context ->
                         CompilerPositionedCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu005-start").executes(context ->
+                        CompilerQueueCpuProbe.start(context.getSource())))
+                .then(Commands.literal("cpu005-stop").executes(context ->
+                        CompilerQueueCpuProbe.stop(context.getSource())))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
