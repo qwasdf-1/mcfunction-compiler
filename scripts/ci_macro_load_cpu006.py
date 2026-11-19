@@ -2,7 +2,7 @@
 """COMPILER-MACRO-006: bounded independent JVM CPU-clock attribution (no optimizer).
 
 Three fresh Fabric/Minecraft 26.3 Java 25 native Vein Miner boots.
-All use the shipped selective-macro fast path with all other lowering OFF; the only
+All keep shipped selective macro-argument support, with exact-target diagnostic macro wrapper; the only
 between-arm change is sparse clock recording of vm:queue/load_next.
 """
 from __future__ import annotations
