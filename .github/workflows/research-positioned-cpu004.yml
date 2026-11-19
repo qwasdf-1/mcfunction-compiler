@@ -1,18 +1,6 @@
 name: Positioned-function call CPU attribution (COMPILER-CPU-004)
 
 on:
-  pull_request:
-    paths:
-      - 'src/main/java/dev/functioncompiler/CompilerPositionedCpuProbe.java'
-      - 'src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java'
-      - 'src/main/java/dev/functioncompiler/mixin/CallFunctionMixin.java'
-      - 'src/main/java/dev/functioncompiler/mixin/FunctionBuilderMixin.java'
-      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
-      - 'scripts/run_veinminer_profile.py'
-      - 'scripts/ci_positioned_cpu004.py'
-      - 'scripts/analyze_positioned_cpu004.py'
-      - 'tests/test_positioned_cpu004.py'
-      - '.github/workflows/research-positioned-cpu004.yml'
   workflow_dispatch:
 
 permissions:
