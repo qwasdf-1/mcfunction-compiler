@@ -44,13 +44,15 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         boolean excluded = delegate.id() != null
                 && ProbeConfiguration.isNamespaceExcluded(delegate.id().getNamespace());
         boolean fuseThisFunction = !excluded && ProbeConfiguration.fusedRegionForFunction(delegate.id());
+        boolean typedIrThisFunction = !excluded && TypedScoreIR.enabledFor(delegate.id());
         boolean directThisFunction = !excluded
                 && ProbeConfiguration.directSchedulerForFunction(delegate.id());
         if (!excluded && (ProbeConfiguration.scoreAddPrototypeEnabled()
                 || ProbeConfiguration.scoreAddTimingEnabled()
                 || ProbeConfiguration.fusedRegionPrototypeEnabled()
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled()
-                || directThisFunction)) {
+                || directThisFunction
+                || typedIrThisFunction)) {
             if (Boolean.parseBoolean(System.getenv("FC_BENCH_COMPILE_TIMING"))) {
                 long started = System.nanoTime();
                 try {
@@ -62,13 +64,15 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
                 ScoreAddPrototype.compile(delegate);
             }
         }
-        if (!excluded && (fuseThisFunction || directThisFunction
+        if (!excluded && (fuseThisFunction || directThisFunction || typedIrThisFunction
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled())
                 && delegate instanceof PlainTextFunction<?> plainTextFunction) {
             PlainTextFunction<CommandSourceStack> typedFunction =
                     (PlainTextFunction<CommandSourceStack>) plainTextFunction;
             InstantiatedFunction<CommandSourceStack> compiled;
-            if (fuseThisFunction && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()
+            if (typedIrThisFunction) {
+                compiled = TypedScoreIR.compile(typedFunction);
+            } else if (fuseThisFunction && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()
                     && Boolean.parseBoolean(System.getenv("FC_BENCH_COMPILE_TIMING"))) {
                 long started = System.nanoTime();
                 try {
@@ -265,6 +269,7 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
             return true;
         }
         return DirectSchedulerPrototype.retainsOriginal(compiledInstantiation, original)
+                || TypedScoreIR.retainsOriginal(compiledInstantiation, original)
                 || FusedRegionPrototype.retainsOriginal(
                 (InstantiatedFunction<CommandSourceStack>) (Object) compiledInstantiation,
                 (InstantiatedFunction<CommandSourceStack>) (Object) original
