@@ -40,7 +40,8 @@ abstract class FunctionBuilderMixin {
                 || ProbeConfiguration.commandCallbackMetricsEnabled()
                 || CompilerAcceptanceAudit.enabledFor(id)
                 || CompilerExecutionCensus.enabledFor(id)
-                || CompilerPositionedCpuProbe.enabledFor(id));
+                || CompilerPositionedCpuProbe.enabledFor(id)
+                || CompilerQueueCpuProbe.enabledFor(id));
         if (built instanceof PlainTextFunction<?> || compileMacroExpansion) {
             // "Covered" is counted where the specialization actually happens
             // (ProbeMetrics.scoreAddCompiled), not here: a wrapped function in an
