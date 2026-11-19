@@ -1,20 +1,6 @@
 name: Queue macro predicate and append CPU (COMPILER-CPU-005)
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/research-queue-cpu005.yml'
-      - 'src/main/java/dev/functioncompiler/CompilerQueueCpuProbe.java'
-      - 'src/main/java/dev/functioncompiler/mixin/CompilerQueueBuildCpuMixin.java'
-      - 'src/main/java/dev/functioncompiler/mixin/CompilerQueueExecuteCpuMixin.java'
-      - 'src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java'
-      - 'src/main/java/dev/functioncompiler/mixin/FunctionBuilderMixin.java'
-      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
-      - 'src/main/resources/function_compiler.mixins.json'
-      - 'scripts/ci_queue_cpu005.py'
-      - 'scripts/analyze_queue_cpu005.py'
-      - 'tests/test_queue_cpu005.py'
-      - 'scripts/run_veinminer_profile.py'
   workflow_dispatch:
 
 permissions:
