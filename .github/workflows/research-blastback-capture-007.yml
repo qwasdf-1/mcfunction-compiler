@@ -40,24 +40,12 @@ jobs:
               "id":manifest.get("id"), "version_number":manifest.get("version_number"),
               "files":[{"filename":f.get("filename"),"sha256":f.get("hashes",{}).get("sha256")}
                        for f in manifest.get("files",[])]},sort_keys=True))
-          matches=[f for f in manifest["files"] if f.get("hashes",{}).get("sha256")==pin]
+          # This Modrinth version omits file SHA metadata. Select its
+          # exact publisher filename, then verify the downloaded *bytes*.
+          matches=[f for f in manifest.get("files",[])
+                   if f.get("filename")=="Blastback-Hotfix-3-26.3.zip"]
           if len(matches)!=1:
-              req=urllib.request.Request("https://api.modrinth.com/v2/project/blastback/version",
-                  headers={"User-Agent":"MCFC-COMPILER-BLASTBACK-007/1.0"})
-              with urllib.request.urlopen(req,timeout=40) as response: versions=json.load(response)
-              matching_versions=[{
-                  "id":v.get("id"),"number":v.get("version_number"),
-                  "files":[f.get("filename") for f in v.get("files",[])
-                           if f.get("hashes",{}).get("sha256")==pin]}
-                  for v in versions
-                  if any(f.get("hashes",{}).get("sha256")==pin for f in v.get("files",[]))]
-              print("BLASTBACK007_PIN_SEARCH", json.dumps(matching_versions,sort_keys=True))
-              if len(matching_versions)!=1:
-                  raise SystemExit("Exact old publisher SHA absent from referenced Modrinth release and project versions; no substitute accepted")
-              req=urllib.request.Request("https://api.modrinth.com/v2/version/"+matching_versions[0]["id"],
-                  headers={"User-Agent":"MCFC-COMPILER-BLASTBACK-007/1.0"})
-              with urllib.request.urlopen(req,timeout=40) as response: manifest=json.load(response)
-              matches=[f for f in manifest["files"] if f.get("hashes",{}).get("sha256")==pin]
+              raise SystemExit("Expected original publisher filename not unique in pinned Modrinth version")
           req=urllib.request.Request(matches[0]["url"],
               headers={"User-Agent":"MCFC-COMPILER-BLASTBACK-007/1.0"})
           with urllib.request.urlopen(req,timeout=90) as r:
