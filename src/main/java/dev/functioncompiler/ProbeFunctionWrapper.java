@@ -21,6 +21,7 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
     private final InstantiatedFunction<T> compiledInstantiation;
     private final InstantiatedFunction<T> countedPlainInstantiation;
     private final InstantiatedFunction<T> timedPlainInstantiation;
+    private final InstantiatedFunction<T> queueCpuPlainInstantiation;
     private final Map<List<String>, InstantiatedFunction<T>> parameterizedMacroCache =
             Collections.synchronizedMap(new LinkedHashMap<>(64, 0.75f, true) {
                 @Override
