@@ -121,6 +121,35 @@ final class ScoreAddCommand implements FusableCommand {
         this.useLegacyFlagLookups = ProbeConfiguration.legacyScoreAddLookupForFunction(functionId);
     }
 
+    // IR-008 only accepts an exact parsed, unmodified literal fake-holder
+    // command. The regex is a *source-shape guard*, not the command parser:
+    // holder, amount, objective and operation are taken from the existing
+    // vanilla-Brigadier-validated typed ScoreAddCommand instance.
+    private static final java.util.regex.Pattern IR_LITERAL_SOURCE =
+            java.util.regex.Pattern.compile(
+                    "^scoreboard players (add|set|remove) (#[A-Za-z0-9_.+\\-]+) "
+                            + "([A-Za-z0-9_.+\\-]+) (-?\\d+)$");
+
+    TypedScoreIR.Instruction toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
+        if (isSelfSelector || holder == null || objectiveName == null
+                || !holder.getScoreboardName().startsWith("#")) {
+            return null;
+        }
+        var matcher = IR_LITERAL_SOURCE.matcher(parsed.commandInput());
+        if (!matcher.matches()
+                || !matcher.group(1).equalsIgnoreCase(operation.name())
+                || !matcher.group(2).equals(holder.getScoreboardName())
+                || !matcher.group(3).equals(objectiveName)) {
+            return null;
+        }
+        try {
+            if (Integer.parseInt(matcher.group(4)) != amount) return null;
+        } catch (NumberFormatException invalid) {
+            return null;
+        }
+        return new TypedScoreIR.Instruction(parsed, holder, objectiveName, operation, amount);
+    }
+
     @Override
     public int run(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         boolean fixedFlags = usesFixedResearchFlags();
