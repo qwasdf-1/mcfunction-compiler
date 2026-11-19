@@ -79,7 +79,8 @@ public final class CompilerQueueCpuProbe {
 
     public static boolean enabledFor(Identifier id) {
         return CONFIGURED && id != null
-                && "vm:queue/append_here".equals(id.toString());
+                && ("vm:queue/append_here".equals(id.toString())
+                    || "vm:queue/enqueue_match".equals(id.toString()));
     }
 
     private static int buildKind(String input) {
@@ -168,7 +169,8 @@ public final class CompilerQueueCpuProbe {
     public static <T extends ExecutionCommandSource<T>> InstantiatedFunction<T> instrument(
             InstantiatedFunction<T> original, Identifier id
     ) {
-        if (!enabledFor(id) || original instanceof WrappedFunction<?>) return original;
+        if (!enabledFor(id) || !"vm:queue/append_here".equals(id.toString())
+                || original instanceof WrappedFunction<?>) return original;
         List<UnboundEntryAction<T>> entries = new ArrayList<>(original.entries());
         for (UnboundEntryAction<T> entry : entries) {
             if (!(entry instanceof BuildContexts.Unbound<?> contexts)) continue;
