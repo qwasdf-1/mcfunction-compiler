@@ -1,10 +1,6 @@
 name: Blastback capture source and classifier preflight (COMPILER-BLASTBACK-007)
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/research-blastback-capture-007.yml'
-      - 'scripts/audit_blastback_capture007.py'
   workflow_dispatch:
 
 permissions:
