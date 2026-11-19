@@ -143,6 +143,13 @@ final class TypedScoreIR {
         return true;
     }
 
+    static boolean retainsOriginal(
+            InstantiatedFunction<?> compiled,
+            InstantiatedFunction<?> original
+    ) {
+        return compiled instanceof CompiledFunction typed && typed.original() == original;
+    }
+
     static void executed() {
         if (DIAGNOSTICS) EXECUTED_REGIONS.increment();
     }
