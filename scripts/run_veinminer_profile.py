@@ -416,6 +416,21 @@ def main() -> int:
     ):
         raise ValueError("CPU004 requires vm namespace, Fabric wrapper mode, --no-spark, "
                          "--capture-server-thread-cpu and no other callback/JFR metrics")
+    cpu005_mode = os.environ.get("FC_CPU005_MODE", "")
+    cpu005_enabled = cpu005_mode in ("plain", "empty", "timed")
+    if cpu005_mode and (
+        not cpu005_enabled
+        or os.environ.get("FC_CPU005_NAMESPACE") != "vm"
+        or args.stack == "vanilla"
+        or args.compiler_mode != "wrapper"
+        or args.count_command_callbacks
+        or args.capture_jfr_cpu
+        or not args.no_spark
+        or not args.capture_server_thread_cpu
+        or cpu004_enabled
+    ):
+        raise ValueError("CPU005 requires vm namespace, Fabric wrapper mode, --no-spark, "
+                         "--capture-server-thread-cpu and no other command/JFR metrics")
     exec_census_enabled = os.environ.get(
         "FC_COMPILER_EXEC_CENSUS", "").lower() in {"true", "1"}
     if exec_census_enabled and (
@@ -444,6 +459,10 @@ def main() -> int:
         if exec_census_enabled or acceptance_audit_enabled:
             raise ValueError("CPU004 and other compiler audits must run in separate JVMs")
         diagnostics.append("sparse CPU004 command-site timers (" + cpu004_mode + ")")
+    if cpu005_enabled:
+        if exec_census_enabled or acceptance_audit_enabled or callback_metrics_enabled:
+            raise ValueError("CPU005 must run without other command/callback audits")
+        diagnostics.append("sparse CPU005 queue macro predicate/NBT task clocks (" + cpu005_mode + ")")
     if callback_metrics_enabled:
         diagnostics.append("command callback counters")
     if selective_macro_metrics_enabled:
@@ -519,6 +538,9 @@ def main() -> int:
     cpu004_started = False
     cpu004_start_status = None
     cpu004_stop_status = None
+    cpu005_started = False
+    cpu005_start_status = None
+    cpu005_stop_status = None
 
     try:
         datapacks = work / "world/datapacks"
@@ -819,6 +841,11 @@ def main() -> int:
             pid, tid = event_thread
             event_cpu_before = read_thread_schedstat(pid, tid)
             event_throttle_before = cgroup_throttle_count()
+        if cpu005_enabled:
+            cpu005_start_status = rcon.command("function_compiler_probe cpu005-start")
+            if "FC_CPU005 started mode=" + cpu005_mode not in cpu005_start_status:
+                raise RuntimeError(f"CPU005 failed to start: {cpu005_start_status!r}")
+            cpu005_started = True
         if cpu004_enabled:
             cpu004_start_status = rcon.command("function_compiler_probe cpu004-start")
             if "FC_CPU004 started mode=" + cpu004_mode not in cpu004_start_status:
@@ -895,6 +922,11 @@ def main() -> int:
             jfr_started = False
             if not jfr_path.is_file() or jfr_path.stat().st_size == 0:
                 raise RuntimeError("JFR CPU sampler did not save a recording")
+        if cpu005_started:
+            cpu005_stop_status = rcon.command("function_compiler_probe cpu005-stop")
+            if "FC_CPU005 ended mode=" + cpu005_mode not in cpu005_stop_status:
+                raise RuntimeError(f"CPU005 failed to stop: {cpu005_stop_status!r}")
+            cpu005_started = False
         if cpu004_started:
             cpu004_stop_status = rcon.command("function_compiler_probe cpu004-stop")
             if "FC_CPU004 ended mode=" + cpu004_mode not in cpu004_stop_status:
@@ -1151,6 +1183,9 @@ def main() -> int:
             "compiler_acceptance_audit_enabled": acceptance_audit_enabled,
             "compiler_exec_census_enabled": exec_census_enabled,
             "cpu004_mode": cpu004_mode if cpu004_enabled else None,
+            "cpu005_mode": cpu005_mode if cpu005_enabled else None,
+            "cpu005_start_status": cpu005_start_status,
+            "cpu005_stop_status": cpu005_stop_status,
             "cpu004_start_status": cpu004_start_status,
             "cpu004_stop_status": cpu004_stop_status,
             "compiler_exec_census_namespace": (
@@ -1395,6 +1430,11 @@ def main() -> int:
                 stop_spark_shell(spark)
             except Exception:
                 spark.terminate()
+        if cpu005_started and rcon is not None:
+            try:
+                rcon.command("function_compiler_probe cpu005-stop")
+            except Exception:
+                pass
         if cpu004_started and rcon is not None:
             try:
                 rcon.command("function_compiler_probe cpu004-stop")
@@ -1426,6 +1466,15 @@ def main() -> int:
                     server.wait()
         if log_handle is not None:
             log_handle.close()
+        if cpu005_enabled and (work / "server.log").is_file():
+            cpu_rows = [
+                line for line in (work / "server.log").read_text(
+                    errors="replace").splitlines()
+                if "FC_CPU005_" in line
+            ]
+            (output / "cpu005.log").write_text(
+                "\n".join(cpu_rows) + "\n", encoding="utf-8"
+            )
         if cpu004_enabled and (work / "server.log").is_file():
             audit_rows = [
                 line for line in (work / "server.log").read_text(
