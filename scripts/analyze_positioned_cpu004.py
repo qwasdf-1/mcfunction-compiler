@@ -49,8 +49,6 @@ def parse_cpu004(path: Path, expected_mode: str) -> dict:
         raise ValueError("Pinned positioned-site invocation count changed")
     if rows["enqueue_call_setup"]["calls"] <= 0:
         raise ValueError("No child function setup callbacks observed")
-    if rows["enqueue_body_leaf"]["calls"] <= 0:
-        raise ValueError("No ordinary child function work callbacks observed")
     return {"mode": mode, "stride": stride, "rows": rows}
 
 
@@ -66,6 +64,14 @@ def diagnostic_projection(plain: dict, empty: dict, timed: dict,
         control, e, t = (data["rows"][kind] for data in (plain, empty, timed))
         if control["calls"] != e["calls"] or control["calls"] != t["calls"]:
             raise ValueError(f"Different dynamic call exposure for {kind}")
+        if kind == "enqueue_body_leaf" and t["calls"] == 0:
+            result[kind] = {
+                "calls": 0,
+                "measured": False,
+                "reason": "No ordinary Brigadier callbacks observed; custom/deferred body work remains unmeasured",
+                "can_be_claimed_avoidable": False,
+            }
+            continue
         if e["samples"] < 32 or t["samples"] < 32:
             raise ValueError(f"Too few valid clock pairs for {kind}")
         control_ns = e["clock_ns"] / e["samples"]
