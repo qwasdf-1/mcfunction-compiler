@@ -1,17 +1,6 @@
 name: Compiler dynamic command execution census (native diagnostic)
 
 on:
-  pull_request:
-    paths:
-      - 'src/main/java/dev/functioncompiler/CompilerExecutionCensus.java'
-      - 'src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java'
-      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
-      - 'src/main/java/dev/functioncompiler/mixin/FunctionBuilderMixin.java'
-      - 'scripts/analyze_compiler_execution.py'
-      - 'scripts/ci_compiler_execution.py'
-      - 'scripts/run_veinminer_profile.py'
-      - 'tests/test_compiler_execution.py'
-      - '.github/workflows/research-compiler-execution.yml'
   workflow_dispatch:
 
 permissions:
