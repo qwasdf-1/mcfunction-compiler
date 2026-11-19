@@ -1,0 +1,62 @@
+name: Blastback capture source and classifier preflight (COMPILER-BLASTBACK-007)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/research-blastback-capture-007.yml'
+      - 'scripts/audit_blastback_capture007.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  blastback-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Fetch exact Modrinth Blastback Hotfix 3 publisher archive (SHA-pinned)
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,urllib.request
+          from pathlib import Path
+          target=Path("references/real-world/candidates/Blastback-Hotfix-3-26.3.zip")
+          target.parent.mkdir(parents=True,exist_ok=True)
+          pin="8578ad9f277a8d8c1e5a1aba50b3f36f624f009a61beb33441d8c59494597b90"
+          req=urllib.request.Request("https://api.modrinth.com/v2/version/dMtA8r0n",
+              headers={"User-Agent":"MCFC-COMPILER-BLASTBACK-007/1.0"})
+          with urllib.request.urlopen(req,timeout=40) as r:
+              manifest=json.load(r)
+          matches=[f for f in manifest["files"] if f.get("hashes",{}).get("sha256")==pin]
+          if len(matches)!=1:
+              raise SystemExit("Exact original publisher file not uniquely present in Modrinth version")
+          req=urllib.request.Request(matches[0]["url"],
+              headers={"User-Agent":"MCFC-COMPILER-BLASTBACK-007/1.0"})
+          with urllib.request.urlopen(req,timeout=90) as r:
+              payload=r.read()
+          if hashlib.sha256(payload).hexdigest()!=pin:
+              raise SystemExit("Publisher ZIP hash mismatch")
+          target.write_bytes(payload)
+          print("BLASTBACK007_PUBLISHER_SHA", pin)
+          PY
+      - name: Read-only generated block state / capture call graph screen
+        run: |
+          python3 -m py_compile scripts/audit_blastback_capture007.py
+          python3 scripts/audit_blastback_capture007.py
+      - name: Preserve bounded source observations only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-blastback007-source
+          path: function-compiler/build/benchmarks/COMPILER-BLASTBACK-007/
+          if-no-files-found: warn
+          retention-days: 21
