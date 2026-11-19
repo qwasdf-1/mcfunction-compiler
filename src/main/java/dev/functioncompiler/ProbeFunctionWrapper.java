@@ -138,20 +138,43 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
             CompoundTag arguments,
             CommandDispatcher<T> dispatcher
     ) throws FunctionInstantiationException {
+        long macro006TotalStart = CompilerMacroLoadCpuProbe.begin(
+                delegate.id(), CompilerMacroLoadCpuProbe.TOTAL);
+        try {
         ProbeMetrics.wrapperInstantiated();
         if (compiledInstantiation != null) {
             return compiledInstantiation;
         }
         if (delegate instanceof MacroFunction<?> macro) {
-            List<String> argValues = MacroTemplateCompiler.extractArguments(macro, arguments);
+            List<String> argValues;
+            long macro006ExtractionStart = CompilerMacroLoadCpuProbe.begin(
+                    delegate.id(), CompilerMacroLoadCpuProbe.EXTRACTION);
+            try {
+                argValues = MacroTemplateCompiler.extractArguments(macro, arguments);
+            } finally {
+                CompilerMacroLoadCpuProbe.finish(
+                        CompilerMacroLoadCpuProbe.EXTRACTION, macro006ExtractionStart);
+            }
+            if (argValues == null) {
+                CompilerMacroLoadCpuProbe.missingExtraction(delegate.id());
+            }
             if (argValues != null) {
                 InstantiatedFunction<T> cached = parameterizedMacroCache.get(argValues);
                 if (cached != null) {
+                    CompilerMacroLoadCpuProbe.cacheHit(delegate.id());
                     CompilerAcceptanceAudit.record(delegate.id(), "macro_parameter_cache_hit", "");
                     return cached;
                 }
             }
-            InstantiatedFunction<T> instantiated = delegate.instantiate(arguments, dispatcher);
+            InstantiatedFunction<T> instantiated;
+            long macro006VanillaStart = CompilerMacroLoadCpuProbe.begin(
+                    delegate.id(), CompilerMacroLoadCpuProbe.VANILLA_INSTANTIATION);
+            try {
+                instantiated = delegate.instantiate(arguments, dispatcher);
+            } finally {
+                CompilerMacroLoadCpuProbe.finish(
+                        CompilerMacroLoadCpuProbe.VANILLA_INSTANTIATION, macro006VanillaStart);
+            }
             CompilerAcceptanceAudit.record(delegate.id(), "macro_new_expansion", "");
             if (isEligibleMacro(instantiated)) {
                 CompilerAcceptanceAudit.record(delegate.id(), "macro_plaintext_eligible", "");
@@ -183,6 +206,10 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
             return queueCpuPlainInstantiation;
         }
         return delegate.instantiate(arguments, dispatcher);
+        } finally {
+            CompilerMacroLoadCpuProbe.finish(
+                    CompilerMacroLoadCpuProbe.TOTAL, macro006TotalStart);
+        }
     }
 
     private boolean isEligibleMacro(InstantiatedFunction<T> instantiated) {
