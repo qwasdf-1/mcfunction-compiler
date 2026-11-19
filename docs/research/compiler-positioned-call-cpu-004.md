@@ -1,6 +1,6 @@
 # COMPILER-CPU-004 — positioned child-call cost screen
 
-**Status:** Preregistered diagnostic on `work/compiler-coverage`; native run must pass before any CPU claim. This follows the accepted [COMPILER-EXEC-003](compiler-dynamic-execution-003.md) and [COMPILER-ACCEPTANCE-002](compiler-runtime-acceptance-002.md) studies. **No new optimizer, no production-default change, no general scheduler Mixin.**
+**Status:** **Accepted descriptive native CPU-clock diagnostic (2026-11-18 EST / 2026-11-19 UTC)** on `work/compiler-coverage`. No causal optimization or complete child-body CPU claim. This follows the accepted [COMPILER-EXEC-003](compiler-dynamic-execution-003.md) and [COMPILER-ACCEPTANCE-002](compiler-runtime-acceptance-002.md) studies. **No new optimizer, no production-default change, no general scheduler Mixin.**
 
 ## Why this particular target
 
@@ -30,7 +30,7 @@ The existing `CallFunctionMixin` gains two opt-in HEAD/RETURN hooks for the name
 - Three **fresh, nonpaired JVM boots** in the fixed order **PLAIN → EMPTY → TIMED**. All use `--compiler-mode wrapper` (ScoreAdd/fusion/bytecode compiler off), `--no-spark`, no JFR and no other compiler counters, and `--capture-server-thread-cpu` for a separate whole-event Linux /proc schedstat denominator.
 - Each 150-second-capped event must finish 215 ore operations, exactly 1,952 queue-head advances, `vmr.run=0`, no remaining source/ore/markers and exact identical native state across arms. A stable 9-second pre-event idle tick gate, 45-second bounded pre-mining forceload RCON timeout, valid Server-thread CPU clock/host-quality gate and no after-mining retry apply to every arm.
 - All three modes count actual calls at their selected observation boundary. PLAIN **never reads the CPU clock**. EMPTY takes two adjacent `ThreadMXBean.getCurrentThreadCpuTime()` readings at every 16th call and then delegates. TIMED brackets the original action/method at exactly the same sampling ordinal.
-- The `positioned_entry` stream must have **exactly 5,616 calls** in every arm. `enqueue_call_setup` and `enqueue_body_leaf` must both be nonempty and have identical exposure counts across the three arms; the parser rejects changed execution totals rather than inventing rate corrections. For EMPTY/TIMED, require `floor(calls/16)` valid nonnegative CPU samples per stream, at least **32** samples per stream, and zero missing/negative samples. These are hard data-quality gates.
+- The `positioned_entry` stream must have **exactly 5,616 calls** in every arm. `enqueue_call_setup` must be nonempty and `enqueue_body_leaf` must be recorded explicitly, including zero, with identical exposure counts across arms; the parser rejects changed execution totals rather than inventing rate corrections. For EMPTY/TIMED, require `floor(calls/16)` valid nonnegative CPU samples per stream, at least **32** samples for each *active* timed stream (zero ordinary body-leaf callbacks are explicitly unmeasured), and zero missing/negative samples. These are hard data-quality gates.
 - Data saved at `build/benchmarks/COMPILER-CPU-004/results.json`, plus three individual `*-cpu004.log` dumps, all runner stdout and startup records, archived by the native workflow. Synthetic parser tests assert conservation, clock floor flags, invalid runs and sign-preserving control subtraction.
 
 For stream \(s\), report
@@ -48,6 +48,34 @@ P_s = \frac{\Delta_s \times \text{TIMED calls}_s}
 \]
 
 The empty clock correction is an attempt to screen out clock-read overhead, **not** a proven exact counterfactual on the same JVM. Clock-floor or negative corrections should be reported directly, never clamped into a positive speedup. An observed span containing necessary original work is at best an *inclusive cost sensitivity*, not all CPU the compiler could remove.
+
+## Accepted native result and source-backed interpretation
+
+The [original three-arm Actions run #44450681503](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44450681503) passed the Java 25/Fabric build, nine synthetic Python clock-contract tests, source ZIP hash, all **three** independent genuine Minecraft events, pre-event idle/host CPU gates, exact full native state parity, 215 completed ore operations and 1,952 queue-head increments. All streams reported zero negative clock intervals, and the two active stream sample counts were **351** each in EMPTY and TIMED. [Raw 14,762-byte artifact](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44450681503/artifacts/14495582424) includes `results.json`, all per-arm sparse-timing logs and runner logs; the Gradle dependency cache was excluded from the archive after a prior failed attempt accidentally included it.
+
+| Stream | Calls per arm | Empty mean | Timed mean | Signed corrected per call | Descriptive projection, TIMED Server CPU |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `positioned_entry` | 5,616 | 1,412.52 ns | 4,673.76 ns | **3,261.25 ns** | **18.315 ms; 0.14214%** |
+| `enqueue_call_setup` | 5,616 | 580.95 ns | 832.03 ns | **251.08 ns** | **1.410 ms; 0.01094%** |
+| `enqueue_body_leaf` | 0 observed | n/a | n/a | **Unmeasured** | **Not estimable** |
+
+Whole-event Linux Server-thread running CPU was **12.641 s PLAIN**, **13.192 s EMPTY**, and **12.885 s TIMED**. These are three **independent and nonpaired JVMs**. Differences between their whole-event CPU totals are not a treatment effect. The TIMED denominator (12,885,453,156 ns) is used only to place the sparse-clock projection in approximate context.
+
+The direct call-setup subtraction of ~0.251µs is **below the 0.581µs empty-clock measurement floor**. It is not a precise per-call CPU estimate or a hard upper bound. The positioned-entry subtraction is greater than its empty-clock pair mean, but its entire synchronous action includes necessary vanilla work and is not proven removable. **Do not add the percentages as a reliable disjoint total**, and neither is a measured CPU saving.
+
+### Why no leaf callbacks were observed in `enqueue_here`
+
+The original publisher ZIP was inspected by SHA-verified workflow before the three events. The actual file `data/vm/function/queue/enqueue_here.mcfunction` contains exactly one command:
+
+```mcfunction
+function vm:queue/enqueue_match with entity @s data
+```
+
+This is a **custom function executor**, not an ordinary Brigadier terminal callback. Hence zero `enqueue_body_leaf` observations are the correct boundary-specific outcome; **not** evidence that the child function does nothing. The actual block matching, queue checks and mutation are further downstream in `vm:queue/enqueue_match` and descendants. Those costs and the separate asynchronous `ExecuteCommand` execution/modifier phase are **outside the direct timer spans measured here**.
+
+### Decision
+
+This screen does **not** support prioritizing a compiler transformation that only removes synchronous parent entry setup or immediate `CallFunction` frame setup. Their measured inclusive spans are small relative to the 12.885 s native event, and some work is mandatory anyway. It does **not** eliminate the possibility of a useful *larger* lowering because `ExecuteCommand` modifier evaluation and `enqueue_match` work were not timed by this experiment. Any further experiment should first use the exact pinned `enqueue_match` source to define a narrowly attributable command-site or downstream macro/mutation CPU stream; do not revert to general scheduler replacement, or use the zero leaf-callback row as a body CPU estimate.
 
 ## Decision gate
 
