@@ -70,6 +70,18 @@ jobs:
               raise SystemExit("Pinned publisher SHA-256 changed")
           target.write_bytes(payload)
           print("Verified original Vein Miner SHA256",digest)
+          import zipfile
+          with zipfile.ZipFile(target) as archive:
+              names=[name for name in archive.namelist()
+                     if name.endswith("/queue/enqueue_here.mcfunction")
+                     or name.endswith("/queue/enqueue_faces.mcfunction")
+                     or name.endswith("/queue/enqueue_diagonals.mcfunction")]
+              print("CPU004 exact child/parent source paths:",names)
+              for name in sorted(names):
+                  body=archive.read(name).decode("utf-8")
+                  print("CPU004_SOURCE_BEGIN",name)
+                  print(body[:16000])
+                  print("CPU004_SOURCE_END",name)
           PY
       - name: Three independent native diagnostic arms
         run: python3 scripts/ci_positioned_cpu004.py
