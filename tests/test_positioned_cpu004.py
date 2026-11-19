@@ -49,7 +49,7 @@ class Cpu004Tests(unittest.TestCase):
 
     def test_changed_native_exposure_rejected(self):
         with self.assertRaisesRegex(ValueError, "invocation count changed"):
-            self.parse(raw().replace("calls=5616", "calls=5615"), "timed")
+            self.parse(raw("plain").replace("calls=5616", "calls=5615"), "plain")
 
     def test_control_subtraction_preserves_signed_correction(self):
         p = self.parse(raw("plain"), "plain")
