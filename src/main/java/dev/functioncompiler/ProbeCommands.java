@@ -68,6 +68,10 @@ final class ProbeCommands {
                         CompilerQueueCpuProbe.start(context.getSource())))
                 .then(Commands.literal("cpu005-stop").executes(context ->
                         CompilerQueueCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("macro006-start").executes(context ->
+                        CompilerMacroLoadCpuProbe.start(context.getSource())))
+                .then(Commands.literal("macro006-stop").executes(context ->
+                        CompilerMacroLoadCpuProbe.stop(context.getSource())))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
@@ -101,6 +105,10 @@ final class ProbeCommands {
                         CompilerQueueCpuProbe.start(context.getSource())))
                 .then(Commands.literal("cpu005-stop").executes(context ->
                         CompilerQueueCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("macro006-start").executes(context ->
+                        CompilerMacroLoadCpuProbe.start(context.getSource())))
+                .then(Commands.literal("macro006-stop").executes(context ->
+                        CompilerMacroLoadCpuProbe.stop(context.getSource())))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
