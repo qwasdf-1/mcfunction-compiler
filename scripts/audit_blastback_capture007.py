@@ -95,7 +95,7 @@ def audit() -> dict:
         raise ValueError("No exact generated block-state classifier pattern in pinned archive")
     root = "erb:capture/store"
     reachable = set()
-    remaining = deque((root, 0))
+    remaining = deque([(root, 0)])
     # Functional closure from the capture/store root, using source-only
     # direct function references. Tags and macros may be missed.
     while remaining and len(reachable) < 50000:
