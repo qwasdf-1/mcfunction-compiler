@@ -115,17 +115,47 @@ def snapshot(rcon: Rcon) -> dict:
             "result": score(rcon, "#result")}
 
 
-def server_cpu_ns(pid: int) -> int:
-    root = Path(f"/proc/{pid}/task")
-    threads = [child for child in root.iterdir()
-               if (child / "comm").read_text().strip() == "Server thread"]
-    if len(threads) != 1:
-        raise AssertionError(f"Expected one Minecraft Server thread, got {len(threads)}")
-    schedstat = (threads[0] / "schedstat").read_text().split()
-    if len(schedstat) < 1 or int(schedstat[0]) <= 0:
-        raise AssertionError("Linux running-CPU clock not available")
-    return int(schedstat[0])
+def find_server_thread(parent_pid: int) -> tuple[int, int]:
+    """Locate actual JVM under Gradle's shell/daemon/child process tree.
 
+    The spawned process is ./gradlew, NOT Minecraft's server JVM; calling
+    /proc/{gradlew_pid}/task will never find the Server thread.
+    """
+    visited = set()
+    pending = [parent_pid]
+    servers = []
+    while pending and len(visited) < 300:
+        pid = pending.pop()
+        if pid in visited:
+            continue
+        visited.add(pid)
+        tasks = Path(f"/proc/{pid}/task")
+        try:
+            members = list(tasks.iterdir())
+        except OSError:
+            continue
+        for task in members:
+            try:
+                if (task / "comm").read_text().strip() == "Server thread":
+                    servers.append((pid, int(task.name)))
+                children = (task / "children").read_text().strip().split()
+                pending.extend(int(child) for child in children)
+            except OSError:
+                continue
+    if len(servers) != 1:
+        raise AssertionError(
+            f"Expected exactly one descendant JVM Server thread under Gradle "
+            f"{parent_pid}, got {servers}; inspected {len(visited)} processes"
+        )
+    return servers[0]
+
+
+def server_cpu_ns(server_thread: tuple[int, int]) -> int:
+    pid, tid = server_thread
+    schedstat = Path(f"/proc/{pid}/task/{tid}/schedstat").read_text().split()
+    if not schedstat or int(schedstat[0]) <= 0:
+        raise AssertionError("Linux Server-thread running-CPU clock unavailable")
+    return int(schedstat[0])
 
 def options(mode: str) -> dict[str, str]:
     assert mode in MODES
@@ -259,12 +289,13 @@ def run(mode: str) -> dict:
             for _ in range(WARMUP_CALLS):
                 run_function(client, "bench64")
             client.command("scoreboard players set #bench fc_ir 0")
-            cpu_before = server_cpu_ns(process.pid)
+            server_thread = find_server_thread(process.pid)
+            cpu_before = server_cpu_ns(server_thread)
             elapsed_before = time.monotonic_ns()
             for _ in range(BENCH_CALLS):
                 run_function(client, "bench64")
             elapsed_ns = time.monotonic_ns() - elapsed_before
-            cpu_delta = server_cpu_ns(process.pid) - cpu_before
+            cpu_delta = server_cpu_ns(server_thread) - cpu_before
             count = score(client, "#bench")
             expected_count = BENCH_CALLS * BENCH_OPS
             if count != expected_count or cpu_delta <= 0:
