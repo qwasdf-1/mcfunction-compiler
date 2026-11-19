@@ -3,6 +3,7 @@ package dev.functioncompiler.mixin;
 import dev.functioncompiler.CompilerAcceptanceAudit;
 import dev.functioncompiler.CompilerExecutionCensus;
 import dev.functioncompiler.CompilerPositionedCpuProbe;
+import dev.functioncompiler.CompilerQueueCpuProbe;
 import dev.functioncompiler.ProbeConfiguration;
 import dev.functioncompiler.ProbeMetrics;
 import dev.functioncompiler.ProbeFunctionWrapper;
