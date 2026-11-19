@@ -1,10 +1,6 @@
 name: Queue descendant source audit (COMPILER-QUEUE-005)
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/research-queue-source-005.yml'
-      - 'scripts/inspect_queue_source005.py'
   workflow_dispatch:
 
 permissions:
