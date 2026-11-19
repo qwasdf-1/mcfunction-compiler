@@ -2,6 +2,7 @@ package dev.functioncompiler.mixin;
 
 import dev.functioncompiler.CompilerAcceptanceAudit;
 import dev.functioncompiler.CompilerExecutionCensus;
+import dev.functioncompiler.CompilerPositionedCpuProbe;
 import dev.functioncompiler.ProbeConfiguration;
 import dev.functioncompiler.ProbeMetrics;
 import dev.functioncompiler.ProbeFunctionWrapper;
@@ -37,7 +38,8 @@ abstract class FunctionBuilderMixin {
                 || ProbeConfiguration.scoreAddTimingEnabled()
                 || ProbeConfiguration.commandCallbackMetricsEnabled()
                 || CompilerAcceptanceAudit.enabledFor(id)
-                || CompilerExecutionCensus.enabledFor(id));
+                || CompilerExecutionCensus.enabledFor(id)
+                || CompilerPositionedCpuProbe.enabledFor(id));
         if (built instanceof PlainTextFunction<?> || compileMacroExpansion) {
             // "Covered" is counted where the specialization actually happens
             // (ProbeMetrics.scoreAddCompiled), not here: a wrapped function in an
