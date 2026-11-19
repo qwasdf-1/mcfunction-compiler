@@ -66,6 +66,7 @@ def verify_source() -> dict:
 
 def run_arm(mode: str) -> dict:
     prev = set(VEIN.glob("vein-*/results.json"))
+    previous_dirs = set(VEIN.glob("vein-*"))
     readiness = OUT / f"{mode}-startup-stage.json"
     env = dict(os.environ)
     env.pop("GRADLE_RO_DEP_CACHE", None)
@@ -98,8 +99,19 @@ def run_arm(mode: str) -> dict:
     (OUT / f"{mode}-stdout.log").write_text(process.stdout, encoding="utf-8")
     (OUT / f"{mode}-stderr.log").write_text(process.stderr, encoding="utf-8")
     if process.returncode:
+        # The native runner already preserves its original server.log tail
+        # as failure.log. Copy that evidence *before* rejecting the arm.
+        created_dirs = set(VEIN.glob("vein-*")) - previous_dirs
+        server_tail = ""
+        if len(created_dirs) == 1:
+            failure_file = next(iter(created_dirs)) / "failure.log"
+            if failure_file.is_file():
+                shutil.copy2(failure_file, OUT / f"{mode}-server-failure.log")
+                server_tail = failure_file.read_text(errors="replace")[-8500:]
         raise RuntimeError(
             f"{mode}: native Minecraft event failed exit={process.returncode}, "
+            f"stage={readiness.read_text(errors='replace')[-900:] if readiness.is_file() else 'missing'}, "
+            f"server_log_tail={server_tail!r}, "
             f"stderr_tail={process.stderr[-2000:]!r}")
     new = set(VEIN.glob("vein-*/results.json")) - prev
     if len(new) != 1:
