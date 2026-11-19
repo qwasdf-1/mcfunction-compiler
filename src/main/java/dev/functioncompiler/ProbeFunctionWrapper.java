@@ -115,6 +115,13 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         } else {
             timedPlainInstantiation = null;
         }
+        if (!excluded && CompilerQueueCpuProbe.enabledFor(delegate.id())
+                && delegate instanceof PlainTextFunction<?> plainTextFunction) {
+            queueCpuPlainInstantiation = CompilerQueueCpuProbe.instrument(
+                    (InstantiatedFunction<T>) plainTextFunction, delegate.id());
+        } else {
+            queueCpuPlainInstantiation = null;
+        }
     }
 
     public CommandFunction<T> delegate() {
@@ -150,7 +157,9 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
                 CompilerAcceptanceAudit.record(delegate.id(), "macro_plaintext_eligible", "");
                 InstantiatedFunction<T> compiled = specializeMacro((PlainTextFunction<?>) instantiated);
                 InstantiatedFunction<T> counted = CompilerExecutionCensus.instrument(
-                        CompilerPositionedCpuProbe.instrument(compiled, delegate.id()),
+                        CompilerPositionedCpuProbe.instrument(
+                                CompilerQueueCpuProbe.instrument(compiled, delegate.id()),
+                                delegate.id()),
                         delegate.id());
                 if (argValues != null) {
                     parameterizedMacroCache.put(argValues, counted);
@@ -159,7 +168,9 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
             }
             CompilerAcceptanceAudit.record(delegate.id(), "macro_not_eligible", "");
             return CompilerExecutionCensus.instrument(
-                    CompilerPositionedCpuProbe.instrument(instantiated, delegate.id()),
+                    CompilerPositionedCpuProbe.instrument(
+                            CompilerQueueCpuProbe.instrument(instantiated, delegate.id()),
+                            delegate.id()),
                     delegate.id());
         }
         if (countedPlainInstantiation != null) {
@@ -167,6 +178,9 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         }
         if (timedPlainInstantiation != null) {
             return timedPlainInstantiation;
+        }
+        if (queueCpuPlainInstantiation != null) {
+            return queueCpuPlainInstantiation;
         }
         return delegate.instantiate(arguments, dispatcher);
     }
