@@ -1,16 +1,6 @@
 name: Unique indexed macro instantiation CPU (COMPILER-MACRO-006)
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/research-macro-load-cpu006.yml'
-      - 'src/main/java/dev/functioncompiler/CompilerMacroLoadCpuProbe.java'
-      - 'src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java'
-      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
-      - 'scripts/run_veinminer_profile.py'
-      - 'scripts/ci_macro_load_cpu006.py'
-      - 'scripts/analyze_macro_load_cpu006.py'
-      - 'tests/test_macro_load_cpu006.py'
   workflow_dispatch:
 
 permissions:
