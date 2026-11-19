@@ -90,16 +90,24 @@ final class TypedScoreIRRuntime {
                 case REMOVE -> ScoreboardCommandAccessor.functionCompiler$getScoreRemoveResponse();
                 case SET -> ScoreboardCommandAccessor.functionCompiler$getScoreSetResponse();
             };
-            int result = response.sendFeedback(
-                    source, true, ElementType.ANY, message, objective, instruction.amount()
-            );
             TraceCallbacks tracer = context.tracer();
-            if (tracer != null) {
-                tracer.onReturn(frame.depth(), instruction.vanilla().commandInput(), result);
+            try {
+                int result = response.sendFeedback(
+                        source, true, ElementType.ANY, message, objective, instruction.amount()
+                );
+                if (tracer != null) {
+                    tracer.onReturn(frame.depth(), instruction.vanilla().commandInput(), result);
+                }
+            } catch (com.mojang.brigadier.exceptions.CommandSyntaxException error) {
+                // Same per-command continuation behavior as ExecuteCommand /
+                // FusedRegionPrototype.executeCommand. Earlier mutations
+                // cannot be rolled back, and later commands still run.
+                source.handleError(error, false, tracer);
+            } finally {
+                current = null;
+                objective = null;
+                access = null;
             }
-            current = null;
-            objective = null;
-            access = null;
         }
     }
 }
