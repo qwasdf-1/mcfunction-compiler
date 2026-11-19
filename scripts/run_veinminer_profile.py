@@ -437,14 +437,14 @@ def main() -> int:
         not macro006_enabled
         or os.environ.get("FC_MACRO006_NAMESPACE") != "vm"
         or args.stack == "vanilla"
-        or args.compiler_mode != "wrapper"
+        or args.compiler_mode != "selective-macro"
         or args.count_command_callbacks
         or args.capture_jfr_cpu
         or not args.no_spark
         or not args.capture_server_thread_cpu
         or cpu004_enabled or cpu005_enabled
     ):
-        raise ValueError("Macro006 needs Fabric wrapper, vm namespace, --no-spark, "
+        raise ValueError("Macro006 needs shipped selective-macro mode, vm namespace, --no-spark, "
                          "--capture-server-thread-cpu, and no other CPU diagnostics")
     exec_census_enabled = os.environ.get(
         "FC_COMPILER_EXEC_CENSUS", "").lower() in {"true", "1"}
