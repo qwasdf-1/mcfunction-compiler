@@ -402,6 +402,20 @@ def main() -> int:
     }
     capture_spark = not args.no_spark
     capture_jfr_cpu = args.capture_jfr_cpu
+    cpu004_mode = os.environ.get("FC_CPU004_MODE", "")
+    cpu004_enabled = cpu004_mode in ("plain", "empty", "timed")
+    if cpu004_mode and (
+        not cpu004_enabled
+        or os.environ.get("FC_CPU004_NAMESPACE") != "vm"
+        or args.stack == "vanilla"
+        or args.compiler_mode != "wrapper"
+        or args.count_command_callbacks
+        or args.capture_jfr_cpu
+        or not args.no_spark
+        or not args.capture_server_thread_cpu
+    ):
+        raise ValueError("CPU004 requires vm namespace, Fabric wrapper mode, --no-spark, "
+                         "--capture-server-thread-cpu and no other callback/JFR metrics")
     exec_census_enabled = os.environ.get(
         "FC_COMPILER_EXEC_CENSUS", "").lower() in {"true", "1"}
     if exec_census_enabled and (
@@ -426,6 +440,10 @@ def main() -> int:
         diagnostics.append("namespace-scoped compiler acceptance census")
     if exec_census_enabled:
         diagnostics.append("event-scoped selected command entry/callback counters")
+    if cpu004_enabled:
+        if exec_census_enabled or acceptance_audit_enabled:
+            raise ValueError("CPU004 and other compiler audits must run in separate JVMs")
+        diagnostics.append("sparse CPU004 command-site timers (" + cpu004_mode + ")")
     if callback_metrics_enabled:
         diagnostics.append("command callback counters")
     if selective_macro_metrics_enabled:
@@ -498,6 +516,9 @@ def main() -> int:
     exec_census_started = False
     exec_census_start_status = None
     exec_census_stop_status = None
+    cpu004_started = False
+    cpu004_start_status = None
+    cpu004_stop_status = None
 
     try:
         datapacks = work / "world/datapacks"
@@ -798,6 +819,11 @@ def main() -> int:
             pid, tid = event_thread
             event_cpu_before = read_thread_schedstat(pid, tid)
             event_throttle_before = cgroup_throttle_count()
+        if cpu004_enabled:
+            cpu004_start_status = rcon.command("function_compiler_probe cpu004-start")
+            if "FC_CPU004 started mode=" + cpu004_mode not in cpu004_start_status:
+                raise RuntimeError(f"CPU004 failed to start: {cpu004_start_status!r}")
+            cpu004_started = True
         if exec_census_enabled:
             exec_census_start_status = rcon.command(
                 "function_compiler_probe exec-census-start")
@@ -869,6 +895,11 @@ def main() -> int:
             jfr_started = False
             if not jfr_path.is_file() or jfr_path.stat().st_size == 0:
                 raise RuntimeError("JFR CPU sampler did not save a recording")
+        if cpu004_started:
+            cpu004_stop_status = rcon.command("function_compiler_probe cpu004-stop")
+            if "FC_CPU004 ended mode=" + cpu004_mode not in cpu004_stop_status:
+                raise RuntimeError(f"CPU004 failed to stop: {cpu004_stop_status!r}")
+            cpu004_started = False
         if exec_census_started:
             exec_census_stop_status = rcon.command(
                 "function_compiler_probe exec-census-stop")
@@ -1119,6 +1150,9 @@ def main() -> int:
             "command_callback_metrics_enabled": callback_metrics_enabled,
             "compiler_acceptance_audit_enabled": acceptance_audit_enabled,
             "compiler_exec_census_enabled": exec_census_enabled,
+            "cpu004_mode": cpu004_mode if cpu004_enabled else None,
+            "cpu004_start_status": cpu004_start_status,
+            "cpu004_stop_status": cpu004_stop_status,
             "compiler_exec_census_namespace": (
                 os.environ.get("FC_COMPILER_EXEC_CENSUS_NAMESPACE")
                 if exec_census_enabled else None
@@ -1361,6 +1395,11 @@ def main() -> int:
                 stop_spark_shell(spark)
             except Exception:
                 spark.terminate()
+        if cpu004_started and rcon is not None:
+            try:
+                rcon.command("function_compiler_probe cpu004-stop")
+            except Exception:
+                pass
         if exec_census_started and rcon is not None:
             # An incomplete event must not be interpreted as an accepted census.
             # Preserve a partial dump for forensic review only.
@@ -1387,6 +1426,15 @@ def main() -> int:
                     server.wait()
         if log_handle is not None:
             log_handle.close()
+        if cpu004_enabled and (work / "server.log").is_file():
+            audit_rows = [
+                line for line in (work / "server.log").read_text(
+                    errors="replace").splitlines()
+                if "FC_CPU004_" in line
+            ]
+            (output / "cpu004.log").write_text(
+                "\n".join(audit_rows) + "\n", encoding="utf-8"
+            )
         if exec_census_enabled and (work / "server.log").is_file():
             audit_rows = [
                 line for line in (work / "server.log").read_text(
