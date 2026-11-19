@@ -2,7 +2,7 @@
 """COMPILER-MACRO-006: bounded independent JVM CPU-clock attribution (no optimizer).
 
 Three fresh Fabric/Minecraft 26.3 Java 25 native Vein Miner boots.
-All include the existing wrapper with compiler lowering OFF; the only
+All use the shipped selective-macro fast path with all other lowering OFF; the only
 between-arm change is sparse clock recording of vm:queue/load_next.
 """
 from __future__ import annotations
@@ -78,7 +78,7 @@ def run_arm(mode: str) -> dict:
         env.pop(key, None)
     command = [
         sys.executable, str(ROOT / "scripts/run_veinminer_profile.py"),
-        "--stack", "fabric", "--compiler-mode", "wrapper",
+        "--stack", "fabric", "--compiler-mode", "selective-macro",
         "--side", "6", "--capture-timeout", "150",
         "--no-spark", "--capture-server-thread-cpu",
         "--tick-stability-diagnostics", "--pre-event-idle-seconds", "9",
@@ -105,7 +105,7 @@ def run_arm(mode: str) -> dict:
     native = json.loads(native_path.read_text(encoding="utf-8"))
     cpu = native.get("server_thread_event_cpu")
     if (
-        native.get("compiler_mode") != "wrapper"
+        native.get("compiler_mode") != "selective-macro"
         or native.get("macro006_mode") != mode
         or "FC_MACRO006 started mode=" + mode not in str(native.get("macro006_start_status"))
         or "FC_MACRO006 ended mode=" + mode not in str(native.get("macro006_stop_status"))
