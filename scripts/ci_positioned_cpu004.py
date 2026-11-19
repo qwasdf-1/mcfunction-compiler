@@ -38,7 +38,8 @@ def run_arm(mode: str) -> dict:
     ]
     env = dict(os.environ)
     env.pop("GRADLE_RO_DEP_CACHE", None)
-    env["GRADLE_USER_HOME"] = str(OUT / "gradle-user-home")
+    # Keep Gradle dependency caches out of the uploaded CPU004 research artifact.
+    env["GRADLE_USER_HOME"] = str(ROOT / "build/gradle-cache-cpu004")
     env["FC_CPU004_MODE"] = mode
     env["FC_CPU004_NAMESPACE"] = "vm"
     for key in ("FC_COMPILER_EXEC_CENSUS", "FC_COMPILER_ACCEPTANCE_AUDIT",
@@ -83,6 +84,8 @@ def run_arm(mode: str) -> dict:
            for key in ("compiler_exec_census_enabled", "compiler_acceptance_audit_enabled",
                        "command_callback_metrics_enabled", "jfr_cpu_capture_enabled")):
         raise AssertionError("Unexpected additional diagnostic mode")
+    raw_log = (path.parent / "cpu004.log").read_text(encoding="utf-8")
+    print("FC_CPU004_RAW mode=" + mode + "\n" + raw_log, flush=True)
     census = parse_cpu004(path.parent / "cpu004.log", mode)
     shutil.copy2(path.parent / "cpu004.log", OUT / f"{mode}-cpu004.log")
     record = {
