@@ -119,7 +119,7 @@ def audit() -> dict:
         "best_capture_reachable_classifiers": in_closure[:MAX_EXAMPLE_TABLES],
         "screen_totals": {
             tier: {
-                k: val for k, val in existing["tiers"][tier].items()
+                k: val for k, val in existing[tier].items()
                 if k in ("tick_runs", "max_tick_run", "total_runs", "functions_with_runs")
             }
             for tier in ("literal_score", "parsed_candidates", "leaf_functions")
