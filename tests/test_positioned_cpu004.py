@@ -69,6 +69,19 @@ class Cpu004Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "dynamic call exposure"):
             diagnostic_projection(p, e, t, 1_000_000)
 
+    def test_zero_body_callbacks_are_explicitly_unmeasured(self):
+        p = self.parse(raw("plain").replace(
+            "kind=enqueue_body_leaf calls=15616 samples=0 cpu_ns=0",
+            "kind=enqueue_body_leaf calls=0 samples=0 cpu_ns=0"), "plain")
+        e = self.parse(raw("empty").replace(
+            "kind=enqueue_body_leaf calls=15616 samples=976 cpu_ns=9760000",
+            "kind=enqueue_body_leaf calls=0 samples=0 cpu_ns=0"), "empty")
+        t = self.parse(raw("timed").replace(
+            "kind=enqueue_body_leaf calls=15616 samples=976 cpu_ns=9760000",
+            "kind=enqueue_body_leaf calls=0 samples=0 cpu_ns=0"), "timed")
+        out = diagnostic_projection(p, e, t, 1_000_000_000)
+        self.assertFalse(out["kind_projections"]["enqueue_body_leaf"]["measured"])
+
     def test_near_clock_floor_warning(self):
         p = self.parse(raw("plain"), "plain")
         e = self.parse(raw("empty", correction=1000), "empty")
