@@ -1,6 +1,6 @@
 # COMPILER-QUEUE/CPU-005 — source-verified macro predicates and append-state CPU
 
-**Status:** Source trace and dynamic census accepted; **five-stream CPU diagnostic preregistered and awaiting native validation**. Existing `work/compiler-coverage` / draft PR #10. Not a compiler optimization or a speedup study. New `BuildContexts` and `ExecuteCommand` hooks are **research-only Mixins; do not merge into production without separately proving disabled-hook overhead**.
+**Status:** **Accepted descriptive** pinned-source, real-gameplay CPU diagnostic (2026-11-18 EST / 2026-11-19 UTC). **Not** a causal optimization or speedup study. Existing `work/compiler-coverage` / draft PR #10. Not a compiler optimization or a speedup study. New `BuildContexts` and `ExecuteCommand` hooks are **research-only Mixins; do not merge into production without separately proving disabled-hook overhead**.
 
 ## Source and dynamic exposure (independently verified)
 
@@ -32,6 +32,30 @@ An independent, pinned [dynamic native run #44454058436](https://github.com/qwas
 | `vm:queue/append_here` | **9,700** (5 × 1,940) | **9,700** |
 
 **1,940 of the 5,616** macro predicate entries led to the five-step append body. The original [compiler-acceptance archive](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44379699409) recorded **one** newly instantiated `enqueue_match` macro and **5,615** parameter-cache hits. Repeated macro *reparsing* is not the plausible bottleneck here; repeated predicate evaluation and actual entity NBT update are the open CPU questions. Source counts and callback-entry counts do not establish success/result parity or removable work.
+
+## Accepted CPU result — November 18, 2026 EST
+
+The [three-arm original native workflow #44455179984](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44455179984) **passed** the Java/Fabric build, eight synthetic sample/overlap tests, official publisher ZIP pin, all five source text uniqueness gates, all three independent genuine 6×6×6 survival-player events, event-window start/stop controls, Linux Server-thread clock identity/quality and idle stability gates, and **exact 215 ore / 1,952 queue-head / no remaining ore, source or markers parity across all three boots**. No timed interval was invalid or dropped. The [original raw artifact #14497381820](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44455179984/artifacts/14497381820) contains the native JSON result, all five raw stream rows per arm, runner logs and pre-mining manifests; the Gradle dependency cache is outside the archive.
+
+| Native method stream | Calls / all arms | EMPTY mean (ns) | TIMED mean (ns) | Signed corrected per call | Projected timed-event Server CPU |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Macro predicate `BuildContexts.execute` | 5,616 | 1,205.11 | 3,503.02 | **2.298 µs** | **12.91 ms / 0.0963%** |
+| `tp @s ~ ~ ~` `ExecuteCommand.execute` | 1,940 | 1,125.01 | 20,333.76 | **19.209 µs** | **37.26 ms / 0.2781%** |
+| Frontier `data modify` `ExecuteCommand.execute` | 1,940 | 385.88 | 351,466.92 | **351.081 µs** | **681.10 ms / 5.0822%** |
+| Three coordinate-store `ExecuteCommand.execute` sites | 5,820 | 1,347.08 | 605,438.66 | **604.092 µs** | **3,515.81 ms / 26.2341%** |
+| Nested `data get` ordinary `Command.run` | 5,820 | 344.59 | 257,157.26 | **256.813 µs** | **1,494.65 ms / 11.1527%** |
+
+Actual active sample sizes: **351** for the predicate, **121** for teleport and frontier append each, **363** for coordinate stores and data-get callbacks each, independently in EMPTY and TIMED. Server-thread running CPU across the whole real event was **13.195 s PLAIN**, **13.011 s EMPTY**, **13.402 s TIMED**. Those different boot totals are **not** a treatment effect. The displayed percentages normalize the descriptive sparse-clock extrapolations to TIMED's 13,401,680,302 ns Server-thread CPU denominator.
+
+### Cost interpretation and stopping decision
+
+The **compiler-declined macro predicate is not a substantial synchronous CPU contributor** in this measured event: its inclusive `BuildContexts.execute` span projects to ~0.096% of Server-thread CPU, *before* allowing for necessary block checks and call scheduling. The separate previous CPU004 synchronous positioned-entry (~0.142%) and immediate `CallFunction` setup (~0.011%, below clock floor) were also small. Neither study measures every scheduling boundary, but their evidence does **not** support prioritizing a specialized positioned-child-call or macro predicate fast path merely to reduce compiler rejection counts.
+
+By contrast, **actual stateful data work dominates these measured paths**. The coordinate stores alone are ~26.23% inclusive in the TIMED projection, of which the observed ordinary `data get` leaf work is ~11.15% **nested within the same calls**. Do **not** add them to 37.39% or subtract them and label the difference *exclusive avoidable Brigadier dispatch*. The residual includes necessary stateful result-consumer updates, exception/feedback and other execution plumbing; differences between separate calibrated interval estimates are not a precise exclusive measurement. The frontier NBT append's ~5.08% is also real mutable state. Replacing these with a compiler optimization would require preserving the exact NBT contents, entity source position, failure/return/result/callback semantics, and observable scheduling; these operations are not removable bookkeeping.
+
+**Decision:** Do **not** implement a `vm:queue/enqueue_match` or `execute positioned … run function` compiler lowering on this evidence, and do not restart broad generic scheduler or NBT rewriting research. We have traced the original compiler rejection to a hot path, **but the measured CPU opportunity is predominantly meaningful Minecraft state manipulation, not demonstrated compiler-owned overhead**. The existing selective macro-argument optimization is already active and its `enqueue_match` parameter cache had one expansion plus 5,615 hits; do not duplicate it.
+
+All projections remain **one sampled JVM per arm**, with deterministic 1/16 selection, no randomized causal paired analysis or confidence interval, and possible time-varying NBT-size/sampling bias. These are descriptive workload-specific costs, **not** exact true CPU fractions, theoretical upper bounds, or observed speedups. No feature has been promoted. Two new research-only Mixins were installed for observation; their *disabled-hook overhead* is not independently certified, so this draft branch must not be merged wholesale into production.
 
 ## Frozen target-specific CPU method-clock screen
 
