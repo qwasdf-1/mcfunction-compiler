@@ -162,6 +162,12 @@ final class TypedScoreIR {
         if (DIAGNOSTICS) FALLBACK_STEPS.increment();
     }
 
+    static int report(net.minecraft.commands.CommandSourceStack source) {
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
+                diagnosticStatus()), false);
+        return 1;
+    }
+
     static String diagnosticStatus() {
         if (!ACTIVE) return "IR008 disabled";
         return "IR008 mode=" + MODE + " namespace=" + NAMESPACE
