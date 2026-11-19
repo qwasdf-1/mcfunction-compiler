@@ -1,6 +1,6 @@
 # COMPILER-MACRO-006 — unique-index macro instantiation CPU screen
 
-**Status:** Preregistered, **diagnostic only**. A new compiler-owned candidate on the existing `work/compiler-coverage` branch and draft PR #10, after the stopped positioned-call/queue predicate CPU004–005 hypotheses. No new Mixin or production optimizer was added. The study keeps the **shipped selective macro-argument fast path enabled**, but adds an exact-function, opt-in **diagnostic wrapper** for `load_next`. It is **not** an untouched-production performance measurement and is not an artificial synthetic workload.
+**Status:** **Accepted descriptive native CPU mechanism screen (2026-11-18 EST / 2026-11-19 UTC). Decision: STOP — under 5% inclusive CPU threshold.** A new compiler-owned candidate on the existing `work/compiler-coverage` branch and draft PR #10, after the stopped positioned-call/queue predicate CPU004–005 hypotheses. No new Mixin or production optimizer was added. The study keeps the **shipped selective macro-argument fast path enabled**, but adds an exact-function, opt-in **diagnostic wrapper** for `load_next`. It is **not** an untouched-production performance measurement and is not an artificial synthetic workload.
 
 ## Distinct source/evidence-based hypothesis
 
@@ -36,6 +36,37 @@ Three fresh independent JVMs, fixed order **PLAIN → EMPTY → TIMED**, Minecra
 Acceptance requires **1,952 calls in each of the three streams per arm**, **zero** parameter-cache hits/failed macro-argument extraction, exactly **244** valid CPU sample pairs per stream in both EMPTY and TIMED, no failed, negative or omitted intervals, positive CPU denominator and exact source/world-state parity. All raw streams, runner stdout/stderr and pre-mining stage records are archived; invalid or partial events are not interpreted as results.
 
 For each stream, compute **signed corrected per-call CPU** = TIMED mean − EMPTY mean. Multiply by the stream's observed call count and divide by TIMED Server-thread CPU for a **descriptive, inclusive** event share. Report negative and below-clock-floor estimates honestly; do not add overlapping stream fractions or claim a causal speedup across three different boots. Fixed 1/8 systematic sampling can be biased by the order/size of the queue index; this study offers no confidence interval or precise exclusive parse-cost estimate.
+
+## Accepted native result and final decision
+
+The **accepted** [three-arm real-gameplay Actions run #44460775536](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44460775536) passed Java 25/Fabric build, all eleven strict Python parser/clock tests, the original pinned publisher archive and two-line source contract, exact 215 ore / 1,952 queue-head native world-state parity, both idle and CPU/host-quality gates, and the event-scoped counter/clock conservation checks. Every stream counted **1,952** calls in each boot, **zero** parameter-cache hits or missing arguments, **244/244** valid sparse-clock samples in each EMPTY/TIMED stream, and **zero** invalid clock intervals. No event was restarted after mining began.
+
+The SHA-pinned publisher file `data/vm/function/queue/load_next.mcfunction` contains exactly these two macro lines, in original source order:
+
+```mcfunction
+$execute unless data entity @s data.frontier[$(head)] run return run function vm:operation/complete
+$data modify entity @s data.cursor set from entity @s data.frontier[$(head)]
+```
+
+| Observed CPU span | EMPTY clock mean | TIMED span mean | Corrected CPU / call | Descriptive whole-event Server CPU |
+| --- | ---: | ---: | ---: | ---: |
+| Full diagnostic `ProbeFunctionWrapper.instantiate` | 1,455.70 ns | 28,137.93 ns | **26.682 µs** | **52.08 ms / 0.5684%** |
+| Original `delegate.instantiate` | 334.41 ns | 18,929.92 ns | **18.596 µs** | **36.30 ms / 0.3961%** |
+| Diagnostic wrapper `MacroTemplateCompiler.extractArguments` | 317.82 ns | 2,176.36 ns | **1.859 µs** | **3.63 ms / 0.0396%** |
+
+Linux Server-thread event running CPU: **8.7798 s PLAIN**, **8.6094 s EMPTY**, **9.1633 s TIMED**. These three independent server boots must **not** be compared as an A/B speedup. The descriptive fractions use the TIMED Server-thread CPU denominator of 9,163,306,398 ns. All three per-call corrections exceeded their respective empty-clock pair means, but the entire body is **not** removable compiler overhead. The first stream includes both later streams (and added wrapper/cache lookup); **do not add percentages**. The final raw [15,409-byte Actions artifact #14500451054](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44460775536/artifacts/14500451054) includes per-arm raw CPU dumps, native result JSON, runner logs and source verification.
+
+**Precommitted decision gate met: STOP.** The most expansive inclusive span, including *added diagnostic wrapper work*, covers only **0.568%** of observed event CPU—far below the **5%** screen and the downstream **15%** optimization-promotion threshold. More importantly, the actual original vanilla macro-instantiation interval represents only ~**0.396%** of event CPU. There is no empirical rationale for introducing a parameterized Brigadier template or NBT-index parser optimization for this workload. No lowering, new production default, broad profiler or 30-boot causal campaign is justified.
+
+### Failed diagnostic attempts, explicitly not used as observations
+
+- An initial CI run failed **before native mining**, because the source checker assumed the two macro lines were ordered `data modify` then `return`; the actual pinned file has them reversed. The validator was corrected to recognize each original exact shape independent of line order.
+- A second run completed one native event but the macro timing counters stayed at **zero**. Root cause: the existing `FunctionBuilderMixin` did not wrap `load_next` in ordinary selective-macro mode. This was an **instrumentation coverage failure**, not zero macro parse cost. The fixed diagnostic enabled a wrapper **only** for the exact requested `vm:queue/load_next` function; it does not enable generic macro wrapping or alter production defaults.
+- A subsequent attempt failed at native Java startup **before RCON and before mining**. The runner was amended to preserve the original server failure log in future invalid attempts, rather than attributing a pre-mining startup issue to CPU measurements. **Only run #44460775536 is the accepted CPU dataset.**
+
+### What is actually supported
+
+The 1,952 uniquely indexed macro expansions were real, with full native state parity, but their synchronous instantiation cost is small. This is a workload-specific stop decision, **not** a proof that parameterized macro parsing is always cheap. The original `delegate.instantiate` is profiled under an opt-in diagnostic wrapper (needed to see the macro at all); the measurement is not a pure production callback clock nor a precise Brigadier parse-only cost. That potential overcount makes the small inclusive fraction a useful *screen*, not a formal upper bound. The earlier large ~29.4% active-time macro-argument-construction pool is already covered by the shipped selective-macro mechanism; this study concerns a different, much smaller **unique-index instantiation** subpath. To pursue another compiler-owned optimization, first find a **different real-workload path with separately measured and genuinely removable CPU exposure**. Do not broaden parsing or stateful NBT rewriting solely to improve compiler-acceptance counts.
 
 ## Precommitted decision
 
