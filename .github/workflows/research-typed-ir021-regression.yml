@@ -10,6 +10,7 @@ on:
       - 'src/main/java/dev/functioncompiler/mixin/CompilerForkEntitySelectorMixin.java'
       - 'src/main/java/dev/functioncompiler/mixin/CompilerForkSourceMixin.java'
       - 'src/main/java/dev/functioncompiler/mixin/CompilerForkContinuationMixin.java'
+      - 'tests/test_typed_ir021_cpu.py'
   workflow_dispatch:
 
 permissions:
