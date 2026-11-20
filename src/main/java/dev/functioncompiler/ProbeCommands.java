@@ -91,6 +91,15 @@ final class ProbeCommands {
                                     context.getSource(), false))));
         }
 
+        // IR-018: entity-bound @s invocation via native execute-as source.
+        // Guarded fixture namespace/name only; unavailable in production.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SELF_TEST_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir018_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")))));
+        }
         // IR-017: bounded original-function native range-guard fixture,
         // separate from any public function invocation or production API.
         if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_RANGE_TEST_HARNESS"))) {
@@ -303,8 +312,12 @@ final class ProbeCommands {
                 && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_RANGE_TEST_HARNESS"))
                 && id.getNamespace().equals("fc_ir")
                 && id.getPath().matches("ir017_[a-z0-9_]+");
+        boolean selfFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SELF_TEST_HARNESS"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir018_[a-z0-9_]+");
         if (!previousArchFixture && !typedIrFixture && !reentrantFixture
-                && !mixedFixture && !rangeFixture) {
+                && !mixedFixture && !rangeFixture && !selfFixture) {
             source.sendFailure(Component.literal("FC_ARCH invalid or disallowed function " + name));
             return 0;
         }
