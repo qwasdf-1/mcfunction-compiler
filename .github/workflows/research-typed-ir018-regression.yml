@@ -5,6 +5,7 @@ on:
     branches: [work/compiler-coverage]
     paths:
       - '.github/workflows/research-typed-ir018-regression.yml'
+      - 'tests/test_typed_ir016.py'
   workflow_dispatch:
 
 permissions:
