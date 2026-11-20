@@ -5,6 +5,7 @@ import dev.functioncompiler.DirectSchedulerPrototype;
 import dev.functioncompiler.TypedScoreIRDirectScheduler;
 import dev.functioncompiler.TypedScoreIR;
 import dev.functioncompiler.CompilerPositionedCpuProbe;
+import dev.functioncompiler.CompilerExecutionCensus;
 import net.minecraft.commands.CommandResultCallback;
 import net.minecraft.commands.execution.ExecutionContext;
 import net.minecraft.commands.execution.Frame;
@@ -28,6 +29,19 @@ abstract class CallFunctionMixin<T extends ExecutionCommandSource<T>> {
     @Shadow @Final private CommandResultCallback resultCallback;
     @Shadow @Final private boolean returnParentFrame;
     @Unique private long functionCompiler$cpu004CallStart = -1L;
+
+    /**
+     * IR-019: passive, event-window-only count of ORIGINAL native CallFunction
+     * task entries. The all-bytecode direct scheduler remains disabled in the
+     * census pilot; this is never a claim about successful child completion,
+     * site-level guard passing or queue work avoided.
+     */
+    @Inject(method = "execute", at = @At("HEAD"))
+    private void functionCompiler$ir019NativeCallee(
+            T source, ExecutionContext<T> context, Frame frame, CallbackInfo ci
+    ) {
+        CompilerExecutionCensus.recordNativeCall(function.id());
+    }
 
     /** Opt-in only; times immediate CallFunction.execute work, never the queued child body. */
     @Inject(method = "execute", at = @At("HEAD"))
