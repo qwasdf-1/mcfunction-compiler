@@ -176,30 +176,61 @@ final class TypedScoreIRRuntime {
 
         void finish(int newScore) {
             TypedScoreIR.Instruction instruction = current;
-            CommandResponseTracker<net.minecraft.world.scores.ScoreHolder> response =
-                    CommandResponseTracker.create();
-            response.track(instruction.holder(), newScore);
             TraceCallbacks tracer = context.tracer();
             try {
                 int result;
-                if (instruction instanceof TypedScoreIR.Binary) {
-                    result = response.sendFeedback(
-                            source, true, ElementType.ANY,
-                            ScoreboardCommandAccessor.functionCompiler$getScoreOperationResponse(),
-                            objective
-                    );
+                if (TypedScoreIR.singletonFeedbackEnabled()) {
+                    // Vanilla CommandResponseTracker gets exactly ONE tracked
+                    // holder and ElementType.ANY: elementCount=1 even when
+                    // newScore is zero. Its throwIfZero(1) is a no-op; its
+                    // totalValue is newScore and dispatch selects onSingle.
+                    // Preserve sendSuccess/broadcast, deferred message
+                    // formatting and subsequent trace callback verbatim.
+                    var holder = instruction.holder();
+                    var resolvedObjective = objective;
+                    if (instruction instanceof TypedScoreIR.Binary) {
+                        var message = ScoreboardCommandAccessor
+                                .functionCompiler$getScoreOperationResponse();
+                        source.sendSuccess(() -> message.onSuccess().onSingle()
+                                .create(holder, newScore, resolvedObjective), true);
+                    } else {
+                        TypedScoreIR.Mutation mutation =
+                                instruction instanceof TypedScoreIR.Conditional guard
+                                        ? guard.mutation() : (TypedScoreIR.Mutation) instruction;
+                        var message = switch (mutation.operation()) {
+                            case ADD -> ScoreboardCommandAccessor.functionCompiler$getScoreAddResponse();
+                            case REMOVE -> ScoreboardCommandAccessor.functionCompiler$getScoreRemoveResponse();
+                            case SET -> ScoreboardCommandAccessor.functionCompiler$getScoreSetResponse();
+                        };
+                        source.sendSuccess(() -> message.onSuccess().onSingle()
+                                .create(holder, newScore, resolvedObjective, mutation.amount()), true);
+                    }
+                    result = newScore;
+                    TypedScoreIR.singletonFeedbackUsed();
                 } else {
-                    TypedScoreIR.Mutation mutation =
-                            instruction instanceof TypedScoreIR.Conditional guard
-                                    ? guard.mutation() : (TypedScoreIR.Mutation) instruction;
-                    var message = switch (mutation.operation()) {
-                        case ADD -> ScoreboardCommandAccessor.functionCompiler$getScoreAddResponse();
-                        case REMOVE -> ScoreboardCommandAccessor.functionCompiler$getScoreRemoveResponse();
-                        case SET -> ScoreboardCommandAccessor.functionCompiler$getScoreSetResponse();
-                    };
-                    result = response.sendFeedback(
-                            source, true, ElementType.ANY, message, objective, mutation.amount()
-                    );
+                    CommandResponseTracker<net.minecraft.world.scores.ScoreHolder> response =
+                            CommandResponseTracker.create();
+                    response.track(instruction.holder(), newScore);
+                    if (instruction instanceof TypedScoreIR.Binary) {
+                        result = response.sendFeedback(
+                                source, true, ElementType.ANY,
+                                ScoreboardCommandAccessor.functionCompiler$getScoreOperationResponse(),
+                                objective
+                        );
+                    } else {
+                        TypedScoreIR.Mutation mutation =
+                                instruction instanceof TypedScoreIR.Conditional guard
+                                        ? guard.mutation() : (TypedScoreIR.Mutation) instruction;
+                        var message = switch (mutation.operation()) {
+                            case ADD -> ScoreboardCommandAccessor.functionCompiler$getScoreAddResponse();
+                            case REMOVE -> ScoreboardCommandAccessor.functionCompiler$getScoreRemoveResponse();
+                            case SET -> ScoreboardCommandAccessor.functionCompiler$getScoreSetResponse();
+                        };
+                        result = response.sendFeedback(
+                                source, true, ElementType.ANY, message, objective, mutation.amount()
+                        );
+                    }
+                    TypedScoreIR.trackerFeedbackUsed();
                 }
                 if (tracer != null) {
                     tracer.onReturn(frame.depth(), instruction.vanilla().commandInput(), result);
