@@ -161,9 +161,17 @@ final class TypedScoreIRBytecode implements Opcodes {
 
     private static void emitBinary(MethodVisitor method, TypedScoreIR.Binary binary) {
         method.visitVarInsn(ALOAD, 5);
-        method.visitMethodInsn(INVOKEVIRTUAL, STATE, "sourceAccess",
-                "()L" + SCORE + ";", false);
-        method.visitMethodInsn(INVOKEINTERFACE, SCORE, "get", "()I", true);
+        if (TypedScoreIR.scoreCacheEnabled()) {
+            // One guarded pure-value read from the same invocation's source
+            // cache. The binary arithmetic, target write and per-command
+            // quota/feedback remain native JVM operations.
+            method.visitMethodInsn(INVOKEVIRTUAL, STATE, "sourceOperand",
+                    "()I", false);
+        } else {
+            method.visitMethodInsn(INVOKEVIRTUAL, STATE, "sourceAccess",
+                    "()L" + SCORE + ";", false);
+            method.visitMethodInsn(INVOKEINTERFACE, SCORE, "get", "()I", true);
+        }
         method.visitVarInsn(ISTORE, 8);
 
         target(method);
