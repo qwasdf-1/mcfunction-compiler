@@ -74,7 +74,12 @@ final class ScoreConditionCommand implements FusableCommand {
             java.util.regex.Pattern.compile(
                     "^execute (if|unless) score (#[A-Za-z0-9_.+\\-]+) "
                             + "([A-Za-z0-9_.+\\-]+) matches (-?\\d+) "
-                            + "run (scoreboard players (?:add|set|remove) .+)$");
+                            + "run (scoreboard players (?:add|set|remove) "
+                            + "#[A-Za-z0-9_.+\\-]+ [A-Za-z0-9_.+\\-]+ -?\\d+)$");
+
+    static boolean typedIrLiteralGuardShape(String input) {
+        return input != null && IR_GUARD.matcher(input).matches();
+    }
 
     TypedScoreIR.Conditional toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
         if (isTargetSelf || targetHolder == null || range == null
