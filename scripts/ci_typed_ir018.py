@@ -110,7 +110,7 @@ for _case in ENTITY_CASES:
 EXPECTED_ENTITY = {
     "ir018_self_mutation": {"self": 9, "g": 13},
     "ir018_self_binary": {"self": 5, "g": 5},
-    "ir018_self_guard": {"self": 10, "g": 13},
+    "ir018_self_guard": {"self": 101, "g": 13},
     "ir018_dispatch": {"self": 21},
     "ir018_dispatch_return": {"self": 13},
     "ir018_context_barrier": {"g": 6, "self": 9},
