@@ -108,6 +108,16 @@ FUNCTIONS = {
         "execute if score #g fc_missing_guard matches 1 run scoreboard players add #x fc_ir 4",
         "scoreboard players add #x fc_ir 2",
     ],
+    "guard_range_vanilla": [
+        "scoreboard players set #x fc_ir 5",
+        "execute if score #x fc_ir matches 1..7 run scoreboard players add #y fc_ir 4",
+        "scoreboard players add #y fc_ir 1",
+    ],
+    "guard_missing_quota": [
+        "scoreboard players set #x fc_ir 1",
+        "execute if score #g fc_missing_quota matches 1 run scoreboard players add #x fc_ir 4",
+        "scoreboard players add #x fc_ir 2",
+    ],
     "binary_division_barrier": [
         "scoreboard players set #x fc_ir 20",
         "scoreboard players set #y fc_ir 3",
@@ -267,7 +277,8 @@ def run(mode: str) -> dict:
             client.command("gamerule minecraft:max_command_sequence_length 65536")
             for name in ("chain", "barrier", "conditional", "operation", "overflow",
                          "binary", "binary_self", "guarded", "guard_absent",
-                         "binary_division_barrier"):
+                         "binary_division_barrier", "guard_range_vanilla",
+                         "guard_missing_quota"):
                 reset(client)
                 client.command(f"scoreboard players set #y {OBJ} 2")
                 run_function(client, name)
@@ -288,6 +299,8 @@ def run(mode: str) -> dict:
                 "guarded": {"x": 6, "y": 7},
                 "guard_absent": {"x": 10, "y": 2},
                 "binary_division_barrier": {"x": 7, "y": 3},
+                "guard_range_vanilla": {"x": 5, "y": 7},
+                "guard_missing_quota": {"x": 3, "y": 2},
             }
             for case, expected in expected_ir009.items():
                 for key, value in expected.items():
@@ -343,6 +356,11 @@ def run(mode: str) -> dict:
                 run_function(client, "binary")
                 client.command("gamerule minecraft:max_command_sequence_length 65536")
                 report["cases"][f"binary_quota_{quota}"] = snapshot(client)
+                reset(client)
+                client.command(f"gamerule minecraft:max_command_sequence_length {quota}")
+                run_function(client, "guard_missing_quota")
+                client.command("gamerule minecraft:max_command_sequence_length 65536")
+                report["cases"][f"guard_missing_quota_{quota}"] = snapshot(client)
             # Status has diagnostic counters. They are not enabled in any
             # production default, and are deliberately NOT CPU evidence.
             report["compiler_status"] = client.command("functioncompiler ir008")
@@ -434,7 +452,7 @@ def validate(results: list[dict]) -> dict:
         if row["screen"]["expected_writes"] != results[0]["screen"]["expected_writes"]:
             raise AssertionError("IR-008 benchmark work mismatch")
     return {
-        "milestone": "COMPILER-IR-008",
+        "milestone": "COMPILER-IR-009",
         "status": "accepted",
         "native_parity": True,
         "original_path": "native Fabric",
@@ -444,8 +462,10 @@ def validate(results: list[dict]) -> dict:
         "causal_speedup_established": False,
         "compiler_production_promotion": False,
         "note": "One unpaired CPU interval per mode with diagnostic compilation enabled; "
-                "not a promotion test. Bytecode path emits ScoreAccess.add/set directly, "
-                "while condition and scoreboard-operation barriers remain vanilla.",
+                "not a promotion test. Bytecode path directly lowers supported "
+                "set/add/remove and binary =/+=/-=/*=, plus one literal guard "
+                "followed by a mutation; unsupported modifiers and division "
+                "remain vanilla. No cross-command score caching.",
     }
 
 
