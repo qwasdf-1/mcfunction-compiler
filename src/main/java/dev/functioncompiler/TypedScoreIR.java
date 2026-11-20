@@ -63,7 +63,7 @@ public final class TypedScoreIR {
     private static final LongAdder SINGLETON_FEEDBACK_STEPS = new LongAdder();
     private static final LongAdder TRACKER_FEEDBACK_STEPS = new LongAdder();
     private static final LongAdder REENTRANT_YIELDS = new LongAdder();
-    private static final LongAdder REENTRANT_VANILLA_STEPS = new LongAdder();
+    private static final LongAdder REENTRANT_QUEUED_STEPS = new LongAdder();
 
     private TypedScoreIR() {}
 
@@ -382,8 +382,8 @@ public final class TypedScoreIR {
         if (DIAGNOSTICS) REENTRANT_YIELDS.increment();
     }
 
-    static void reentrantVanillaStep() {
-        if (DIAGNOSTICS) REENTRANT_VANILLA_STEPS.increment();
+    static void reentrantQueuedStep() {
+        if (DIAGNOSTICS) REENTRANT_QUEUED_STEPS.increment();
     }
 
     static void cacheHit() { if (DIAGNOSTICS) CACHE_HITS.increment(); }
@@ -417,7 +417,7 @@ public final class TypedScoreIR {
                 + " singleton_feedback_steps=" + SINGLETON_FEEDBACK_STEPS.sum()
                 + " tracker_feedback_steps=" + TRACKER_FEEDBACK_STEPS.sum()
                 + " reentrant_yields=" + REENTRANT_YIELDS.sum()
-                + " reentrant_vanilla_steps=" + REENTRANT_VANILLA_STEPS.sum()
+                + " reentrant_queued_steps=" + REENTRANT_QUEUED_STEPS.sum()
                 + ReentrantQueueProbe.diagnostics()
                 + TypedScoreIRDirectScheduler.diagnostics();
     }
@@ -429,6 +429,50 @@ public final class TypedScoreIR {
     ) implements InstantiatedFunction<CommandSourceStack> {
         @Override
         public Identifier id() { return original.id(); }
+    }
+
+    /**
+     * Execute exactly one already-validated typed semantic step. Also used
+     * by IR-013's exceptional queue continuation: each step is then its own
+     * Minecraft EntryAction, allowing queued callback work to run between
+     * original source commands. Unlike a previously wrapped Brigadier
+     * callback, this does not recurse into ScoreConditionCommand.fallbackChain.
+     */
+    static int executeTypedStep(
+            Instruction instruction, TypedScoreIRRuntime.State state
+    ) {
+        int decision = state.begin(instruction);
+        if (decision != TypedScoreIRRuntime.DIRECT) return decision;
+        ScoreAccess score = state.access();
+        int updated;
+        if (instruction instanceof Binary binary) {
+            int operand = SCORE_CACHE
+                    ? state.sourceOperand() : state.sourceAccess().get();
+            updated = switch (binary.operation()) {
+                case ASSIGN -> { score.set(operand); yield operand; }
+                case ADD -> score.add(operand);
+                case SUBTRACT -> score.add(-operand);
+                case MULTIPLY -> {
+                    int value = score.get() * operand;
+                    score.set(value);
+                    yield value;
+                }
+            };
+        } else {
+            Mutation mutation = instruction instanceof Conditional condition
+                    ? condition.mutation()
+                    : (Mutation) instruction;
+            updated = switch (mutation.operation()) {
+                case ADD -> score.add(mutation.amount());
+                case REMOVE -> score.add(-mutation.amount());
+                case SET -> {
+                    score.set(mutation.amount());
+                    yield mutation.amount();
+                }
+            };
+        }
+        state.finish(updated);
+        return TypedScoreIRRuntime.DIRECT;
     }
 
     static final class Interpreted implements UnboundEntryAction<CommandSourceStack> {
@@ -448,39 +492,9 @@ public final class TypedScoreIR {
                             program.instructions().toArray(TypedScoreIR.Instruction[]::new));
             executed();
             for (Instruction instruction : program.instructions()) {
-                int decision = state.begin(instruction);
-                if (decision == TypedScoreIRRuntime.STOP) return;
-                if (decision != TypedScoreIRRuntime.DIRECT) continue;
-                ScoreAccess score = state.access();
-                int updated;
-                if (instruction instanceof Binary binary) {
-                    int operand = SCORE_CACHE
-                            ? state.sourceOperand() : state.sourceAccess().get();
-                    updated = switch (binary.operation()) {
-                        case ASSIGN -> { score.set(operand); yield operand; }
-                        case ADD -> score.add(operand);
-                        case SUBTRACT -> score.add(-operand);
-                        case MULTIPLY -> {
-                            int value = score.get() * operand;
-                            score.set(value);
-                            yield value;
-                        }
-                    };
-                } else {
-                    Mutation mutation = instruction instanceof Conditional condition
-                            ? condition.mutation()
-                            : (Mutation) instruction;
-                    updated = switch (mutation.operation()) {
-                        case ADD -> score.add(mutation.amount());
-                        case REMOVE -> score.add(-mutation.amount());
-                        case SET -> {
-                            score.set(mutation.amount());
-                            yield mutation.amount();
-                        }
-                    };
-                }
-                state.finish(updated);
+                if (executeTypedStep(instruction, state) == TypedScoreIRRuntime.STOP) return;
             }
         }
     }
+
 }
