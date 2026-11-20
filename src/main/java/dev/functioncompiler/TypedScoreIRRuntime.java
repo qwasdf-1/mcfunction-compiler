@@ -15,6 +15,7 @@ import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.ReadOnlyScoreInfo;
 import net.minecraft.world.scores.ScoreAccess;
 import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.ScoreHolder;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -86,6 +87,10 @@ final class TypedScoreIRRuntime {
         private ScoreAccess access;
         private ScoreAccess sourceAccess;
         private Objective sourceObjective;
+        // IR-018: no entity-derived holder can be cached at compilation time.
+        // Resolve @s against the actual execution source for each instruction.
+        private ScoreHolder targetResolved;
+        private ScoreHolder sourceResolved;
         private Map<ScoreValueRevisionAccess.Key, CachedSourceValue> cachedSources;
 
         // Immutable snapshot; only valid while the exact objective identity
@@ -135,6 +140,9 @@ final class TypedScoreIRRuntime {
             }
             nextIndex++;
             if (quota() <= 0) return STOP;
+            ScoreHolder target = instruction.holderSelf()
+                    ? source.getEntity() : instruction.holder();
+            if (target == null) return original(instruction);
             Objective selected = scoreboard.getObjective(instruction.objective());
             if (selected == null || selected.getCriteria().isReadOnly()) {
                 return original(instruction);
@@ -147,10 +155,16 @@ final class TypedScoreIRRuntime {
                     ? guard.terminal() : instruction;
             Objective guardObjective = instruction instanceof TypedScoreIR.Conditional guard
                     ? scoreboard.getObjective(guard.conditionObjective()) : null;
+            ScoreHolder guardHolder = instruction instanceof TypedScoreIR.Conditional guard
+                    ? (guard.conditionSelf() ? source.getEntity() : guard.conditionHolder()) : null;
             Objective operandObjective = terminal instanceof TypedScoreIR.Binary binary
                     ? scoreboard.getObjective(binary.sourceObjective()) : null;
-            if ((instruction instanceof TypedScoreIR.Conditional && guardObjective == null)
-                    || (terminal instanceof TypedScoreIR.Binary && operandObjective == null)) {
+            ScoreHolder operandHolder = terminal instanceof TypedScoreIR.Binary binary
+                    ? (binary.sourceSelf() ? source.getEntity() : binary.sourceHolder()) : null;
+            if ((instruction instanceof TypedScoreIR.Conditional
+                    && (guardObjective == null || guardHolder == null))
+                    || (terminal instanceof TypedScoreIR.Binary
+                    && (operandObjective == null || operandHolder == null))) {
                 return original(instruction);
             }
 
@@ -165,7 +179,7 @@ final class TypedScoreIRRuntime {
             // the existing compiled ScoreConditionCommand does the same.
             if (instruction instanceof TypedScoreIR.Conditional condition) {
                 ReadOnlyScoreInfo info = scoreboard.getPlayerScoreInfo(
-                        condition.conditionHolder(), guardObjective);
+                        guardHolder, guardObjective);
                 boolean matched = info != null && condition.range().matches(info.value());
                 if (matched == condition.unless()) {
                     TypedScoreIR.skippedConditional();
@@ -182,12 +196,14 @@ final class TypedScoreIRRuntime {
 
             current = instruction;
             objective = selected;
+            targetResolved = target;
             // Every lookup is deliberately fresh. Even a disjoint preceding
             // command can run externally observable feedback/listener logic.
-            access = scoreboard.getOrCreatePlayerScore(instruction.holder(), selected);
+            access = scoreboard.getOrCreatePlayerScore(target, selected);
             if (terminal instanceof TypedScoreIR.Binary binary) {
                 sourceObjective = operandObjective;
-                sourceAccess = scoreboard.getOrCreatePlayerScore(binary.sourceHolder(), operandObjective);
+                sourceResolved = operandHolder;
+                sourceAccess = scoreboard.getOrCreatePlayerScore(operandHolder, operandObjective);
             }
             TypedScoreIR.step(instruction);
             return DIRECT;
@@ -224,7 +240,7 @@ final class TypedScoreIRRuntime {
                 return sourceAccess.get();
             }
             var key = new ScoreValueRevisionAccess.Key(
-                    binary.sourceHolder().getScoreboardName(),
+                    sourceResolved.getScoreboardName(),
                     binary.sourceObjective());
             long revision = versions.functionCompiler$watch(key);
             if (revision < 0) return sourceAccess.get();  // fail closed
@@ -265,7 +281,7 @@ final class TypedScoreIRRuntime {
                     // totalValue is newScore and dispatch selects onSingle.
                     // Preserve sendSuccess/broadcast, deferred message
                     // formatting and subsequent trace callback verbatim.
-                    var holder = instruction.holder();
+                    var holder = targetResolved;
                     var resolvedObjective = objective;
                     if (terminal instanceof TypedScoreIR.Binary) {
                         var message = ScoreboardCommandAccessor
@@ -287,7 +303,7 @@ final class TypedScoreIRRuntime {
                 } else {
                     CommandResponseTracker<net.minecraft.world.scores.ScoreHolder> response =
                             CommandResponseTracker.create();
-                    response.track(instruction.holder(), newScore);
+                    response.track(targetResolved, newScore);
                     if (terminal instanceof TypedScoreIR.Binary) {
                         result = response.sendFeedback(
                                 source, true, ElementType.ANY,
@@ -318,6 +334,8 @@ final class TypedScoreIRRuntime {
                 access = null;
                 sourceAccess = null;
                 sourceObjective = null;
+                targetResolved = null;
+                sourceResolved = null;
             }
         }
     }
