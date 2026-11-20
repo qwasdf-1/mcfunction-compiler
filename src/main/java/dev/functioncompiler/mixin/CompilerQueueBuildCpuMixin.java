@@ -1,6 +1,7 @@
 package dev.functioncompiler.mixin;
 
 import dev.functioncompiler.CompilerQueueCpuProbe;
+import dev.functioncompiler.CompilerRestoreCpuProbe;
 import net.minecraft.commands.execution.tasks.BuildContexts;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -18,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class CompilerQueueBuildCpuMixin {
     @Shadow @Final private String commandInput;
     @Unique private long functionCompiler$cpu005Started = -1L;
+    @Unique private long functionCompiler$cpu020Started = -1L;
 
     @Inject(
             method = "execute(Lnet/minecraft/commands/ExecutionCommandSource;Ljava/util/List;Lnet/minecraft/commands/execution/ExecutionContext;Lnet/minecraft/commands/execution/Frame;Lnet/minecraft/commands/execution/ChainModifiers;)V",
@@ -25,6 +27,7 @@ abstract class CompilerQueueBuildCpuMixin {
     )
     private void functionCompiler$cpu005BuildHead(CallbackInfo info) {
         functionCompiler$cpu005Started = CompilerQueueCpuProbe.beginBuild(commandInput);
+        functionCompiler$cpu020Started = CompilerRestoreCpuProbe.beginBuild(commandInput);
     }
 
     @Inject(
@@ -34,5 +37,7 @@ abstract class CompilerQueueBuildCpuMixin {
     private void functionCompiler$cpu005BuildReturn(CallbackInfo info) {
         CompilerQueueCpuProbe.endBuild(commandInput, functionCompiler$cpu005Started);
         functionCompiler$cpu005Started = -1L;
+        CompilerRestoreCpuProbe.endBuild(commandInput, functionCompiler$cpu020Started);
+        functionCompiler$cpu020Started = -1L;
     }
 }
