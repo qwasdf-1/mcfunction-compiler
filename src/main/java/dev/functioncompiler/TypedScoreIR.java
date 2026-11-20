@@ -38,6 +38,9 @@ final class TypedScoreIR {
             && NAMESPACE != null && !NAMESPACE.isBlank();
     private static final boolean DIAGNOSTICS =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIAGNOSTICS"));
+    // Requires matching server-scoreboard revision hooks; strict opt-in.
+    private static final boolean SCORE_CACHE =
+            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SCORE_CACHE"));
     private static final int MAX_REGION_LENGTH = 64;
     private static final LongAdder COMPILED_REGIONS = new LongAdder();
     private static final LongAdder BYTECODE_REGIONS = new LongAdder();
@@ -47,6 +50,9 @@ final class TypedScoreIR {
     private static final LongAdder BINARY_STEPS = new LongAdder();
     private static final LongAdder CONDITIONAL_STEPS = new LongAdder();
     private static final LongAdder CONDITIONAL_SKIPS = new LongAdder();
+    private static final LongAdder CACHE_HITS = new LongAdder();
+    private static final LongAdder CACHE_MISSES = new LongAdder();
+    private static final LongAdder CACHE_INVALIDATIONS = new LongAdder();
 
     private TypedScoreIR() {}
 
@@ -281,6 +287,13 @@ final class TypedScoreIR {
         if (DIAGNOSTICS) FALLBACK_STEPS.increment();
     }
 
+    static boolean scoreCacheEnabled() { return SCORE_CACHE; }
+    static void cacheHit() { if (DIAGNOSTICS) CACHE_HITS.increment(); }
+    static void cacheMiss() { if (DIAGNOSTICS) CACHE_MISSES.increment(); }
+    static void cacheInvalidated() {
+        if (DIAGNOSTICS) CACHE_INVALIDATIONS.increment();
+    }
+
     static int report(CommandSourceStack source) {
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
                 diagnosticStatus()), false);
@@ -297,7 +310,11 @@ final class TypedScoreIR {
                 + " fallback_steps=" + FALLBACK_STEPS.sum()
                 + " binary_steps=" + BINARY_STEPS.sum()
                 + " conditional_steps=" + CONDITIONAL_STEPS.sum()
-                + " conditional_skips=" + CONDITIONAL_SKIPS.sum();
+                + " conditional_skips=" + CONDITIONAL_SKIPS.sum()
+                + " score_cache=" + SCORE_CACHE
+                + " cache_hits=" + CACHE_HITS.sum()
+                + " cache_misses=" + CACHE_MISSES.sum()
+                + " cache_invalidations=" + CACHE_INVALIDATIONS.sum();
     }
 
     private record CompiledFunction(
@@ -329,7 +346,8 @@ final class TypedScoreIR {
                 ScoreAccess score = state.access();
                 int updated;
                 if (instruction instanceof Binary binary) {
-                    int operand = state.sourceAccess().get();
+                    int operand = SCORE_CACHE
+                            ? state.sourceOperand() : state.sourceAccess().get();
                     updated = switch (binary.operation()) {
                         case ASSIGN -> { score.set(operand); yield operand; }
                         case ADD -> score.add(operand);
