@@ -130,6 +130,14 @@ final class ScoreAddCommand implements FusableCommand {
                     "^scoreboard players (add|set|remove) (#[A-Za-z0-9_.+\\-]+) "
                             + "([A-Za-z0-9_.+\\-]+) (-?\\d+)$");
 
+    // A source-only preflight for IR-only mode. It prevents the wider legacy
+    // parser from rewriting unsupported commands before the typed IR can
+    // decide to retain their original vanilla queue entries. Parsed arguments
+    // are still validated separately in toMutation().
+    static boolean typedIrLiteralSourceShape(String source) {
+        return source != null && IR_LITERAL_SOURCE.matcher(source).matches();
+    }
+
     TypedScoreIR.Mutation toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
         return toMutation(parsed, parsed.commandInput());
     }
