@@ -418,6 +418,7 @@ public final class TypedScoreIR {
                 + " tracker_feedback_steps=" + TRACKER_FEEDBACK_STEPS.sum()
                 + " reentrant_yields=" + REENTRANT_YIELDS.sum()
                 + " reentrant_vanilla_steps=" + REENTRANT_VANILLA_STEPS.sum()
+                + ReentrantQueueProbe.diagnostics()
                 + TypedScoreIRDirectScheduler.diagnostics();
     }
 
