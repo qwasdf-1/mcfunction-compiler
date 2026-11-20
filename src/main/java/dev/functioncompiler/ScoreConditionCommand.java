@@ -77,25 +77,27 @@ final class ScoreConditionCommand implements FusableCommand {
     private static final boolean RANGE_GUARDS_ENABLED =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_RANGE_GUARDS"));
 
+    private static final String IR_HOLDER = "(?:#[A-Za-z0-9_.+\\-]+|@s)";
     private static final String IR_RANGE =
             "(?:-?\\d+(?:\\.\\.(?:-?\\d+)?)?|\\.\\.-?\\d+)";
     private static final String IR_MUTATION =
             "scoreboard players (?:add|set|remove) "
-                    + "#[A-Za-z0-9_.+\\-]+ [A-Za-z0-9_.+\\-]+ -?\\d+";
+                    + IR_HOLDER + " [A-Za-z0-9_.+\\-]+ -?\\d+";
     private static final String IR_BINARY =
-            "scoreboard players operation #[A-Za-z0-9_.+\\-]+ "
+            "scoreboard players operation " + IR_HOLDER + " "
                     + "[A-Za-z0-9_.+\\-]+ (?:=|\\+=|-=|\\*=) "
-                    + "#[A-Za-z0-9_.+\\-]+ [A-Za-z0-9_.+\\-]+";
+                    + IR_HOLDER + " [A-Za-z0-9_.+\\-]+";
     private static final java.util.regex.Pattern IR_GUARD =
             java.util.regex.Pattern.compile(
-                    "^execute (if|unless) score (#[A-Za-z0-9_.+\\-]+) "
+                    "^execute (if|unless) score (" + IR_HOLDER + ") "
                             + "([A-Za-z0-9_.+\\-]+) matches (" + IR_RANGE + ") "
                             + "run (" + IR_MUTATION + "|" + IR_BINARY + ")$");
 
     static boolean typedIrLiteralGuardShape(String input) {
         if (input == null) return false;
         var matcher = IR_GUARD.matcher(input);
-        if (!matcher.matches()) return false;
+        if (!matcher.matches()
+                || (!TypedScoreIR.selfHolderEnabled() && input.contains("@s"))) return false;
         return RANGE_GUARDS_ENABLED
                 || (!matcher.group(4).contains("..")
                         && !matcher.group(5).startsWith("scoreboard players operation "));
@@ -135,7 +137,8 @@ final class ScoreConditionCommand implements FusableCommand {
     }
 
     TypedScoreIR.Conditional toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
-        if (isTargetSelf || targetHolder == null || range == null
+        if ((isTargetSelf && !TypedScoreIR.selfHolderEnabled())
+                || (!isTargetSelf && targetHolder == null) || range == null
                 || operator != null || sourceHolder != null
                 || targetObjective == null) {
             return null;
@@ -145,7 +148,8 @@ final class ScoreConditionCommand implements FusableCommand {
                 || (!RANGE_GUARDS_ENABLED
                         && (matcher.group(4).contains("..")
                                 || innerCommand instanceof ScoreOperationCommand))
-                || !matcher.group(2).equals(targetHolder.getScoreboardName())
+                || !matcher.group(2).equals(
+                        isTargetSelf ? "@s" : targetHolder.getScoreboardName())
                 || !matcher.group(3).equals(targetObjective)
                 || ("unless".equals(matcher.group(1)) != unless)
                 || !sameParsedRange(range, matcher.group(4))) {
@@ -158,7 +162,7 @@ final class ScoreConditionCommand implements FusableCommand {
             terminal = binary.toBinary(parsed, matcher.group(5));
         }
         return terminal == null ? null : new TypedScoreIR.Conditional(
-                parsed, terminal, targetHolder, targetObjective, range, unless);
+                parsed, terminal, targetHolder, isTargetSelf, targetObjective, range, unless);
     }
 
     @Override
