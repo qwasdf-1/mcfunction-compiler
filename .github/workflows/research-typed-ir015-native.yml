@@ -8,6 +8,9 @@ on:
       - 'scripts/run_veinminer_profile.py'
       - 'scripts/ci_typed_ir015_native.py'
       - 'tests/test_typed_ir015_native.py'
+      - 'src/main/java/dev/functioncompiler/ScoreAddPrototype.java'
+      - 'src/main/java/dev/functioncompiler/ScoreAddCommand.java'
+      - 'src/main/java/dev/functioncompiler/ScoreOperationCommand.java'
   workflow_dispatch:
 
 permissions:
