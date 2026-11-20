@@ -62,6 +62,8 @@ public final class TypedScoreIR {
     private static final LongAdder CACHE_INVALIDATIONS = new LongAdder();
     private static final LongAdder SINGLETON_FEEDBACK_STEPS = new LongAdder();
     private static final LongAdder TRACKER_FEEDBACK_STEPS = new LongAdder();
+    private static final LongAdder REENTRANT_YIELDS = new LongAdder();
+    private static final LongAdder REENTRANT_VANILLA_STEPS = new LongAdder();
 
     private TypedScoreIR() {}
 
@@ -376,6 +378,14 @@ public final class TypedScoreIR {
         if (DIAGNOSTICS) TRACKER_FEEDBACK_STEPS.increment();
     }
 
+    static void reentrantYield() {
+        if (DIAGNOSTICS) REENTRANT_YIELDS.increment();
+    }
+
+    static void reentrantVanillaStep() {
+        if (DIAGNOSTICS) REENTRANT_VANILLA_STEPS.increment();
+    }
+
     static void cacheHit() { if (DIAGNOSTICS) CACHE_HITS.increment(); }
     static void cacheMiss() { if (DIAGNOSTICS) CACHE_MISSES.increment(); }
     static void cacheInvalidated() {
@@ -406,6 +416,8 @@ public final class TypedScoreIR {
                 + " singleton_feedback=" + singletonFeedbackEnabled()
                 + " singleton_feedback_steps=" + SINGLETON_FEEDBACK_STEPS.sum()
                 + " tracker_feedback_steps=" + TRACKER_FEEDBACK_STEPS.sum()
+                + " reentrant_yields=" + REENTRANT_YIELDS.sum()
+                + " reentrant_vanilla_steps=" + REENTRANT_VANILLA_STEPS.sum()
                 + TypedScoreIRDirectScheduler.diagnostics();
     }
 
@@ -430,7 +442,9 @@ public final class TypedScoreIR {
                 Frame frame
         ) {
             TypedScoreIRRuntime.State state =
-                    new TypedScoreIRRuntime.State(source, context, frame);
+                    new TypedScoreIRRuntime.State(
+                            source, context, frame,
+                            program.instructions().toArray(TypedScoreIR.Instruction[]::new));
             executed();
             for (Instruction instruction : program.instructions()) {
                 int decision = state.begin(instruction);
