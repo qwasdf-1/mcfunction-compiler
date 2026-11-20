@@ -1,0 +1,65 @@
+name: COMPILER-IR-021 post-fork-observer native IR016-019 semantic regression
+
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir021-regression.yml'
+      - 'src/main/java/dev/functioncompiler/CompilerForkBreakdownProbe.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerForkContextChainMixin.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerForkEntitySelectorMixin.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerForkSourceMixin.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerForkContinuationMixin.java'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir021-native-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unchanged-vanilla-semantics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 54
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [ir016, ir017, ir018, ir019]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build original Minecraft 26.3 native research mod
+        run: ./gradlew --no-daemon build
+      - name: Audit read-only clock and source safety contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir021_cpu.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir020_cpu.py' -v
+      - name: Test original native function queue and scoreboard equivalence
+        timeout-minutes: 44
+        run: |
+          if [ "${{ matrix.suite }}" = "ir019" ]; then
+            python3 scripts/ci_typed_ir019_native.py
+          else
+            python3 scripts/ci_typed_${{ matrix.suite }}.py
+          fi
+      - name: Archive original scoreboard snapshots, quotas and native function controls
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir021-native-regression-${{ matrix.suite }}
+          path: |
+            build/reports/COMPILER-IR-016/
+            build/reports/COMPILER-IR-017/
+            build/reports/COMPILER-IR-018/
+            build/reports/COMPILER-IR-019-NATIVE/
+          if-no-files-found: warn
+          retention-days: 21
