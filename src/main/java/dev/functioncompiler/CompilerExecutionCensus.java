@@ -47,9 +47,39 @@ public final class CompilerExecutionCensus {
             : Arrays.stream(TARGET_TEXT.split(","))
                     .map(String::trim).filter(s -> !s.isEmpty())
                     .collect(Collectors.toUnmodifiableSet());
+    // IR-019: independent allowlist of native child-function call task IDs.
+    // A child can have multiple call sites; these counts NEVER claim a
+    // one-to-one association with an individual guard or caller line.
+    private static final String CALLEE_TEXT =
+            System.getenv("FC_COMPILER_EXEC_CENSUS_CALLEES");
+    private static final Set<String> CALLEES = CALLEE_TEXT == null ? Set.of()
+            : Arrays.stream(CALLEE_TEXT.split(","))
+                    .map(String::trim).filter(s -> !s.isEmpty())
+                    .collect(Collectors.toUnmodifiableSet());
+    private static final int MAX_CALLEE_IDS = 96;
+    private static final boolean CALLEES_VALID = CALLEES.size() <= MAX_CALLEE_IDS
+            && CALLEES.stream().allMatch(s ->
+                    s.matches("[a-z0-9_.-]+:[a-z0-9_./-]+"));
+    private static final ConcurrentMap<String, LongAdder> NATIVE_CALLS =
+            new ConcurrentHashMap<>();
+    private static final java.util.regex.Pattern SIMPLE_SCORE_DISPATCH =
+            java.util.regex.Pattern.compile(
+                    "^execute (?:if|unless) score (?:#[A-Za-z0-9_.+\\-]+|@s) "
+                    + "[A-Za-z0-9_.+\\-]+ matches "
+                    + "(?:-?\\d+(?:\\.\\.(?:-?\\d+)?)?|\\.\\.-?\\d+) "
+                    + "run function [a-z0-9_.-]+:[a-z0-9_./-]+$");
+    private static final java.util.regex.Pattern BROAD_SCORE_DISPATCH =
+            java.util.regex.Pattern.compile(
+                    "^execute (?:if|unless) score .+ run (?:return run )?function .+$");
+    private static String dispatchShape(String input) {
+        if (input == null || !BROAD_SCORE_DISPATCH.matcher(input).matches()) return "none";
+        return SIMPLE_SCORE_DISPATCH.matcher(input).matches()
+                ? "single_score_static_call" : "complex_or_return_call";
+    }
     private static final boolean CONFIGURED = REQUESTED
             && NAMESPACE != null && !NAMESPACE.isBlank() && !TARGETS.isEmpty()
-            && TARGETS.stream().allMatch(s -> s.startsWith(NAMESPACE + ":"));
+            && TARGETS.stream().allMatch(s -> s.startsWith(NAMESPACE + ":"))
+            && CALLEES_VALID;
     private static final int MAX_SITES = 1024;
     private static final int MAX_EXAMPLE_CHARS = 240;
     private static final ConcurrentMap<Key, Site> SITES = new ConcurrentHashMap<>();
@@ -61,6 +91,7 @@ public final class CompilerExecutionCensus {
     private static final class Site {
         final Key key;
         final String example;
+        final String dispatchShape;
         final LongAdder entryReached = new LongAdder();
         final LongAdder ordinaryCallbacks = new LongAdder();
         volatile String terminalKind = "unknown";
@@ -68,6 +99,7 @@ public final class CompilerExecutionCensus {
         Site(Key key, String example) {
             this.key = key;
             this.example = example;
+            this.dispatchShape = CompilerExecutionCensus.dispatchShape(example);
         }
 
         void kind(String kind) {
@@ -83,6 +115,19 @@ public final class CompilerExecutionCensus {
 
     public static boolean enabledFor(Identifier id) {
         return CONFIGURED && id != null && TARGETS.contains(id.toString());
+    }
+
+    /**
+     * IR-019 passive observation at the original CallFunction task boundary.
+     * Counts a native call task reached, NOT a child body completion, a
+     * successful specific conditional guard, or one caller/source site.
+     */
+    public static void recordNativeCall(Identifier id) {
+        if (!ACTIVE || !CONFIGURED || id == null) return;
+        String key = id.toString();
+        if (!CALLEES.contains(key)) return;
+        LongAdder counter = NATIVE_CALLS.get(key);
+        if (counter != null) counter.increment();
     }
 
     @SuppressWarnings("unchecked")
@@ -193,9 +238,15 @@ public final class CompilerExecutionCensus {
             site.entryReached.reset();
             site.ordinaryCallbacks.reset();
         }
+        NATIVE_CALLS.clear();
+        for (String target : CALLEES) {
+            NATIVE_CALLS.put(target, new LongAdder());
+        }
         ACTIVE = true;
         source.sendSuccess(() -> Component.literal(
-                "FC_EXEC started namespace=" + NAMESPACE + " sites=" + SITES.size()), false);
+                "FC_EXEC started namespace=" + NAMESPACE
+                        + " sites=" + SITES.size()
+                        + " callees=" + CALLEES.size()), false);
         return 1;
     }
 
@@ -207,9 +258,18 @@ public final class CompilerExecutionCensus {
         ACTIVE = false; // stop counting before formatting/logging the output
         long entries = SITES.values().stream().mapToLong(s -> s.entryReached.sum()).sum();
         long callbacks = SITES.values().stream().mapToLong(s -> s.ordinaryCallbacks.sum()).sum();
+        long nativeCalls = NATIVE_CALLS.values().stream().mapToLong(LongAdder::sum).sum();
+        long singleSourceEntries = SITES.values().stream()
+                .filter(s -> s.dispatchShape.equals("single_score_static_call"))
+                .mapToLong(s -> s.entryReached.sum()).sum();
+        long complexSourceEntries = SITES.values().stream()
+                .filter(s -> s.dispatchShape.equals("complex_or_return_call"))
+                .mapToLong(s -> s.entryReached.sum()).sum();
         FunctionCompilerMod.LOGGER.info(
-                "FC_EXEC_BEGIN namespace={} sites={} entries={} callbacks={} overflow={} targets={}",
-                NAMESPACE, SITES.size(), entries, callbacks, registrationOverflow, TARGETS.size());
+                "FC_EXEC_BEGIN namespace={} sites={} entries={} callbacks={} overflow={} targets={} callees={} native_calls={} single_dispatch_entries={} complex_dispatch_entries={}",
+                NAMESPACE, SITES.size(), entries, callbacks,
+                registrationOverflow, TARGETS.size(), CALLEES.size(),
+                nativeCalls, singleSourceEntries, complexSourceEntries);
         SITES.entrySet().stream()
                 .sorted(Comparator.comparing((Map.Entry<Key, Site> e) -> e.getKey().function())
                         .thenComparingInt(e -> e.getKey().lineIndex()))
@@ -221,12 +281,22 @@ public final class CompilerExecutionCensus {
                             site.entryReached.sum(), site.ordinaryCallbacks.sum(),
                             site.terminalKind, site.example);
                 });
+        NATIVE_CALLS.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> FunctionCompilerMod.LOGGER.info(
+                        "FC_EXEC_CALLEE function={} native_call_tasks={}",
+                        entry.getKey(), entry.getValue().sum()));
         FunctionCompilerMod.LOGGER.info(
-                "FC_EXEC_END namespace={} sites={} entries={} callbacks={} overflow={}",
-                NAMESPACE, SITES.size(), entries, callbacks, registrationOverflow);
+                "FC_EXEC_END namespace={} sites={} entries={} callbacks={} overflow={} native_calls={} single_dispatch_entries={} complex_dispatch_entries={}",
+                NAMESPACE, SITES.size(), entries, callbacks,
+                registrationOverflow, nativeCalls, singleSourceEntries,
+                complexSourceEntries);
         source.sendSuccess(() -> Component.literal(
                 "FC_EXEC ended entries=" + entries + " callbacks=" + callbacks
-                + " sites=" + SITES.size() + " overflow=" + registrationOverflow), false);
+                        + " sites=" + SITES.size() + " overflow=" + registrationOverflow
+                        + " native_calls=" + nativeCalls
+                        + " single_dispatch_entries=" + singleSourceEntries
+                        + " complex_dispatch_entries=" + complexSourceEntries), false);
         return 1;
     }
 }
