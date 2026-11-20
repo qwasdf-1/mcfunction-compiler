@@ -56,6 +56,7 @@ public final class TypedScoreIR {
     private static final LongAdder FALLBACK_STEPS = new LongAdder();
     private static final LongAdder BINARY_STEPS = new LongAdder();
     private static final LongAdder CONDITIONAL_STEPS = new LongAdder();
+    private static final LongAdder GUARDED_BINARY_STEPS = new LongAdder();
     private static final LongAdder CONDITIONAL_SKIPS = new LongAdder();
     private static final LongAdder CACHE_HITS = new LongAdder();
     private static final LongAdder CACHE_MISSES = new LongAdder();
@@ -163,14 +164,14 @@ public final class TypedScoreIR {
     }
 
     /**
-     * Direct-lowered conditional mutation. Only a single vanilla-validated
-     * literal score-matches condition is accepted. The runtime checks the
-     * guard BEFORE modifying the target score and charges its modifier-stage
-     * quota debit only on passing guards, as the existing fused callback does.
+     * IR-017: one parsed inclusive score range, guarding either a scoreboard
+     * mutation or a safe scoreboard binary operation. The predicate and its
+     * already-validated terminal are both represented in one IR instruction,
+     * so no result, quota or queue boundary can be lost during emission.
      */
     record Conditional(
             FusedRegionPrototype.FusedCommand vanilla,
-            Mutation mutation,
+            Instruction terminal,
             ScoreHolder conditionHolder,
             String conditionObjective,
             MinMaxBounds.Ints range,
@@ -178,18 +179,21 @@ public final class TypedScoreIR {
     ) implements Instruction {
         Conditional {
             Objects.requireNonNull(vanilla);
-            Objects.requireNonNull(mutation);
+            Objects.requireNonNull(terminal);
+            if (!(terminal instanceof Mutation || terminal instanceof Binary)) {
+                throw new IllegalArgumentException("conditional terminal must be mutation or binary");
+            }
             Objects.requireNonNull(conditionHolder);
             Objects.requireNonNull(conditionObjective);
             Objects.requireNonNull(range);
         }
         @Override
-        public ScoreHolder holder() { return mutation.holder(); }
+        public ScoreHolder holder() { return terminal.holder(); }
         @Override
-        public String objective() { return mutation.objective(); }
+        public String objective() { return terminal.objective(); }
         @Override
         public Effects effects() {
-            Effects inner = mutation.effects();
+            Effects inner = terminal.effects();
             HashSet<Slot> reads = new HashSet<>(inner.reads());
             reads.add(new Slot(conditionHolder.getScoreboardName(), conditionObjective));
             return new Effects(reads, inner.writes(), true);
@@ -314,6 +318,8 @@ public final class TypedScoreIR {
         EXECUTED_STEPS.increment();
         if (instruction instanceof Binary) BINARY_STEPS.increment();
         if (instruction instanceof Conditional) CONDITIONAL_STEPS.increment();
+        if (instruction instanceof Conditional condition
+                && condition.terminal() instanceof Binary) GUARDED_BINARY_STEPS.increment();
     }
 
     static void skippedConditional() {
@@ -390,6 +396,7 @@ public final class TypedScoreIR {
                 + " fallback_steps=" + FALLBACK_STEPS.sum()
                 + " binary_steps=" + BINARY_STEPS.sum()
                 + " conditional_steps=" + CONDITIONAL_STEPS.sum()
+                + " guarded_binary_steps=" + GUARDED_BINARY_STEPS.sum()
                 + " conditional_skips=" + CONDITIONAL_SKIPS.sum()
                 + " score_cache=" + scoreCacheEnabled()
                 + " cache_hits=" + CACHE_HITS.sum()
@@ -428,7 +435,9 @@ public final class TypedScoreIR {
         if (decision != TypedScoreIRRuntime.DIRECT) return decision;
         ScoreAccess score = state.access();
         int updated;
-        if (instruction instanceof Binary binary) {
+        Instruction terminal = instruction instanceof Conditional conditional
+                ? conditional.terminal() : instruction;
+        if (terminal instanceof Binary binary) {
             int operand = SCORE_CACHE
                     ? state.sourceOperand() : state.sourceAccess().get();
             updated = switch (binary.operation()) {
@@ -442,9 +451,7 @@ public final class TypedScoreIR {
                 }
             };
         } else {
-            Mutation mutation = instruction instanceof Conditional condition
-                    ? condition.mutation()
-                    : (Mutation) instruction;
+            Mutation mutation = (Mutation) terminal;
             updated = switch (mutation.operation()) {
                 case ADD -> score.add(mutation.amount());
                 case REMOVE -> score.add(-mutation.amount());
