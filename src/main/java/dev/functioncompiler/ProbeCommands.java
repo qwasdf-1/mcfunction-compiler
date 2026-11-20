@@ -266,7 +266,7 @@ final class ProbeCommands {
         boolean reentrantFixture = id != null
                 && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_REENTRANT_TEST_OBSERVER"))
                 && id.getNamespace().equals("fc_ir")
-                && id.getPath().matches("ir013_[a-z0-9_]+");
+                && id.getPath().matches("ir01[34]_[a-z0-9_]+");
         if (!previousArchFixture && !typedIrFixture && !reentrantFixture) {
             source.sendFailure(Component.literal("FC_ARCH invalid or disallowed function " + name));
             return 0;
