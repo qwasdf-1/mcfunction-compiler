@@ -130,7 +130,7 @@ public final class ScoreAddPrototype {
             return;
         }
 
-        List<Object> parsedModifiers = parseModifiers(modifiers);
+        List<Object> parsedModifiers = parseModifiers(modifiers, functionId);
         if (parsedModifiers == null) {
             // The terminal callback may have been replaced already even though
             // vanilla must continue to interpret the surrounding modifiers.
@@ -192,7 +192,10 @@ public final class ScoreAddPrototype {
         return false;
     }
 
-    private static List<Object> parseModifiers(List<CommandContext<CommandSourceStack>> modifiers) {
+    private static List<Object> parseModifiers(
+            List<CommandContext<CommandSourceStack>> modifiers,
+            Identifier functionId
+    ) {
         List<Object> result = new ArrayList<>();
         for (CommandContext<CommandSourceStack> mod : modifiers) {
             // 26.3 measured chain shape: the `run` literal redirects to the
@@ -209,7 +212,7 @@ public final class ScoreAddPrototype {
             if (nodeNames(mod).equals(List.of("run"))) {
                 continue;
             }
-            Object parsed = parseSingleModifier(mod);
+            Object parsed = parseSingleModifier(mod, functionId);
             if (parsed == null) {
                 return null;
             }
@@ -233,7 +236,17 @@ public final class ScoreAddPrototype {
             ScoreAddPrototype::parseContextModifier
     );
 
-    private static Object parseSingleModifier(CommandContext<CommandSourceStack> mod) {
+    private static Object parseSingleModifier(
+            CommandContext<CommandSourceStack> mod, Identifier functionId
+    ) {
+        // IR-009 gate only: earlier source used node "targets" instead of
+        // parsed score-condition node "target". Fix the lookup only within
+        // the explicit opt-in research namespace; leave every other mode's
+        // parser acceptance and scheduling unchanged.
+        if (TypedScoreIR.enabledFor(functionId)) {
+            Object guarded = parseScoreCondition(mod, true);
+            if (guarded != null) return guarded;
+        }
         for (SingleModifierParser parser : MODIFIER_PARSERS) {
             Object parsed = parser.parse(mod);
             if (parsed != null) {
@@ -433,6 +446,12 @@ public final class ScoreAddPrototype {
     private static ParsedCondition parseScoreCondition(
             CommandContext<CommandSourceStack> context
     ) {
+        return parseScoreCondition(context, false);
+    }
+
+    private static ParsedCondition parseScoreCondition(
+            CommandContext<CommandSourceStack> context, boolean typedIrTargetFix
+    ) {
         List<String> names = nodeNames(context);
         if (names.size() < 7
                 || !"execute".equals(names.get(0))
@@ -456,7 +475,8 @@ public final class ScoreAddPrototype {
         boolean isTargetSelf = "@s".equals(targetText);
         ScoreHolder targetHolder = isTargetSelf
                 ? null
-                : resolveStaticHolder(targetResult, context.getSource(), extractNodeText(context, "targets"));
+                : resolveStaticHolder(targetResult, context.getSource(),
+                        typedIrTargetFix ? targetText : extractNodeText(context, "targets"));
         if (!isTargetSelf && targetHolder == null) {
             return null;
         }
