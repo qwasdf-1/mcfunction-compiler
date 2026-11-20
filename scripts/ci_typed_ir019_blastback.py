@@ -68,7 +68,7 @@ WITNESSES={
 def setup(cpu_mode: str | None = None, output: Path = OUT, cpu_family: str = "020"):
     output.mkdir(parents=True,exist_ok=True)
     RUNS.mkdir(parents=True,exist_ok=True)
-    if cpu_family not in ("020","021"):
+    if cpu_family not in ("020","021","022"):
         raise ValueError("Unknown native CPU diagnostic: "+cpu_family)
     work=RUNS/("ci-ir019-blastback" if cpu_mode is None
                else "ci-ir"+cpu_family+"-blastback-"+cpu_mode)
@@ -104,7 +104,8 @@ def setup(cpu_mode: str | None = None, output: Path = OUT, cpu_family: str = "02
         "FC_SELECTIVE_MACRO_ARGUMENTS":"false",
     })
     if cpu_mode is not None:
-        if cpu_mode not in ("plain", "empty", "timed"):
+        if cpu_mode not in (("control", "plain", "empty", "timed") if cpu_family=="022"
+                            else ("plain", "empty", "timed")):
             raise ValueError(f"Invalid IR020 native CPU mode: {cpu_mode}")
         env["FC_COMPILER_EXEC_CENSUS"] = "false"
         env["FC_COMPILER_EXEC_CENSUS_FUNCTIONS"] = ""
@@ -112,9 +113,12 @@ def setup(cpu_mode: str | None = None, output: Path = OUT, cpu_family: str = "02
         if cpu_family == "020":
             env["FC_CPU020_MODE"] = cpu_mode
             env["FC_CPU020_NAMESPACE"] = "erb"
-        else:
+        elif cpu_family == "021":
             env["FC_CPU021_MODE"] = cpu_mode
             env["FC_CPU021_NAMESPACE"] = "erb"
+        else:
+            env["FC_CPU022_MODE"] = cpu_mode
+            env["FC_CPU022_NAMESPACE"] = "erb"
     command=[str(ROOT/"gradlew"),"--no-daemon",
         "-Dorg.gradle.jvmargs=-Xmx1G -Dfile.encoding=UTF-8",
         "-PfcJvmArgs=-Xms512M,-Xmx3G",
