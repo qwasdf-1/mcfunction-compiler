@@ -35,13 +35,19 @@ final class TypedScoreIRRuntime {
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_REENTRANT_SAFE"));
 
     /**
-     * Exceptional-only queue cursor. On a reentrant enqueue, finish the
-     * current IR command, let the newly staged callback work run first,
-     * then resume remaining commands as ORIGINAL vanilla queue actions.
-     * Do not execute the tail in this action or eagerly enqueue it: that
-     * would cross an observable scheduler boundary again.
+     * Exceptional-only queue cursor. When a scoreboard callback queues work
+     * during an IR region, it must run before the NEXT source instruction.
+     * Stage one already-validated typed instruction as its own Minecraft
+     * queue action, then lazily stage the next cursor. This preserves the
+     * normal depth-first staging boundary without touching a formerly
+     * rewritten Brigadier ScoreConditionCommand callback (whose old
+     * fallbackChain can be self-referential after command wrapping).
+     *
+     * We preserve the original parsed fallback in State for runtime
+     * objective changes; this queue continuation is for accepted typed
+     * commands on the normal fast semantic path, not unknown commands.
      */
-    private record VanillaTail(
+    private record QueuedTail(
             CommandSourceStack source,
             TypedScoreIR.Instruction[] instructions,
             int index
@@ -51,13 +57,19 @@ final class TypedScoreIRRuntime {
                 ExecutionContext<CommandSourceStack> context, Frame frame
         ) {
             if (index >= instructions.length) return;
-            context.queueNext(new CommandQueueEntry<>(
-                    frame, instructions[index].vanilla().original().bind(source)));
+            TypedScoreIR.Instruction current = instructions[index];
+            context.queueNext(new CommandQueueEntry<>(frame,
+                    (execution, commandFrame) -> {
+                        TypedScoreIRRuntime.State state = new TypedScoreIRRuntime.State(
+                                source, execution, commandFrame,
+                                new TypedScoreIR.Instruction[]{current});
+                        TypedScoreIR.executeTypedStep(current, state);
+                    }));
             if (index + 1 < instructions.length) {
                 context.queueNext(new CommandQueueEntry<>(
-                        frame, new VanillaTail(source, instructions, index + 1)));
+                        frame, new QueuedTail(source, instructions, index + 1)));
             }
-            TypedScoreIR.reentrantVanillaStep();
+            TypedScoreIR.reentrantQueuedStep();
         }
     }
 
@@ -116,7 +128,7 @@ final class TypedScoreIRRuntime {
                     && epoch.functionCompiler$queuedWorkEpoch() != initialQueueEpoch) {
                 if (quota() > 0) {
                     context.queueNext(new CommandQueueEntry<>(
-                            frame, new VanillaTail(source, instructions, nextIndex)));
+                            frame, new QueuedTail(source, instructions, nextIndex)));
                     TypedScoreIR.reentrantYield();
                 }
                 return STOP;
