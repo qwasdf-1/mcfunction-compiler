@@ -806,6 +806,13 @@ def main() -> int:
         head_before = read_score_or_zero(rcon, "#head", "vmr.runtime")
         queue_stats_before = function_stats(rcon, "vm:queue/drain", compiler_enabled)
         ray_stats_before = function_stats(rcon, "vm:detection/ray_step", compiler_enabled)
+        # IR-015: optional real-datapack event activation census. This is
+        # queried outside the event window, never as a timed instruction.
+        typed_ir_event_census = (args.stack != "vanilla"
+                and os.environ.get("FC_TYPED_IR_MODE") in ("interpreted", "bytecode")
+                and os.environ.get("FC_TYPED_IR_DIAGNOSTICS") == "true")
+        typed_ir_status_before = (
+            rcon.command("functioncompiler ir008") if typed_ir_event_census else None)
         compiler_status_before = (
             rcon.command("function_compiler_probe status") if compiler_probe_active else None
         )
@@ -974,6 +981,8 @@ def main() -> int:
         compiler_status_after = (
             rcon.command("function_compiler_probe status") if compiler_probe_active else None
         )
+        typed_ir_status_after = (
+            rcon.command("functioncompiler ir008") if typed_ir_event_census else None)
         acceptance_dump_status = (
             rcon.command("function_compiler_probe acceptance")
             if acceptance_audit_enabled else None
@@ -1249,6 +1258,9 @@ def main() -> int:
             "diagnostic_only": bool(diagnostics) or capture_jfr_cpu,
             "compiler_status_before": compiler_status_before,
             "compiler_status_after": compiler_status_after,
+            "typed_ir_event_census": typed_ir_event_census,
+            "typed_ir_status_before": typed_ir_status_before,
+            "typed_ir_status_after": typed_ir_status_after,
             "command_callback_metrics": command_callback_metrics,
             "scenario": {
                 "native_player_mining_packet": True,
