@@ -311,8 +311,8 @@ def run_arm(mode: str) -> dict:
             info = report["compiler_diagnostic"]
             if stat(info, "executed_steps") <= 0:
                 raise AssertionError(f"No actual typed steps: {info}")
-            if mode in ("old_bytecode", "bytecode", "direct")
-                    and stat(info, "bytecode_regions") <= 0:
+            if (mode in ("old_bytecode", "bytecode", "direct")
+                    and stat(info, "bytecode_regions") <= 0):
                 raise AssertionError(f"No emitted bytecode regions: {info}")
             if mode == "direct" and stat(info, "direct_function_executed") <= 0:
                 raise AssertionError(f"No eligible direct native function calls: {info}")
