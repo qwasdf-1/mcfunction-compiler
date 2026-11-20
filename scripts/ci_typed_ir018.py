@@ -244,7 +244,13 @@ def snapshot(client) -> dict:
 def invoke(client, name: str, *, as_entity: bool) -> None:
     prefix = f"execute as {SELECTOR} run " if as_entity else ""
     response = client.command(prefix + f"fc_ir018_call fc_ir:{name}")
-    if "FC_ARCH_CALL queued" not in response:
+    # In Minecraft, execute-as returns the result command but may suppress
+    # child CommandSourceStack feedback to the RCON caller, yielding "".
+    # A real entity invocation is validated by independent expected game
+    # state and source identity below; no-entity control still has feedback.
+    if (not as_entity and "FC_ARCH_CALL queued" not in response) or (
+            as_entity and ("invalid or disallowed" in response
+                           or "no execution context" in response)):
         raise AssertionError(f"IR018 call rejected: {name}/{as_entity}: {response!r}")
 
 
