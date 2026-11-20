@@ -221,6 +221,11 @@ def clear(client) -> None:
     for holder in ("#a", "#b", "#fc_ir010_source",
                    "#fc_ir010_trigger", "#fc_ir010_reset"):
         client.command(f"scoreboard players reset {holder} fc_ir")
+    # At the smallest function-command quotas none of the actual function
+    # entries may execute. Initialize observable rows *outside* the measured
+    # function, rather than allowing RCON score reads to fail on absence.
+    for holder in ("#a", "#b", "#fc_ir010_source"):
+        client.command(f"scoreboard players set {holder} fc_ir 0")
 
 
 def snapshot(client) -> dict:
