@@ -346,6 +346,10 @@ def run_crossover_boot(boot: int) -> dict:
         status = client.command("functioncompiler ir008")
         if "score_cache=true" not in status or "bytecode_regions=" not in status:
             raise AssertionError(f"IR cache bytecode not activated: {status!r}")
+        # The benchmark never writes #b; initialize that observable row
+        # once, outside CPU windows, to match the semantic reference fixture
+        # instead of conflating "absent" with an integer zero.
+        client.command("scoreboard players set #b fc_ir 0")
         thread = find_server_thread(process.pid)
         for enabled in ("on", "off"):
             reply = client.command(f"fc_ir010_cache {enabled}")
