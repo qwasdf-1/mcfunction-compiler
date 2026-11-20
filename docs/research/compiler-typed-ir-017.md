@@ -1,6 +1,6 @@
 # COMPILER-IR-017 — Typed inclusive score ranges and guarded scoreboard arithmetic
 
-**Status (2026-11-20):** native five-JVM semantic acceptance passed; original-publisher coverage screen accepted. Original-publisher Vein Miner execution comparison **also accepted**; prior IR-014/IR-016 native regressions remain a separate gate. Research branch `work/compiler-coverage`; draft PR #10 remains unmerged. **No CPU or production speedup claim.**
+**Status (2026-11-20):** **accepted** five-JVM IR-017 native parity, two SHA-pinned source-coverage audits, three original Vein Miner JVMs and eight post-change IR-014/IR-016 regression JVMs. No CPU/performance evaluation or production promotion. Research branch `work/compiler-coverage`; draft PR #10 remains unmerged. **No CPU or production speedup claim.**
 
 ## Why extend IR-016?
 
@@ -93,6 +93,17 @@ The new compiler did compile one more static region at load, consistent with IR-
 
 These native findings narrow the hypothesis: **range/guarded-binary lowering is a genuine language/compiler expansion, but its effect on this real datapack's mining critical path is currently negligible or absent.** Focus on selectors, context modifiers, and controlled conditional function calls before spending more research cycles on a synthetic-only speedup claim.
 
+## Legacy semantic regressions after introducing IR-017 — accepted
+
+[Accepted eight-real-JVM regression #44800233727](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44800233727) · [all IR-014 and IR-016 native state artifacts #14661371126](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44800233727/artifacts/14661371126).
+
+After implementing the ranged/guarded-binary changes, we rebuilt the Minecraft 26.3/Java25 mod and passed IR-009, IR-013, IR-014, IR-015, IR-016 and IR-017 structural contracts (7 + 7 + 4 + 4 + 5 + 6 tests). We then ran **eight additional native Minecraft JVMs**:
+
+- IR-014's vanilla, guarded interpreter, guarded bytecode, and direct guarded bytecode arms: **70/70 complete scoreboard states per mode** matched vanilla across nested callback queue insertion, lifecycle removal/recreation, conditional guards and multiple command quota cuts.
+- IR-016's vanilla, mixed interpreter, mixed generated JVM and whole-function direct arms: **126/126 states per mode** matched vanilla across opaque barriers, nested function calls, `return`, result stores, a mod-added command, missing objectives, chunk boundaries and quota cuts.
+
+The old language still behaves as before with `FC_TYPED_IR_RANGE_GUARDS` omitted. These regressions support backward compatibility for the bounded tested cases; they do not certify every modded command or all execution contexts.
+
 ## Reproduction
 
 ```bash
@@ -108,4 +119,4 @@ Run the publisher datapack event separately from this test; do not call distinct
 
 ## Non-goals and remaining verification
 
-No new generic `execute` interpreter, entity selector support, macro expansion bytecode, cross-command value cache, scoreboard command elimination, or transparent direct scheduling across vanilla barriers. No production defaults or merged PR changes. Before adopting IR-017 or making performance claims, repeat IR-014/IR-016 regression after the code changes and check the original Vein Miner publisher's player event with flag OFF and ON. Any actual CPU analysis should then use a bounded warm-up, repeated samples, and same-JVM A/A controls or carefully counterbalanced native boots; report uncertainty rather than converting source coverage into percentage speedup.
+No new generic `execute` interpreter, entity selector support, macro expansion bytecode, cross-command value cache, scoreboard command elimination, or transparent direct scheduling across vanilla barriers. No production defaults or merged PR changes. Those native compatibility gates have passed. Before adopting IR-017 or making performance claims, perform a properly controlled CPU study on a workload shown to exercise the new typed instruction families and measure whether scheduling/dispatch costs actually decline. Any actual CPU analysis should then use a bounded warm-up, repeated samples, and same-JVM A/A controls or carefully counterbalanced native boots; report uncertainty rather than converting source coverage into percentage speedup.
