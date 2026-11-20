@@ -1,5 +1,6 @@
 package dev.functioncompiler;
 
+import net.minecraft.advancements.predicates.MinMaxBounds;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.execution.ExecutionContext;
 import net.minecraft.commands.execution.Frame;
@@ -11,22 +12,24 @@ import net.minecraft.world.scores.ScoreAccess;
 import net.minecraft.world.scores.ScoreHolder;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
- * COMPILER-IR-008. A genuine typed, reload-scoped IR for a deliberately small
- * subset of vanilla-parsed scoreboard instructions. This prototype does NOT
- * accept dynamic selectors, execute modifiers, macro bodies or unparsed input.
+ * COMPILER-IR-008/009. Post-Brigadier typed semantic IR.
  *
- * The interpreter and JVM bytecode share one immutable IR and one exact
- * quota/tracing/response runtime. Unlike BytecodeRegionEmitter, the new ASM
- * backend calls ScoreAccess.add/set directly, never executeStep or Brigadier
- * ContextChain.runExecutable on its accepted path.
+ * All instructions originate from previously validated vanilla commands,
+ * not text reparsing. String checks in each adapter restrict accepted shapes.
+ * We retain every original command as a precise fallback and treat each
+ * command result/feedback as an observable effect barrier: no scoreboard
+ * value is cached or elided across instruction boundaries.
  *
- * This is an env-only research mode, restricted to a named namespace. It is
- * not a new production default or a general-purpose Minecraft compiler.
+ * Two independent backends consume this same immutable IR: a reference
+ * interpreter and real ASM direct operations. Both retain vanilla function
+ * scheduling, result propagation, quota debits and trace callback boundaries.
  */
 final class TypedScoreIR {
     private static final String MODE = System.getenv("FC_TYPED_IR_MODE");
@@ -41,6 +44,9 @@ final class TypedScoreIR {
     private static final LongAdder EXECUTED_REGIONS = new LongAdder();
     private static final LongAdder EXECUTED_STEPS = new LongAdder();
     private static final LongAdder FALLBACK_STEPS = new LongAdder();
+    private static final LongAdder BINARY_STEPS = new LongAdder();
+    private static final LongAdder CONDITIONAL_STEPS = new LongAdder();
+    private static final LongAdder CONDITIONAL_SKIPS = new LongAdder();
 
     private TypedScoreIR() {}
 
@@ -49,28 +55,142 @@ final class TypedScoreIR {
                 && !ProbeConfiguration.isNamespaceExcluded(id.getNamespace());
     }
 
-    /** Validated typed instruction, with the original parsed command retained. */
-    record Instruction(
+    /** Abstract scoreboard location; a namespace-local type, not a cached score. */
+    record Slot(String holderName, String objectiveName) {
+        Slot {
+            Objects.requireNonNull(holderName);
+            Objects.requireNonNull(objectiveName);
+        }
+    }
+
+    /**
+     * Conservative effect summary. Reads and writes describe the scoreboard
+     * locations; feedback, tracing, and potential scoreboard listeners make
+     * EACH command an observable barrier even if two slots do not overlap.
+     * In particular, does not authorize forwarding a cached value to the next
+     * command. This explicitly prevents unsound common-subexpression removal.
+     */
+    record Effects(Set<Slot> reads, Set<Slot> writes, boolean observableBoundary) {
+        Effects {
+            reads = Set.copyOf(reads);
+            writes = Set.copyOf(writes);
+        }
+
+        boolean mayReuseValueAcross(Effects next) {
+            // Returning false is deliberate: any per-command result callback
+            // may mutate even unrelated scoreboard slots via another mod.
+            return !observableBoundary && !next.observableBoundary
+                    && reads.stream().noneMatch(next.writes::contains)
+                    && writes.stream().noneMatch(next.reads::contains)
+                    && writes.stream().noneMatch(next.writes::contains);
+        }
+    }
+
+    sealed interface Instruction permits Mutation, Binary, Conditional {
+        FusedRegionPrototype.FusedCommand vanilla();
+        ScoreHolder holder();
+        String objective();
+        Effects effects();
+    }
+
+    record Mutation(
             FusedRegionPrototype.FusedCommand vanilla,
             ScoreHolder holder,
             String objective,
             ScoreAddCommand.Operation operation,
             int amount
-    ) {
-        Instruction {
+    ) implements Instruction {
+        Mutation {
             Objects.requireNonNull(vanilla);
             Objects.requireNonNull(holder);
             Objects.requireNonNull(objective);
             Objects.requireNonNull(operation);
         }
+        @Override
+        public Effects effects() {
+            Slot target = new Slot(holder.getScoreboardName(), objective);
+            return new Effects(
+                    operation == ScoreAddCommand.Operation.SET ? Set.of() : Set.of(target),
+                    Set.of(target), true);
+        }
     }
 
-    /** One immutable sequence, not a collection of arbitrary callback objects. */
+    /** Only =, +=, -=, *=; no divide-by-zero, swap or multi-write operations. */
+    enum BinaryOperator { ASSIGN, ADD, SUBTRACT, MULTIPLY }
+
+    record Binary(
+            FusedRegionPrototype.FusedCommand vanilla,
+            ScoreHolder holder,
+            String objective,
+            BinaryOperator operation,
+            ScoreHolder sourceHolder,
+            String sourceObjective
+    ) implements Instruction {
+        Binary {
+            Objects.requireNonNull(vanilla);
+            Objects.requireNonNull(holder);
+            Objects.requireNonNull(objective);
+            Objects.requireNonNull(operation);
+            Objects.requireNonNull(sourceHolder);
+            Objects.requireNonNull(sourceObjective);
+        }
+        @Override
+        public Effects effects() {
+            Slot target = new Slot(holder.getScoreboardName(), objective);
+            Slot source = new Slot(sourceHolder.getScoreboardName(), sourceObjective);
+            Set<Slot> reads = new HashSet<>();
+            reads.add(source);
+            if (operation != BinaryOperator.ASSIGN) reads.add(target);
+            return new Effects(reads, Set.of(target), true);
+        }
+    }
+
+    /**
+     * Direct-lowered conditional mutation. Only a single vanilla-validated
+     * literal score-matches condition is accepted. The runtime checks the
+     * guard BEFORE modifying the target score and charges its modifier-stage
+     * quota debit only on passing guards, as the existing fused callback does.
+     */
+    record Conditional(
+            FusedRegionPrototype.FusedCommand vanilla,
+            Mutation mutation,
+            ScoreHolder conditionHolder,
+            String conditionObjective,
+            MinMaxBounds.Ints range,
+            boolean unless
+    ) implements Instruction {
+        Conditional {
+            Objects.requireNonNull(vanilla);
+            Objects.requireNonNull(mutation);
+            Objects.requireNonNull(conditionHolder);
+            Objects.requireNonNull(conditionObjective);
+            Objects.requireNonNull(range);
+        }
+        @Override
+        public ScoreHolder holder() { return mutation.holder(); }
+        @Override
+        public String objective() { return mutation.objective(); }
+        @Override
+        public Effects effects() {
+            Effects inner = mutation.effects();
+            HashSet<Slot> reads = new HashSet<>(inner.reads());
+            reads.add(new Slot(conditionHolder.getScoreboardName(), conditionObjective));
+            return new Effects(reads, inner.writes(), true);
+        }
+    }
+
     record Program(List<Instruction> instructions) {
         Program {
             instructions = List.copyOf(instructions);
             if (instructions.size() < 2 || instructions.size() > MAX_REGION_LENGTH) {
-                throw new IllegalArgumentException("IR-008 region length outside [2,64]");
+                throw new IllegalArgumentException("typed IR region length outside [2,64]");
+            }
+            // Fail closed if future instruction families forget to implement
+            // their effect model (critical for the next optimizer stage).
+            for (Instruction instruction : instructions) {
+                if (!instruction.effects().observableBoundary()) {
+                    throw new IllegalArgumentException("unproven unobservable IR instruction");
+                }
             }
         }
     }
@@ -81,17 +201,14 @@ final class TypedScoreIR {
         List<UnboundEntryAction<CommandSourceStack>> result = new ArrayList<>();
         List<Instruction> pending = new ArrayList<>();
         boolean changed = false;
-
         for (UnboundEntryAction<CommandSourceStack> entry : original.entries()) {
             Instruction instruction = lower(entry);
             if (instruction == null) {
                 changed |= flush(result, pending);
-                result.add(entry); // Unrecognized input is EXACTLY the vanilla entry.
+                result.add(entry);  // Unknown command retains its vanilla queue position.
                 continue;
             }
-            if (pending.size() == MAX_REGION_LENGTH) {
-                changed |= flush(result, pending);
-            }
+            if (pending.size() == MAX_REGION_LENGTH) changed |= flush(result, pending);
             pending.add(instruction);
         }
         changed |= flush(result, pending);
@@ -99,14 +216,13 @@ final class TypedScoreIR {
     }
 
     private static Instruction lower(UnboundEntryAction<CommandSourceStack> entry) {
-        // This stage is already validated by vanilla Brigadier and recognized
-        // by ScoreAddPrototype; no textual reparse or new command registration.
         FusedRegionPrototype.FusedCommand parsed = FusedRegionPrototype.fusedCommand(entry);
-        if (parsed == null || !(parsed.command().getTopContext().getCommand()
-                instanceof ScoreAddCommand score)) {
-            return null;
-        }
-        return score.toTypedIR(parsed);
+        if (parsed == null) return null;
+        var command = parsed.command().getTopContext().getCommand();
+        if (command instanceof ScoreAddCommand mutation) return mutation.toTypedIR(parsed);
+        if (command instanceof ScoreOperationCommand binary) return binary.toTypedIR(parsed);
+        if (command instanceof ScoreConditionCommand condition) return condition.toTypedIR(parsed);
+        return null;
     }
 
     private static boolean flush(
@@ -124,16 +240,12 @@ final class TypedScoreIR {
         if ("bytecode".equals(MODE)) {
             try {
                 if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_FORCE_FAILURE"))) {
-                    throw new IllegalStateException("IR-008 injected compile failure");
+                    throw new IllegalStateException("IR injected compilation failure");
                 }
                 action = TypedScoreIRBytecode.emit(program);
                 if (DIAGNOSTICS) BYTECODE_REGIONS.increment();
             } catch (RuntimeException | LinkageError compileError) {
-                // An inaccessible/verifier-incompatible generated class never
-                // causes partial world effects. The IR interpreter is the
-                // deliberate backup; per-command original entries are retained
-                // within each instruction for runtime validation fallbacks.
-                FunctionCompilerMod.LOGGER.warn("IR-008 bytecode compilation fell back: {}",
+                FunctionCompilerMod.LOGGER.warn("Typed IR bytecode fallback: {}",
                         compileError.toString());
             }
         }
@@ -154,15 +266,22 @@ final class TypedScoreIR {
         if (DIAGNOSTICS) EXECUTED_REGIONS.increment();
     }
 
-    static void step() {
-        if (DIAGNOSTICS) EXECUTED_STEPS.increment();
+    static void step(Instruction instruction) {
+        if (!DIAGNOSTICS) return;
+        EXECUTED_STEPS.increment();
+        if (instruction instanceof Binary) BINARY_STEPS.increment();
+        if (instruction instanceof Conditional) CONDITIONAL_STEPS.increment();
+    }
+
+    static void skippedConditional() {
+        if (DIAGNOSTICS) CONDITIONAL_SKIPS.increment();
     }
 
     static void fallback() {
         if (DIAGNOSTICS) FALLBACK_STEPS.increment();
     }
 
-    static int report(net.minecraft.commands.CommandSourceStack source) {
+    static int report(CommandSourceStack source) {
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
                 diagnosticStatus()), false);
         return 1;
@@ -175,7 +294,10 @@ final class TypedScoreIR {
                 + " bytecode_regions=" + BYTECODE_REGIONS.sum()
                 + " executed_regions=" + EXECUTED_REGIONS.sum()
                 + " executed_steps=" + EXECUTED_STEPS.sum()
-                + " fallback_steps=" + FALLBACK_STEPS.sum();
+                + " fallback_steps=" + FALLBACK_STEPS.sum()
+                + " binary_steps=" + BINARY_STEPS.sum()
+                + " conditional_steps=" + CONDITIONAL_STEPS.sum()
+                + " conditional_skips=" + CONDITIONAL_SKIPS.sum();
     }
 
     private record CompiledFunction(
@@ -183,17 +305,13 @@ final class TypedScoreIR {
             List<UnboundEntryAction<CommandSourceStack>> entries
     ) implements InstantiatedFunction<CommandSourceStack> {
         @Override
-        public Identifier id() {
-            return original.id();
-        }
+        public Identifier id() { return original.id(); }
     }
 
     static final class Interpreted implements UnboundEntryAction<CommandSourceStack> {
         private final Program program;
 
-        Interpreted(Program program) {
-            this.program = program;
-        }
+        Interpreted(Program program) { this.program = program; }
 
         @Override
         public void execute(
@@ -201,21 +319,40 @@ final class TypedScoreIR {
                 ExecutionContext<CommandSourceStack> context,
                 Frame frame
         ) {
-            TypedScoreIRRuntime.State state = new TypedScoreIRRuntime.State(source, context, frame);
+            TypedScoreIRRuntime.State state =
+                    new TypedScoreIRRuntime.State(source, context, frame);
             executed();
             for (Instruction instruction : program.instructions()) {
                 int decision = state.begin(instruction);
                 if (decision == TypedScoreIRRuntime.STOP) return;
-                if (decision == TypedScoreIRRuntime.FALLBACK) continue;
+                if (decision != TypedScoreIRRuntime.DIRECT) continue;
                 ScoreAccess score = state.access();
-                int updated = switch (instruction.operation()) {
-                    case ADD -> score.add(instruction.amount());
-                    case REMOVE -> score.add(-instruction.amount());
-                    case SET -> {
-                        score.set(instruction.amount());
-                        yield instruction.amount();
-                    }
-                };
+                int updated;
+                if (instruction instanceof Binary binary) {
+                    int operand = state.sourceAccess().get();
+                    updated = switch (binary.operation()) {
+                        case ASSIGN -> { score.set(operand); yield operand; }
+                        case ADD -> score.add(operand);
+                        case SUBTRACT -> score.add(-operand);
+                        case MULTIPLY -> {
+                            int value = score.get() * operand;
+                            score.set(value);
+                            yield value;
+                        }
+                    };
+                } else {
+                    Mutation mutation = instruction instanceof Conditional condition
+                            ? condition.mutation()
+                            : (Mutation) instruction;
+                    updated = switch (mutation.operation()) {
+                        case ADD -> score.add(mutation.amount());
+                        case REMOVE -> score.add(-mutation.amount());
+                        case SET -> {
+                            score.set(mutation.amount());
+                            yield mutation.amount();
+                        }
+                    };
+                }
                 state.finish(updated);
             }
         }
