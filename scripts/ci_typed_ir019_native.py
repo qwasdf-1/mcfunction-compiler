@@ -108,7 +108,7 @@ EXPECTED={
 def fixture(work: Path):
     directory=work/"world/datapacks"/PACK/"data/fc_ir/function"
     directory.mkdir(parents=True,exist_ok=True)
-    root=directory.parents[3]
+    root=directory.parents[2]
     (root/"pack.mcmeta").write_text(json.dumps({
         "pack":{"description":"IR-019 native conditional function dispatch",
                 "min_format":[97,1],"max_format":[97,1]}})+"\n")
