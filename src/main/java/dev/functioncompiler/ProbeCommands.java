@@ -91,6 +91,15 @@ final class ProbeCommands {
                                     context.getSource(), false))));
         }
 
+        // IR-019: strictly namespaced fixture call; all actual child
+        // scheduling remains Minecraft's own CallFunction execution.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DISPATCH_TEST_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir019_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")))));
+        }
         // IR-018: entity-bound @s invocation via native execute-as source.
         // Guarded fixture namespace/name only; unavailable in production.
         if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SELF_TEST_HARNESS"))) {
@@ -316,8 +325,13 @@ final class ProbeCommands {
                 && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SELF_TEST_HARNESS"))
                 && id.getNamespace().equals("fc_ir")
                 && id.getPath().matches("ir018_[a-z0-9_]+");
+        boolean dispatchFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DISPATCH_TEST_HARNESS"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir019_[a-z0-9_]+");
         if (!previousArchFixture && !typedIrFixture && !reentrantFixture
-                && !mixedFixture && !rangeFixture && !selfFixture) {
+                && !mixedFixture && !rangeFixture && !selfFixture
+                && !dispatchFixture) {
             source.sendFailure(Component.literal("FC_ARCH invalid or disallowed function " + name));
             return 0;
         }
