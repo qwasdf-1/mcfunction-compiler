@@ -48,7 +48,7 @@ public final class TypedScoreIR {
     private static final boolean SINGLETON_FEEDBACK =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SINGLETON_FEEDBACK"));
     private static volatile boolean singletonFeedbackRuntime = SINGLETON_FEEDBACK;
-    private static final int MAX_REGION_LENGTH = 64;
+    static final int MAX_REGION_LENGTH = 64;
     private static final LongAdder COMPILED_REGIONS = new LongAdder();
     private static final LongAdder BYTECODE_REGIONS = new LongAdder();
     private static final LongAdder EXECUTED_REGIONS = new LongAdder();
@@ -212,47 +212,28 @@ public final class TypedScoreIR {
         }
     }
 
+    /**
+     * IR-016: MixedFunctionIR now owns the ordered source-to-program lowering.
+     * The runtime gets executable entries from that immutable representation,
+     * not an independently flattened mutable list. Opaque originals always
+     * retain their native queue position; direct scheduling is still admitted
+     * only for completely bytecode-lowered functions.
+     */
     static InstantiatedFunction<CommandSourceStack> compile(
             PlainTextFunction<CommandSourceStack> original
     ) {
-        List<UnboundEntryAction<CommandSourceStack>> result = new ArrayList<>();
-        List<Instruction> pending = new ArrayList<>();
-        boolean changed = false;
-        boolean fullyTyped = true;
-        for (UnboundEntryAction<CommandSourceStack> entry : original.entries()) {
-            Instruction instruction = lower(entry);
-            if (instruction == null) {
-                fullyTyped = false;
-                changed |= flush(result, pending);
-                result.add(entry);  // Unknown command retains its vanilla queue position.
-                continue;
-            }
-            if (pending.size() == MAX_REGION_LENGTH) changed |= flush(result, pending);
-            pending.add(instruction);
-        }
-        changed |= flush(result, pending);
-        if (!changed) return original;
-        List<UnboundEntryAction<CommandSourceStack>> compiledEntries = List.copyOf(result);
-        // IR-012 direct scheduler can only see a wholly typed function.
-        // The final singleton tail of a 64-command chunk remains an original
-        // vanilla queue entry and therefore prevents the shortcut.
-        boolean whollyCompiledBytecode =
-                TypedScoreIRDirectScheduler.compilationEnabled()
-                && "bytecode".equals(MODE)
-                && fullyTyped
-                && original.entries().size() >= 2
-                && original.entries().size() <= 4096
-                && compiledEntries.size() < original.entries().size()
-                && compiledEntries.stream().noneMatch(
-                        entry -> entry instanceof Interpreted
-                                || original.entries().contains(entry));
+        MixedFunctionIR.Program mixed = MixedFunctionIR.lower(original);
+        if (mixed.typedRegionCount() == 0) return original;
+        List<UnboundEntryAction<CommandSourceStack>> entries = mixed.executableEntries();
         List<UnboundEntryAction<CommandSourceStack>> directChunks =
-                whollyCompiledBytecode ? compiledEntries : null;
-        if (whollyCompiledBytecode) TypedScoreIRDirectScheduler.eligibleCompiled();
-        return new CompiledFunction(original, compiledEntries, directChunks);
+                TypedScoreIRDirectScheduler.compilationEnabled()
+                        && "bytecode".equals(MODE)
+                        ? mixed.directBytecodeChunks() : null;
+        if (directChunks != null) TypedScoreIRDirectScheduler.eligibleCompiled();
+        return new CompiledFunction(original, entries, directChunks);
     }
 
-    private static Instruction lower(UnboundEntryAction<CommandSourceStack> entry) {
+    static Instruction lower(UnboundEntryAction<CommandSourceStack> entry) {
         FusedRegionPrototype.FusedCommand parsed = FusedRegionPrototype.fusedCommand(entry);
         if (parsed == null) return null;
         var command = parsed.command().getTopContext().getCommand();
@@ -262,34 +243,35 @@ public final class TypedScoreIR {
         return null;
     }
 
-    private static boolean flush(
-            List<UnboundEntryAction<CommandSourceStack>> result,
-            List<Instruction> pending
-    ) {
-        if (pending.isEmpty()) return false;
-        if (pending.size() == 1) {
-            result.add(pending.getFirst().vanilla().original());
-            pending.clear();
-            return false;
-        }
-        Program program = new Program(pending);
+    record EmittedRegion(
+            UnboundEntryAction<CommandSourceStack> action,
+            boolean bytecode
+    ) {}
+
+    /**
+     * Emit one typed node. A JVM generation failure is an *interpreted typed
+     * node*, not an opaque vanilla barrier: direct scheduling must therefore
+     * refuse the mixed program, even though the ordinary interpreter remains
+     * semantically eligible at the normal Minecraft queue position.
+     */
+    static EmittedRegion emitRegion(Program program) {
         UnboundEntryAction<CommandSourceStack> action = new Interpreted(program);
+        boolean bytecode = false;
         if ("bytecode".equals(MODE)) {
             try {
                 if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_FORCE_FAILURE"))) {
                     throw new IllegalStateException("IR injected compilation failure");
                 }
                 action = TypedScoreIRBytecode.emit(program);
+                bytecode = true;
                 if (DIAGNOSTICS) BYTECODE_REGIONS.increment();
             } catch (RuntimeException | LinkageError compileError) {
                 FunctionCompilerMod.LOGGER.warn("Typed IR bytecode fallback: {}",
                         compileError.toString());
             }
         }
-        result.add(action);
         if (DIAGNOSTICS) COMPILED_REGIONS.increment();
-        pending.clear();
-        return true;
+        return new EmittedRegion(action, bytecode);
     }
 
     static boolean retainsOriginal(
@@ -419,7 +401,8 @@ public final class TypedScoreIR {
                 + " reentrant_yields=" + REENTRANT_YIELDS.sum()
                 + " reentrant_queued_steps=" + REENTRANT_QUEUED_STEPS.sum()
                 + ReentrantQueueProbe.diagnostics()
-                + TypedScoreIRDirectScheduler.diagnostics();
+                + TypedScoreIRDirectScheduler.diagnostics()
+                + MixedFunctionIR.diagnostics();
     }
 
     private record CompiledFunction(
