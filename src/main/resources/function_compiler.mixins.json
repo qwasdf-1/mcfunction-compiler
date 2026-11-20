@@ -22,7 +22,8 @@
     "FunctionCommandInvoker",
     "MacroFunctionAccessor",
     "CustomDataAccessor",
-    "BellowsHomePosAdapterMixin"
+    "BellowsHomePosAdapterMixin",
+    "ScoreValueRevisionMixin"
   ],
   "injectors": {
     "defaultRequire": 1
