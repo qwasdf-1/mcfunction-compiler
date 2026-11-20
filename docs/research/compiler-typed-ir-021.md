@@ -1,6 +1,6 @@
 # COMPILER-IR-021 — Native fork-stage cost decomposition and deferred scheduling
 
-**Status (2026-11-20):** **ACCEPTED original Minecraft 26.3 exact-method inspection, first original Blastback native three-JVM PLAIN/EMPTY/TIMED CPU matrix, and all default-off IR-016–019 native semantic regressions.** A separately booted three-JVM CPU replication is under way. No compiled selector, new scheduling implementation, causal speedup, complete restoration or production promotion. Work stays on work/compiler-coverage / draft unmerged PR #10.
+**Status (2026-11-20):** **ACCEPTED research-only native fork-stage attribution:** original mapped 26.3/Brigadier bytecode inspection, TWO independently executed original publisher three-JVM PLAIN/EMPTY/TIMED CPU matrices (SIX fresh servers total), and default-off IR-016–019 native semantic regressions. **No compiled selector, task replacement, CPU speedup, proven full-restoration correctness or production promotion.** Branch work/compiler-coverage; PR #10 remains draft/unmerged.
 
 ## Motivating question
 
@@ -90,6 +90,38 @@ The measured source mapping and per-entity deferred continuation corrections (13
 
 The 2.04% measured score modifier includes genuine per-entity condition checks, CommandContext.copyFor and redirect evaluation, not just an avoidable Brigadier callback. This original one-TNT event happens to show matching source and resulting context totals for this stage, but that does NOT prove predicate result equivalence for other worlds, or that the score predicate can be skipped in a compiler.
 
+## Independent native three-JVM CPU attribution replication — accepted
+
+[Second independent native original-publisher three-arm run #44837974990](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44837974990) · [independent full per-method sample, source and original-world archive #14679587279](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44837974990/artifacts/14679587279).
+
+The repeat used the same exact original publisher SHA, exact source index, bounded three-world clone preflight and pre-clock original TNT confirmation, fixed 30-second native game window and eight read-only method streams. All three modes passed original entity/source/continuation exposure gates, sampling completeness and host-quality tests.
+
+| Original native 30-second observation | PLAIN | EMPTY | TIMED |
+| --- | ---: | ---: | ---: |
+| Game ticks | 632 | 600 | 600 |
+| Original source/as/selector calls | 1,246 | 1,243 | 1,247 |
+| Selector results, source mappings and score predicate visits | 316,001 | 319,968 | 327,094 |
+| Deferred ContinuationTask.execute entries | 315,999 | 319,966 | 327,092 |
+| Linux Server-thread running CPU | 8.005 s | 8.977 s | 8.927 s |
+
+The original selector results, withEntity calls, per-entity score predicate visits and initial schedule list sizes matched within each run. At this arbitrary observation edge the deferred continuation count was precisely two lower in each repeat arm. This verifies actual original one-by-one deferred staging, but does not itself certify that every scheduled task completed after the event or that the full restored-world template matched.
+
+| Calibrated inclusive native method | First run TIMED Server CPU share | Independently repeated share | First signed per-call cost | Repeat signed per-call cost |
+| --- | ---: | ---: | ---: | ---: |
+| Original entire BuildContexts | **5.038%** | **5.272%** | 213.9 µs | 377.4 µs |
+| Brigadier execute-as modifier | 3.318% | 3.228% | 140.9 µs | 231.1 µs |
+| **Native EntitySelector.findEntities**, nested in execute-as | **2.981%** | **2.924%** | 126.5 µs | 209.3 µs |
+| Native CommandSourceStack.withEntity, also nested in execute-as | 0.823% | 0.525% | 135.8 ns | 143.2 ns |
+| Score equality redirect modifier, nested in BuildContexts | 2.040% | 2.707% | 336.7 ns | 738.7 ns |
+| One-time ContinuationTask.schedule | −0.00035% | 0.00664% | −14.8 ns | 476.0 ns |
+| Native deferred ContinuationTask.execute, outside BuildContexts | 0.396% | 0.244% | 65.3 ns | 66.6 ns |
+
+**Evidence-backed conclusion:** Selector resolution is a reproducible, material nested cost of this exact Blastback restore fork path. Its **relative** signed CPU projection is close across the two independent timed windows (**2.981% and 2.924%**), and the original execute-as modifier total stays close (**3.318% and 3.228%**). The entire original BuildContexts cost remains roughly five percent. However, absolute signed selector CPU per source call differs materially (**126.5 vs 209.3 µs**) and the sampled stage populations/server CPU denominators are not equal. These results are not an invariant per-call cost, a confidence interval, or a causal speedup measurement.
+
+The score modifier costs also vary significantly, **2.04–2.71%**; each per-entity comparison and context copy is genuine native work. Source.withEntity and deferred continuation per-entity corrections are only **~136–143 ns** and **~65–67 ns** per call, respectively, below their separate 0.7–1.0 µs EMPTY clock-read means. They cannot be treated as precise positive CPU fractions or easy savings. The initial schedule estimate even **changes sign** across independent runs and is likewise unresolved at the clock resolution. The native continuation stage is not the main clearly measurable bottleneck.
+
+All stage percentages are **inclusive and overlapping**: selector and withEntity nest in execute-as, execute-as and score conditions nest in BuildContexts, and initial schedule nests in BuildContexts. The independent sparse samples cannot be subtracted to assert a precise exclusive residual. Deferred continuation task steps occur later in the queue, *outside* the measured BuildContexts stage. None of the two independent studies used a compiled treatment, randomized paired controls or a workload-matched A/A placebo; neither supports a claimed actual CPU improvement from a selector rewrite.
+
 ## Post-observer Minecraft semantic equivalence — accepted
 
 [Post-default-off IR-021 native regression #44837526785](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44837526785) passed all four prior 26.3/Java25 differential suites with native fork-observer Mixins installed: IR-016 mixed-function frames/quotas **126/126** complete vanilla states per arm; IR-017 range/guard/binary score arithmetic **168/168**; IR-018 @s entity binding and opaque function dispatch barriers **87/87**; IR-019 original native conditional function dispatch **84/84**. These runs verified native scoreboard, command quota, frame, callback and fallback state on the tested original paths with CPU021 disabled. They do not prove zero disabled-hook CPU overhead.
@@ -98,7 +130,7 @@ The 2.04% measured score modifier includes genuine per-entity condition checks, 
 
 ## Open gate and decision rule
 
-**The first three-arm descriptive method-cost attribution and native regression matrix passed.** An independent original three-arm repetition is being checked before treating the stage shares as stable. The next compiler optimization must have an exact semantics-preserving replacement with a separately measured avoidable part. Selector scans, per-entity CommandSourceStack state, score predicates and native queued command actions all do necessary work, even if they are expensive. In particular, the previous IR-020 inclusive ~5.6% BuildContexts estimate is **not** an upper bound on achievable speedup.
+**Both independent native three-arm descriptive method-cost matrices and the full IR-016–019 semantic regression are accepted.** The selector-resolution CPU share is reproducible within the chosen original Blastback capture/restore fixture, but no compiled optimization or removable CPU fraction is established. The next compiler optimization must have an exact semantics-preserving replacement with a separately measured avoidable part. Selector scans, per-entity CommandSourceStack state, score predicates and native queued command actions all do necessary work, even if they are expensive. In particular, the previous IR-020 inclusive ~5.6% BuildContexts estimate is **not** an upper bound on achievable speedup.
 
 If an independently repeatable CPU component can be isolated and a candidate optimization is implemented in a later milestone, require full fork order and count, selector permissions and tag/score filters, source identity and lifecycle, partial quota cuts, callback/error and return behavior, reentrant queue inserts and player/gameplay state parity, and an uninstrumented placebo-controlled real-workload CPU test. Do not merge research-only Mixins until their disabled overhead is independently assessed.
 
@@ -109,4 +141,4 @@ If an independently repeatable CPU component can be isolated and a candidate opt
     python3 scripts/ci_typed_ir015_fetch.py
     python3 scripts/ci_typed_ir021_cpu.py
 
-Initial reported CPU numbers are directly from accepted original native run #44837775475, not inferred from static source. Finish independent repetition before the final closeout decision.
+All CPU numbers are from accepted original native #44837775475 and independent #44837974990, not inferred from static source. This milestone is a completed cost-attribution study, NOT a dispatch, selector or scheduling optimization.
