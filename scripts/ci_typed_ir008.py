@@ -314,7 +314,8 @@ def run(mode: str) -> dict:
             # An invalid objective must route through the retained original
             # parsed command; adding it at runtime must then activate direct IR.
             run_function(client, "missing")
-            if "fc_missing" in client.command("scoreboard objectives list"):
+            if re.search(r"(?<![A-Za-z0-9_.-])fc_missing(?![A-Za-z0-9_.-])",
+                         client.command("scoreboard objectives list")):
                 raise AssertionError("Invalid objective unexpectedly appeared")
             report["cases"]["missing_before_create"] = "objective_absent"
             client.command("scoreboard objectives add fc_missing dummy")
