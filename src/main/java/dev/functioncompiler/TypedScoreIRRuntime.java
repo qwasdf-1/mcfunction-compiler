@@ -5,6 +5,8 @@ import dev.functioncompiler.mixin.ExecutionContextAccessor;
 import dev.functioncompiler.mixin.ScoreboardCommandAccessor;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.execution.ExecutionContext;
+import net.minecraft.commands.execution.CommandQueueEntry;
+import net.minecraft.commands.execution.EntryAction;
 import net.minecraft.commands.execution.Frame;
 import net.minecraft.commands.execution.TraceCallbacks;
 import net.minecraft.server.commands.CommandResponseTracker;
@@ -29,11 +31,44 @@ final class TypedScoreIRRuntime {
 
     private TypedScoreIRRuntime() {}
 
+    private static final boolean REENTRANT_SAFE =
+            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_REENTRANT_SAFE"));
+
+    /**
+     * Exceptional-only queue cursor. On a reentrant enqueue, finish the
+     * current IR command, let the newly staged callback work run first,
+     * then resume remaining commands as ORIGINAL vanilla queue actions.
+     * Do not execute the tail in this action or eagerly enqueue it: that
+     * would cross an observable scheduler boundary again.
+     */
+    private record VanillaTail(
+            CommandSourceStack source,
+            TypedScoreIR.Instruction[] instructions,
+            int index
+    ) implements EntryAction<CommandSourceStack> {
+        @Override
+        public void execute(
+                ExecutionContext<CommandSourceStack> context, Frame frame
+        ) {
+            if (index >= instructions.length) return;
+            context.queueNext(new CommandQueueEntry<>(
+                    frame, instructions[index].vanilla().original().bind(source)));
+            if (index + 1 < instructions.length) {
+                context.queueNext(new CommandQueueEntry<>(
+                        frame, new VanillaTail(source, instructions, index + 1)));
+            }
+            TypedScoreIR.reentrantVanillaStep();
+        }
+    }
+
     static final class State {
         private final CommandSourceStack source;
         private final ExecutionContext<CommandSourceStack> context;
         private final Frame frame;
         private final Scoreboard scoreboard;
+        private final TypedScoreIR.Instruction[] instructions;
+        private final long initialQueueEpoch;
+        private int nextIndex;
         private TypedScoreIR.Instruction current;
         private Objective objective;
         private ScoreAccess access;
@@ -45,11 +80,19 @@ final class TypedScoreIRRuntime {
         // and the watched slot's scoreboard mutation revision still match.
         private record CachedSourceValue(Objective objective, long revision, int value) {}
 
-        State(CommandSourceStack source, ExecutionContext<CommandSourceStack> context, Frame frame) {
+        State(
+                CommandSourceStack source,
+                ExecutionContext<CommandSourceStack> context,
+                Frame frame,
+                TypedScoreIR.Instruction[] instructions
+        ) {
             this.source = source;
             this.context = context;
             this.frame = frame;
+            this.instructions = instructions;
             this.scoreboard = source.getServer().getScoreboard();
+            this.initialQueueEpoch = REENTRANT_SAFE && context instanceof ReentrantQueueEpoch epoch
+                    ? epoch.functionCompiler$queuedWorkEpoch() : 0L;
         }
 
         private int quota() {
@@ -63,6 +106,22 @@ final class TypedScoreIRRuntime {
          * validated command with its original vanilla/error behavior once.
          */
         int begin(TypedScoreIR.Instruction instruction) {
+            // Every new instruction is a possible vanilla interleaving point.
+            // Once a callback has queued an entry during this compiled
+            // action, return to the original queue before the NEXT command.
+            // This is checked before objective resolution, command cost or
+            // conditional guard evaluation to prevent duplicated effects.
+            if (REENTRANT_SAFE && nextIndex > 0
+                    && context instanceof ReentrantQueueEpoch epoch
+                    && epoch.functionCompiler$queuedWorkEpoch() != initialQueueEpoch) {
+                if (quota() > 0) {
+                    context.queueNext(new CommandQueueEntry<>(
+                            frame, new VanillaTail(source, instructions, nextIndex)));
+                    TypedScoreIR.reentrantYield();
+                }
+                return STOP;
+            }
+            nextIndex++;
             if (quota() <= 0) return STOP;
             Objective selected = scoreboard.getObjective(instruction.objective());
             if (selected == null || selected.getCriteria().isReadOnly()) {
