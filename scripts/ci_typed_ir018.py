@@ -77,7 +77,7 @@ FUNCTIONS = {
     ],
     "ir018_context_barrier": [
         "scoreboard players set #g fc_ir 1",
-        f"execute as {SELECTOR} run scoreboard players add @s fc_ir 9",
+        "execute as @s run scoreboard players add @s fc_ir 9",
         "scoreboard players add #g fc_ir 2",
         "scoreboard players add #g fc_ir 3",
     ],
@@ -99,6 +99,14 @@ FUNCTIONS = {
 ENTITY_CASES = tuple(x for x in FUNCTIONS if x not in (
     "ir018_child", "ir018_child_return", "ir018_missing_self"))
 NO_ENTITY_CASES = ("ir018_self_mutation", "ir018_self_guard", "ir018_missing_self")
+# Record the entity-bound result while the source is still available. This
+# avoids relying on persistent entity tickets in a no-player server; the
+# result is copied by ordinary ORIGINAL Minecraft scoreboard instructions.
+for _case in ENTITY_CASES:
+    FUNCTIONS[_case] += [
+        "scoreboard players operation #observed fc_ir = @s fc_ir",
+        "scoreboard players operation #observed_source fc_ir = @s fc_source",
+    ]
 EXPECTED_ENTITY = {
     "ir018_self_mutation": {"self": 9, "g": 13},
     "ir018_self_binary": {"self": 5, "g": 5},
@@ -194,24 +202,12 @@ def start(mode: str):
         client.command("gamerule sendCommandFeedback false")
         # A headless server has no player ticket. Without a forced chunk the
         # new entity can immediately be unloaded before an RCON snapshot.
+        # Keep a platform in the loaded headless chunk. Each invocation
+        # below uses Minecraft's native execute summon modifier to create
+        # and bind a new entity AT THE SAME COMMAND STAGE; this avoids a
+        # separately summoned entity disappearing between RCON requests.
         client.command("forceload add 0 0")
-        # A no-player superflat world has no guaranteed surface at y=64.
-        # Place a solid platform before summoning so an armor stand cannot
-        # die from a long drop or from spawning inside default flat terrain.
-        platform = client.command("setblock 0 63 0 minecraft:stone")
-        result = client.command('summon minecraft:armor_stand 0 64 0')
-        if "Summoned new" not in result:
-            raise AssertionError(f"{mode}: source entity not summoned: {result!r}")
-        client.command(
-            'tag @e[type=minecraft:armor_stand,limit=1,sort=nearest] add ir018_test')
-        check = client.command(f"data get entity {SELECTOR} UUID")
-        if "UUID" not in check:
-            all_armor = client.command(
-                'data get entity @e[type=minecraft:armor_stand,limit=1] UUID')
-            forced = client.command("forceload query 0 0")
-            raise AssertionError(
-                f"{mode}: source entity not resident/tagged: tagged={check!r}, "
-                f"any_armor={all_armor!r}, forceload={forced!r}, platform={platform!r}")
+        client.command("setblock 0 63 0 minecraft:stone")
         if mode in ("old_bytecode", "interpreted", "bytecode"):
             result = client.command("fc_ir012_direct off")
             if "enabled=false" not in result:
@@ -224,33 +220,20 @@ def start(mode: str):
         raise
 
 
-def entity_score(client, obj: str) -> int | None:
-    # Resolve the one tagged entity directly as a scoreboard holder from
-    # console, so the RCON response is not suppressed by execute-as.
-    response=client.command(
-        f"scoreboard players get {SELECTOR} {obj}")
-    match=re.search(r"has (-?\d+)", response)
-    if match:
-        return int(match.group(1))
-    if "none is set" in response:
-        return None
-    raise AssertionError(f"Unexpected selector score result: {response!r}")
-
-
 def reset(client) -> None:
     client.command("gamerule minecraft:max_command_sequence_length 65536")
     for objective in ("fc_ir", "fc_source"):
         client.command(f"scoreboard players set #g {objective} 0")
         client.command(f"scoreboard players set #mult {objective} 2")
-        client.command(
-            f"execute as {SELECTOR} run scoreboard players reset @s {objective}")
+    client.command("scoreboard players set #observed fc_ir -777")
+    client.command("scoreboard players set #observed_source fc_ir -777")
     client.command("scoreboard objectives remove fc_absent")
 
 
 def snapshot(client) -> dict:
     return {
-        "self": entity_score(client, "fc_ir"),
-        "self_source": entity_score(client, "fc_source"),
+        "self": nullable_score(client, "#observed", "fc_ir"),
+        "self_source": nullable_score(client, "#observed_source", "fc_ir"),
         "g": nullable_score(client, "#g", "fc_ir"),
         "mult": nullable_score(client, "#mult", "fc_ir"),
         "absent": nullable_score(client, "#never", "fc_ir"),
@@ -259,7 +242,11 @@ def snapshot(client) -> dict:
 
 
 def invoke(client, name: str, *, as_entity: bool) -> None:
-    prefix = f"execute as {SELECTOR} run " if as_entity else ""
+    # Native execute summon binds @s to a real new entity in this same
+    # command context, independent of whether it remains in a loaded world
+    # chunk after the queued function has finished.
+    prefix = ("execute positioned 0 64 0 summon minecraft:armor_stand run "
+              if as_entity else "")
     response = client.command(prefix + f"fc_ir018_call fc_ir:{name}")
     # In Minecraft, execute-as returns the result command but may suppress
     # child CommandSourceStack feedback to the RCON caller, yielding "".
