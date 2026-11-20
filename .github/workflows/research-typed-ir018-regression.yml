@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/workflows/research-typed-ir018-regression.yml'
       - 'tests/test_typed_ir016.py'
+      - 'tests/test_typed_ir018_fallback.py'
+      - 'src/main/java/dev/functioncompiler/ScoreAddPrototype.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CommandContextAccessor.java'
   workflow_dispatch:
 
 permissions:
@@ -41,6 +44,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_typed_ir016.py' -v
           python3 -m unittest discover -s tests -p 'test_typed_ir017.py' -v
           python3 -m unittest discover -s tests -p 'test_typed_ir018.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir018_fallback.py' -v
       - name: Real Minecraft native differential regression
         timeout-minutes: 35
         run: python3 scripts/ci_typed_${{ matrix.suite }}.py
