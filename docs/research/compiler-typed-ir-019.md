@@ -1,6 +1,6 @@
 # COMPILER-IR-019 — Native conditional-call census, hotness gate and dispatch feasibility
 
-**Status (2026-11-20):** pinned two-publisher exact-source dispatch stratification ACCEPTED; three-Minecraft-JVM transparent native function-dispatch semantics/observer ACCEPTED. Original Blastback one-TNT capture-stage activation and independent post-census regression are separate gates. **No native function-dispatch optimization has been implemented. No performance claim.** Work remains on branch work/compiler-coverage, draft PR #10 unmerged.
+**Status (2026-11-20):** **Accepted research-only dispatch feasibility/measurement stage:** two SHA-pinned source inventories; three-native-JVM original dispatch parity and passive call census; one genuine one-TNT Blastback capture-stage census; and post-change IR-016/017/018 native regressions. **No compiled function-dispatch opcode, CPU-speedup result, validated full restoration, production promotion or PR merge.** Same branch work/compiler-coverage, draft PR #10.
 
 ## Why the optimizer is gated
 
@@ -47,11 +47,39 @@ Fresh Minecraft 26.3/Java25 servers executed the same disposable original mcfunc
 
 Those 56 call tasks are not 56 proven successful predicate evaluations *at identifiable call sites*. The counts provide separately validated observation boundaries. No CPU was measured, no conditional dispatch instruction compiled, and no speedup is claimed.
 
-## Real Blastback activation and next gate
+## Real Blastback original capture-stage dispatch activation — accepted
 
-A distinct original Blastback one-TNT capture-stage experiment exercises the unchanged original publisher pack, the accepted block/witness palette, and a 30-second bounded event window with the passive census allowlisted to 13 relevant capture/tick/job functions and 11 native callees. It requires a real TNT entity, advancing tick counter, and **at least one named capture-stage source entry** before declaring a valid activation. The source/witness observations, native call-task counts and derived output are saved independently of full restoration. In particular, a partially restored region is NOT silently promoted as a valid completed restore.
+[Accepted bounded genuine publisher one-TNT native pilot #44830205578](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830205578) · [exact source-site/callee log and original-world observations #14676455133](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830205578/artifacts/14676455133).
 
-The previously attempted whole-restoration Blastback pilot had incomplete restoration. This capture census does not fix or bypass that limitation; it asks the narrower question whether specific dispatch commands are reached during a genuine capture event. The child tasks are reported by target, without inventing passing guard counts or callsite attribution.
+The experiment loaded the untouched SHA-verified Blastback Hotfix 3 archive in an actual Fabric Minecraft 26.3/Java25 JVM, using the accepted block-palette positions and untouched real datapack functions. A single **native summoned TNT** with tag fc_blastback_probe and an explicitly longer **160-tick test fuse** was observed in-world. The source world initially matched the separate cloned template, including all five independently placed witness blocks. A passive source and native child-call census ran for 30 seconds without ScoreAdd/fusion/typed lowering or other scheduler changes. The original first attempted fixture used a queued setup function, and its TNT presence probe returned zero; that attempt was explicitly invalid, not counted as accepted. The corrected pilot summoned TNT directly, confirmed exactly one actual entity, and required a reached Blastback capture source before accepting the narrower capture-stage observation.
+
+**Accepted capture-window facts:** 625 game ticks elapsed; census overflow=0; **141 observed original function-source sites**, **71,161 original source-entry reaches**, **351,588 ordinary Brigadier callback invocations**, **4,562 exact single-score/static-child dispatch entry reaches** across 21 reached sites, **682 multi-stage/return dispatch entry reaches** across 4 reached sites, and **5,623 original native CallFunction target tasks** across 11 allowlisted callees. The capture stage was genuinely reached (55 capture-related source rows had nonzero entry counts). All counts are from a bounded event window and may include ongoing restoration. No compiler opcode or child-call scheduler optimization ran.
+
+| Original native callee target | Observed CallFunction task entries |
+| --- | ---: |
+| erb:capture/store | **3,278** |
+| erb:restore/job_tick | **1,242** |
+| erb:capture/schedule | **449** |
+| erb:runtime_tick | **618** |
+| erb:pump/dormant | 31 |
+| erb:group/join | 2 |
+| erb:group/add_segment | 1 |
+| erb:job/create | 1 |
+| erb:capture/queue | 1 |
+| erb:capture/loop | 0 |
+| erb:capture/requeue_moved | 0 |
+
+Those per-target tasks are **not** independently attributable to the 4,562 single-score call-site reaches, especially because the native target may have other callers, function tags, scheduled/tick dispatch and multi-stage conditions. For example, both exact simple guards in erb:runtime_tick were reached **618 times**; neither observation gives the outcome of the guard without separate native target/source attribution.
+
+### A more important observed fork/callback workload
+
+The original source entry **erb:restore/job_tick, source index 4** was reached **1,242** times but its original terminal Brigadier callback ran **319,509** times (roughly 257 times per reached entry). The exact publisher source is:
+
+    execute as @e[type=minecraft:marker,tag=erb.block,tag=!erb.verified] if score @s erb.job = #active erb.job run scoreboard players set #needs_restore erb.tmp 1
+
+This demonstrates **massive fan-out between source entry and callback**, arising from Minecraft's selector-driven, context-forked execution. It also exposes a serious measurement trap: the total **351,588 callbacks** cannot be interpreted as only 71,161 command executions, or as child-function call completions. The forked scoreboard writes and selector scans are real vanilla semantics and cannot simply be skipped. Whether their *overhead* can be safely reduced is a separate future compiler-cost question.
+
+The parent source/template region was **not restored to its reference template** at the end of this short capture observation; this remains **NOT a successful full restoration workload and NOT a CPU benchmark**. The same limitations of the earlier BLASTBACK-007 study apply. The accepted IR-019 claim is narrower: original event activation, specific named source entry frequency, native child-call tasks, and callback fan-out were observed under an authentic publisher datapack.
 
 **Dispatch-lowering promotion gate (not met merely by the accepted source/native tests):**
 
@@ -61,9 +89,19 @@ The previously attempted whole-restoration Blastback pilot had incomplete restor
 4. Before compiling any dispatch op, derive/test native source-guard skip, successful child queue, quotas, parent and child frame, return-run, feedback, reentrant callback insertion and failure behavior; a first opcode may keep the child native and must preserve the prior barrier if it cannot prove exact fidelity.
 5. Native 26.3 multi-JVM parity for original commands, original source and distinct feedback and partial command quota state; only then allow a separate, opt-in compiler experiment. Never cross dispatch barriers with the IR-012 direct cursor without a separate frame-equivalence proof.
 
+## Post-observer native backwards compatibility — accepted
+
+[Accepted post-census native regression #44830314012](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830314012). After adding the passive CallFunctionMixin observer, a separate 14-JVM regression repeated three previously accepted original-Minecraft 26.3 suites, with census disabled unless explicitly requested:
+
+- IR-016 mixed-function native/interpreted/ASM/direct barrier and quota semantics: **126/126 complete states per mode**, [artifact #14675608629](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830314012/artifacts/14675608629).
+- IR-017 range/guarded scoreboard arithmetic native/previous/interpreted/ASM/direct: **168/168 complete states per mode**, [artifact #14675833552](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830314012/artifacts/14675833552).
+- IR-018 source-bound @s original-entity/no-entity and opaque function barriers across five modes: **87/87 complete states per mode**, [artifact #14674084671](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830314012/artifacts/14674084671).
+
+These bounded backwards-compatibility results show that the default-off observer did not alter established native queue, quota and fallback behavior on the tested original commands; they are not CPU or real-Blastback restoration evidence.
+
 ## Current decision
 
-Accepted as a **measurement and source-eligibility stage**, not as a speedup or implemented dispatch compiler. The native CallFunction task observer is the new capability; all original child scheduling remains unchanged. Continue only with a validated real capture workload and actual cost/hotness evidence. If that gate cannot be established, stop here rather than implementing an unmeasured, semantically risky optimizer on synthetic evidence.
+**IR-019's measurement and source-eligibility stage is accepted**, but the dispatch compiler remains deliberately **NOT implemented**. The genuine Blastback window proves 4,562 exact-call guard entry reaches, yet the most prominent measured event activity was 319,509 selector-forked callbacks from one restore-source command. No bounded CPU attribution proves that simplifying the single-score function guards removes meaningful event CPU. Prior [COMPILER-CPU-004](compiler-positioned-call-cpu-004.md) found native immediate CallFunction setup negligible in a *different* Vein Miner workload; its timing must not be directly projected onto Blastback. Focus next on measured guard-stage and selector-fork overhead or a validated capture-specific CPU comparator; only reopen dispatch lowering with a positive actual-cost hypothesis and frame/return parity. All child scheduling remains original Minecraft.
 
 ## Reproduce
 
@@ -74,4 +112,4 @@ Accepted as a **measurement and source-eligibility stage**, not as a speedup or 
     python3 scripts/ci_typed_ir019_native.py
     python3 scripts/ci_typed_ir019_blastback.py
 
-Keep all four research workflows manual-only after their individual accepted gates. All changes are on work/compiler-coverage / draft, unmerged PR #10. All performance and production switches remain OFF.
+Once all accepted updated runs finish, archive the four IR-019 research workflows as manual-only. All changes are on work/compiler-coverage / draft, unmerged PR #10. All performance and production switches remain OFF.
