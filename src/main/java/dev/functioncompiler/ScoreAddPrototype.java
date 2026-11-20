@@ -130,7 +130,14 @@ public final class ScoreAddPrototype {
             return;
         }
 
-        List<Object> parsedModifiers = parseModifiers(modifiers, functionId);
+        // Correct the historical literal target-node lookup only when the
+        // *whole* source line has the exact IR-009 guard/terminal shape.
+        // Unsupported modifiers must stay on their existing vanilla path.
+        boolean typedLiteralGuard = TypedScoreIR.enabledFor(functionId)
+                && ScoreConditionCommand.typedIrLiteralGuardShape(
+                        ((BuildContextsAccessor<CommandSourceStack>) buildContexts)
+                                .functionCompiler$getCommandInput());
+        List<Object> parsedModifiers = parseModifiers(modifiers, typedLiteralGuard);
         if (parsedModifiers == null) {
             // The terminal callback may have been replaced already even though
             // vanilla must continue to interpret the surrounding modifiers.
@@ -194,7 +201,7 @@ public final class ScoreAddPrototype {
 
     private static List<Object> parseModifiers(
             List<CommandContext<CommandSourceStack>> modifiers,
-            Identifier functionId
+            boolean typedLiteralGuard
     ) {
         List<Object> result = new ArrayList<>();
         for (CommandContext<CommandSourceStack> mod : modifiers) {
@@ -212,7 +219,7 @@ public final class ScoreAddPrototype {
             if (nodeNames(mod).equals(List.of("run"))) {
                 continue;
             }
-            Object parsed = parseSingleModifier(mod, functionId);
+            Object parsed = parseSingleModifier(mod, typedLiteralGuard);
             if (parsed == null) {
                 return null;
             }
@@ -237,13 +244,12 @@ public final class ScoreAddPrototype {
     );
 
     private static Object parseSingleModifier(
-            CommandContext<CommandSourceStack> mod, Identifier functionId
+            CommandContext<CommandSourceStack> mod, boolean typedLiteralGuard
     ) {
-        // IR-009 gate only: earlier source used node "targets" instead of
-        // parsed score-condition node "target". Fix the lookup only within
-        // the explicit opt-in research namespace; leave every other mode's
-        // parser acceptance and scheduling unchanged.
-        if (TypedScoreIR.enabledFor(functionId)) {
+        // Only IR-009's exact literal guard shape is allowed to correct the
+        // historical target/targets lookup, preventing an otherwise declined
+        // nonliteral / ranged condition from being silently rewritten.
+        if (typedLiteralGuard) {
             Object guarded = parseScoreCondition(mod, true);
             if (guarded != null) return guarded;
         }
