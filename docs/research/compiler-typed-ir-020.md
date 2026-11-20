@@ -1,6 +1,6 @@
 # COMPILER-IR-020 — Original Blastback selector-fork CPU cost screen
 
-**Status (2026-11-20):** **ACCEPTED first three-JVM descriptive original Blastback CPU-clock matrix**, all native sample and original-source/world gates passed; a second independently booted three-arm replication is being run to check clock variability. Default-off original IR-016–019 native semantic regressions accepted. **No compiled selector/dispatch opcode, CPU speedup, full restoration or production promotion.** Work remains on work/compiler-coverage, draft PR #10.
+**Status (2026-11-20):** **ACCEPTED two independent three-JVM native original Blastback calibrated CPU-clock matrices**, with exact publisher source, pre-event world, clock/host quality and source-exposure gates passed in all six arms; default-off IR-016–019 native semantic regressions accepted. The only measured new capability is an opt-in research CPU diagnostic. **No compiled selector/dispatch opcode, causal speedup, complete Blastback restoration or production promotion.** Research branch work/compiler-coverage, draft PR #10 unmerged.
 
 ## Original source and observable hypothesis
 
@@ -63,7 +63,40 @@ The execution count ratio reflects roughly 255–259 terminal callbacks per sour
 
 The original selector/context-building stage is substantially more expensive per source entry than a single scoreboard callback. The **leaf correction (106 ns) is smaller than EMPTY's mean clock-only interval (285 ns)** and cannot support a precise positive CPU claim. The execute/leaf method-cost measurements overlap; their descriptive CPU percentages are **not additive**. Even a hypothetical combined build + terminal-execute inclusive cost is not proof of removable compiler-owned work, because it contains required entity selection, per-entity score lookup and actual scoreboard result processing. The work and marker population differ across independent boots; the whole-Server CPU figures are **not** causal treatment effects and should not be interpreted as an improvement or slowdown.
 
-This is a bounded, sampled descriptive cost screen. One independently timed JVM does not provide a confidence interval, and deterministic 1/16 or 1/128 sampling may correlate with changing source/entity work through the 30-second window. A second independent original three-JVM matrix is being run before treating these proportions as stable across repeated experiments.
+This is a bounded, sampled descriptive cost screen. One independently timed JVM does not provide a confidence interval, and deterministic 1/16 or 1/128 sampling may correlate with changing source/entity work through the 30-second window. An additional, independently started original three-JVM matrix has now passed and is documented below, but two sparse-clock replications still do not constitute a randomized causal CPU experiment.
+
+## Accepted independent native clock replication
+
+[Independent repeat of original Minecraft 26.3 six-command? no: three-JVM PLAIN / EMPTY / TIMED study #44834904332](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834904332) · [full second event/clock samples and original fixture observations #14677158595](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834904332/artifacts/14677158595).
+
+The same unchanged original Blastback publisher, byte-pinned original command, 30-second direct native TNT event, unchanged three method boundaries, sparse clock strides and bounded pre-event source/template integrity checks ran again on **three additional independently booted JVMs**. Every method had zero invalid/missing samples and all independent host-quality gates passed.
+
+| Original 30-second native observation | PLAIN | EMPTY | TIMED |
+| --- | ---: | ---: | ---: |
+| Minecraft ticks | 600 | 601 | 619 |
+| Original selector source builds | 1,243 | 1,243 | 1,248 |
+| Native per-fork execute and scoreboard callback entries each | 320,465 | 321,596 | 328,008 |
+| Linux Server-thread CPU | 8.613 s | 8.322 s | 8.641 s |
+
+The repeat EMPTY sampled 77 Build / 2,512 Execute / 2,512 Leaf original calls; TIMED sampled 78 Build / 2,562 Execute / 2,562 Leaf calls at the exact predeclared ordinals.
+
+| Synchronous method span | Repeat EMPTY clock mean | Repeat TIMED method mean | Repeat signed corrected per call | Repeat projected share of TIMED Server CPU |
+| --- | ---: | ---: | ---: | ---: |
+| restore_selector_build | 1,332.26 ns | 392,471.97 ns | **391,139.71 ns** | **488.14 ms / 5.649%** |
+| restore_terminal_execute | 580.04 ns | 1,620.29 ns | **1,040.25 ns** | **341.21 ms / 3.949%** |
+| restore_scoreboard_leaf (nested) | 255.35 ns | 405.68 ns | **150.34 ns** | **49.31 ms / 0.571%** |
+
+### Across the two completely independent original three-arm studies
+
+| Original inclusive method | First TIMED CPU projection | Independent repeat |
+| --- | ---: | ---: |
+| Source/selector fork BuildContexts stage | **5.631%** | **5.649%** |
+| Original per-entity ExecuteCommand stage | 3.533% | 3.949% |
+| Nested original scoreboard callback | 0.412% | 0.571% |
+
+The first and second *selector/context-building* projections differ by only 0.018 percentage points under these fixed fixture conditions, a reproducible descriptive workload lead. This agreement is NOT a statistical confidence interval or proof that those 5.6% could be removed. The per-fork execute/leaf values vary more. In both studies the scoreboard callback's signed correction of only 106–150 ns remains **below the independent EMPTY clock-read mean of 255–285 ns**, so it is particularly unsuitable for extrapolation into a purported large optimizer benefit.
+
+**Decision:** No IR-020 selector or function-dispatch optimization is promoted. The next technically plausible question is whether the **required** context-fork setup can be represented more efficiently while preserving every per-entity source, conditional score comparison, callback, failure, result, command quota and queued frame. It must be separately tested against the genuine original-world work and measured as a causal uninstrumented performance treatment before any speedup claim. We have not measured what share of the inclusive 5.6% is *actually removable*.
 
 ## Decision boundary
 
