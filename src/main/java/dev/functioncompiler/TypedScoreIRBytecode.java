@@ -114,14 +114,13 @@ final class TypedScoreIRBytecode implements Opcodes {
             method.visitInsn(ICONST_3);
             method.visitJumpInsn(IF_ICMPEQ, next);  // conditional branch not taken
 
-            if (instruction instanceof TypedScoreIR.Binary binary) {
+            TypedScoreIR.Instruction terminal =
+                    instruction instanceof TypedScoreIR.Conditional guard
+                            ? guard.terminal() : instruction;
+            if (terminal instanceof TypedScoreIR.Binary binary) {
                 emitBinary(method, binary);
             } else {
-                TypedScoreIR.Mutation mutation =
-                        instruction instanceof TypedScoreIR.Conditional conditional
-                                ? conditional.mutation()
-                                : (TypedScoreIR.Mutation) instruction;
-                emitMutation(method, mutation);
+                emitMutation(method, (TypedScoreIR.Mutation) terminal);
             }
 
             method.visitVarInsn(ALOAD, 5);
