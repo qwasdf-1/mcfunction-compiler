@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.LongAdder;
  * may reorder such injected work relative to individual vanilla commands.
  * This scheduler therefore stays research-only, not a universal replacement.
  */
-final class TypedScoreIRDirectScheduler {
+public final class TypedScoreIRDirectScheduler {
     private static final boolean ENABLED =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIRECT_FUNCTION"));
     private static final boolean TOGGLE_ALLOWED =
@@ -79,7 +79,7 @@ final class TypedScoreIRDirectScheduler {
      * one resumable compiled chunk. No child frame is needed under these
      * strict callback/return/tracing guards.
      */
-    static <T extends ExecutionCommandSource<T>> boolean tryExecute(
+    public static <T extends ExecutionCommandSource<T>> boolean tryExecute(
             InstantiatedFunction<T> function,
             T sender,
             ExecutionContext<T> context,
