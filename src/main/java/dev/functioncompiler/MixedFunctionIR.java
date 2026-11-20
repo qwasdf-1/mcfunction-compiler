@@ -3,6 +3,8 @@ package dev.functioncompiler;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.execution.UnboundEntryAction;
 import net.minecraft.commands.functions.PlainTextFunction;
+import net.minecraft.commands.execution.tasks.BuildContexts;
+import dev.functioncompiler.mixin.BuildContextsAccessor;
 import net.minecraft.resources.Identifier;
 import net.minecraft.network.chat.Component;
 
@@ -37,6 +39,12 @@ final class MixedFunctionIR {
     private static final LongAdder TYPED_LINES = new LongAdder();
     private static final LongAdder OPAQUE_NODES = new LongAdder();
     private static final LongAdder SINGLETON_NODES = new LongAdder();
+    private static final LongAdder DISPATCH_BARRIERS = new LongAdder();
+    // IR-018 audit classification only. Conditional function calls retain
+    // their original EntryAction; no child-frame semantics are synthesized.
+    private static final java.util.regex.Pattern DISPATCH_SOURCE =
+            java.util.regex.Pattern.compile(
+                    "^execute (?:if|unless) score .+ run function .+$");
 
     private MixedFunctionIR() {}
 
@@ -62,7 +70,7 @@ final class MixedFunctionIR {
         public int sourceCount() { return typed.instructions().size(); }
     }
 
-    enum BarrierKind { UNSUPPORTED_OR_CONTROL, TYPED_SINGLETON }
+    enum BarrierKind { UNSUPPORTED_OR_CONTROL, FUNCTION_DISPATCH, TYPED_SINGLETON }
 
     record OpaqueBarrier(
             int firstSourceIndex,
@@ -133,6 +141,11 @@ final class MixedFunctionIR {
                     && b.kind() == BarrierKind.TYPED_SINGLETON).count();
         }
 
+        int dispatchBarrierCount() {
+            return (int) nodes.stream().filter(n -> n instanceof OpaqueBarrier b
+                    && b.kind() == BarrierKind.FUNCTION_DISPATCH).count();
+        }
+
         List<UnboundEntryAction<CommandSourceStack>> executableEntries() {
             return List.copyOf(nodes.stream().map(Node::action).toList());
         }
@@ -164,7 +177,9 @@ final class MixedFunctionIR {
                 layout.append(node instanceof TypedRegion t
                         ? (t.bytecode() ? "J" : "I")
                         : node instanceof OpaqueBarrier b
-                            && b.kind() == BarrierKind.TYPED_SINGLETON ? "S" : "V");
+                            && b.kind() == BarrierKind.TYPED_SINGLETON ? "S"
+                        : node instanceof OpaqueBarrier b
+                            && b.kind() == BarrierKind.FUNCTION_DISPATCH ? "F" : "V");
                 layout.append(node.firstSourceIndex() + 1).append(':')
                         .append(node.sourceCount());
             }
@@ -173,6 +188,7 @@ final class MixedFunctionIR {
                     + " typed_regions=" + typedRegionCount()
                     + " opaque_barriers=" + opaqueCount()
                     + " singleton_barriers=" + singletonCount()
+                    + " dispatch_barriers=" + dispatchBarrierCount()
                     + " direct_candidate=" + (directBytecodeChunks() != null)
                     + " layout=" + layout;
         }
@@ -188,7 +204,9 @@ final class MixedFunctionIR {
             TypedScoreIR.Instruction instruction = TypedScoreIR.lower(entry);
             if (instruction == null) {
                 flush(nodes, pending, first);
-                nodes.add(new OpaqueBarrier(index, entry, BarrierKind.UNSUPPORTED_OR_CONTROL));
+                nodes.add(new OpaqueBarrier(index, entry,
+                        isFunctionDispatch(entry) ? BarrierKind.FUNCTION_DISPATCH
+                                : BarrierKind.UNSUPPORTED_OR_CONTROL));
             } else {
                 if (pending.isEmpty()) first = index;
                 if (pending.size() == TypedScoreIR.MAX_REGION_LENGTH) {
@@ -207,11 +225,26 @@ final class MixedFunctionIR {
             TYPED_LINES.add(program.typedSourceCount());
             OPAQUE_NODES.add(program.opaqueCount());
             SINGLETON_NODES.add(program.singletonCount());
+            DISPATCH_BARRIERS.add(program.dispatchBarrierCount());
             if (LEDGER.size() < MAX_LEDGER_FUNCTIONS) {
                 LEDGER.put(program.id().toString(), program.summary());
             }
         }
         return program;
+    }
+
+    /**
+     * Source-shape reporting ONLY: function calls are not typed instructions.
+     * The exact original Minecraft BuildContexts action is preserved, even if
+     * this deliberately broad classification matches more than one stage.
+     */
+    private static boolean isFunctionDispatch(
+            UnboundEntryAction<CommandSourceStack> entry
+    ) {
+        if (!(entry instanceof BuildContexts.Unbound<?>)) return false;
+        String source = ((BuildContextsAccessor<CommandSourceStack>) (Object) entry)
+                .functionCompiler$getCommandInput();
+        return source != null && DISPATCH_SOURCE.matcher(source).matches();
     }
 
     private static void flush(
@@ -239,7 +272,8 @@ final class MixedFunctionIR {
                 + " ir016_typed_regions=" + TYPED_NODES.sum()
                 + " ir016_typed_lines=" + TYPED_LINES.sum()
                 + " ir016_opaque_barriers=" + OPAQUE_NODES.sum()
-                + " ir016_singletons=" + SINGLETON_NODES.sum();
+                + " ir016_singletons=" + SINGLETON_NODES.sum()
+                + " ir018_dispatch_barriers=" + DISPATCH_BARRIERS.sum();
     }
 
     static int report(CommandSourceStack source, String id) {
