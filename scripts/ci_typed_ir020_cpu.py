@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 import re
 import time
+import zipfile
 
 from ci_server_event_cpu import (
     find_server_thread, read_thread_schedstat, cgroup_throttle_count,
@@ -236,6 +237,14 @@ def main():
     OUT.mkdir(parents=True,exist_ok=True)
     if not PACK.is_file() or hashlib.sha256(PACK.read_bytes()).hexdigest()!=PIN:
         raise AssertionError("Exact original Blastback publisher ZIP pin mismatch")
+    # Compare the selector command byte-for-byte to the ORIGINAL untouched
+    # publisher source, not merely to a coincidentally matching regex.
+    with zipfile.ZipFile(PACK) as z:
+        raw=z.read("data/erb/function/restore/job_tick.mcfunction").decode("utf-8")
+    lines=[line.strip() for line in raw.splitlines()
+           if line.strip() and not line.lstrip().startswith("#")]
+    if len(lines)<5 or lines[4]!=EXACT_ORIGINAL_LINE or lines.count(EXACT_ORIGINAL_LINE)!=1:
+        raise AssertionError("Expected original restore/job_tick command at source index 4")
     results={"milestone":"COMPILER-IR-020","stage":"original_blastback_restore_cpu",
              "status":"started","source_sha256":PIN,"arms":{},
              "speedup_claim":False,"new_compiled_opcode":False,
