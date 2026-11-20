@@ -82,9 +82,10 @@ public final class CompilerSelector022Probe {
 
     private static long now() {return CLOCK.getCurrentThreadCpuTime();}
     private static long begin(int kind) {
-        if (!ACTIVE || "control".equals(MODE)) return -1L;
+        if (!ACTIVE) return -1L;
         Stream stream=STREAMS[kind];
         long visit=stream.visits.incrementAndGet();
+        if ("control".equals(MODE)) return -1L;
         if ("plain".equals(MODE) || visit%stream.stride!=0) return -1L;
         if ("empty".equals(MODE)) {
             long before=now();
@@ -128,7 +129,13 @@ public final class CompilerSelector022Probe {
     }
     public static void findEnd(int count) {
         Scope child=CURRENT.get();
-        if(!ACTIVE || child==null || !child.activeSelector)return;
+        if(!ACTIVE || child==null)return;
+        if(!child.activeSelector) {
+            // Nested unrelated selector calls must restore the exact parent
+            // scope, even though we deliberately do not time their work.
+            CURRENT.set(child.parent);
+            return;
+        }
         STREAMS[FIND].output(count);
         end(FIND,child.findStarted);
         if(child.predicateStarted>=0 || child.gatherStarted>=0 || child.sortStarted>=0)
