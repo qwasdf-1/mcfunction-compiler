@@ -1,6 +1,6 @@
 # COMPILER-IR-018 — Selector-bound scoreboard IR and native function-call barriers
 
-**Status (2026-11-20):** **Accepted five native JVMs and 87 selector-related state observations per mode**; SHA-pinned source census and three original Vein Miner native gameplay JVMs accepted. Legacy regressions passed before the final callback-snapshot correction; post-repair rerun underway. No CPU/speedup claim or production promotion. Research branch work/compiler-coverage; PR #10 remains open, draft and unmerged.
+**Status (2026-11-20):** **Accepted native research milestone**: five new selector-aware Minecraft 26.3 JVMs with 87/87 observed states per arm, thirteen additional post-repair IR-014/016/017 regression JVMs, a three-JVM original Vein Miner player mining event and two SHA-pinned publisher source audits. Research-only, no CPU/speedup claim or production promotion; branch work/compiler-coverage and draft PR #10 remain unmerged.
 
 ## Workload decision
 
@@ -58,7 +58,7 @@ Unlike IR-017, this feature did execute new supported guarded arithmetic in real
 
 The dedicated IR-018 five-JVM differential matrix compares native Minecraft, IR-017 baseline bytecode with selector flag OFF, IR-018 interpreter, IR-018 ASM and IR-018 ASM plus guarded direct scheduling. Disposable original mcfunctions test real entity-bound @s, fake and dynamic holder aliases, distinct objectives, missing bound source, missing objectives, score ranges, nested conditional calls, returns, and partial quota cuts. The native function-dispatch barrier must never enter the direct cursor. Initial fixture runs were invalid because a no-player headless server could not retain an armor stand between RCON commands, even with a forced chunk and a support platform. The fixture now uses Minecraft's native execute summon modifier to bind an entity in the same command stage, then stores its scoreboard state into original fake-score holders before the function returns. This eliminates reliance on persistent entity tickets, while preserving native entity-bound scoreboard resolution and direct/opaque barrier admission tests.
 
-The dedicated five-JVM entity/no-entity matrix **passed** after the true-original-Brigadier fallback repair. IR-014/016/017 native regressions passed earlier and are being rerun after the late callback-snapshot change. The evidence is bounded to these cases, not every possible modded callback or execution context.
+The dedicated five-JVM entity/no-entity matrix **passed** after the true-original-Brigadier fallback repair. IR-014/016/017 native regressions **also passed after the final repair** (see final gate below). The evidence is bounded to these cases, not every modded callback or execution context.
 
 ## Reproduction
 
@@ -90,6 +90,18 @@ The full Java 25/Minecraft 26.3 build and updated IR-009, IR-014, IR-016, IR-017
 - IR-017 native, old bytecode, interpreter, bytecode and direct modes: **168/168** range guard and reentrant callback states matched per mode; artifact [#14668673646](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44814071570/artifacts/14668673646).
 
 These regressions were run with the new selector flag OFF, as in the original milestones; they establish that the old behavior remains stable in the bounded native scenarios. They do not substitute for the new entity-context native fixture or prove a selector-aware speedup.
+
+## Final post-repair native regression gate: accepted
+
+[Accepted post-2026-11-20 Brigadier fallback correction, 13 native JVMs #44816191427](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44816191427).
+
+All three prior native suites were rerun after the independent original parsed Brigadier context snapshot fix, with the feature's default still OFF. Each suite passed its original Java build and the three new explicit pre-mutation fallback source contracts:
+
+- **IR-014:** four vanilla/guarded mode JVMs, **70/70** complete scoreboard states in each arm, covering cascading queue callbacks and objective remove/recreate. [Raw artifact #14670530306](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44816191427/artifacts/14670530306).
+- **IR-016:** four vanilla/interpreted/ASM/direct JVMs, **126/126** states in each arm, covering original queue barriers, child function/return, error fallback and command quotas. [Raw artifact #14669921146](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44816191427/artifacts/14669921146).
+- **IR-017:** five vanilla/old-ASM/interpreted/ASM/direct JVMs, **168/168** states in each arm, including exact range guards, guarded arithmetic, reentrant callbacks and low quotas. [Raw artifact #14669248281](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44816191427/artifacts/14669248281).
+
+**IR-018 is accepted as a bounded compiler correctness and language-coverage experiment.** This does NOT claim a CPU speedup, complete Blastback restoration correctness, arbitrary-mod callback fidelity, arbitrary selectors or compiled conditional function dispatch. Those remain future research questions. The accepted IR-018 selector feature and original-Brigadier fallback fix stay opt-in on the draft branch.
 
 ## Next safe direction
 
