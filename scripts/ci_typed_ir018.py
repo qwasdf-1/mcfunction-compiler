@@ -192,11 +192,20 @@ def start(mode: str):
             client.command(f"scoreboard objectives add {obj} dummy")
         client.command("gamerule minecraft:max_command_sequence_length 65536")
         client.command("gamerule sendCommandFeedback false")
+        # A headless server has no player ticket. Without a forced chunk the
+        # new entity can immediately be unloaded before an RCON snapshot.
+        client.command("forceload add 0 0")
         result = client.command(
             'summon minecraft:armor_stand 0 64 0 {Tags:["ir018_test"],'
             'NoGravity:1b,Invisible:1b,Marker:1b}')
         if "Summoned new" not in result:
             raise AssertionError(f"{mode}: source entity not summoned: {result!r}")
+        client.command(
+            'tag @e[type=minecraft:armor_stand,limit=1,sort=nearest] add ir018_test')
+        check = client.command(f"data get entity {SELECTOR} UUID")
+        if "UUID" not in check:
+            raise AssertionError(
+                f"{mode}: source entity not resident/tagged after summon: {check!r}")
         if mode in ("old_bytecode", "interpreted", "bytecode"):
             result = client.command("fc_ir012_direct off")
             if "enabled=false" not in result:
