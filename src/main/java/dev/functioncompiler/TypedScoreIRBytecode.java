@@ -83,8 +83,10 @@ final class TypedScoreIRBytecode implements Opcodes {
         method.visitVarInsn(ALOAD, 4);
         method.visitVarInsn(ALOAD, 2);
         method.visitVarInsn(ALOAD, 3);
+        method.visitVarInsn(ALOAD, 0);
+        method.visitFieldInsn(GETFIELD, internal, "steps", STEPS);
         method.visitMethodInsn(INVOKESPECIAL, STATE, "<init>",
-                "(L" + SOURCE + ";L" + CONTEXT + ";L" + FRAME + ";)V", false);
+                "(L" + SOURCE + ";L" + CONTEXT + ";L" + FRAME + ";" + STEPS + ")V", false);
         method.visitVarInsn(ASTORE, 5);
         method.visitMethodInsn(INVOKESTATIC, "dev/functioncompiler/TypedScoreIR",
                 "executed", "()V", false);
