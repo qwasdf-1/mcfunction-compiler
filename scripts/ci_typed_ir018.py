@@ -210,8 +210,10 @@ def start(mode: str):
 
 
 def entity_score(client, obj: str) -> int | None:
+    # Resolve the one tagged entity directly as a scoreboard holder from
+    # console, so the RCON response is not suppressed by execute-as.
     response=client.command(
-        f"execute as {SELECTOR} run scoreboard players get @s {obj}")
+        f"scoreboard players get {SELECTOR} {obj}")
     match=re.search(r"has (-?\d+)", response)
     if match:
         return int(match.group(1))
