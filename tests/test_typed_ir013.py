@@ -82,6 +82,14 @@ class ReentrantIR013(unittest.TestCase):
         self.assertEqual(study.EXPECTED["ir013_twice"]["seen2"], 14)
         self.assertIn("execute if score", study.FUNCTIONS["ir013_guarded"][1])
 
+    def test_guarded_cpu_comparison_uses_same_compiled_asm_without_observer(self):
+        study = (ROOT / "scripts/ci_typed_ir013_cpu.py").read_text()
+        self.assertIn('os.environ["FC_TYPED_IR_REENTRANT_SAFE"] = "true"', study)
+        self.assertIn('os.environ["FC_TYPED_IR_REENTRANT_TEST_OBSERVER"] = "false"', study)
+        self.assertIn("baseline.crossover()", study)
+        self.assertIn('"guard_overhead_isolated": False', study)
+        self.assertIn('"production_promotion": False', study)
+
     def test_disposable_pack_and_negative_controls(self):
         with tempfile.TemporaryDirectory() as t:
             study.fixture(Path(t))
