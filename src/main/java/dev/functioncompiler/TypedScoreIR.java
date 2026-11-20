@@ -216,9 +216,11 @@ final class TypedScoreIR {
         List<UnboundEntryAction<CommandSourceStack>> result = new ArrayList<>();
         List<Instruction> pending = new ArrayList<>();
         boolean changed = false;
+        boolean fullyTyped = true;
         for (UnboundEntryAction<CommandSourceStack> entry : original.entries()) {
             Instruction instruction = lower(entry);
             if (instruction == null) {
+                fullyTyped = false;
                 changed |= flush(result, pending);
                 result.add(entry);  // Unknown command retains its vanilla queue position.
                 continue;
@@ -227,7 +229,25 @@ final class TypedScoreIR {
             pending.add(instruction);
         }
         changed |= flush(result, pending);
-        return changed ? new CompiledFunction(original, List.copyOf(result)) : original;
+        if (!changed) return original;
+        List<UnboundEntryAction<CommandSourceStack>> compiledEntries = List.copyOf(result);
+        // IR-012 direct scheduler can only see a wholly typed function.
+        // The final singleton tail of a 64-command chunk remains an original
+        // vanilla queue entry and therefore prevents the shortcut.
+        boolean whollyCompiledBytecode =
+                TypedScoreIRDirectScheduler.compilationEnabled()
+                && "bytecode".equals(MODE)
+                && fullyTyped
+                && original.entries().size() >= 2
+                && original.entries().size() <= 4096
+                && compiledEntries.size() < original.entries().size()
+                && compiledEntries.stream().noneMatch(
+                        entry -> entry instanceof Interpreted
+                                || original.entries().contains(entry));
+        List<UnboundEntryAction<CommandSourceStack>> directChunks =
+                whollyCompiledBytecode ? compiledEntries : null;
+        if (whollyCompiledBytecode) TypedScoreIRDirectScheduler.eligibleCompiled();
+        return new CompiledFunction(original, compiledEntries, directChunks);
     }
 
     private static Instruction lower(UnboundEntryAction<CommandSourceStack> entry) {
@@ -275,6 +295,18 @@ final class TypedScoreIR {
             InstantiatedFunction<?> original
     ) {
         return compiled instanceof CompiledFunction typed && typed.original() == original;
+    }
+
+    /**
+     * Only returns immutable generated-bytecode chunks for a fully typed
+     * function. A single original command, selector, macro, control-flow
+     * barrier, compile failure or uncompiled singleton tail blocks direct
+     * scheduling. All other CallFunction contexts stay on vanilla frames.
+     */
+    static List<UnboundEntryAction<CommandSourceStack>> directFunctionChunks(
+            InstantiatedFunction<?> function
+    ) {
+        return function instanceof CompiledFunction typed ? typed.directChunks() : null;
     }
 
     static void executed() {
@@ -361,12 +393,14 @@ final class TypedScoreIR {
                 + " cache_invalidations=" + CACHE_INVALIDATIONS.sum()
                 + " singleton_feedback=" + singletonFeedbackEnabled()
                 + " singleton_feedback_steps=" + SINGLETON_FEEDBACK_STEPS.sum()
-                + " tracker_feedback_steps=" + TRACKER_FEEDBACK_STEPS.sum();
+                + " tracker_feedback_steps=" + TRACKER_FEEDBACK_STEPS.sum()
+                + TypedScoreIRDirectScheduler.diagnostics();
     }
 
     private record CompiledFunction(
             PlainTextFunction<CommandSourceStack> original,
-            List<UnboundEntryAction<CommandSourceStack>> entries
+            List<UnboundEntryAction<CommandSourceStack>> entries,
+            List<UnboundEntryAction<CommandSourceStack>> directChunks
     ) implements InstantiatedFunction<CommandSourceStack> {
         @Override
         public Identifier id() { return original.id(); }
