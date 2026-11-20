@@ -1,6 +1,6 @@
 # COMPILER-IR-019 — Native conditional-call census, hotness gate and dispatch feasibility
 
-**Status (2026-11-20):** **Accepted research-only dispatch feasibility/measurement stage:** two SHA-pinned source inventories; three-native-JVM original dispatch parity and passive call census; one genuine one-TNT Blastback capture-stage census; and post-change IR-016/017/018 native regressions. **No compiled function-dispatch opcode, CPU-speedup result, validated full restoration, production promotion or PR merge.** Same branch work/compiler-coverage, draft PR #10.
+**Status (2026-11-20):** **Accepted research-only dispatch feasibility/measurement stage** including two original Blastback capture-window observations: two SHA-pinned source inventories; three-native-JVM original dispatch parity and passive call census; one genuine one-TNT Blastback capture-stage census; and post-change IR-016/017/018 native regressions. **No compiled function-dispatch opcode, CPU-speedup result, validated full restoration, production promotion or PR merge.** Same branch work/compiler-coverage, draft PR #10.
 
 ## Why the optimizer is gated
 
@@ -49,7 +49,7 @@ Those 56 call tasks are not 56 proven successful predicate evaluations *at ident
 
 ## Real Blastback original capture-stage dispatch activation — accepted
 
-[Accepted bounded genuine publisher one-TNT native pilot #44830205578](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830205578) · [exact source-site/callee log and original-world observations #14676455133](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830205578/artifacts/14676455133).
+[Accepted original publisher pilot #44830205578](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830205578) ([raw artifact #14676455133](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830205578/artifacts/14676455133)) and [independent confirmation with complete original source text #44830583429](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830583429) ([raw artifact #14675244535](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44830583429/artifacts/14675244535)).
 
 The experiment loaded the untouched SHA-verified Blastback Hotfix 3 archive in an actual Fabric Minecraft 26.3/Java25 JVM, using the accepted block-palette positions and untouched real datapack functions. A single **native summoned TNT** with tag fc_blastback_probe and an explicitly longer **160-tick test fuse** was observed in-world. The source world initially matched the separate cloned template, including all five independently placed witness blocks. A passive source and native child-call census ran for 30 seconds without ScoreAdd/fusion/typed lowering or other scheduler changes. The original first attempted fixture used a queued setup function, and its TNT presence probe returned zero; that attempt was explicitly invalid, not counted as accepted. The corrected pilot summoned TNT directly, confirmed exactly one actual entity, and required a reached Blastback capture source before accepting the narrower capture-stage observation.
 
@@ -70,6 +70,22 @@ The experiment loaded the untouched SHA-verified Blastback Hotfix 3 archive in a
 | erb:capture/requeue_moved | 0 |
 
 Those per-target tasks are **not** independently attributable to the 4,562 single-score call-site reaches, especially because the native target may have other callers, function tags, scheduled/tick dispatch and multi-stage conditions. For example, both exact simple guards in erb:runtime_tick were reached **618 times**; neither observation gives the outcome of the guard without separate native target/source attribution.
+
+### Independent capture-stage confirmation
+
+The same pinned original publisher, native one-TNT test fixture, explicit 30-second observation gate and original command semantics were run in a **second independently booted Minecraft server** after extending the report to retain bounded 240-character original source text. It again confirmed one original TNT actor, original capture-stage entry, and zero census overflow. Independent Minecraft processes are not an A/A CPU study, and their dynamic command/tick exposures are allowed to differ.
+
+| Original capture-window metric | First accepted JVM #44830205578 | Independently repeated JVM #44830583429 |
+| --- | ---: | ---: |
+| Minecraft ticks observed | 625 | 593 |
+| Original source-entry reaches | 71,161 | 70,550 |
+| Ordinary callback entries | 351,588 | 348,980 |
+| Exact static single-score dispatch source reaches | 4,562 | 4,341 |
+| Complex/return dispatch source reaches | 682 | 647 |
+| Native child-call tasks for selected targets | 5,623 | 5,589 |
+| Original callback invocations on restore/job_tick line index 4 | 319,509 | 316,969 |
+
+Both pilots provide *similar magnitude* activation and a concrete high-fanout source line, but neither controls identical work or proves that the dispatch condition parsing is a major CPU cost. The second run archives exact original command text alongside the per-site source/callback records.
 
 ### A more important observed fork/callback workload
 
