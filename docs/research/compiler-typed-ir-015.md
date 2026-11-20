@@ -19,7 +19,7 @@ A source-only screen is **not** a native parser-acceptance census, does not inst
 - **Blastback Hotfix 3 / 26.3**: publisher Modrinth version `dMtA8r0n`; SHA-256 `8578ad9f277a8d8c1e5a1aba50b3f36f624f009a61beb33441d8c59494597b90`; 21,318 functions.
 - Every download is verified against its existing independent publisher pin *before* audit. No source is modified or packaged into the repo.
 
-**Accepted [source coverage run #44771855459](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44771855459)** · [Full per-function, per-shape reports (artifact)](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44771855459/artifacts/14648200000). **Artifact ID must be checked before publishing this direct link**. Source has one winner run after corrections to the audit reporter; failed reporting-only attempts are not accepted evidence.
+**Accepted [source coverage run #44771855459](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44771855459)** · [Full per-function, per-shape reports (verified artifact #14646868044)](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44771855459/artifacts/14646868044). Source has one winner run after corrections to the audit reporter; failed reporting-only attempts are not accepted evidence.
 
 The screen's `scripts/ci_typed_ir015_coverage.py` mirrors the *strict textual* gates in `ScoreAddCommand.toMutation`, `ScoreOperationCommand.toTypedIR`, and `ScoreConditionCommand.toTypedIR`, then mirrors `TypedScoreIR.flush` segmentation. It uses the preexisting `run_specialization_inventory.Pack` reachability parser, not a new unverified parser of arbitrary Minecraft syntax. Unit tests verify supported and rejected shapes, segment boundaries at 64/65/66 and 4096/4097, and source pins.
 
