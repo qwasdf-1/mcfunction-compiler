@@ -350,6 +350,11 @@ def crossover_boot(boot: int) -> dict:
         baseline = client.command("functioncompiler ir008")
         if "singleton_feedback=true" not in baseline or "score_cache=false" not in baseline:
             raise AssertionError(f"Incorrect benchmark feature selection {baseline!r}")
+        # The CPU fixture touches only #a and #src. Give the observer
+        # snapshot's #b and #result real zero rows before starting the
+        # measured interval; never conflate a missing row with zero.
+        for holder in ("#b", "#result"):
+            client.command(f"scoreboard players set {holder} fc_ir 0")
         thread = find_server_thread(process.pid)
 
         for label in ("on", "off"):
