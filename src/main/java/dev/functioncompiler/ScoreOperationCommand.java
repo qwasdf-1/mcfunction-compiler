@@ -51,14 +51,15 @@ final class ScoreOperationCommand implements FusableCommand {
      */
     private static final java.util.regex.Pattern IR_LITERAL_BINARY_SOURCE =
             java.util.regex.Pattern.compile(
-                    "^scoreboard players operation #[A-Za-z0-9_.+\\-]+ "
+                    "^scoreboard players operation (?:#[A-Za-z0-9_.+\\-]+|@s) "
                             + "[A-Za-z0-9_.+\\-]+ (=|\\+=|-=|\\*=) "
-                            + "#[A-Za-z0-9_.+\\-]+ [A-Za-z0-9_.+\\-]+$");
+                            + "(?:#[A-Za-z0-9_.+\\-]+|@s) [A-Za-z0-9_.+\\-]+$");
 
     // Preflight only: accepted commands still require their existing
     // Brigadier-validated callback and the strict argument equality below.
     static boolean typedIrLiteralSourceShape(String source) {
-        return source != null && IR_LITERAL_BINARY_SOURCE.matcher(source).matches();
+        return source != null && IR_LITERAL_BINARY_SOURCE.matcher(source).matches()
+                && (TypedScoreIR.selfHolderEnabled() || !source.contains("@s"));
     }
 
     TypedScoreIR.Binary toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
@@ -72,7 +73,9 @@ final class ScoreOperationCommand implements FusableCommand {
      * has an exact vanilla fallback and trace identity.
      */
     TypedScoreIR.Binary toBinary(FusedRegionPrototype.FusedCommand parsed, String input) {
-        if (isTargetSelf || isSourceSelf || targetHolder == null || sourceHolder == null) {
+        if ((!TypedScoreIR.selfHolderEnabled() && (isTargetSelf || isSourceSelf))
+                || (!isTargetSelf && targetHolder == null)
+                || (!isSourceSelf && sourceHolder == null)) {
             return null;
         }
         String[] words = input.split(" ", -1);
@@ -80,9 +83,10 @@ final class ScoreOperationCommand implements FusableCommand {
                 || !"scoreboard".equals(words[0])
                 || !"players".equals(words[1])
                 || !"operation".equals(words[2])
-                || !words[3].equals(targetHolder.getScoreboardName())
-                || !words[6].equals(sourceHolder.getScoreboardName())
-                || !words[3].startsWith("#") || !words[6].startsWith("#")
+                || !words[3].equals(isTargetSelf ? "@s" : targetHolder.getScoreboardName())
+                || !words[6].equals(isSourceSelf ? "@s" : sourceHolder.getScoreboardName())
+                || (!isTargetSelf && !words[3].startsWith("#"))
+                || (!isSourceSelf && !words[6].startsWith("#"))
                 || !words[4].matches("[A-Za-z0-9_.+\\-]+")
                 || !words[7].matches("[A-Za-z0-9_.+\\-]+")) {
             return null;
@@ -105,7 +109,8 @@ final class ScoreOperationCommand implements FusableCommand {
             return null;
         }
         return new TypedScoreIR.Binary(
-                parsed, targetHolder, words[4], op, sourceHolder, words[7]
+                parsed, targetHolder, isTargetSelf, words[4], op,
+                sourceHolder, isSourceSelf, words[7]
         );
     }
 
