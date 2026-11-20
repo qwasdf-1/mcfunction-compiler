@@ -154,15 +154,25 @@ def measure():
         response=client.command("functioncompiler exec-census-start")
         if "FC_EXEC started" not in response:
             raise AssertionError(f"Census not installed on original pack: {response!r}")
-        spawn=client.command("function function_compiler_benchmark:spawn_tnt")
-        # Use actual in-world tagged TNT count, rather than a command response
-        # that can report only how many function calls were scheduled.
-        client.command("scoreboard players set #ir019_tnt fc_probe 0")
-        client.command("execute as @e[type=minecraft:tnt,tag=fc_blastback_probe] "
-                       "run scoreboard players add #ir019_tnt fc_probe 1")
-        spawned=score(client,"#ir019_tnt","fc_probe")
+        # Direct native summon avoids an unrelated /function queue tick
+        # between an RCON response and the actual entity creation. A longer
+        # 160-tick fuse ensures there is time to observe the live entity even
+        # on a slow CI runner; this is a pilot fixture, not a baseline CPU run.
+        spawn=client.command(
+            'summon minecraft:tnt 4 64 4 {Fuse:160s,Tags:["fc_blastback_probe"]}')
+        if "Summoned new" not in spawn:
+            raise AssertionError(f"Original 1-TNT native summon declined: {spawn!r}")
+        spawned=0
+        for _ in range(12):
+            client.command("scoreboard players set #ir019_tnt fc_probe 0")
+            client.command("execute as @e[type=minecraft:tnt,tag=fc_blastback_probe] "
+                           "run scoreboard players add #ir019_tnt fc_probe 1")
+            spawned=score(client,"#ir019_tnt","fc_probe")
+            if spawned==1:break
+            time.sleep(0.1)
         if spawned!=1:
-            raise AssertionError(f"Did not observe original 1-TNT fixture activation: {spawned} {spawn!r}")
+            raise AssertionError(
+                f"Summon succeeded but original tagged TNT not resident: {spawned} {spawn!r}")
         report["spawned_tnt"]=spawned
         print("IR019_BLASTBACK_EVENT_ACTIVATED "+json.dumps({
             "spawned_tnt":spawned,"tick_before":tick_before}),flush=True)
