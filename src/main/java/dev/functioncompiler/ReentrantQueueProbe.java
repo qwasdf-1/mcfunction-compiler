@@ -24,6 +24,24 @@ public final class ReentrantQueueProbe {
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_REENTRANT_TEST_OBSERVER"));
     private static final Identifier INJECTED_FUNCTION =
             Identifier.fromNamespaceAndPath("fc_ir", "ir013_injected");
+
+    /**
+     * Test-only IR-014 adversaries. Each watched holder queues a genuine
+     * vanilla function call; none of the callbacks run the function inline.
+     * A second watched holder supports a nested (cascading) queue insertion.
+     */
+    private static Identifier injectedFor(String holder) {
+        String path = switch (holder) {
+            case "#ir013_trigger" -> "ir013_injected";
+            case "#ir014_chain" -> "ir014_inject_first";
+            case "#ir014_second" -> "ir014_inject_second";
+            case "#ir014_recreate" -> "ir014_inject_recreate";
+            case "#ir014_drop" -> "ir014_inject_drop";
+            case "#ir014_return" -> "ir014_inject_return";
+            default -> null;
+        };
+        return path == null ? null : Identifier.fromNamespaceAndPath("fc_ir", path);
+    }
     private static final LongAdder INJECTIONS = new LongAdder();
 
     private ReentrantQueueProbe() {}
@@ -31,16 +49,14 @@ public final class ReentrantQueueProbe {
     public static void scoreChanged(
             MinecraftServer server, ScoreHolder owner, Objective objective
     ) {
-        if (!ENABLED
-                || !"#ir013_trigger".equals(owner.getScoreboardName())
-                || !"fc_ir".equals(objective.getName())) {
-            return;
-        }
+        if (!ENABLED || !"fc_ir".equals(objective.getName())) return;
+        Identifier injected = injectedFor(owner.getScoreboardName());
+        if (injected == null) return;
         ExecutionContext<CommandSourceStack> context = ExecutionContextBridge.currentContext();
         if (context == null) return;
-        var target = server.getFunctions().get(INJECTED_FUNCTION);
+        var target = server.getFunctions().get(injected);
         if (target.isEmpty()) {
-            throw new IllegalStateException("IR013 test function is missing: " + INJECTED_FUNCTION);
+            throw new IllegalStateException("Reentrant test function is missing: " + injected);
         }
         try {
             CommandSourceStack source = server.createCommandSourceStack()
@@ -54,7 +70,7 @@ public final class ReentrantQueueProbe {
                     context, function, source, CommandResultCallback.EMPTY);
             INJECTIONS.increment();
         } catch (Exception error) {
-            throw new IllegalStateException("IR013 native reentrant injection failed", error);
+            throw new IllegalStateException("Reentrant native test injection failed", error);
         }
     }
 
