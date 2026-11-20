@@ -1,14 +1,6 @@
 name: COMPILER-IR-014 adversarial queue and objective lifecycle parity
 
 on:
-  push:
-    branches: [work/compiler-coverage]
-    paths:
-      - '.github/workflows/research-typed-ir014.yml'
-      - 'scripts/ci_typed_ir014.py'
-      - 'tests/test_typed_ir014.py'
-      - 'src/main/java/dev/functioncompiler/ReentrantQueueProbe.java'
-      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
   workflow_dispatch:
 
 permissions:
