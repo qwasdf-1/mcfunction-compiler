@@ -91,6 +91,22 @@ final class ProbeCommands {
                                     context.getSource(), false))));
         }
 
+        // IR-013 adversarial native test: queue a function from a synchronous
+        // scoreboard callback. No command exists in normal installations.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_REENTRANT_TEST_OBSERVER"))) {
+            dispatcher.register(Commands.literal("fc_ir013_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")
+                            ))));
+            dispatcher.register(Commands.literal("fc_ir013_status").executes(context -> {
+                context.getSource().sendSuccess(
+                        () -> Component.literal("IR013" + ReentrantQueueProbe.diagnostics()), false);
+                return 1;
+            }));
+        }
+
         dispatcher.register(Commands.literal("function_compiler_probe")
                 .then(Commands.literal("status").executes(context -> ProbeStatus.status(context.getSource())))
                 .then(Commands.literal("metrics").executes(context -> ProbeStatus.metrics(context.getSource())))
@@ -247,7 +263,11 @@ final class ProbeCommands {
                 && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIRECT_FUNCTION"))
                 && id.getNamespace().equals("fc_ir")
                 && id.getPath().matches("ir012_[a-z0-9_]+");
-        if (!previousArchFixture && !typedIrFixture) {
+        boolean reentrantFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_REENTRANT_TEST_OBSERVER"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir013_[a-z0-9_]+");
+        if (!previousArchFixture && !typedIrFixture && !reentrantFixture) {
             source.sendFailure(Component.literal("FC_ARCH invalid or disallowed function " + name));
             return 0;
         }
