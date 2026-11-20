@@ -1,6 +1,6 @@
 # COMPILER-IR-021 — Native fork-stage cost decomposition and deferred scheduling
 
-**Status (2026-11-20):** **ACCEPTED research-only native fork-stage attribution:** original mapped 26.3/Brigadier bytecode inspection, TWO independently executed original publisher three-JVM PLAIN/EMPTY/TIMED CPU matrices (SIX fresh servers total), and default-off IR-016–019 native semantic regressions. **No compiled selector, task replacement, CPU speedup, proven full-restoration correctness or production promotion.** Branch work/compiler-coverage; PR #10 remains draft/unmerged.
+**Status (2026-11-20):** **ACCEPTED research-only native fork-stage attribution:** original mapped 26.3/Brigadier bytecode inspection, TWO independently executed original publisher three-JVM PLAIN/EMPTY/TIMED CPU matrices (SIX fresh servers total), and default-off IR-016–019 native semantic regressions. **No compiled selector, task replacement, CPU speedup, proven full-restoration correctness or production promotion.** Branch work/compiler-coverage; PR #10 remains draft/unmerged. **All four IR-021 research workflows are archived as manual-only.**
 
 ## Motivating question
 
@@ -54,7 +54,7 @@ The three independent original Java25/Minecraft26.3 Fabric JVMs execute the exac
 
 The parser requires all eight row definitions; no missing or negative/invalid clock intervals; exact floor(visits/stride) sample counts; meaningful source, selector, mapping, condition, scheduling and delayed continuation activity; and exposure counts that differ by no more than 1.5 times across original PLAIN/EMPTY/TIMED boots. A truly absent other-modifier stage must be reported as unobserved, not silently treated as CPU=0 with a fabricated correction. Events that do not satisfy prerequisites are invalid, not successful benchmarks. Score predicate cardinality is measured separately from total entity selection, and schedule source count separately from native later continuation executions; incomplete end-of-window children are not imputed.
 
-Post-instrumentation regressions repeat IR-016, IR-017, IR-018 and IR-019 accepted original vanilla scoreboard, queue, quota, @s source, callback and function dispatch comparisons with CPU021 default-off. This is bounded semantic regression evidence, not proof that installed-but-disabled Mixins have zero production overhead. Workflows remain draft-branch research only.
+Post-instrumentation regressions repeat IR-016, IR-017, IR-018 and IR-019 accepted original vanilla scoreboard, queue, quota, @s source, callback and function dispatch comparisons with CPU021 default-off. This is bounded semantic regression evidence, not proof that installed-but-disabled Mixins have zero production overhead. All four associated original-bytecode inspection, native CPU, independent CPU replication, and backwards-compatibility research workflows are archived manual-only after accepted evidence.
 
 ## First complete original three-JVM CPU attribution — accepted
 
