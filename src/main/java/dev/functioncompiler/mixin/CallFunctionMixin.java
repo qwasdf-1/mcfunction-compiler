@@ -2,6 +2,7 @@ package dev.functioncompiler.mixin;
 
 import dev.functioncompiler.FusedRegionPrototype;
 import dev.functioncompiler.DirectSchedulerPrototype;
+import dev.functioncompiler.TypedScoreIRDirectScheduler;
 import dev.functioncompiler.CompilerPositionedCpuProbe;
 import net.minecraft.commands.CommandResultCallback;
 import net.minecraft.commands.execution.ExecutionContext;
@@ -48,6 +49,21 @@ abstract class CallFunctionMixin<T extends ExecutionCommandSource<T>> {
      * Any callback, trace, control-flow or unsupported command falls through
      * to CallFunction.execute and the original fused-region representation.
      */
+    /**
+     * IR-012: reuse the trusted CallFunction interception boundary, but run
+     * a wholly typed compiled function via a resumable PC and queued ASM
+     * chunks. All result/trace/return and unsupported cases remain vanilla.
+     */
+    @Inject(method = "execute", at = @At("HEAD"), cancellable = true)
+    private void functionCompiler$typedDirectCallIfSafe(
+            T source, ExecutionContext<T> context, Frame frame, CallbackInfo ci
+    ) {
+        if (TypedScoreIRDirectScheduler.tryExecute(
+                function, source, context, frame, resultCallback, returnParentFrame)) {
+            ci.cancel();
+        }
+    }
+
     @Inject(method = "execute", at = @At("HEAD"), cancellable = true)
     private void functionCompiler$directCallIfSafe(
             T source, ExecutionContext<T> context, Frame frame, CallbackInfo ci
