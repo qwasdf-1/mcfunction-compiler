@@ -1,6 +1,6 @@
 # COMPILER-IR-018 — Selector-bound scoreboard IR and native function-call barriers
 
-**Status (2026-11-20):** Java build and source-coverage audit accepted; original Vein Miner 215-block gameplay passed on three native JVMs. Dedicated entity-source/low-quota differential test and legacy semantic regression are separately required before promoting this milestone. No performance claim. Research branch work/compiler-coverage; draft PR #10 remains open and unmerged.
+**Status (2026-11-20):** Java build and source-coverage audit accepted; original Vein Miner 215-block gameplay passed on three native JVMs. Dedicated entity-source/low-quota differential test and legacy semantic regressions are accepted, while the dedicated entity-source/low-quota differential test remains a separate required gate. No performance claim. Research branch work/compiler-coverage; draft PR #10 remains open and unmerged.
 
 ## Workload decision
 
@@ -58,7 +58,7 @@ Unlike IR-017, this feature did execute new supported guarded arithmetic in real
 
 The dedicated IR-018 five-JVM differential matrix compares native Minecraft, IR-017 baseline bytecode with selector flag OFF, IR-018 interpreter, IR-018 ASM and IR-018 ASM plus guarded direct scheduling. Disposable original mcfunctions test real entity-bound @s, fake and dynamic holder aliases, distinct objectives, missing bound source, missing objectives, score ranges, nested conditional calls, returns, and partial quota cuts. The native function-dispatch barrier must never enter the direct cursor. Initial fixture runs were invalid because a no-player headless server could not retain a summoned armor stand; the fixture has been revised to force-load the chunk and provide a physical support platform.
 
-**Do not claim full native acceptance until that fixture passes.** IR-014/016/017 native regressions also need to be accepted after this code change. The measured real mining event and static census alone do not prove every missing-entity, callback or quota boundary.
+**Do not claim full native acceptance until that fixture passes.** IR-014/016/017 native regressions have passed after this code change. The measured real mining event and static census alone do not prove every missing-entity, callback or quota boundary.
 
 ## Reproduction
 
@@ -68,6 +68,18 @@ The dedicated IR-018 five-JVM differential matrix compares native Minecraft, IR-
     python3 scripts/ci_typed_ir018_coverage.py
     python3 scripts/ci_typed_ir018.py
     python3 scripts/ci_typed_ir018_real_event.py
+
+## Legacy post-change native regressions: accepted
+
+[Successful three-suite native regression #44814071570](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44814071570).
+
+The full Java 25/Minecraft 26.3 build and updated IR-009, IR-014, IR-016, IR-017 and IR-018 contract tests passed. Thirteen further independent real Minecraft JVMs exercised all accepted earlier features after the IR-018 Java code changes:
+
+- IR-014 vanilla and three guarded modes: **70/70** native partial/full states matched per mode; artifact [#14669350681](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44814071570/artifacts/14669350681).
+- IR-016 native, interpreter, bytecode and direct modes: **126/126** full quota and original-barrier states matched per mode; artifact [#14669260681](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44814071570/artifacts/14669260681).
+- IR-017 native, old bytecode, interpreter, bytecode and direct modes: **168/168** range guard and reentrant callback states matched per mode; artifact [#14668673646](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44814071570/artifacts/14668673646).
+
+These regressions were run with the new selector flag OFF, as in the original milestones; they establish that the old behavior remains stable in the bounded native scenarios. They do not substitute for the new entity-context native fixture or prove a selector-aware speedup.
 
 ## Next safe direction
 
