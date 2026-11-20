@@ -48,6 +48,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: compiler-ir018-regression-${{ matrix.suite }}
-          path: build/reports/COMPILER-IR-014/
+          path: |
+            build/reports/COMPILER-IR-014/
+            build/reports/COMPILER-IR-016/
+            build/reports/COMPILER-IR-017/
           if-no-files-found: warn
           retention-days: 21
