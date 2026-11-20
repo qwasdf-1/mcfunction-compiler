@@ -221,6 +221,17 @@ def main() -> None:
             "shapes": analyzed["source_shaped_family_totals"],
             "largest_barriers": Counter(analyzed["barrier_totals"]).most_common(12),
             "candidate_functions": analyzed["possible_direct_functions"][:15],
+            "blocker_examples": {k: v[:3] for k, v in sorted(
+                analyzed["barrier_examples"].items(),
+                key=lambda pair: -analyzed["barrier_totals"].get(pair[0], 0))[:10]},
+            "ranked_regions": [
+                {"id": f["id"], "tick": f["in_tick_scope"],
+                 "regions": [(r["start"], r["length"])
+                             for r in f["candidate_regions"]],
+                 "typed_lines": f["source_shaped_instructions"],
+                 "all_lines": f["lines"]}
+                for f in analyzed["top_candidates"][:12]
+                if f["source_shaped_region_commands"]],
         }, sort_keys=True), flush=True)
     (OUT / "summary.json").write_text(json.dumps(result, indent=2) + "\n")
 
