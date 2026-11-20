@@ -24,7 +24,7 @@ class IR017ConditionalRanges(unittest.TestCase):
             'parsed.matches(lower)', 'parsed.matches(upper)',
             'parsed.matches(lower - 1)', 'parsed.matches(upper + 1)',
             'typedIrLiteralGuardShape', 'RANGE_GUARDS_ENABLED',
-            'conditionHolder', 'score.toMutation(parsed, matcher.group(5))',
+            'targetHolder', 'score.toMutation(parsed, matcher.group(5))',
             'binary.toBinary(parsed, matcher.group(5))',
         ):
             self.assertIn(token, condition)
@@ -55,7 +55,7 @@ class IR017ConditionalRanges(unittest.TestCase):
     def test_runtime_checks_all_objectives_before_writes_and_feedback(self):
         src=java("TypedScoreIRRuntime.java")
         for token in ("Objective guardObjective", "Objective operandObjective",
-                      "condition.conditionObjective()", "binary.sourceObjective()",
+                      "guard.conditionObjective()", "binary.sourceObjective()",
                       "return original(instruction)", "condition.range().matches",
                       "condition.unless()", "context.incrementCost()",
                       "TypedScoreIR.skippedConditional()", "sourceAccess()",
