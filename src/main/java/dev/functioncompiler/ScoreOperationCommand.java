@@ -43,6 +43,51 @@ final class ScoreOperationCommand implements FusableCommand {
         this.functionId = functionId;
     }
 
+    /**
+     * IR-009: restrict to exact literal holders and four single-target
+     * scoreboard operations with no exceptions/second writes. The actual
+     * operation was already validated by Brigadier and ScoreAddPrototype;
+     * this additional text/argument equality check is an eligibility gate.
+     */
+    TypedScoreIR.Binary toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
+        if (isTargetSelf || isSourceSelf || targetHolder == null || sourceHolder == null) {
+            return null;
+        }
+        String input = parsed.commandInput();
+        String[] words = input.split(" ", -1);
+        if (words.length != 8
+                || !"scoreboard".equals(words[0])
+                || !"players".equals(words[1])
+                || !"operation".equals(words[2])
+                || !words[3].equals(targetHolder.getScoreboardName())
+                || !words[6].equals(sourceHolder.getScoreboardName())
+                || !words[3].startsWith("#") || !words[6].startsWith("#")
+                || !words[4].matches("[A-Za-z0-9_.+\\-]+")
+                || !words[7].matches("[A-Za-z0-9_.+\\-]+")) {
+            return null;
+        }
+        TypedScoreIR.BinaryOperator op = switch (words[5]) {
+            case "=" -> TypedScoreIR.BinaryOperator.ASSIGN;
+            case "+=" -> TypedScoreIR.BinaryOperator.ADD;
+            case "-=" -> TypedScoreIR.BinaryOperator.SUBTRACT;
+            case "*=" -> TypedScoreIR.BinaryOperator.MULTIPLY;
+            default -> null; // Division, modulo, min/max and swap are vanilla.
+        };
+        if (op == null) return null;
+        try {
+            var args = parsed.command().getTopContext();
+            if (!words[4].equals(args.getArgument("targetObjective", String.class))
+                    || !words[7].equals(args.getArgument("sourceObjective", String.class))) {
+                return null;
+            }
+        } catch (IllegalArgumentException invalid) {
+            return null;
+        }
+        return new TypedScoreIR.Binary(
+                parsed, targetHolder, words[4], op, sourceHolder, words[7]
+        );
+    }
+
     @Override
     public int run(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         if (ProbeConfiguration.scoreAddTimingEnabled()) {
