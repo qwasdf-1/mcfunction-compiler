@@ -1,0 +1,42 @@
+name: COMPILER-IR-019 exact conditional-call corpus stratification
+
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir019-inventory.yml'
+      - 'scripts/ci_typed_ir019_inventory.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir019-inventory-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  two-original-publishers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Validate strict dispatch sources and parser-based inventory
+        run: |
+          python3 -m py_compile scripts/ci_typed_ir019_inventory.py
+          python3 -m unittest discover -s tests -p 'test_typed_ir019.py' -v
+      - name: Fetch exact SHA-pinned untouched publishers
+        run: python3 scripts/ci_typed_ir015_fetch.py
+      - name: Stratify single-score-call and multi-stage/return dispatch
+        run: python3 scripts/ci_typed_ir019_inventory.py
+      - name: Preserve original source-only candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir019-publisher-stratification
+          path: build/reports/COMPILER-IR-019-INVENTORY/
+          if-no-files-found: warn
+          retention-days: 21
