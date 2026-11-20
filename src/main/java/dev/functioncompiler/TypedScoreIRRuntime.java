@@ -86,13 +86,13 @@ final class TypedScoreIRRuntime {
                 boolean matched = info != null && condition.range().matches(info.value());
                 if (matched == condition.unless()) {
                     TypedScoreIR.skippedConditional();
-                    traceReturn(0);
+                    traceReturn(instruction, 0);
                     return SKIP;
                 }
                 context.incrementCost();
                 if (quota() < 0) {
                     TypedScoreIR.skippedConditional();
-                    traceReturn(0);
+                    traceReturn(instruction, 0);
                     return SKIP;
                 }
             }
@@ -119,10 +119,10 @@ final class TypedScoreIRRuntime {
         ScoreAccess access() { return access; }
         ScoreAccess sourceAccess() { return sourceAccess; }
 
-        private void traceReturn(int result) {
+        private void traceReturn(TypedScoreIR.Instruction instruction, int result) {
             TraceCallbacks tracer = context.tracer();
-            if (tracer != null && current != null) {
-                tracer.onReturn(frame.depth(), current.vanilla().commandInput(), result);
+            if (tracer != null) {
+                tracer.onReturn(frame.depth(), instruction.vanilla().commandInput(), result);
             }
         }
 
