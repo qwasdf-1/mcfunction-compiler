@@ -73,6 +73,47 @@ FUNCTIONS = {
         "scoreboard players add #m fc_readonly 1",
         "scoreboard players add #m fc_readonly 1",
     ],
+    "binary": [
+        "scoreboard players set #x fc_ir 5",
+        "scoreboard players set #y fc_ir 2",
+        "scoreboard players operation #x fc_ir += #y fc_ir",
+        "scoreboard players operation #x fc_ir -= #y fc_ir",
+        "scoreboard players operation #x fc_ir *= #y fc_ir",
+        "scoreboard players operation #x fc_ir = #y fc_ir",
+        "scoreboard players add #x fc_ir 4",
+    ],
+    "binary_self": [
+        "scoreboard players set #x fc_ir 3",
+        "scoreboard players operation #x fc_ir += #x fc_ir",
+        "scoreboard players operation #x fc_ir *= #x fc_ir",
+        "scoreboard players operation #x fc_ir -= #x fc_ir",
+        "scoreboard players add #x fc_ir 1",
+    ],
+    "guarded": [
+        "scoreboard players set #x fc_ir 5",
+        "execute if score #x fc_ir matches 5 run scoreboard players add #y fc_ir 2",
+        "execute if score #x fc_ir matches 4 run scoreboard players add #y fc_ir 100",
+        "execute unless score #x fc_ir matches 4 run scoreboard players add #y fc_ir 3",
+        "execute unless score #x fc_ir matches 5 run scoreboard players add #y fc_ir 100",
+        "scoreboard players add #x fc_ir 1",
+    ],
+    "guard_absent": [
+        "scoreboard players set #x fc_ir 7",
+        "execute if score #uninitialized fc_ir matches 0 run scoreboard players add #x fc_ir 100",
+        "execute unless score #uninitialized fc_ir matches 0 run scoreboard players add #x fc_ir 2",
+        "scoreboard players add #x fc_ir 1",
+    ],
+    "guard_missing_objective": [
+        "scoreboard players set #x fc_ir 1",
+        "execute if score #g fc_missing_guard matches 1 run scoreboard players add #x fc_ir 4",
+        "scoreboard players add #x fc_ir 2",
+    ],
+    "binary_division_barrier": [
+        "scoreboard players set #x fc_ir 20",
+        "scoreboard players set #y fc_ir 3",
+        "scoreboard players operation #x fc_ir /= #y fc_ir",
+        "scoreboard players add #x fc_ir 1",
+    ],
     "bench64": ["scoreboard players add #bench fc_ir 1"] * BENCH_OPS,
 }
 
@@ -224,7 +265,9 @@ def run(mode: str) -> dict:
             client.command("scoreboard objectives add fc_readonly health")
             client.command("gamerule sendCommandFeedback false")
             client.command("gamerule minecraft:max_command_sequence_length 65536")
-            for name in ("chain", "barrier", "conditional", "operation", "overflow"):
+            for name in ("chain", "barrier", "conditional", "operation", "overflow",
+                         "binary", "binary_self", "guarded", "guard_absent",
+                         "binary_division_barrier"):
                 reset(client)
                 client.command(f"scoreboard players set #y {OBJ} 2")
                 run_function(client, name)
@@ -239,6 +282,30 @@ def run(mode: str) -> dict:
                 raise AssertionError("Scoreboard operation barrier didn't run")
             if report["cases"]["overflow"]["x"] != 2147483647:
                 raise AssertionError("Signed 32-bit overflow semantics incorrect")
+            expected_ir009 = {
+                "binary": {"x": 6, "y": 2},
+                "binary_self": {"x": 1, "y": 2},
+                "guarded": {"x": 6, "y": 7},
+                "guard_absent": {"x": 10, "y": 2},
+                "binary_division_barrier": {"x": 7, "y": 3},
+            }
+            for case, expected in expected_ir009.items():
+                for key, value in expected.items():
+                    if report["cases"][case][key] != value:
+                        raise AssertionError(
+                            f"IR-009 fixture {case}/{key}={report['cases'][case][key]}, "
+                            f"expected {value}")
+            reset(client)
+            run_function(client, "guard_missing_objective")
+            report["cases"]["guard_missing_objective_before"] = snapshot(client)
+            client.command("scoreboard objectives add fc_missing_guard dummy")
+            client.command("scoreboard players set #g fc_missing_guard 1")
+            reset(client)
+            run_function(client, "guard_missing_objective")
+            report["cases"]["guard_missing_objective_after"] = snapshot(client)
+            if (report["cases"]["guard_missing_objective_before"]["x"] != 3
+                    or report["cases"]["guard_missing_objective_after"]["x"] != 7):
+                raise AssertionError("Guard objective reload/creation parity fixture failed")
             # Result callback is a separate source of semantic observation.
             reset(client)
             client.command("execute store result score #result fc_ir "
@@ -265,6 +332,16 @@ def run(mode: str) -> dict:
                 run_function(client, "chain")
                 client.command("gamerule minecraft:max_command_sequence_length 65536")
                 report["cases"][f"quota_{quota}"] = snapshot(client)
+                reset(client)
+                client.command(f"gamerule minecraft:max_command_sequence_length {quota}")
+                run_function(client, "guarded")
+                client.command("gamerule minecraft:max_command_sequence_length 65536")
+                report["cases"][f"guard_quota_{quota}"] = snapshot(client)
+                reset(client)
+                client.command(f"gamerule minecraft:max_command_sequence_length {quota}")
+                run_function(client, "binary")
+                client.command("gamerule minecraft:max_command_sequence_length 65536")
+                report["cases"][f"binary_quota_{quota}"] = snapshot(client)
             # Status has diagnostic counters. They are not enabled in any
             # production default, and are deliberately NOT CPU evidence.
             report["compiler_status"] = client.command("functioncompiler ir008")
@@ -279,6 +356,10 @@ def run(mode: str) -> dict:
                     raise AssertionError("ASM backend not generated")
                 if re.search(r"fallback_steps=0(?:\s|$)", report["compiler_status"]):
                     raise AssertionError("Original-missing-objective fallback not exercised")
+                for counter in ("binary_steps", "conditional_steps", "conditional_skips"):
+                    if re.search(rf"{counter}=0(?:\s|$)", report["compiler_status"]):
+                        raise AssertionError(f"IR-009 {counter} not activated: "
+                                             f"{report['compiler_status']!r}")
             report["semantic_verified"] = True
             report["status"] = "semantic_accepted"
 
