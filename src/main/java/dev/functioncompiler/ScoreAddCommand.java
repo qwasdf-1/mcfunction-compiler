@@ -130,12 +130,24 @@ final class ScoreAddCommand implements FusableCommand {
                     "^scoreboard players (add|set|remove) (#[A-Za-z0-9_.+\\-]+) "
                             + "([A-Za-z0-9_.+\\-]+) (-?\\d+)$");
 
-    TypedScoreIR.Instruction toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
+    TypedScoreIR.Mutation toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
+        return toMutation(parsed, parsed.commandInput());
+    }
+
+    /**
+     * Validate the previously parsed terminal command against a literal
+     * source-shaped subset. The explicit source is used by IR-009 for an
+     * execute-if-score command, whose parent source contains its terminal.
+     */
+    TypedScoreIR.Mutation toMutation(
+            FusedRegionPrototype.FusedCommand parsed,
+            String terminalSource
+    ) {
         if (isSelfSelector || holder == null || objectiveName == null
                 || !holder.getScoreboardName().startsWith("#")) {
             return null;
         }
-        var matcher = IR_LITERAL_SOURCE.matcher(parsed.commandInput());
+        var matcher = IR_LITERAL_SOURCE.matcher(terminalSource);
         if (!matcher.matches()
                 || !matcher.group(1).equalsIgnoreCase(operation.name())
                 || !matcher.group(2).equals(holder.getScoreboardName())
@@ -147,7 +159,7 @@ final class ScoreAddCommand implements FusableCommand {
         } catch (NumberFormatException invalid) {
             return null;
         }
-        return new TypedScoreIR.Instruction(parsed, holder, objectiveName, operation, amount);
+        return new TypedScoreIR.Mutation(parsed, holder, objectiveName, operation, amount);
     }
 
     @Override
