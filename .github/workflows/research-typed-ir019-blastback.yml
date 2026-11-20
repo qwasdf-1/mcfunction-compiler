@@ -1,0 +1,52 @@
+name: COMPILER-IR-019 genuine Blastback bounded capture dispatch-census pilot
+
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir019-blastback.yml'
+      - 'scripts/ci_typed_ir019_blastback.py'
+      - 'tests/test_typed_ir019_blastback.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir019-blastback-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unmodified-publisher-one-tnt-capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build actual Fabric Minecraft 26.3 mod
+        run: ./gradlew --no-daemon build
+      - name: Assert Blastback observation-only scope and validate script
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir019_blastback.py' -v
+          python3 -m py_compile scripts/ci_typed_ir019_blastback.py
+      - name: Verify SHA-pinned publisher Blastback ZIP
+        run: |
+          PYTHONPATH=scripts python3 -c "from ci_typed_ir015_fetch import fetch; print(fetch('blastback'))"
+      - name: One original TNT capture-stage activation with passively observed function calls
+        timeout-minutes: 20
+        run: python3 scripts/ci_typed_ir019_blastback.py
+      - name: Archive original capture-stage state and native call-site/callee counts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir019-original-blastback-capture-census
+          path: build/reports/COMPILER-IR-019-BLASTBACK/
+          if-no-files-found: warn
+          retention-days: 21
