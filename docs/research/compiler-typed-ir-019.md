@@ -128,4 +128,4 @@ These bounded backwards-compatibility results show that the default-off observer
     python3 scripts/ci_typed_ir019_native.py
     python3 scripts/ci_typed_ir019_blastback.py
 
-Once all accepted updated runs finish, archive the four IR-019 research workflows as manual-only. All changes are on work/compiler-coverage / draft, unmerged PR #10. All performance and production switches remain OFF.
+All four accepted IR-019 research workflows have been archived manual-only. All changes are on work/compiler-coverage / draft, unmerged PR #10. All performance and production switches remain OFF.
