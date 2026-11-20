@@ -93,7 +93,14 @@ The initial [invalid development run #44772603013](https://github.com/qwasdf-1/m
 
 **Fix:** `ScoreAddPrototype.compileEntry` now performs a conservative **pre-mutation typed-only source-shape gate** whenever only the opt-in typed IR compiler is active. It admits only existing literal fake-holder mutation, four literal binary operations and exact single-integer-score conditional mutation shapes. Every other command is left in its original `BuildContexts` command tree before a legacy parser can mutate it. Actual admitted commands still require Minecraft's parsed Brigadier arguments and their existing typed-`toIR` checks; this does not introduce a new textual command interpreter or widen any supported IR syntax. The other legacy research prototype configurations retain their existing behavior.
 
-The corrected source passes the build, structural contract tests and the accepted original-source real player event. The accepted event recorded 511 typed instructions rather than switching off the bytecode compiler to avoid the adversary. **This is bounded evidence, not proof that every legacy fallback/missing-objective combination is now safe**; separate IR-014 queue/objective regression must pass after the code change, and unsupported modded callbacks are still outside the tested scope.
+The corrected source passes the build, structural contract tests and the accepted original-source real player event. The accepted event recorded 511 typed instructions rather than switching off the bytecode compiler to avoid the adversary. **This is bounded evidence, not proof that every legacy fallback/missing-objective combination is now safe**; unsupported modded callbacks remain outside the tested scope.
+
+
+### Post-fix typed IR native regression
+
+The [separate accepted IR-014 regression run #44774328786](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44774328786) ([raw artifact #14648901876](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44774328786/artifacts/14648901876)) rebuilt the corrected Java 25 mod and passed structural tests for IR-009, IR-013, IR-014 and IR-015 (7+7+4+4 assertions). It then ran **four new Minecraft JVMs** through the IR-014 native objective/queue fixture: vanilla, guarded ASM, guarded interpreted IR, and guarded ASM with the direct resumable scheduler. The native runner accepted all 70 full/partial observed scoreboard states per mode, exercising nested callback-queued functions, objective removal/recreation, missing-objective fallback, conditional mutation, child-function return and quotas.
+
+All guarded arms still recorded 73 reentrant yields, 125 queued recovery steps, nine runtime original-command fallbacks, and 232 typed instruction executions. The original IR-014 acceptance remained intact; this result is **post-code-change regression evidence**, not a CPU/performance result.
 
 ### Priority change
 
