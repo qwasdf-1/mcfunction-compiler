@@ -164,6 +164,10 @@ final class ProbeCommands {
                         CompilerRestoreCpuProbe.start(context.getSource())))
                 .then(Commands.literal("cpu020-stop").executes(context ->
                         CompilerRestoreCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu021-start").executes(context ->
+                        CompilerForkBreakdownProbe.start(context.getSource())))
+                .then(Commands.literal("cpu021-stop").executes(context ->
+                        CompilerForkBreakdownProbe.stop(context.getSource())))
                 .then(Commands.literal("macro006-start").executes(context ->
                         CompilerMacroLoadCpuProbe.start(context.getSource())))
                 .then(Commands.literal("macro006-stop").executes(context ->
@@ -212,6 +216,10 @@ final class ProbeCommands {
                         CompilerRestoreCpuProbe.start(context.getSource())))
                 .then(Commands.literal("cpu020-stop").executes(context ->
                         CompilerRestoreCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu021-start").executes(context ->
+                        CompilerForkBreakdownProbe.start(context.getSource())))
+                .then(Commands.literal("cpu021-stop").executes(context ->
+                        CompilerForkBreakdownProbe.stop(context.getSource())))
                 .then(Commands.literal("macro006-start").executes(context ->
                         CompilerMacroLoadCpuProbe.start(context.getSource())))
                 .then(Commands.literal("macro006-stop").executes(context ->
