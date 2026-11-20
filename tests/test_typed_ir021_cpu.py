@@ -34,7 +34,7 @@ class IR021Contracts(unittest.TestCase):
     def test_pinned_exact_source_and_original_nested_methods(self):
         code=(ROOT/"src/main/java/dev/functioncompiler/CompilerForkBreakdownProbe.java").read_text()
         runner=(ROOT/"scripts/ci_typed_ir021_cpu.py").read_text()
-        self.assertIn("erb:restore/job_tick",runner)
+        self.assertIn("EXACT_ORIGINAL_LINE",runner)
         self.assertIn("data/erb/function/restore/job_tick.mcfunction",runner)
         for token in ("erb.block","erb.verified","#active erb.job",
                       "#needs_restore erb.tmp 1"):
