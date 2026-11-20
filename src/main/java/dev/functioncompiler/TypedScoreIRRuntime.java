@@ -140,13 +140,17 @@ final class TypedScoreIRRuntime {
                 return original(instruction);
             }
 
-            Objective second = null;
-            if (instruction instanceof TypedScoreIR.Binary binary) {
-                second = scoreboard.getObjective(binary.sourceObjective());
-            } else if (instruction instanceof TypedScoreIR.Conditional condition) {
-                second = scoreboard.getObjective(condition.conditionObjective());
-            }
-            if (!(instruction instanceof TypedScoreIR.Mutation) && second == null) {
+            // A guarded binary has three potentially distinct objectives:
+            // target, score-condition read, and binary source read. Validate
+            // all of them BEFORE debiting any quota or creating score rows.
+            TypedScoreIR.Instruction terminal = instruction instanceof TypedScoreIR.Conditional guard
+                    ? guard.terminal() : instruction;
+            Objective guardObjective = instruction instanceof TypedScoreIR.Conditional guard
+                    ? scoreboard.getObjective(guard.conditionObjective()) : null;
+            Objective operandObjective = terminal instanceof TypedScoreIR.Binary binary
+                    ? scoreboard.getObjective(binary.sourceObjective()) : null;
+            if ((instruction instanceof TypedScoreIR.Conditional && guardObjective == null)
+                    || (terminal instanceof TypedScoreIR.Binary && operandObjective == null)) {
                 return original(instruction);
             }
 
@@ -161,7 +165,7 @@ final class TypedScoreIRRuntime {
             // the existing compiled ScoreConditionCommand does the same.
             if (instruction instanceof TypedScoreIR.Conditional condition) {
                 ReadOnlyScoreInfo info = scoreboard.getPlayerScoreInfo(
-                        condition.conditionHolder(), second);
+                        condition.conditionHolder(), guardObjective);
                 boolean matched = info != null && condition.range().matches(info.value());
                 if (matched == condition.unless()) {
                     TypedScoreIR.skippedConditional();
@@ -181,9 +185,9 @@ final class TypedScoreIRRuntime {
             // Every lookup is deliberately fresh. Even a disjoint preceding
             // command can run externally observable feedback/listener logic.
             access = scoreboard.getOrCreatePlayerScore(instruction.holder(), selected);
-            if (instruction instanceof TypedScoreIR.Binary binary) {
-                sourceObjective = second;
-                sourceAccess = scoreboard.getOrCreatePlayerScore(binary.sourceHolder(), second);
+            if (terminal instanceof TypedScoreIR.Binary binary) {
+                sourceObjective = operandObjective;
+                sourceAccess = scoreboard.getOrCreatePlayerScore(binary.sourceHolder(), operandObjective);
             }
             TypedScoreIR.step(instruction);
             return DIRECT;
@@ -212,8 +216,10 @@ final class TypedScoreIRRuntime {
          * optimization; never defer or coalesce writes.
          */
         int sourceOperand() {
+            TypedScoreIR.Instruction terminal = current instanceof TypedScoreIR.Conditional guard
+                    ? guard.terminal() : current;
             if (!TypedScoreIR.scoreCacheEnabled()
-                    || !(current instanceof TypedScoreIR.Binary binary)
+                    || !(terminal instanceof TypedScoreIR.Binary binary)
                     || !(scoreboard instanceof ScoreValueRevisionAccess versions)) {
                 return sourceAccess.get();
             }
@@ -247,6 +253,8 @@ final class TypedScoreIRRuntime {
 
         void finish(int newScore) {
             TypedScoreIR.Instruction instruction = current;
+            TypedScoreIR.Instruction terminal = instruction instanceof TypedScoreIR.Conditional guard
+                    ? guard.terminal() : instruction;
             TraceCallbacks tracer = context.tracer();
             try {
                 int result;
@@ -259,15 +267,13 @@ final class TypedScoreIRRuntime {
                     // formatting and subsequent trace callback verbatim.
                     var holder = instruction.holder();
                     var resolvedObjective = objective;
-                    if (instruction instanceof TypedScoreIR.Binary) {
+                    if (terminal instanceof TypedScoreIR.Binary) {
                         var message = ScoreboardCommandAccessor
                                 .functionCompiler$getScoreOperationResponse();
                         source.sendSuccess(() -> message.onSuccess().onSingle()
                                 .create(holder, newScore, resolvedObjective), true);
                     } else {
-                        TypedScoreIR.Mutation mutation =
-                                instruction instanceof TypedScoreIR.Conditional guard
-                                        ? guard.mutation() : (TypedScoreIR.Mutation) instruction;
+                        TypedScoreIR.Mutation mutation = (TypedScoreIR.Mutation) terminal;
                         var message = switch (mutation.operation()) {
                             case ADD -> ScoreboardCommandAccessor.functionCompiler$getScoreAddResponse();
                             case REMOVE -> ScoreboardCommandAccessor.functionCompiler$getScoreRemoveResponse();
@@ -282,16 +288,14 @@ final class TypedScoreIRRuntime {
                     CommandResponseTracker<net.minecraft.world.scores.ScoreHolder> response =
                             CommandResponseTracker.create();
                     response.track(instruction.holder(), newScore);
-                    if (instruction instanceof TypedScoreIR.Binary) {
+                    if (terminal instanceof TypedScoreIR.Binary) {
                         result = response.sendFeedback(
                                 source, true, ElementType.ANY,
                                 ScoreboardCommandAccessor.functionCompiler$getScoreOperationResponse(),
                                 objective
                         );
                     } else {
-                        TypedScoreIR.Mutation mutation =
-                                instruction instanceof TypedScoreIR.Conditional guard
-                                        ? guard.mutation() : (TypedScoreIR.Mutation) instruction;
+                        TypedScoreIR.Mutation mutation = (TypedScoreIR.Mutation) terminal;
                         var message = switch (mutation.operation()) {
                             case ADD -> ScoreboardCommandAccessor.functionCompiler$getScoreAddResponse();
                             case REMOVE -> ScoreboardCommandAccessor.functionCompiler$getScoreRemoveResponse();
