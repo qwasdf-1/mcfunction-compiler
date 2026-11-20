@@ -149,6 +149,12 @@ public final class ScoreAddPrototype {
             return;
         }
 
+        // Snapshot the real Brigadier terminal BEFORE a prototype replaces
+        // the live parsed callback. For typed-only guarded commands, the
+        // original parsed fallback must not share the mutated executable
+        // context: that would recursively call ScoreConditionCommand again
+        // when @s (or a runtime objective) is unavailable.
+        Command<CommandSourceStack> originalExecutableCommand = executable.getCommand();
         if (!compileExecutable(executable, functionId)) {
             CompilerAcceptanceAudit.record(functionId, "chain_executable_declined",
                     chain.getTopContext().getInput());
@@ -171,8 +177,35 @@ public final class ScoreAddPrototype {
             return;
         }
 
+        ContextChain<CommandSourceStack> nativeFallback = chain;
+        boolean typedOnly = TypedScoreIR.enabledFor(functionId)
+                && !ProbeConfiguration.scoreAddPrototypeEnabled()
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled();
+        if (typedOnly && typedLiteralGuard) {
+            // Brigadier CommandContext is mutable through our mixin. Clone
+            // ONLY the terminal with its original vanilla callback, leaving
+            // modifier contexts and their parsed selector/range arguments
+            // untouched. This is the genuine original command for error and
+            // objective-lifecycle fallback, not a reparse or emulation.
+            CommandContext<CommandSourceStack> originalExecutable =
+                    new CommandContext<>(
+                            executable.getSource(),
+                            executable.getInput(),
+                            executable.getArguments(),
+                            originalExecutableCommand,
+                            executable.getRootNode(),
+                            executable.getNodes(),
+                            executable.getRange(),
+                            executable.getChild(),
+                            executable.getRedirectModifier(),
+                            executable.isForked()
+                    );
+            nativeFallback = new ContextChain<>(List.copyOf(modifiers), originalExecutable);
+        }
         Command<CommandSourceStack> wrapped = wrapModifiers(
-                chain, parsedModifiers, executable.getCommand(), functionId
+                nativeFallback, parsedModifiers, executable.getCommand(), functionId
         );
 
         CommandContextAccessor<CommandSourceStack> execAccessor =
