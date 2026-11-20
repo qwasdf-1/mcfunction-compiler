@@ -41,6 +41,8 @@ final class TypedScoreIR {
     // Requires matching server-scoreboard revision hooks; strict opt-in.
     private static final boolean SCORE_CACHE =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SCORE_CACHE"));
+    // Optional research-only same-JVM A/B control. Never available by default.
+    private static volatile boolean scoreCacheRuntime = SCORE_CACHE;
     private static final int MAX_REGION_LENGTH = 64;
     private static final LongAdder COMPILED_REGIONS = new LongAdder();
     private static final LongAdder BYTECODE_REGIONS = new LongAdder();
@@ -287,7 +289,19 @@ final class TypedScoreIR {
         if (DIAGNOSTICS) FALLBACK_STEPS.increment();
     }
 
-    static boolean scoreCacheEnabled() { return SCORE_CACHE; }
+    static boolean scoreCacheCompiled() { return SCORE_CACHE; }
+    static boolean scoreCacheEnabled() { return SCORE_CACHE && scoreCacheRuntime; }
+
+    static int toggleCache(CommandSourceStack source, boolean enabled) {
+        if (!SCORE_CACHE || !Boolean.parseBoolean(
+                System.getenv("FC_TYPED_IR_SCORE_CACHE_TOGGLE"))) {
+            return 0;
+        }
+        scoreCacheRuntime = enabled;
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
+                "IR010 cache enabled=" + enabled), false);
+        return 1;
+    }
     static void cacheHit() { if (DIAGNOSTICS) CACHE_HITS.increment(); }
     static void cacheMiss() { if (DIAGNOSTICS) CACHE_MISSES.increment(); }
     static void cacheInvalidated() {
@@ -311,7 +325,7 @@ final class TypedScoreIR {
                 + " binary_steps=" + BINARY_STEPS.sum()
                 + " conditional_steps=" + CONDITIONAL_STEPS.sum()
                 + " conditional_skips=" + CONDITIONAL_SKIPS.sum()
-                + " score_cache=" + SCORE_CACHE
+                + " score_cache=" + scoreCacheEnabled()
                 + " cache_hits=" + CACHE_HITS.sum()
                 + " cache_misses=" + CACHE_MISSES.sum()
                 + " cache_invalidations=" + CACHE_INVALIDATIONS.sum();
