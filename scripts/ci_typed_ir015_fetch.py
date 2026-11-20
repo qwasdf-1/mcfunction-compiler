@@ -29,7 +29,9 @@ def fetch(name: str) -> dict:
     version, filename = VERSIONS[name]
     metadata = json.loads(fetch_bytes(
         f"https://api.modrinth.com/v2/version/{version}", maximum=2_000_000))
-    files = [f for f in metadata["files"] if f["filename"] == filename]
+    files = [f for f in metadata["files"]
+             if f["filename"] == filename] if name == "veinminer" else [
+             f for f in metadata["files"] if f["filename"].lower().endswith(".zip")]
     if len(files) != 1:
         raise ValueError(f"Ambiguous/missing {name} publisher ZIP")
     data = fetch_bytes(files[0]["url"], maximum=80_000_000)
