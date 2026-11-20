@@ -65,11 +65,13 @@ WITNESSES={
 }
 
 
-def setup(cpu_mode: str | None = None, output: Path = OUT):
+def setup(cpu_mode: str | None = None, output: Path = OUT, cpu_family: str = "020"):
     output.mkdir(parents=True,exist_ok=True)
     RUNS.mkdir(parents=True,exist_ok=True)
+    if cpu_family not in ("020","021"):
+        raise ValueError("Unknown native CPU diagnostic: "+cpu_family)
     work=RUNS/("ci-ir019-blastback" if cpu_mode is None
-               else "ci-ir020-blastback-"+cpu_mode)
+               else "ci-ir"+cpu_family+"-blastback-"+cpu_mode)
     if work.exists():shutil.rmtree(work)
     work.mkdir(parents=True)
     packs=work/"world/datapacks"
@@ -107,8 +109,12 @@ def setup(cpu_mode: str | None = None, output: Path = OUT):
         env["FC_COMPILER_EXEC_CENSUS"] = "false"
         env["FC_COMPILER_EXEC_CENSUS_FUNCTIONS"] = ""
         env["FC_COMPILER_EXEC_CENSUS_CALLEES"] = ""
-        env["FC_CPU020_MODE"] = cpu_mode
-        env["FC_CPU020_NAMESPACE"] = "erb"
+        if cpu_family == "020":
+            env["FC_CPU020_MODE"] = cpu_mode
+            env["FC_CPU020_NAMESPACE"] = "erb"
+        else:
+            env["FC_CPU021_MODE"] = cpu_mode
+            env["FC_CPU021_NAMESPACE"] = "erb"
     command=[str(ROOT/"gradlew"),"--no-daemon",
         "-Dorg.gradle.jvmargs=-Xmx1G -Dfile.encoding=UTF-8",
         "-PfcJvmArgs=-Xms512M,-Xmx3G",
