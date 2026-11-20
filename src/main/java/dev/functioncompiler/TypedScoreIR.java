@@ -309,6 +309,18 @@ final class TypedScoreIR {
         return function instanceof CompiledFunction typed ? typed.directChunks() : null;
     }
 
+    /**
+     * Traced calls still use vanilla frames. Report the original physical
+     * function line count even when the typed compiler collapsed many
+     * entries into a handful of generated region actions.
+     */
+    public static int originalTraceEntryCount(
+            InstantiatedFunction<?> function, int observed
+    ) {
+        return function instanceof CompiledFunction typed
+                ? typed.original().entries().size() : observed;
+    }
+
     static void executed() {
         if (DIAGNOSTICS) EXECUTED_REGIONS.increment();
     }
