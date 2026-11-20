@@ -52,7 +52,8 @@ class RealEventIR015(unittest.TestCase):
                         parser.index("compileChainedModifiers(buildContexts, chain, functionId)"))
         self.assertIn("IR_LITERAL_SOURCE.matcher(source).matches()", mutation)
         self.assertIn("IR_LITERAL_BINARY_SOURCE.matcher(source).matches()", binary)
-        self.assertIn("IR_GUARD.matcher(input).matches()", guard)
+        self.assertIn("IR_GUARD.matcher(input)", guard)
+        self.assertIn("matcher.matches()", guard)
 
     def test_diagnostic_counting_guards(self):
         self.assertEqual(study.counted("compiled_regions=4 executed_steps=22", "compiled_regions"),4)
