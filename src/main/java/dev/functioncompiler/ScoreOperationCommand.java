@@ -62,10 +62,19 @@ final class ScoreOperationCommand implements FusableCommand {
     }
 
     TypedScoreIR.Binary toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
+        return toBinary(parsed, parsed.commandInput());
+    }
+
+    /**
+     * IR-017: the same strict parsed-terminal lowering may be used beneath
+     * a separately validated `execute if/unless score ... matches <range>`.
+     * 'parsed' is the parent source's original action, so the callback still
+     * has an exact vanilla fallback and trace identity.
+     */
+    TypedScoreIR.Binary toBinary(FusedRegionPrototype.FusedCommand parsed, String input) {
         if (isTargetSelf || isSourceSelf || targetHolder == null || sourceHolder == null) {
             return null;
         }
-        String input = parsed.commandInput();
         String[] words = input.split(" ", -1);
         if (words.length != 8
                 || !"scoreboard".equals(words[0])
