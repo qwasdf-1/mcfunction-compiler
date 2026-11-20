@@ -23,8 +23,9 @@ class IR016MixedProgramContracts(unittest.TestCase):
             "record Program(", "firstSourceIndex()", "sourceCount()",
             "node.firstSourceIndex() != expected", "expected != sourceCount",
             "pending.getFirst().vanilla().original()",
-            "nodes.add(new OpaqueBarrier(index, entry, BarrierKind.UNSUPPORTED_OR_CONTROL))",
+            "nodes.add(new OpaqueBarrier(index, entry,",,
             "nodes.add(new TypedRegion(first, typed, emitted.action(), emitted.bytecode()))",
+            "isFunctionDispatch(entry) ? BarrierKind.FUNCTION_DISPATCH",
         ):
             self.assertIn(token, src)
         self.assertIn("directBytecodeChunks()", src)
