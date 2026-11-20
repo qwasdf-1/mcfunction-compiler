@@ -69,7 +69,7 @@ class ReentrantIR013(unittest.TestCase):
         self.assertIn('method.visitFieldInsn(GETFIELD, internal, "steps", STEPS)', asm)
         self.assertIn(';" + STEPS + ")V"', asm)
         self.assertIn("reentrant_yields=", ir)
-        self.assertIn("reentrant_vanilla_steps=", ir)
+        self.assertIn("reentrant_queued_steps=", ir)
         self.assertIn("ReentrantQueueProbe.diagnostics()", ir)
 
     def test_boundary_and_interleaving_fixtures_exact_length(self):
