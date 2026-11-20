@@ -1,0 +1,55 @@
+name: COMPILER-IR-012 resumable typed-function scheduler
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/research-typed-ir012.yml'
+      - 'src/main/java/dev/functioncompiler/TypedScoreIR.java'
+      - 'src/main/java/dev/functioncompiler/TypedScoreIRDirectScheduler.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CallFunctionMixin.java'
+      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
+      - 'scripts/ci_typed_ir012.py'
+      - 'tests/test_typed_ir012.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir012-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  minecraft-parity-and-crossover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build Minecraft 26.3 Fabric / Java 25
+        run: ./gradlew --no-daemon build
+      - name: Verify compiler admission, scheduling and native-harness contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir012.py' -v
+          python3 -m py_compile scripts/ci_typed_ir012.py
+      - name: Four fresh Minecraft JVM native semantic arms, low quota and trace/callback fallback
+        timeout-minutes: 23
+        run: python3 scripts/ci_typed_ir012.py --phase semantic
+      - name: Same generated ASM, two fresh JVM CPU crossover plus same-path A/A
+        timeout-minutes: 21
+        run: python3 scripts/ci_typed_ir012.py --phase crossover
+      - name: Archive full Minecraft logs, native states and crossover evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir012-resumable-scheduling-native
+          path: build/reports/COMPILER-IR-012/
+          retention-days: 21
+          if-no-files-found: warn
