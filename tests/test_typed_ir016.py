@@ -19,7 +19,7 @@ class IR016MixedProgramContracts(unittest.TestCase):
         for token in (
             "sealed interface Node permits TypedRegion, OpaqueBarrier",
             "record TypedRegion(", "record OpaqueBarrier(",
-            "enum BarrierKind { UNSUPPORTED_OR_CONTROL, TYPED_SINGLETON }",
+            "enum BarrierKind { UNSUPPORTED_OR_CONTROL, FUNCTION_DISPATCH, TYPED_SINGLETON }",
             "record Program(", "firstSourceIndex()", "sourceCount()",
             "node.firstSourceIndex() != expected", "expected != sourceCount",
             "pending.getFirst().vanilla().original()",
