@@ -64,6 +64,46 @@ final class ScoreConditionCommand implements FusableCommand {
         this.functionId = functionId;
     }
 
+    /**
+     * IR-009 guarded mutation. Only one exact integer "matches" condition,
+     * literal fake holder and vanilla-validated set/add/remove terminal can
+     * enter. The parsed range and terminal callback remain authoritative;
+     * textual matching just rejects unsupported control-flow shapes.
+     */
+    private static final java.util.regex.Pattern IR_GUARD =
+            java.util.regex.Pattern.compile(
+                    "^execute (if|unless) score (#[A-Za-z0-9_.+\\-]+) "
+                            + "([A-Za-z0-9_.+\\-]+) matches (-?\\d+) "
+                            + "run (scoreboard players (?:add|set|remove) .+)$");
+
+    TypedScoreIR.Conditional toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
+        if (isTargetSelf || targetHolder == null || range == null
+                || operator != null || sourceHolder != null
+                || targetObjective == null
+                || !(innerCommand instanceof ScoreAddCommand score)) {
+            return null;
+        }
+        var matcher = IR_GUARD.matcher(parsed.commandInput());
+        if (!matcher.matches() || !matcher.group(2).equals(targetHolder.getScoreboardName())
+                || !matcher.group(3).equals(targetObjective)
+                || ("unless".equals(matcher.group(1)) != unless)) {
+            return null;
+        }
+        try {
+            // Ensure the emitted branch represents the exact already-parsed
+            // equality range. Other range spellings remain vanilla.
+            int literal = Integer.parseInt(matcher.group(4));
+            if (!range.matches(literal)) return null;
+            if (literal != Integer.MIN_VALUE && range.matches(literal - 1)) return null;
+            if (literal != Integer.MAX_VALUE && range.matches(literal + 1)) return null;
+        } catch (NumberFormatException invalid) {
+            return null;
+        }
+        TypedScoreIR.Mutation mutation = score.toMutation(parsed, matcher.group(5));
+        return mutation == null ? null : new TypedScoreIR.Conditional(
+                parsed, mutation, targetHolder, targetObjective, range, unless);
+    }
+
     @Override
     public int run(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         if (ProbeConfiguration.scoreAddTimingEnabled()) {
