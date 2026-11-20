@@ -1,6 +1,6 @@
 # COMPILER-IR-017 — Typed inclusive score ranges and guarded scoreboard arithmetic
 
-**Status (2026-11-20):** native five-JVM semantic acceptance passed; original-publisher coverage screen accepted. Real publisher execution comparison and prior IR-014/IR-016 regression are separate gates. Research branch `work/compiler-coverage`; draft PR #10 remains unmerged. **No CPU or production speedup claim.**
+**Status (2026-11-20):** native five-JVM semantic acceptance passed; original-publisher coverage screen accepted. Original-publisher Vein Miner execution comparison **also accepted**; prior IR-014/IR-016 native regressions remain a separate gate. Research branch `work/compiler-coverage`; draft PR #10 remains unmerged. **No CPU or production speedup claim.**
 
 ## Why extend IR-016?
 
@@ -68,6 +68,31 @@ A Vein Miner source-level gain of nine ranged guard instructions is concentrated
 
 **Engineering conclusion:** The new IR language makes more code compilable and was actually exercised in native Minecraft, but the measured real-source expansion is still modest. It is premature to claim real-player CPU savings. The primary blocked language families remain selectors, context-bound `execute` modifiers, and especially conditional function dispatch (e.g. `execute if score @s ... run function`). Implementing them requires preserving execution-source semantics, function frames, callback outcomes, forked branches, macros and queue order; merely broadening eligibility regexes is unsafe.
 
+## Real 215-block publisher event: old versus new compiler — accepted, NOT a speed benchmark
+
+[Three-new-JVM original Vein Miner 5.3.0 run #44799665141](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44799665141) · [raw original-source event artifact #14661395614](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44799665141/artifacts/14661395614).
+
+Three independent Minecraft 26.3 Java25 server processes ran the unchanged SHA-verified Vein Miner ZIP with exactly the existing player-bot 215-block mining test:
+
+1. Wrapper-only reference, no typed compiler;
+2. IR-016 bytecode baseline (`FC_TYPED_IR_RANGE_GUARDS=false`);
+3. IR-017 bytecode (`FC_TYPED_IR_RANGE_GUARDS=true`).
+
+All arms completed **215 work blocks**, with the **same 1,952 queue-head increments**, one actual player source-block mine, full cleanup and no remaining markers or ores. **All nine independently checked final event state fields matched**. Both bytecode modes emitted and executed real generated JVM instructions.
+
+| Event-local diagnostic | IR-016 compiler | IR-017 compiler |
+| --- | ---: | ---: |
+| Bytecode regions generated at load | **6** | **7** |
+| Executed regions during player mining | 245 | 241 |
+| Actual directly lowered typed steps | 520 | 508 |
+| Guarded binary instruction executions | **0** | **0** |
+| Reentrant callback yields in this ordinary workload | 0 | 0 |
+| Original-command fallbacks within typed regions | 0 | 0 |
+
+The new compiler did compile one more static region at load, consistent with IR-017's additional source shapes in the load path. **No new guarded binary operations executed in this mining event.** The independent server boots perform similar but not precisely identical numbers of dynamic commands; 520 versus 508 typed steps must NOT be characterized as an improvement, reduction, or CPU-saving percentage. No server-thread CPU samples, A/A controls, paired timing windows, or end-to-end timing comparisons were taken. The result supports new *compilability* at load, not a measured new hot-path optimization.
+
+These native findings narrow the hypothesis: **range/guarded-binary lowering is a genuine language/compiler expansion, but its effect on this real datapack's mining critical path is currently negligible or absent.** Focus on selectors, context modifiers, and controlled conditional function calls before spending more research cycles on a synthetic-only speedup claim.
+
 ## Reproduction
 
 ```bash
@@ -76,6 +101,7 @@ python3 -m unittest discover -s tests -p 'test_typed_ir017.py' -v
 python3 scripts/ci_typed_ir017.py
 python3 scripts/ci_typed_ir015_fetch.py
 python3 scripts/ci_typed_ir017_coverage.py
+python3 scripts/ci_typed_ir017_real_event.py
 ```
 
 Run the publisher datapack event separately from this test; do not call distinct JVM boot work times a performance crossover.
