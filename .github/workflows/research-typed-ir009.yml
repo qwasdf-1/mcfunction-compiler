@@ -8,6 +8,7 @@ on:
       - 'src/main/java/dev/functioncompiler/TypedScoreIRBytecode.java'
       - 'src/main/java/dev/functioncompiler/TypedScoreIRRuntime.java'
       - 'src/main/java/dev/functioncompiler/ScoreAddCommand.java'
+      - 'src/main/java/dev/functioncompiler/ScoreAddPrototype.java'
       - 'src/main/java/dev/functioncompiler/ScoreOperationCommand.java'
       - 'src/main/java/dev/functioncompiler/ScoreConditionCommand.java'
       - 'scripts/ci_typed_ir008.py'
