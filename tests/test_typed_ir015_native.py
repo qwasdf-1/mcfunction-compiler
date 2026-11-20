@@ -34,6 +34,26 @@ class RealEventIR015(unittest.TestCase):
             self.assertEqual(settings["FC_TYPED_IR_SINGLETON_FEEDBACK"], "false")
             self.assertEqual(settings["FC_FUSED_REGION_PROTOTYPE"], "false")
 
+    def test_typed_only_parser_rejects_unsupported_before_mutating_context(self):
+        base = ROOT / "src/main/java/dev/functioncompiler"
+        parser = (base / "ScoreAddPrototype.java").read_text()
+        mutation = (base / "ScoreAddCommand.java").read_text()
+        binary = (base / "ScoreOperationCommand.java").read_text()
+        guard = (base / "ScoreConditionCommand.java").read_text()
+        for token in (
+            "boolean typedOnly = TypedScoreIR.enabledFor(functionId)",
+            "ScoreAddCommand.typedIrLiteralSourceShape(input)",
+            "ScoreOperationCommand.typedIrLiteralSourceShape(input)",
+            "ScoreConditionCommand.typedIrLiteralGuardShape(input)",
+            "if (!acceptedShape) return;",
+        ):
+            self.assertIn(token, parser)
+        self.assertLess(parser.index("if (!acceptedShape) return;"),
+                        parser.index("compileChainedModifiers(buildContexts, chain, functionId)"))
+        self.assertIn("IR_LITERAL_SOURCE.matcher(source).matches()", mutation)
+        self.assertIn("IR_LITERAL_BINARY_SOURCE.matcher(source).matches()", binary)
+        self.assertIn("IR_GUARD.matcher(input).matches()", guard)
+
     def test_diagnostic_counting_guards(self):
         self.assertEqual(study.counted("compiled_regions=4 executed_steps=22", "compiled_regions"),4)
         self.assertEqual(study.counted("compiled_regions=4 executed_steps=22", "executed_steps"),22)
