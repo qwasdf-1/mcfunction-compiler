@@ -276,10 +276,10 @@ public final class CompilerExecutionCensus {
                 .forEach(entry -> {
                     Site site = entry.getValue();
                     FunctionCompilerMod.LOGGER.info(
-                            "FC_EXEC_ROW function={} index={} entries={} callbacks={} kind={} input={}",
+                            "FC_EXEC_ROW function={} index={} entries={} callbacks={} kind={} dispatch_shape={} input={}",
                             site.key.function(), site.key.lineIndex(),
                             site.entryReached.sum(), site.ordinaryCallbacks.sum(),
-                            site.terminalKind, site.example);
+                            site.terminalKind, site.dispatchShape, site.example);
                 });
         NATIVE_CALLS.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
