@@ -73,6 +73,14 @@ public abstract class ScoreValueRevisionMixin implements ScoreValueRevisionAcces
                     ScoreHolder.forNameOnly("#fc_ir010_source"), objective);
             source.add(5);
         }
+        if (functionCompiler$testObserver
+                && "#fc_ir010_reset".equals(owner.getScoreboardName())
+                && "fc_ir".equals(objective.getName())) {
+            // Removing the sole row exercises the other invalidation hook:
+            // onPlayerRemoved, not merely onScoreChanged.
+            ((Scoreboard) (Object) this).resetSinglePlayerScore(
+                    ScoreHolder.forNameOnly("#fc_ir010_source"), objective);
+        }
     }
 
     @Inject(method = "onPlayerScoreRemoved", at = @At("HEAD"))
