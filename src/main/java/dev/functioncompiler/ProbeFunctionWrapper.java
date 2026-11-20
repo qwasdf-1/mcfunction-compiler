@@ -22,6 +22,7 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
     private final InstantiatedFunction<T> countedPlainInstantiation;
     private final InstantiatedFunction<T> timedPlainInstantiation;
     private final InstantiatedFunction<T> queueCpuPlainInstantiation;
+    private final InstantiatedFunction<T> restoreCpuPlainInstantiation;
     private final Map<List<String>, InstantiatedFunction<T>> parameterizedMacroCache =
             Collections.synchronizedMap(new LinkedHashMap<>(64, 0.75f, true) {
                 @Override
@@ -126,6 +127,13 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         } else {
             queueCpuPlainInstantiation = null;
         }
+        if (!excluded && CompilerRestoreCpuProbe.enabledFor(delegate.id())
+                && delegate instanceof PlainTextFunction<?> plainTextFunction) {
+            restoreCpuPlainInstantiation = CompilerRestoreCpuProbe.instrument(
+                    (InstantiatedFunction<T>) plainTextFunction, delegate.id());
+        } else {
+            restoreCpuPlainInstantiation = null;
+        }
     }
 
     public CommandFunction<T> delegate() {
@@ -208,6 +216,9 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         }
         if (queueCpuPlainInstantiation != null) {
             return queueCpuPlainInstantiation;
+        }
+        if (restoreCpuPlainInstantiation != null) {
+            return restoreCpuPlainInstantiation;
         }
         return delegate.instantiate(arguments, dispatcher);
         } finally {
