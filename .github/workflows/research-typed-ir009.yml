@@ -1,0 +1,54 @@
+name: COMPILER-IR-009 direct scoreboard binary and guarded bytecode parity
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/research-typed-ir009.yml'
+      - 'src/main/java/dev/functioncompiler/TypedScoreIR.java'
+      - 'src/main/java/dev/functioncompiler/TypedScoreIRBytecode.java'
+      - 'src/main/java/dev/functioncompiler/TypedScoreIRRuntime.java'
+      - 'src/main/java/dev/functioncompiler/ScoreAddCommand.java'
+      - 'src/main/java/dev/functioncompiler/ScoreOperationCommand.java'
+      - 'src/main/java/dev/functioncompiler/ScoreConditionCommand.java'
+      - 'scripts/ci_typed_ir008.py'
+      - 'tests/test_typed_ir009.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir009-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Compile Java 25 Fabric mod and run build tests
+        run: ./gradlew --no-daemon build
+      - name: Run IR-008 and IR-009 parser, effect and compiler contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir00*.py' -v
+          python3 -m py_compile scripts/ci_typed_ir008.py
+      - name: Four real Minecraft 26.3 JVMs; vanilla, fused, IR-interpreted, ASM bytecode
+        timeout-minutes: 32
+        run: python3 scripts/ci_typed_ir008.py
+      - name: Preserve complete native semantic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir009-native-semantic
+          path: build/reports/COMPILER-IR-008/
+          if-no-files-found: warn
+          retention-days: 21
