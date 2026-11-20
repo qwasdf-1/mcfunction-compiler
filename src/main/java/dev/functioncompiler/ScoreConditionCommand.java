@@ -71,6 +71,12 @@ final class ScoreConditionCommand implements FusableCommand {
      * parser: the actual operand identity, operation and bounds come from
      * the existing parsed Minecraft callbacks.
      */
+    // IR-017 stays disabled unless explicitly enabled alongside the typed IR.
+    // OFF preserves IR-009's exact integer/mutation-only acceptance and gives
+    // the real-datapack coverage study an identical-compiler control arm.
+    private static final boolean RANGE_GUARDS_ENABLED =
+            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_RANGE_GUARDS"));
+
     private static final String IR_RANGE =
             "(?:-?\\d+(?:\\.\\.(?:-?\\d+)?)?|\\.\\.-?\\d+)";
     private static final String IR_MUTATION =
@@ -87,7 +93,12 @@ final class ScoreConditionCommand implements FusableCommand {
                             + "run (" + IR_MUTATION + "|" + IR_BINARY + ")$");
 
     static boolean typedIrLiteralGuardShape(String input) {
-        return input != null && IR_GUARD.matcher(input).matches();
+        if (input == null) return false;
+        var matcher = IR_GUARD.matcher(input);
+        if (!matcher.matches()) return false;
+        return RANGE_GUARDS_ENABLED
+                || (!matcher.group(4).contains("..")
+                        && !matcher.group(5).startsWith("scoreboard players operation "));
     }
 
     /**
@@ -130,7 +141,11 @@ final class ScoreConditionCommand implements FusableCommand {
             return null;
         }
         var matcher = IR_GUARD.matcher(parsed.commandInput());
-        if (!matcher.matches() || !matcher.group(2).equals(targetHolder.getScoreboardName())
+        if (!matcher.matches()
+                || (!RANGE_GUARDS_ENABLED
+                        && (matcher.group(4).contains("..")
+                                || innerCommand instanceof ScoreOperationCommand))
+                || !matcher.group(2).equals(targetHolder.getScoreboardName())
                 || !matcher.group(3).equals(targetObjective)
                 || ("unless".equals(matcher.group(1)) != unless)
                 || !sameParsedRange(range, matcher.group(4))) {
