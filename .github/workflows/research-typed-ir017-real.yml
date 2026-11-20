@@ -1,0 +1,51 @@
+name: COMPILER-IR-017 real Vein Miner old-versus-new compiler execution
+
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir017-real.yml'
+      - 'scripts/ci_typed_ir017_real_event.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir017-real-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-publisher-three-native-jvms:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build pinned Minecraft 26.3 mod and test harness
+        run: ./gradlew --no-daemon build
+      - name: Validate IR-015/IR-017 real event helper scripts
+        run: |
+          python3 -m py_compile scripts/ci_typed_ir015_native.py scripts/ci_typed_ir017_real_event.py
+          python3 -m unittest discover -s tests -p 'test_typed_ir015_native.py' -v
+      - name: Fetch exact SHA-pinned original Vein Miner publisher datapack
+        run: |
+          PYTHONPATH=scripts python3 -c "from ci_typed_ir015_fetch import fetch; print(fetch('veinminer'))"
+      - name: Three actual Minecraft player mining events — unchanged pack, old and new compiler
+        timeout-minutes: 31
+        run: python3 scripts/ci_typed_ir017_real_event.py
+      - name: Archive raw native event observations and generated-ASM counters
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir017-real-veinminer
+          path: build/reports/COMPILER-IR-017-REAL/
+          if-no-files-found: warn
+          retention-days: 21
