@@ -67,7 +67,7 @@ This is a bounded, sampled descriptive cost screen. One independently timed JVM 
 
 ## Accepted independent native clock replication
 
-[Independent repeat of original Minecraft 26.3 six-command? no: three-JVM PLAIN / EMPTY / TIMED study #44834904332](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834904332) · [full second event/clock samples and original fixture observations #14677158595](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834904332/artifacts/14677158595).
+[Independent Minecraft 26.3 three-JVM PLAIN / EMPTY / TIMED CPU replication #44834904332](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834904332) · [full second event/clock samples and original fixture observations #14677158595](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834904332/artifacts/14677158595).
 
 The same unchanged original Blastback publisher, byte-pinned original command, 30-second direct native TNT event, unchanged three method boundaries, sparse clock strides and bounded pre-event source/template integrity checks ran again on **three additional independently booted JVMs**. Every method had zero invalid/missing samples and all independent host-quality gates passed.
 
