@@ -43,6 +43,11 @@ final class TypedScoreIR {
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SCORE_CACHE"));
     // Optional research-only same-JVM A/B control. Never available by default.
     private static volatile boolean scoreCacheRuntime = SCORE_CACHE;
+    // IR-011: lower the exact one-element scoreboard feedback case without
+    // allocating a general CommandResponseTracker. No production default.
+    private static final boolean SINGLETON_FEEDBACK =
+            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SINGLETON_FEEDBACK"));
+    private static volatile boolean singletonFeedbackRuntime = SINGLETON_FEEDBACK;
     private static final int MAX_REGION_LENGTH = 64;
     private static final LongAdder COMPILED_REGIONS = new LongAdder();
     private static final LongAdder BYTECODE_REGIONS = new LongAdder();
@@ -55,6 +60,8 @@ final class TypedScoreIR {
     private static final LongAdder CACHE_HITS = new LongAdder();
     private static final LongAdder CACHE_MISSES = new LongAdder();
     private static final LongAdder CACHE_INVALIDATIONS = new LongAdder();
+    private static final LongAdder SINGLETON_FEEDBACK_STEPS = new LongAdder();
+    private static final LongAdder TRACKER_FEEDBACK_STEPS = new LongAdder();
 
     private TypedScoreIR() {}
 
@@ -302,6 +309,29 @@ final class TypedScoreIR {
                 "IR010 cache enabled=" + enabled), false);
         return 1;
     }
+    static boolean singletonFeedbackEnabled() {
+        return SINGLETON_FEEDBACK && singletonFeedbackRuntime;
+    }
+
+    static int toggleSingletonFeedback(CommandSourceStack source, boolean enabled) {
+        if (!SINGLETON_FEEDBACK || !Boolean.parseBoolean(
+                System.getenv("FC_TYPED_IR_SINGLETON_FEEDBACK_TOGGLE"))) {
+            return 0;
+        }
+        singletonFeedbackRuntime = enabled;
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
+                "IR011 singleton feedback enabled=" + enabled), false);
+        return 1;
+    }
+
+    static void singletonFeedbackUsed() {
+        if (DIAGNOSTICS) SINGLETON_FEEDBACK_STEPS.increment();
+    }
+
+    static void trackerFeedbackUsed() {
+        if (DIAGNOSTICS) TRACKER_FEEDBACK_STEPS.increment();
+    }
+
     static void cacheHit() { if (DIAGNOSTICS) CACHE_HITS.increment(); }
     static void cacheMiss() { if (DIAGNOSTICS) CACHE_MISSES.increment(); }
     static void cacheInvalidated() {
@@ -328,7 +358,10 @@ final class TypedScoreIR {
                 + " score_cache=" + scoreCacheEnabled()
                 + " cache_hits=" + CACHE_HITS.sum()
                 + " cache_misses=" + CACHE_MISSES.sum()
-                + " cache_invalidations=" + CACHE_INVALIDATIONS.sum();
+                + " cache_invalidations=" + CACHE_INVALIDATIONS.sum()
+                + " singleton_feedback=" + singletonFeedbackEnabled()
+                + " singleton_feedback_steps=" + SINGLETON_FEEDBACK_STEPS.sum()
+                + " tracker_feedback_steps=" + TRACKER_FEEDBACK_STEPS.sum();
     }
 
     private record CompiledFunction(
