@@ -3,6 +3,7 @@ package dev.functioncompiler.mixin;
 import dev.functioncompiler.FusedRegionPrototype;
 import dev.functioncompiler.DirectSchedulerPrototype;
 import dev.functioncompiler.TypedScoreIRDirectScheduler;
+import dev.functioncompiler.TypedScoreIR;
 import dev.functioncompiler.CompilerPositionedCpuProbe;
 import net.minecraft.commands.CommandResultCallback;
 import net.minecraft.commands.execution.ExecutionContext;
@@ -91,9 +92,11 @@ abstract class CallFunctionMixin<T extends ExecutionCommandSource<T>> {
         tracer.onCall(
                 depth,
                 functionId,
-                DirectSchedulerPrototype.traceEntryCount(
+                TypedScoreIR.originalTraceEntryCount(
                         function,
-                        FusedRegionPrototype.traceEntryCount(function, compiledEntryCount))
+                        DirectSchedulerPrototype.traceEntryCount(
+                                function,
+                                FusedRegionPrototype.traceEntryCount(function, compiledEntryCount)))
         );
     }
 }
