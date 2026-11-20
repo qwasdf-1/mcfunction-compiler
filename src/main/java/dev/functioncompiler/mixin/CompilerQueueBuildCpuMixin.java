@@ -2,6 +2,7 @@ package dev.functioncompiler.mixin;
 
 import dev.functioncompiler.CompilerQueueCpuProbe;
 import dev.functioncompiler.CompilerRestoreCpuProbe;
+import dev.functioncompiler.CompilerForkBreakdownProbe;
 import net.minecraft.commands.execution.tasks.BuildContexts;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,6 +29,7 @@ abstract class CompilerQueueBuildCpuMixin {
     private void functionCompiler$cpu005BuildHead(CallbackInfo info) {
         functionCompiler$cpu005Started = CompilerQueueCpuProbe.beginBuild(commandInput);
         functionCompiler$cpu020Started = CompilerRestoreCpuProbe.beginBuild(commandInput);
+        CompilerForkBreakdownProbe.buildStart(commandInput);
     }
 
     @Inject(
@@ -39,5 +41,6 @@ abstract class CompilerQueueBuildCpuMixin {
         functionCompiler$cpu005Started = -1L;
         CompilerRestoreCpuProbe.endBuild(commandInput, functionCompiler$cpu020Started);
         functionCompiler$cpu020Started = -1L;
+        CompilerForkBreakdownProbe.buildEnd(commandInput);
     }
 }
