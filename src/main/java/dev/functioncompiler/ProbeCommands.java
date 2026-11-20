@@ -130,6 +130,11 @@ final class ProbeCommands {
                         CompilerMacroLoadCpuProbe.stop(context.getSource())))
                 .then(Commands.literal("ir008").executes(context ->
                         TypedScoreIR.report(context.getSource())))
+                .then(Commands.literal("ir016")
+                        .then(Commands.argument("function", StringArgumentType.greedyString())
+                                .executes(context -> MixedFunctionIR.report(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "function")))))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
@@ -169,6 +174,11 @@ final class ProbeCommands {
                         CompilerMacroLoadCpuProbe.stop(context.getSource())))
                 .then(Commands.literal("ir008").executes(context ->
                         TypedScoreIR.report(context.getSource())))
+                .then(Commands.literal("ir016")
+                        .then(Commands.argument("function", StringArgumentType.greedyString())
+                                .executes(context -> MixedFunctionIR.report(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "function")))))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
