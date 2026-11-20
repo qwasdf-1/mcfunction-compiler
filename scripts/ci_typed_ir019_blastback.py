@@ -180,8 +180,9 @@ def measure():
         # or unsupported end-to-end performance claim is inferred.
         time.sleep(30)
         census_stop=client.command("functioncompiler exec-census-stop")
-        if "FC_EXEC ended" not in census_stop:
-            raise AssertionError(f"Blastback census not stopped: {census_stop!r}")
+        if "FC_EXEC ended" not in census_stop or "overflow=0" not in census_stop:
+            raise AssertionError(
+                f"Blastback bounded census missing/overflowed: {census_stop!r}")
         time.sleep(0.3)
         rows,callees=parse_log(OUT/"server.log")
         tick_after=score(client,"#tick_id","erb.cfg")
@@ -200,6 +201,13 @@ def measure():
         report["reached_capture_rows"]=reached
         report["reached_simple_dispatch_rows"]=simple
         report["reached_complex_dispatch_rows"]=complex_
+        report["source_entries_total"]=sum(int(r.get("entries") or 0) for r in rows)
+        report["ordinary_callbacks_total"]=sum(int(r.get("callbacks") or 0) for r in rows)
+        report["single_dispatch_entry_reaches"]=sum(int(r["entries"]) for r in simple)
+        report["complex_dispatch_entry_reaches"]=sum(int(r["entries"]) for r in complex_)
+        report["native_call_tasks_total"]=sum(callees.values())
+        report["top_callback_expansion"]=max(
+            rows,key=lambda r:int(r.get("callbacks") or 0),default=None)
         report["capture_stage_observed"]=bool(reached)
         report["source_dispatch_seen"]=bool(simple or complex_)
         report["valid_capture_window"]=tick_after>tick_before and bool(reached)
@@ -211,6 +219,11 @@ def measure():
             "status":report["status"],"ticks":tick_after-tick_before,
             "capture_rows":len(reached),"single_guard_rows_reached":len(simple),
             "complex_guard_rows_reached":len(complex_),
+            "single_dispatch_entry_reaches":report["single_dispatch_entry_reaches"],
+            "complex_dispatch_entry_reaches":report["complex_dispatch_entry_reaches"],
+            "total_source_entries":report["source_entries_total"],
+            "total_ordinary_callbacks":report["ordinary_callbacks_total"],
+            "top_callback_expansion":report["top_callback_expansion"],
             "native_callee_tasks":callees,
             "speedup_claim":False,"full_restoration_claim":False
         },sort_keys=True),flush=True)
