@@ -158,11 +158,29 @@ def run_arm(mode: str)->dict:
             if block=="stone":continue
             x,y,z=position
             client.command(f"setblock {x} {y} {z} minecraft:{block}")
-        response=client.command("clone -4 56 -4 12 72 12 64 56 32 replace force")
-        before={block:block_matches(client,block,*pos) for block,pos in WITNESSES.items()}
-        before_template=region_matches_template(client)
+        # Fluid/block tick work during first world load can change source
+        # while the 17^3 template clone is being established. Repeat only
+        # this PRE-event setup, at most 3 attempts. No unsuccessful timed
+        # event is dropped or retried, and pre-event source/template equality
+        # remains an absolute admission gate for all three arms.
+        clone_attempts=[]
+        before={}
+        before_template=False
+        for _ in range(3):
+            response=client.command("clone -4 56 -4 12 72 12 64 56 32 replace force")
+            before={block:block_matches(client,block,*pos)
+                    for block,pos in WITNESSES.items()}
+            before_template=region_matches_template(client)
+            clone_attempts.append({
+                "clone_response":response,"template_equal":before_template,
+                "all_named_witnesses":all(before.values())})
+            if all(before.values()) and before_template:break
+            time.sleep(0.2)
+        report["pre_event_clone_attempts"]=clone_attempts
         if not all(before.values()) or not before_template:
-            raise AssertionError(f"Original Blastback fixture invalid {before} {response!r}")
+            raise AssertionError(
+                f"Original Blastback pre-event fixture invalid after bounded preparation "
+                f"{clone_attempts!r}; witnesses={before!r}")
         report["original_world_before"]={"witnesses":before,"template_equal":before_template}
         minecraft_pid,server_tid=find_server_thread(proc.pid)
         tick_before=score(client,"#tick_id","erb.cfg")
