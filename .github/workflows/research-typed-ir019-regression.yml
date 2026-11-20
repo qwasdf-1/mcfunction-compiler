@@ -1,12 +1,6 @@
 name: COMPILER-IR-019 native backward regression after passive CallFunction census
 
 on:
-  push:
-    branches: [work/compiler-coverage]
-    paths:
-      - '.github/workflows/research-typed-ir019-regression.yml'
-      - 'src/main/java/dev/functioncompiler/CompilerExecutionCensus.java'
-      - 'src/main/java/dev/functioncompiler/mixin/CallFunctionMixin.java'
   workflow_dispatch:
 
 permissions:
