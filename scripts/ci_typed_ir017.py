@@ -165,7 +165,7 @@ EXPECTED = {
     "ir017_child_barrier": {"x": 13},
     "ir017_return": {"x": 5},
     "ir017_divide_barrier": {"x": 8},
-    "ir017_reentrant": {"x": 14, "marker": 11, "inner_seen": 9},
+    "ir017_reentrant": {"x": 14, "ir014_marker": 11, "ir014_inner_seen": 9},
 }
 # No independent value for the ambiguous missing-holder + unless behavior:
 # vanilla defines it, then every compiled mode must match native exactly.
