@@ -9,6 +9,7 @@
     "CompilerQueueExecuteCpuMixin",
     "CompilerForkContextChainMixin",
     "CompilerForkEntitySelectorMixin",
+    "CompilerSelector022Mixin",
     "CompilerForkSourceMixin",
     "CompilerForkContinuationMixin",
     "FunctionBuilderMixin",
