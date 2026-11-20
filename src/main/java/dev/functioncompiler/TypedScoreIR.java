@@ -38,6 +38,14 @@ public final class TypedScoreIR {
             && NAMESPACE != null && !NAMESPACE.isBlank();
     private static final boolean DIAGNOSTICS =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIAGNOSTICS"));
+    // IR-018: dynamic @s scoreboard holder lowering is research-only and
+    // independently gated from IR-017 ranged-condition syntax.
+    private static final boolean SELF_HOLDER =
+            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SELF_HOLDER"));
+    static boolean selfHolderEnabled() { return SELF_HOLDER; }
+    static String slotName(ScoreHolder holder, boolean isSelf) {
+        return isSelf ? "@s" : holder.getScoreboardName();
+    }
     // Requires matching server-scoreboard revision hooks; strict opt-in.
     private static final boolean SCORE_CACHE =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SCORE_CACHE"));
@@ -107,6 +115,7 @@ public final class TypedScoreIR {
     sealed interface Instruction permits Mutation, Binary, Conditional {
         FusedRegionPrototype.FusedCommand vanilla();
         ScoreHolder holder();
+        default boolean holderSelf() { return false; }
         String objective();
         Effects effects();
     }
@@ -114,19 +123,21 @@ public final class TypedScoreIR {
     record Mutation(
             FusedRegionPrototype.FusedCommand vanilla,
             ScoreHolder holder,
+            boolean holderSelf,
             String objective,
             ScoreAddCommand.Operation operation,
             int amount
     ) implements Instruction {
         Mutation {
             Objects.requireNonNull(vanilla);
-            Objects.requireNonNull(holder);
+            if (!holderSelf) Objects.requireNonNull(holder);
+            if (holderSelf && holder != null) throw new IllegalArgumentException("ambiguous holder");
             Objects.requireNonNull(objective);
             Objects.requireNonNull(operation);
         }
         @Override
         public Effects effects() {
-            Slot target = new Slot(holder.getScoreboardName(), objective);
+            Slot target = new Slot(slotName(holder, holderSelf), objective);
             return new Effects(
                     operation == ScoreAddCommand.Operation.SET ? Set.of() : Set.of(target),
                     Set.of(target), true);
@@ -139,23 +150,27 @@ public final class TypedScoreIR {
     record Binary(
             FusedRegionPrototype.FusedCommand vanilla,
             ScoreHolder holder,
+            boolean holderSelf,
             String objective,
             BinaryOperator operation,
             ScoreHolder sourceHolder,
+            boolean sourceSelf,
             String sourceObjective
     ) implements Instruction {
         Binary {
             Objects.requireNonNull(vanilla);
-            Objects.requireNonNull(holder);
+            if (!holderSelf) Objects.requireNonNull(holder);
+            if (holderSelf && holder != null) throw new IllegalArgumentException("ambiguous target");
             Objects.requireNonNull(objective);
             Objects.requireNonNull(operation);
-            Objects.requireNonNull(sourceHolder);
+            if (!sourceSelf) Objects.requireNonNull(sourceHolder);
+            if (sourceSelf && sourceHolder != null) throw new IllegalArgumentException("ambiguous source");
             Objects.requireNonNull(sourceObjective);
         }
         @Override
         public Effects effects() {
-            Slot target = new Slot(holder.getScoreboardName(), objective);
-            Slot source = new Slot(sourceHolder.getScoreboardName(), sourceObjective);
+            Slot target = new Slot(slotName(holder, holderSelf), objective);
+            Slot source = new Slot(slotName(sourceHolder, sourceSelf), sourceObjective);
             Set<Slot> reads = new HashSet<>();
             reads.add(source);
             if (operation != BinaryOperator.ASSIGN) reads.add(target);
@@ -173,6 +188,7 @@ public final class TypedScoreIR {
             FusedRegionPrototype.FusedCommand vanilla,
             Instruction terminal,
             ScoreHolder conditionHolder,
+            boolean conditionSelf,
             String conditionObjective,
             MinMaxBounds.Ints range,
             boolean unless
@@ -183,19 +199,22 @@ public final class TypedScoreIR {
             if (!(terminal instanceof Mutation || terminal instanceof Binary)) {
                 throw new IllegalArgumentException("conditional terminal must be mutation or binary");
             }
-            Objects.requireNonNull(conditionHolder);
+            if (!conditionSelf) Objects.requireNonNull(conditionHolder);
+            if (conditionSelf && conditionHolder != null) throw new IllegalArgumentException("ambiguous guard");
             Objects.requireNonNull(conditionObjective);
             Objects.requireNonNull(range);
         }
         @Override
         public ScoreHolder holder() { return terminal.holder(); }
         @Override
+        public boolean holderSelf() { return terminal.holderSelf(); }
+        @Override
         public String objective() { return terminal.objective(); }
         @Override
         public Effects effects() {
             Effects inner = terminal.effects();
             HashSet<Slot> reads = new HashSet<>(inner.reads());
-            reads.add(new Slot(conditionHolder.getScoreboardName(), conditionObjective));
+            reads.add(new Slot(slotName(conditionHolder, conditionSelf), conditionObjective));
             return new Effects(reads, inner.writes(), true);
         }
     }
