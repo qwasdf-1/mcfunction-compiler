@@ -22,6 +22,17 @@ final class ProbeCommands {
     }
 
     static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        // IR-011: research-only same-JVM singleton response A/B control.
+        // Both arms execute the exact same emitted instructions and
+        // scoreboard writes; only one-result bookkeeping differs.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SINGLETON_FEEDBACK"))
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SINGLETON_FEEDBACK_TOGGLE"))) {
+            dispatcher.register(Commands.literal("fc_ir011_feedback")
+                    .then(Commands.literal("on").executes(context ->
+                            TypedScoreIR.toggleSingletonFeedback(context.getSource(), true)))
+                    .then(Commands.literal("off").executes(context ->
+                            TypedScoreIR.toggleSingletonFeedback(context.getSource(), false))));
+        }
         // IR-010 research-only A/B switch. Both arms use identical compiled
         // bytecode in one native Minecraft JVM; only guarded source-value
         // reuse differs. Command does not exist in normal installations.
