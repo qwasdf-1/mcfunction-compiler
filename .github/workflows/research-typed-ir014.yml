@@ -1,0 +1,51 @@
+name: COMPILER-IR-014 adversarial queue and objective lifecycle parity
+
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir014.yml'
+      - 'scripts/ci_typed_ir014.py'
+      - 'tests/test_typed_ir014.py'
+      - 'src/main/java/dev/functioncompiler/ReentrantQueueProbe.java'
+      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir014-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-queue-lifecycle-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build exact Minecraft 26.3 Fabric mod
+        run: ./gradlew --no-daemon build
+      - name: Check fixture contracts and syntax
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir014.py' -v
+          python3 -m py_compile scripts/ci_typed_ir014.py
+      - name: Compare four Minecraft JVMs under nested queue callbacks and objective lifecycle mutations
+        timeout-minutes: 35
+        run: python3 scripts/ci_typed_ir014.py
+      - name: Preserve native outcomes and Minecraft server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir014-queue-lifecycle-native
+          path: build/reports/COMPILER-IR-014/
+          retention-days: 21
+          if-no-files-found: warn
