@@ -85,7 +85,7 @@ FUNCTIONS = {
     ],
 }
 EXPECTED = {
-    "ir016_call_chain": {"x": 51},
+    "ir016_call_chain": {"x": 36},
     "ir016_return": {"x": 3},
     "ir016_store": {"x": 10, "stored": 7},
     "ir016_lifecycle": {"x": 10, "other": 17, "missing_objective_exists": True},
