@@ -127,7 +127,7 @@ final class ScoreAddCommand implements FusableCommand {
     // vanilla-Brigadier-validated typed ScoreAddCommand instance.
     private static final java.util.regex.Pattern IR_LITERAL_SOURCE =
             java.util.regex.Pattern.compile(
-                    "^scoreboard players (add|set|remove) (#[A-Za-z0-9_.+\\-]+) "
+                    "^scoreboard players (add|set|remove) (#[A-Za-z0-9_.+\\-]+|@s) "
                             + "([A-Za-z0-9_.+\\-]+) (-?\\d+)$");
 
     // A source-only preflight for IR-only mode. It prevents the wider legacy
@@ -135,7 +135,10 @@ final class ScoreAddCommand implements FusableCommand {
     // decide to retain their original vanilla queue entries. Parsed arguments
     // are still validated separately in toMutation().
     static boolean typedIrLiteralSourceShape(String source) {
-        return source != null && IR_LITERAL_SOURCE.matcher(source).matches();
+        if (source == null) return false;
+        var matcher = IR_LITERAL_SOURCE.matcher(source);
+        return matcher.matches()
+                && (TypedScoreIR.selfHolderEnabled() || !"@s".equals(matcher.group(2)));
     }
 
     TypedScoreIR.Mutation toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
@@ -151,14 +154,16 @@ final class ScoreAddCommand implements FusableCommand {
             FusedRegionPrototype.FusedCommand parsed,
             String terminalSource
     ) {
-        if (isSelfSelector || holder == null || objectiveName == null
-                || !holder.getScoreboardName().startsWith("#")) {
+        if ((isSelfSelector && !TypedScoreIR.selfHolderEnabled())
+                || (!isSelfSelector && (holder == null
+                        || !holder.getScoreboardName().startsWith("#")))
+                || objectiveName == null) {
             return null;
         }
         var matcher = IR_LITERAL_SOURCE.matcher(terminalSource);
         if (!matcher.matches()
                 || !matcher.group(1).equalsIgnoreCase(operation.name())
-                || !matcher.group(2).equals(holder.getScoreboardName())
+                || !matcher.group(2).equals(isSelfSelector ? "@s" : holder.getScoreboardName())
                 || !matcher.group(3).equals(objectiveName)) {
             return null;
         }
@@ -167,7 +172,8 @@ final class ScoreAddCommand implements FusableCommand {
         } catch (NumberFormatException invalid) {
             return null;
         }
-        return new TypedScoreIR.Mutation(parsed, holder, objectiveName, operation, amount);
+        return new TypedScoreIR.Mutation(
+                parsed, holder, isSelfSelector, objectiveName, operation, amount);
     }
 
     @Override
