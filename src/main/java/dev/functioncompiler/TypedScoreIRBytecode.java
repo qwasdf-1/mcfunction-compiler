@@ -12,13 +12,13 @@ import java.lang.invoke.MethodType;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * IR-008 direct semantic lowering, NOT the older executeStep bridge.
+ * Direct ASM lowering of IR mutation and scoreboard binary arithmetic.
+ * The emitted JVM control-flow jumps across false score predicates; the
+ * predicate itself is evaluated at the shared vanilla-compatible runtime
+ * boundary, while its accepted terminal mutation is compiled directly.
  *
- * Each accepted score instruction emits a direct INVOKEINTERFACE to
- * ScoreAccess.add/set; the only helper calls perform vanilla bookkeeping,
- * dynamic objective guards and return feedback. The emitted action remains
- * a vanilla UnboundEntryAction, so unsupported entries keep their original
- * scheduler positions and rollback happens before any execution.
+ * Unlike the old prototype, accepted instructions never call executeStep,
+ * ContextChain.runExecutable, ScoreOperationCommand or vanilla Brigadier.
  */
 final class TypedScoreIRBytecode implements Opcodes {
     private static final AtomicLong CLASSES = new AtomicLong();
@@ -49,7 +49,7 @@ final class TypedScoreIRBytecode implements Opcodes {
         } catch (Throwable failure) {
             if (failure instanceof Error error) throw error;
             if (failure instanceof RuntimeException runtime) throw runtime;
-            throw new IllegalStateException("IR-008 generated class couldn't load", failure);
+            throw new IllegalStateException("Typed IR generated class couldn't load", failure);
         }
     }
 
@@ -71,11 +71,10 @@ final class TypedScoreIRBytecode implements Opcodes {
         ctor.visitMaxs(0, 0);
         ctor.visitEnd();
 
-        MethodVisitor method = writer.visitMethod(ACC_PUBLIC, "execute", EXECUTE,
-                null, null);
+        MethodVisitor method = writer.visitMethod(ACC_PUBLIC, "execute", EXECUTE, null, null);
         method.visitCode();
-        // Local 4: source; 5: one reusable invocation-state; 6: decision;
-        // 7: new score. No allocation for an individual IR instruction.
+        // Local 4: source; 5: invocation state; 6: begin decision;
+        // 7: new target score; 8: source score operand.
         method.visitVarInsn(ALOAD, 1);
         method.visitTypeInsn(CHECKCAST, SOURCE);
         method.visitVarInsn(ASTORE, 4);
@@ -87,9 +86,9 @@ final class TypedScoreIRBytecode implements Opcodes {
         method.visitMethodInsn(INVOKESPECIAL, STATE, "<init>",
                 "(L" + SOURCE + ";L" + CONTEXT + ";L" + FRAME + ";)V", false);
         method.visitVarInsn(ASTORE, 5);
-
         method.visitMethodInsn(INVOKESTATIC, "dev/functioncompiler/TypedScoreIR",
                 "executed", "()V", false);
+
         Label done = new Label();
         for (int index = 0; index < program.instructions().size(); index++) {
             TypedScoreIR.Instruction instruction = program.instructions().get(index);
@@ -108,25 +107,19 @@ final class TypedScoreIRBytecode implements Opcodes {
             method.visitJumpInsn(IFEQ, done);
             method.visitVarInsn(ILOAD, 6);
             method.visitInsn(ICONST_2);
-            method.visitJumpInsn(IF_ICMPEQ, next);
+            method.visitJumpInsn(IF_ICMPEQ, next);  // original-command fallback
+            method.visitVarInsn(ILOAD, 6);
+            method.visitInsn(ICONST_3);
+            method.visitJumpInsn(IF_ICMPEQ, next);  // conditional branch not taken
 
-            method.visitVarInsn(ALOAD, 5);
-            method.visitMethodInsn(INVOKEVIRTUAL, STATE, "access",
-                    "()L" + SCORE + ";", false);
-            int amount = instruction.amount();
-            switch (instruction.operation()) {
-                case ADD, REMOVE -> {
-                    pushInt(method, instruction.operation() == ScoreAddCommand.Operation.REMOVE
-                            ? -amount : amount);
-                    method.visitMethodInsn(INVOKEINTERFACE, SCORE, "add", "(I)I", true);
-                    method.visitVarInsn(ISTORE, 7);
-                }
-                case SET -> {
-                    pushInt(method, amount);
-                    method.visitMethodInsn(INVOKEINTERFACE, SCORE, "set", "(I)V", true);
-                    pushInt(method, amount);
-                    method.visitVarInsn(ISTORE, 7);
-                }
+            if (instruction instanceof TypedScoreIR.Binary binary) {
+                emitBinary(method, binary);
+            } else {
+                TypedScoreIR.Mutation mutation =
+                        instruction instanceof TypedScoreIR.Conditional conditional
+                                ? conditional.mutation()
+                                : (TypedScoreIR.Mutation) instruction;
+                emitMutation(method, mutation);
             }
 
             method.visitVarInsn(ALOAD, 5);
@@ -142,15 +135,72 @@ final class TypedScoreIRBytecode implements Opcodes {
         return writer.toByteArray();
     }
 
-    private static void pushInt(MethodVisitor method, int value) {
-        if (value >= -1 && value <= 5) {
-            method.visitInsn(ICONST_0 + value);
-        } else if (value >= Byte.MIN_VALUE && value <= Byte.MAX_VALUE) {
-            method.visitIntInsn(BIPUSH, value);
-        } else if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE) {
-            method.visitIntInsn(SIPUSH, value);
-        } else {
-            method.visitLdcInsn(value);
+    private static void target(MethodVisitor method) {
+        method.visitVarInsn(ALOAD, 5);
+        method.visitMethodInsn(INVOKEVIRTUAL, STATE, "access",
+                "()L" + SCORE + ";", false);
+    }
+
+    private static void emitMutation(MethodVisitor method, TypedScoreIR.Mutation instruction) {
+        target(method);
+        switch (instruction.operation()) {
+            case ADD, REMOVE -> {
+                pushInt(method, instruction.operation() == ScoreAddCommand.Operation.REMOVE
+                        ? -instruction.amount() : instruction.amount());
+                method.visitMethodInsn(INVOKEINTERFACE, SCORE, "add", "(I)I", true);
+                method.visitVarInsn(ISTORE, 7);
+            }
+            case SET -> {
+                pushInt(method, instruction.amount());
+                method.visitMethodInsn(INVOKEINTERFACE, SCORE, "set", "(I)V", true);
+                pushInt(method, instruction.amount());
+                method.visitVarInsn(ISTORE, 7);
+            }
         }
+    }
+
+    private static void emitBinary(MethodVisitor method, TypedScoreIR.Binary binary) {
+        method.visitVarInsn(ALOAD, 5);
+        method.visitMethodInsn(INVOKEVIRTUAL, STATE, "sourceAccess",
+                "()L" + SCORE + ";", false);
+        method.visitMethodInsn(INVOKEINTERFACE, SCORE, "get", "()I", true);
+        method.visitVarInsn(ISTORE, 8);
+
+        target(method);
+        method.visitVarInsn(ILOAD, 8);
+        switch (binary.operation()) {
+            case ASSIGN -> {
+                method.visitMethodInsn(INVOKEINTERFACE, SCORE, "set", "(I)V", true);
+                method.visitVarInsn(ILOAD, 8);
+                method.visitVarInsn(ISTORE, 7);
+            }
+            case ADD, SUBTRACT -> {
+                if (binary.operation() == TypedScoreIR.BinaryOperator.SUBTRACT) {
+                    method.visitInsn(INEG);
+                }
+                method.visitMethodInsn(INVOKEINTERFACE, SCORE, "add", "(I)I", true);
+                method.visitVarInsn(ISTORE, 7);
+            }
+            case MULTIPLY -> {
+                // Stack currently: targetScore, operand. Move operand into
+                // local before calling target.get so the receiver remains
+                // available to set the new score once.
+                method.visitInsn(POP);
+                method.visitInsn(DUP);
+                method.visitMethodInsn(INVOKEINTERFACE, SCORE, "get", "()I", true);
+                method.visitVarInsn(ILOAD, 8);
+                method.visitInsn(IMUL);
+                method.visitInsn(DUP);
+                method.visitVarInsn(ISTORE, 7);
+                method.visitMethodInsn(INVOKEINTERFACE, SCORE, "set", "(I)V", true);
+            }
+        }
+    }
+
+    private static void pushInt(MethodVisitor method, int value) {
+        if (value >= -1 && value <= 5) method.visitInsn(ICONST_0 + value);
+        else if (value >= Byte.MIN_VALUE && value <= Byte.MAX_VALUE) method.visitIntInsn(BIPUSH, value);
+        else if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE) method.visitIntInsn(SIPUSH, value);
+        else method.visitLdcInsn(value);
     }
 }
