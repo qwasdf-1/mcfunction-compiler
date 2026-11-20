@@ -29,7 +29,7 @@ Minecraft 26.3's `ScoreAccess.get()` is a simple getter of the live `Score` valu
 
 ## Accepted native semantic evidence
 
-[Actual Minecraft 26.3 Fabric / Java 25 CI run #44653996634](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44653996634) · [Raw semantic and CPU artifacts](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44653996634/artifacts/REPLACE_WITH_VERIFIED_ARTIFACT_ID)
+[Actual Minecraft 26.3 Fabric / Java 25 CI run #44653996634](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44653996634) · [Raw semantic and CPU artifacts](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44653996634/artifacts/14592541715)
 
 Each of **four independent native JVMs** executed **51 observed cases** with matching full score/row-presence snapshots: native, direct ASM with cache off, typed IR interpreted with cache on, and direct ASM with cache on. Cases cover repeated source reads, direct source writes between reads, self/alias updates, nested-function barriers, true synchronous scoreboard listener mutations, row removals, and exact partial effects at quotas 1,2,3,4,5,6,7,8,10,16,32. The low-quota observation distinguishes *absent score* from *present score with integer zero*.
 
