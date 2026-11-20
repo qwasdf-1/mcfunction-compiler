@@ -67,6 +67,31 @@ public final class ScoreAddPrototype {
         } catch (ClassCastException exception) {
             return;
         }
+        // IR-only mode is intentionally narrower than ScoreAddPrototype's
+        // legacy parser. The legacy parser mutates Brigadier contexts while
+        // rewriting "execute" chains; if TypedScoreIR subsequently rejects
+        // the command, the saved fallback can reference the mutated wrapper
+        // recursively (observed on real Vein Miner 5.3.0 at startup).
+        //
+        // Before *any* parser mutation, leave every unsupported source shape
+        // on its original BuildContexts/vanilla scheduler path. This is
+        // admission control, NOT text parsing: accepted candidates still
+        // pass the ordinary Brigadier and typed-IR argument verification.
+        boolean typedOnly = TypedScoreIR.enabledFor(functionId)
+                && !ProbeConfiguration.scoreAddPrototypeEnabled()
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled();
+        if (typedOnly) {
+            String input = ((BuildContextsAccessor<CommandSourceStack>) buildContexts)
+                    .functionCompiler$getCommandInput();
+            boolean acceptedShape = chain.getStage() == ContextChain.Stage.EXECUTE
+                    ? ScoreAddCommand.typedIrLiteralSourceShape(input)
+                            || ScoreOperationCommand.typedIrLiteralSourceShape(input)
+                    : ScoreConditionCommand.typedIrLiteralGuardShape(input);
+            if (!acceptedShape) return;
+        }
+
         if (chain.getStage() != ContextChain.Stage.EXECUTE) {
             compileChainedModifiers(buildContexts, chain, functionId);
             return;
