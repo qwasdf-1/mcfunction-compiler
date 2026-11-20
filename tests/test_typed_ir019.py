@@ -18,7 +18,7 @@ class IR019SourceAndNative(unittest.TestCase):
             "execute if score #g fc_ir matches 1 if score #a fc_ir matches 2 run function fc_ir:child":"complex_or_return_child",
             "execute if score #g fc_ir matches 1 run return run function fc_ir:child":"complex_or_return_child",
             "execute if score #g fc_ir matches 1..3 run scoreboard players add #x fc_ir 1":"other",
-            "execute if score #g fc_ir matches 1..3 run function #fc_ir:mytag":"other",
+            "execute if score #g fc_ir matches 1..3 run function #fc_ir:mytag":"complex_or_return_child",
             "function fc_ir:child":"other",
         }
         for text,expected in examples.items():
@@ -35,7 +35,7 @@ class IR019SourceAndNative(unittest.TestCase):
             "FC_EXEC_CALLEE",
             "native_call_tasks=",
             "FC_EXEC_ROW",
-            "dispatch_shape=",
+            "dispatch_shape={}",
             "recordNativeCall(Identifier id)",
             "if (!ACTIVE || !CONFIGURED || id == null) return;",
             "CALLEES.contains(key)",
