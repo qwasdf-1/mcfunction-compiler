@@ -72,6 +72,24 @@ final class ProbeCommands {
                                     StringArgumentType.getString(context, "function")
                             ))));
         }
+        // IR-012 separate research-only call-site harness; queues with an
+        // empty result callback like the tick scheduler, not public /function.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIRECT_FUNCTION_HARNESS"))
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIRECT_FUNCTION"))) {
+            dispatcher.register(Commands.literal("fc_ir012_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")
+                            ))));
+            dispatcher.register(Commands.literal("fc_ir012_direct")
+                    .then(Commands.literal("on").executes(context ->
+                            dev.functioncompiler.TypedScoreIRDirectScheduler.toggle(
+                                    context.getSource(), true)))
+                    .then(Commands.literal("off").executes(context ->
+                            dev.functioncompiler.TypedScoreIRDirectScheduler.toggle(
+                                    context.getSource(), false))));
+        }
 
         dispatcher.register(Commands.literal("function_compiler_probe")
                 .then(Commands.literal("status").executes(context -> ProbeStatus.status(context.getSource())))
@@ -220,10 +238,16 @@ final class ProbeCommands {
      */
     private static int researchQueueFunction(CommandSourceStack source, String name) {
         Identifier id = Identifier.tryParse(name);
-        if (id == null
-                || !(id.getNamespace().equals("fc_arch_fused")
-                     || id.getNamespace().equals("fc_arch_direct"))
-                || !id.getPath().matches("score(_null)?_[0-9]+")) {
+        boolean previousArchFixture = id != null
+                && (id.getNamespace().equals("fc_arch_fused")
+                        || id.getNamespace().equals("fc_arch_direct"))
+                && id.getPath().matches("score(_null)?_[0-9]+");
+        boolean typedIrFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIRECT_FUNCTION_HARNESS"))
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIRECT_FUNCTION"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir012_[a-z0-9_]+");
+        if (!previousArchFixture && !typedIrFixture) {
             source.sendFailure(Component.literal("FC_ARCH invalid or disallowed function " + name));
             return 0;
         }
