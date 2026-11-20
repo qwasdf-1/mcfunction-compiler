@@ -316,7 +316,7 @@ def run_arm(mode: str) -> dict:
         if mode.endswith("_guarded"):
             if stat(report["compiler_status"], "reentrant_yields") <= 0:
                 raise AssertionError(f"No detected queue interleaving: {report}")
-            if stat(report["compiler_status"], "reentrant_vanilla_steps") <= 0:
+            if stat(report["compiler_status"], "reentrant_queued_steps") <= 0:
                 raise AssertionError(f"No resumed original commands: {report}")
         if mode.startswith("direct"):
             if stat(report["compiler_status"], "direct_function_executed") <= 0:
