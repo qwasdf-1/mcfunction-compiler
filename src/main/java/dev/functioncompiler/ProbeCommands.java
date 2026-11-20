@@ -22,6 +22,17 @@ final class ProbeCommands {
     }
 
     static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        // IR-010 research-only A/B switch. Both arms use identical compiled
+        // bytecode in one native Minecraft JVM; only guarded source-value
+        // reuse differs. Command does not exist in normal installations.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SCORE_CACHE_TOGGLE"))
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SCORE_CACHE"))) {
+            dispatcher.register(Commands.literal("fc_ir010_cache")
+                    .then(Commands.literal("on").executes(context ->
+                            TypedScoreIR.toggleCache(context.getSource(), true)))
+                    .then(Commands.literal("off").executes(context ->
+                            TypedScoreIR.toggleCache(context.getSource(), false))));
+        }
         // CI-only scheduler-cost experiment. Never register these commands in
         // ordinary installations; the optional leaf increments a server-thread
         // local counter so the research harness can prove exact work completion.
