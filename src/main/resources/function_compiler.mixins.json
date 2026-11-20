@@ -23,7 +23,8 @@
     "MacroFunctionAccessor",
     "CustomDataAccessor",
     "BellowsHomePosAdapterMixin",
-    "ScoreValueRevisionMixin"
+    "ScoreValueRevisionMixin",
+    "ScoreboardQueueInjectionMixin"
   ],
   "injectors": {
     "defaultRequire": 1
