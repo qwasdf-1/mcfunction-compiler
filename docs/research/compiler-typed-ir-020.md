@@ -1,6 +1,6 @@
 # COMPILER-IR-020 — Original Blastback selector-fork CPU cost screen
 
-**Status (2026-11-20):** Native research-only CPU measurement in progress. The original publisher command, Java25/Minecraft26.3 build, plain native execution boundary and post-change IR-016–019 semantic regressions have passed. All CPU attribution requires the complete independent PLAIN/EMPTY/TIMED matrix. No compiled selector or conditional function dispatch opcode, no performance claim, no complete restoration or production promotion. Branch work/compiler-coverage, open draft PR #10.
+**Status (2026-11-20):** **ACCEPTED first three-JVM descriptive original Blastback CPU-clock matrix**, all native sample and original-source/world gates passed; a second independently booted three-arm replication is being run to check clock variability. Default-off original IR-016–019 native semantic regressions accepted. **No compiled selector/dispatch opcode, CPU speedup, full restoration or production promotion.** Work remains on work/compiler-coverage, draft PR #10.
 
 ## Original source and observable hypothesis
 
@@ -36,9 +36,34 @@ The reported signed correction per method is mean TIMED inclusive CPU minus mean
 
 [IR-016 native artifact](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834124078/artifacts/14677553901) · [IR-017 artifact](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834124078/artifacts/14677903542) · [IR-018 artifact](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834124078/artifacts/14676892844) · [IR-019 artifact](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834124078/artifacts/14676538006).
 
-## Original native CPU result
+## Accepted first original native three-JVM CPU screen
 
-The first native PLAIN arm has independently accepted 1,241 original BuildContexts source visits, 317,551 ExecuteCommand calls and 317,551 original ordinary scoreboard callbacks, 589 ticks and 7.0008 seconds of Linux Server-thread CPU. The following EMPTY-mode fixture initially rejected a mismatch between source and cloned world before the clock window; that failed setup is not a valid performance observation. A bounded pre-event fixture stabilization correction is being tested. Complete clock-corrected CPU results must be added here only after the remaining independent native arms pass.
+[Accepted original PLAIN / EMPTY / TIMED workflow #44834332331](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834332331) · [all raw clocks, source/template checks, 30-second event state and Linux Server-thread CPU #14676503441](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44834332331/artifacts/14676503441).
+
+An initial trial accepted its PLAIN arm but stopped **before** the EMPTY clock window on a clone/template mismatch despite all five original witness blocks matching. That invalid pre-event preparation was not admitted as a CPU observation. The subsequent full trial explicitly repeated pre-event clone preparation at most three times, with every subsequent world/clock/event gate enforced. All three independently started Minecraft 26.3/Java25 server modes passed.
+
+| Native observed quantity | PLAIN | EMPTY | TIMED |
+| --- | ---: | ---: | ---: |
+| Game ticks in 30-second capture/restoration window | 601 | 624 | 601 |
+| Original exact source BuildContexts visits | 1,238 | 1,242 | 1,250 |
+| Original per-entity ExecuteCommand entries | 315,428 | 320,897 | 323,827 |
+| Original terminal ScoreboardCommand callbacks | 315,428 | 320,897 | 323,827 |
+| Server-thread Linux running CPU | 7.480 s | 8.292 s | 8.377 s |
+| Host-quality gate and original actor/fixture | Pass | Pass | Pass |
+
+The execution count ratio reflects roughly 255–259 terminal callbacks per source entry, but this is NOT the number of matching score conditions or changed scoreboard values. PLAIN performed **zero** CPU-clock sampling. EMPTY sampled **77 Build** and **2,507 Execute/Leaf** calls; TIMED sampled **78 Build** and **2,529 Execute/Leaf** calls, with exactly floor(visits/stride) observations, zero dropped or invalid intervals, and verified original unmodified source text. All three modes finished their 30-second observation without asserting completed world restoration.
+
+### Calibrated, signed original method-cost observations
+
+| Original synchronous method span | EMPTY clock mean | TIMED inclusive mean | Signed corrected ns/call | Descriptive TIMED Server CPU fraction |
+| --- | ---: | ---: | ---: | ---: |
+| restore_selector_build | **1,334.64 ns** | **378,704.60 ns** | **377,369.97 ns** | **471.71 ms; 5.631%** |
+| restore_terminal_execute | **577.51 ns** | **1,491.48 ns** | **913.97 ns** | **295.97 ms; 3.533%** |
+| restore_scoreboard_leaf (nested in execute) | **284.99 ns** | **391.48 ns** | **106.49 ns** | **34.48 ms; 0.412%** |
+
+The original selector/context-building stage is substantially more expensive per source entry than a single scoreboard callback. The **leaf correction (106 ns) is smaller than EMPTY's mean clock-only interval (285 ns)** and cannot support a precise positive CPU claim. The execute/leaf method-cost measurements overlap; their descriptive CPU percentages are **not additive**. Even a hypothetical combined build + terminal-execute inclusive cost is not proof of removable compiler-owned work, because it contains required entity selection, per-entity score lookup and actual scoreboard result processing. The work and marker population differ across independent boots; the whole-Server CPU figures are **not** causal treatment effects and should not be interpreted as an improvement or slowdown.
+
+This is a bounded, sampled descriptive cost screen. One independently timed JVM does not provide a confidence interval, and deterministic 1/16 or 1/128 sampling may correlate with changing source/entity work through the 30-second window. A second independent original three-JVM matrix is being run before treating these proportions as stable across repeated experiments.
 
 ## Decision boundary
 
