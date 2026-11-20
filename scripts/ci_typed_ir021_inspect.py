@@ -17,7 +17,9 @@ classes=[
 "net.minecraft.commands.execution.tasks.ExecuteCommand",
 "net.minecraft.server.commands.ExecuteCommand",
 "net.minecraft.commands.arguments.selector.EntitySelector",
-"net.minecraft.commands.execution.ContextChain",
+"com.mojang.brigadier.context.ContextChain",
+"net.minecraft.commands.CommandSourceStack",
+"net.minecraft.commands.execution.tasks.ContinuationTask",
 "net.minecraft.commands.execution.ExecutionContext",
 ]
 needle="net/minecraft/commands/execution/tasks/BuildContexts.class"
@@ -41,9 +43,16 @@ if not valid:
 valid.sort(key=lambda p:("deobf" not in p.name.lower(),"26.3" not in p.name,str(p)))
 jar=valid[0]
 print("IR021_MAPPED_JAR",jar)
+brigadiers=list((Path.home()/".gradle/caches").rglob("brigadier-*.jar"))
+brigadiers=[p for p in brigadiers if p.is_file() and "-sources" not in p.name]
+if not brigadiers:
+    raise RuntimeError("No pinned Brigadier 26.3 dependency available for inspection")
+brigadier=brigadiers[0]
+print("IR021_BRIGADIER_JAR",brigadier)
 for classname in classes:
  name=classname.rsplit(".",1)[-1]
- proc=subprocess.run(["javap","-p","-c","-s","-l","-classpath",str(jar),classname],
+ chosen=brigadier if classname.startswith("com.mojang.brigadier") else jar
+ proc=subprocess.run(["javap","-p","-c","-s","-l","-classpath",str(chosen),classname],
        text=True,capture_output=True,check=False)
  if proc.returncode:
   raise RuntimeError(f"javap failed {classname}: {proc.stderr}")
@@ -51,9 +60,9 @@ for classname in classes:
  lines=proc.stdout.splitlines()
  print("IR021_CLASS",classname,"lines",len(lines))
  if name=="BuildContexts":
-  print("IR021_BUILDCONTEXTS_JAVAP_BEGIN")
-  print("\n".join(lines[:410]))
-  print("IR021_BUILDCONTEXTS_JAVAP_END")
+  print("IR021_BUILDCONTEXTS_FOCUS")
+  print("\n".join(lines[:10]+[x for x in lines if any(t in x for t in (
+      "runModifier","ContinuationTask.schedule","List.addAll","List.iterator","queueNext","forkLimit","incrementCost"))]))
  else:
   focus=[(i,line.strip()) for i,line in enumerate(lines)
          if re.search(r"findEntities|findPlayers|withEntity|queueNext|queueNext|executeFork|execute|predicate|incrementCost|calculate|selector|build|ContextChain|EntitySelector|create|fork|stream",line,re.I)]
