@@ -18,13 +18,14 @@ import json
 import os
 from pathlib import Path
 import random
+import re
 import secrets
 import shutil
 import statistics
 import subprocess
 
 from ci_smoke_server import ROOT, RUNS, unused_port, wait_for_rcon
-from ci_typed_ir008 import find_server_thread, server_cpu_ns, score
+from ci_typed_ir008 import find_server_thread, server_cpu_ns
 
 OUT = ROOT / "build/reports/COMPILER-IR-010"
 PACK = "fc_typed_ir_010"
@@ -228,11 +229,21 @@ def clear(client) -> None:
         client.command(f"scoreboard players set {holder} fc_ir 0")
 
 
+def maybe_score(client, holder: str) -> int | None:
+    response = client.command(f"scoreboard players get {holder} fc_ir")
+    match = re.search(r"has (-?\d+)", response)
+    if match:
+        return int(match.group(1))
+    if "none is set" in response:
+        return None  # Distinguishes absent score row from a present zero.
+    raise AssertionError(f"Unrecognized score response for {holder}: {response!r}")
+
+
 def snapshot(client) -> dict:
     return {
-        "a": score(client, "#a"),
-        "b": score(client, "#b"),
-        "source": score(client, "#fc_ir010_source"),
+        "a": maybe_score(client, "#a"),
+        "b": maybe_score(client, "#b"),
+        "source": maybe_score(client, "#fc_ir010_source"),
     }
 
 
