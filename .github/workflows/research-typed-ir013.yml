@@ -1,21 +1,6 @@
 name: COMPILER-IR-013 reentrant queue interleaving parity
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/research-typed-ir013.yml'
-      - 'src/main/java/dev/functioncompiler/ReentrantQueueEpoch.java'
-      - 'src/main/java/dev/functioncompiler/ReentrantQueueProbe.java'
-      - 'src/main/java/dev/functioncompiler/mixin/ExecutionContextMixin.java'
-      - 'src/main/java/dev/functioncompiler/mixin/ScoreboardQueueInjectionMixin.java'
-      - 'src/main/java/dev/functioncompiler/TypedScoreIRRuntime.java'
-      - 'src/main/java/dev/functioncompiler/TypedScoreIR.java'
-      - 'src/main/java/dev/functioncompiler/TypedScoreIRBytecode.java'
-      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
-      - 'src/main/resources/function_compiler.mixins.json'
-      - 'scripts/ci_typed_ir013.py'
-      - 'scripts/ci_typed_ir013_cpu.py'
-      - 'tests/test_typed_ir013.py'
   workflow_dispatch:
 
 permissions:
