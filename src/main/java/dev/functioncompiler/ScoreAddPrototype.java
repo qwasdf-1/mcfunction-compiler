@@ -193,7 +193,8 @@ public final class ScoreAddPrototype {
                     new CommandContext<>(
                             executable.getSource(),
                             executable.getInput(),
-                            executable.getArguments(),
+                            ((CommandContextAccessor<CommandSourceStack>) (Object) executable)
+                                    .functionCompiler$getArguments(),
                             originalExecutableCommand,
                             executable.getRootNode(),
                             executable.getNodes(),
