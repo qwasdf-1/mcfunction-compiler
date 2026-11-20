@@ -1,0 +1,57 @@
+name: COMPILER-IR-013 reentrant queue interleaving parity
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/research-typed-ir013.yml'
+      - 'src/main/java/dev/functioncompiler/ReentrantQueueEpoch.java'
+      - 'src/main/java/dev/functioncompiler/ReentrantQueueProbe.java'
+      - 'src/main/java/dev/functioncompiler/mixin/ExecutionContextMixin.java'
+      - 'src/main/java/dev/functioncompiler/mixin/ScoreboardQueueInjectionMixin.java'
+      - 'src/main/java/dev/functioncompiler/TypedScoreIRRuntime.java'
+      - 'src/main/java/dev/functioncompiler/TypedScoreIR.java'
+      - 'src/main/java/dev/functioncompiler/TypedScoreIRBytecode.java'
+      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
+      - 'src/main/resources/function_compiler.mixins.json'
+      - 'scripts/ci_typed_ir013.py'
+      - 'tests/test_typed_ir013.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir013-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-reentrant-queue-semantics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 43
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build exact Minecraft 26.3 Fabric mod / Java 25
+        run: ./gradlew --no-daemon build
+      - name: Verify bounded queue interleaving contracts and fixture
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir013.py' -v
+          python3 -m py_compile scripts/ci_typed_ir013.py
+      - name: Six real Minecraft JVMs with synchronous queue callback, low quotas and unsafe negative controls
+        timeout-minutes: 32
+        run: python3 scripts/ci_typed_ir013.py
+      - name: Preserve original source, native observations and queue logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir013-reentrant-queue-native
+          path: build/reports/COMPILER-IR-013/
+          retention-days: 21
+          if-no-files-found: warn
