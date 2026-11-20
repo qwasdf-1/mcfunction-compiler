@@ -228,7 +228,7 @@ def main() -> None:
                 {"id": f["id"], "tick": f["in_tick_scope"],
                  "regions": [(r["start"], r["length"])
                              for r in f["candidate_regions"]],
-                 "typed_lines": f["source_shaped_instructions"],
+                 "typed_lines": f["source_shaped_commands"],
                  "all_lines": f["lines"]}
                 for f in analyzed["top_candidates"][:12]
                 if f["source_shaped_region_commands"]],
