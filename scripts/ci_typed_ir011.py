@@ -49,7 +49,7 @@ CASES = {
     ],
     "signed": [
         "scoreboard players set #a fc_ir -2147483648",
-        "scoreboard players add #a fc_ir -1",
+        "scoreboard players remove #a fc_ir 1",
         "scoreboard players remove #a fc_ir 5",
         "scoreboard players operation #b fc_ir = #a fc_ir",
         "scoreboard players add #b fc_ir 2",
