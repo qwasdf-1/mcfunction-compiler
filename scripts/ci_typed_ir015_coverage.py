@@ -174,7 +174,7 @@ def audit_pack(name: str, path: Path, expected_sha: str) -> dict:
         })
     ranked = sorted(functions, key=lambda f:(
         -int(f["in_tick_scope"]), -f["source_shaped_region_commands"],
-        -f["source_shaped_instructions"], f["id"]))
+        -f["source_shaped_commands"], f["id"]))
     return {
         "pack": name,
         "sha256": digest,
