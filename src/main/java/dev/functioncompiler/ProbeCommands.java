@@ -91,6 +91,15 @@ final class ProbeCommands {
                                     context.getSource(), false))));
         }
 
+        // IR-016: dedicated test-only, no-result function entrypoint.
+        // It never exists in a normal mod installation.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_MIXED_TEST_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir016_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")))));
+        }
         // IR-013 adversarial native test: queue a function from a synchronous
         // scoreboard callback. No command exists in normal installations.
         if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_REENTRANT_TEST_OBSERVER"))) {
@@ -277,7 +286,12 @@ final class ProbeCommands {
                 && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_REENTRANT_TEST_OBSERVER"))
                 && id.getNamespace().equals("fc_ir")
                 && id.getPath().matches("ir01[34]_[a-z0-9_]+");
-        if (!previousArchFixture && !typedIrFixture && !reentrantFixture) {
+        boolean mixedFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_MIXED_TEST_HARNESS"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir016_[a-z0-9_]+");
+        if (!previousArchFixture && !typedIrFixture && !reentrantFixture
+                && !mixedFixture) {
             source.sendFailure(Component.literal("FC_ARCH invalid or disallowed function " + name));
             return 0;
         }
