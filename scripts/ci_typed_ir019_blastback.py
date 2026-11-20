@@ -65,10 +65,11 @@ WITNESSES={
 }
 
 
-def setup():
-    OUT.mkdir(parents=True,exist_ok=True)
+def setup(cpu_mode: str | None = None, output: Path = OUT):
+    output.mkdir(parents=True,exist_ok=True)
     RUNS.mkdir(parents=True,exist_ok=True)
-    work=RUNS/"ci-ir019-blastback"
+    work=RUNS/("ci-ir019-blastback" if cpu_mode is None
+               else "ci-ir020-blastback-"+cpu_mode)
     if work.exists():shutil.rmtree(work)
     work.mkdir(parents=True)
     packs=work/"world/datapacks"
@@ -100,11 +101,19 @@ def setup():
         "FC_TYPED_IR_DIRECT_FUNCTION":"false",
         "FC_SELECTIVE_MACRO_ARGUMENTS":"false",
     })
+    if cpu_mode is not None:
+        if cpu_mode not in ("plain", "empty", "timed"):
+            raise ValueError(f"Invalid IR020 native CPU mode: {cpu_mode}")
+        env["FC_COMPILER_EXEC_CENSUS"] = "false"
+        env["FC_COMPILER_EXEC_CENSUS_FUNCTIONS"] = ""
+        env["FC_COMPILER_EXEC_CENSUS_CALLEES"] = ""
+        env["FC_CPU020_MODE"] = cpu_mode
+        env["FC_CPU020_NAMESPACE"] = "erb"
     command=[str(ROOT/"gradlew"),"--no-daemon",
         "-Dorg.gradle.jvmargs=-Xmx1G -Dfile.encoding=UTF-8",
         "-PfcJvmArgs=-Xms512M,-Xmx3G",
         f"-PfcRunDirectory={work.relative_to(ROOT)}","runServer"]
-    log=(OUT/"server.log").open("w",encoding="utf-8")
+    log=(output/"server.log").open("w",encoding="utf-8")
     proc=subprocess.Popen(command,cwd=ROOT,env=env,stdout=log,
                           stderr=subprocess.STDOUT,stdin=subprocess.PIPE)
     try:
