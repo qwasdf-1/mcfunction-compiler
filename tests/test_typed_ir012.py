@@ -42,7 +42,7 @@ class IR012(unittest.TestCase):
         for expected in (
             "returnParentFrame", "functionCallback != CommandResultCallback.EMPTY",
             "context.tracer() != null", "sender.callback() != CommandResultCallback.EMPTY",
-            "sender instanceof CommandSourceStack source", "context.incrementCost()",
+            "sender instanceof CommandSourceStack source", "engine.incrementCost()",
             "TypedScoreIR.directFunctionChunks(function)",
             "context.queueNext(new CommandQueueEntry<>",
             "chunks.get(pc).execute(source, context, frame)",
@@ -58,6 +58,9 @@ class IR012(unittest.TestCase):
         self.assertIn("DirectSchedulerPrototype.tryExecute(", mixin)
         self.assertIn("@Inject(method = \"execute\", at = @At(\"HEAD\"), cancellable = true)", mixin)
         self.assertIn("ci.cancel();", mixin)
+        self.assertIn("TypedScoreIR.originalTraceEntryCount(", mixin)
+        self.assertIn("typed.original().entries().size()",
+                      code("TypedScoreIR.java"))
 
     def test_research_call_site_and_toggle_are_explicitly_gated(self):
         source = code("ProbeCommands.java")
