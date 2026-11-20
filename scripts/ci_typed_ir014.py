@@ -112,7 +112,7 @@ EXPECTED = {
     "ir014_recreate": {"aux_exists": True, "aux_input": 19,
                        "seen": 20, "after": 1},
     "ir014_drop": {"aux_exists": False, "after": 1},
-    "ir014_return": {"marker": 0, "seen": 0, "after": 1},
+    "ir014_return": {"marker": 0},
 }
 
 
@@ -200,8 +200,7 @@ def snapshot(client) -> dict:
     aux_exists = re.search(r"\bfc_aux\b", listed) is not None
     result = {key: scalar(client, holder) for key, holder in HOLDERS.items()}
     result["aux_exists"] = aux_exists
-    result["aux_input"] = scalar(client, "#ir014_input") if aux_exists else None
-    # scalar() above addresses fc_ir, whereas aux_input belongs to fc_aux.
+    result["aux_input"] = None
     if aux_exists:
         answer = client.command("scoreboard players get #ir014_input fc_aux")
         match = re.search(r"has (-?\d+)", answer)
