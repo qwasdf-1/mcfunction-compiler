@@ -106,7 +106,7 @@ def options(mode: str, crossover: bool = False) -> dict[str, str]:
                             if typed else "",
         "FC_TYPED_IR_NAMESPACE": "fc_ir" if typed else "",
         "FC_TYPED_IR_DIRECT_FUNCTION": "true",
-        "FC_TYPED_IR_DIRECT_FUNCTION_TOGGLE": str(crossover).lower(),
+        "FC_TYPED_IR_DIRECT_FUNCTION_TOGGLE": str(crossover or mode == "bytecode_off").lower(),
         "FC_TYPED_IR_DIRECT_FUNCTION_HARNESS": "true",
         "FC_TYPED_IR_DIAGNOSTICS": str(not crossover).lower(),
         "FC_TYPED_IR_SCORE_CACHE": "false",
