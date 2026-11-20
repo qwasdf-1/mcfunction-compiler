@@ -1,0 +1,58 @@
+name: COMPILER-IR-021 exact Blastback selector modifier and deferred queue CPU attribution
+
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir021-cpu.yml'
+      - 'src/main/java/dev/functioncompiler/CompilerForkBreakdownProbe.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerForkContextChainMixin.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerForkEntitySelectorMixin.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerForkSourceMixin.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerForkContinuationMixin.java'
+      - 'scripts/ci_typed_ir021_cpu.py'
+      - 'tests/test_typed_ir021_cpu.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir021-cpu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  original-native-fork-stages:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 48
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Compile the native Minecraft 26.3 Fabric mod
+        run: ./gradlew --no-daemon build
+      - name: Check exact original source and non-mutating CPU observer contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir021_cpu.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir020_cpu.py' -v
+          python3 -m py_compile scripts/ci_typed_ir021_cpu.py
+      - name: Download exactly pinned untouched publisher Blastback ZIP
+        run: |
+          PYTHONPATH=scripts python3 -c "from ci_typed_ir015_fetch import fetch; print(fetch('blastback'))"
+      - name: Three original Minecraft PLAIN EMPTY TIMED source/modifier/continuation CPU windows
+        timeout-minutes: 40
+        run: python3 scripts/ci_typed_ir021_cpu.py
+      - name: Preserve original staged task counts, CPU clock samples and world checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir021-original-fork-substage-cpu
+          path: build/reports/COMPILER-IR-021-CPU/
+          if-no-files-found: warn
+          retention-days: 21
