@@ -206,9 +206,12 @@ def parse_log(path):
     for line in lines:
         if "FC_EXEC_ROW " in line:
             text=line.split("FC_EXEC_ROW ",1)[1]
-            found=dict(re.findall(r"(\w+)=(\S+)",text))
-            rows.append({k:found.get(k) for k in (
-                "function","index","entries","callbacks","kind","dispatch_shape")})
+            metadata, marker, original_input = text.partition(" input=")
+            found=dict(re.findall(r"(\w+)=(\S+)",metadata))
+            row={k:found.get(k) for k in (
+                "function","index","entries","callbacks","kind","dispatch_shape")}
+            row["input"] = original_input[:240] if marker else None
+            rows.append(row)
         if "FC_EXEC_CALLEE " in line:
             text=line.split("FC_EXEC_CALLEE ",1)[1]
             found=re.search(r"function=(\S+) native_call_tasks=(\d+)",text)
