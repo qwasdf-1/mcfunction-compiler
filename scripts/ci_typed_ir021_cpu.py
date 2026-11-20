@@ -204,24 +204,35 @@ def run_arm(mode: str)->dict:
                 f"Original Blastback pre-event fixture invalid after bounded preparation "
                 f"{clone_attempts!r}; witnesses={before!r}")
         report["original_world_before"]={"witnesses":before,"template_equal":before_template}
+        # Actor setup and observation MUST finish before the clock/census
+        # begins, so a flaky RCON presence probe cannot contaminate TIMED.
+        # The bounded retries are PRE-EVENT only; failed game work is never
+        # omitted, and all three arms must still accept exactly one TNT.
         minecraft_pid,server_tid=find_server_thread(proc.pid)
+        spawn=client.command(
+            'summon minecraft:tnt 4 64 4 {Fuse:160s,Tags:["fc_blastback_probe"]}')
+        if "Summoned new" not in spawn:
+            raise AssertionError(f"Original native TNT summon declined: {spawn!r}")
+        actor=0
+        actor_probes=[]
+        for _ in range(12):
+            client.command("scoreboard players set #ir021_tnt fc_probe 0")
+            client.command("execute as @e[type=minecraft:tnt,tag=fc_blastback_probe] "
+                           "run scoreboard players add #ir021_tnt fc_probe 1")
+            actor=score(client,"#ir021_tnt","fc_probe")
+            actor_probes.append(actor)
+            if actor==1:break
+            time.sleep(0.1)
+        report["pre_event_actor_probes"]=actor_probes
+        if actor!=1:
+            raise AssertionError(
+                f"Original native TNT not observed before CPU window: {actor_probes!r} {spawn!r}")
         tick_before=score(client,"#tick_id","erb.cfg")
         status=client.command("functioncompiler cpu021-start")
         if f"FC_CPU021 started mode={mode}" not in status:
             raise AssertionError(f"Native original-clock mode unavailable: {status!r}")
         cpu_before=read_thread_schedstat(minecraft_pid,server_tid)
         throttle_before=cgroup_throttle_count()
-        # Same native direct tagged actor from IR-019 accepted capture study.
-        spawn=client.command(
-            'summon minecraft:tnt 4 64 4 {Fuse:160s,Tags:["fc_blastback_probe"]}')
-        if "Summoned new" not in spawn:
-            raise AssertionError(f"Original native TNT summon declined: {spawn!r}")
-        client.command("scoreboard players set #ir021_tnt fc_probe 0")
-        client.command("execute as @e[type=minecraft:tnt,tag=fc_blastback_probe] "
-                       "run scoreboard players add #ir021_tnt fc_probe 1")
-        actor=score(client,"#ir021_tnt","fc_probe")
-        if actor!=1:
-            raise AssertionError("Expected one original in-world TNT actor")
         time.sleep(WINDOW_SECONDS)
         cpu_after=read_thread_schedstat(minecraft_pid,server_tid)
         throttle_after=cgroup_throttle_count()
