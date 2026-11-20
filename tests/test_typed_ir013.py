@@ -42,20 +42,25 @@ class ReentrantIR013(unittest.TestCase):
         self.assertIn("epoch.functionCompiler$queuedWorkEpoch() != initialQueueEpoch", runtime)
         self.assertIn("nextIndex > 0", runtime)
         self.assertIn("return STOP;", runtime)
-        self.assertIn("new VanillaTail(source, instructions, nextIndex)", runtime)
+        self.assertIn("new QueuedTail(source, instructions, nextIndex)", runtime)
 
-    def test_remainder_only_uses_original_entries_with_no_premature_execution(self):
+    def test_remainder_is_queued_one_validated_instruction_at_a_time(self):
         runtime = source("TypedScoreIRRuntime.java")
+        ir = source("TypedScoreIR.java")
         for token in (
-            "private record VanillaTail(",
-            "instructions[index].vanilla().original().bind(source)",
+            "private record QueuedTail(",
+            "TypedScoreIR.Instruction current = instructions[index]",
+            "new TypedScoreIR.Instruction[]{current}",
+            "TypedScoreIR.executeTypedStep(current, state)",
             "index + 1 < instructions.length",
             "context.queueNext(new CommandQueueEntry<>",
-            "TypedScoreIR.reentrantVanillaStep()",
+            "TypedScoreIR.reentrantQueuedStep()",
             "TypedScoreIR.reentrantYield()",
         ):
             self.assertIn(token, runtime)
-        self.assertNotIn("instructions[index].vanilla().original().execute(", runtime)
+        self.assertIn("static int executeTypedStep(", ir)
+        self.assertIn("reentrant_queued_steps=", ir)
+        self.assertNotIn("instructions[index].vanilla().original().bind(source)", runtime)
 
     def test_generated_asm_and_interpreter_pass_immutable_instruction_set(self):
         ir = source("TypedScoreIR.java")
