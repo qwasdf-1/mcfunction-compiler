@@ -1,6 +1,6 @@
 # COMPILER-IR-016 — Source-spanned mixed-function IR and vanilla barrier fidelity
 
-**Status:** **Accepted bounded native four-JVM Minecraft 26.3 / Java 25 semantic parity** (2026-11-20). Post-refactor IR-014/real-Vein-Miner regression is tracked separately. Research-only, no production-default change, no performance promotion. Existing `work/compiler-coverage` branch and draft PR #10.
+**Status:** **Accepted bounded native four-JVM Minecraft 26.3 / Java 25 semantic parity** (2026-11-20). Post-refactor IR-014 / pinned real Vein Miner native regression **also accepted**. Research-only, no production-default change, no performance promotion. Existing `work/compiler-coverage` branch and draft PR #10.
 
 ## Goal
 
@@ -84,7 +84,19 @@ Actual research-only source-layout witnesses:
 
 The interpreted arm reports `I` rather than `J`, and correctly refuses direct-bytecode scheduling even for all-typed source. The IR-012 direct-scheduler arm actually admitted **26 function calls**, with **26 compiled chunks and 2 resumptions**. Crucially, the direct scheduler was never admitted to the mixed call-chain/return/65-command-tail functions. The program model's admission rule was verified at runtime; it is not merely a source-code assertion.
 
-**Verdict:** IR-016 establishes a concrete mixed-typed/vanilla intermediate representation with immutable exact source spans and actual native queue parity for the bounded supported cases. This is a compiler architecture step, not evidence of higher runtime coverage or speedup on Vein Miner or Blastback. Prior native regression and real-workload checks remain important before accepting this branch-wide refactor.
+**Verdict:** IR-016 establishes a concrete mixed-typed/vanilla intermediate representation with immutable exact source spans and actual native queue parity for the bounded supported cases. This is a compiler architecture step, not evidence of higher runtime coverage or speedup on Vein Miner or Blastback. The separate IR-014 and real-datapack post-refactor regression also passed, as detailed below.
+
+## Post-refactor adversarial and real-datapack acceptance
+
+[Successful six-native-JVM regression #44793039953](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44793039953) · [Raw IR-014 and real mining event records, artifact #14658310421](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44793039953/artifacts/14658310421).
+
+The corrected compiler passed the full existing **IR-014 nested listener queue / objective remove+recreate / child return / quota** test again: four independent native Minecraft JVMs (vanilla, interpreted, bytecode, guarded direct scheduler) and **70/70** matching partial/full scoreboard states for every compiled mode. The earlier production default behavior and optional IR-013 reentrant queue safeguards did not change.
+
+The *unmodified publisher* Vein Miner 5.3.0+26.3 pack was then tested in two other native Minecraft JVMs via the earlier IR-015 215-block **real player mining event**. Both the wrapper-only baseline and refactored typed-ASM compiler completed **215/215** additional block work units, with equal original source block mine count 1, **1,952** queue-head increments, zero remaining ores, zero leftover marker entities, and inactive run state. All nine observed final event state fields matched.
+
+IR activation remained real: six JVM bytecode regions emitted at load, **241 typed regions and 508 direct typed instruction executions** during the actual mining event (including **52** binary score operations) and zero region-internal original-command fallbacks. These counts vary slightly from IR-015's earlier **242 regions / 511 typed steps / 54 binary steps**; the runs are independent and the native event window is not a precisely fixed sequence of every command. **No performance inference is justified by that difference.** Actual game-state completion, queue-head work and compiled instruction execution were checked, with no claim of speedup.
+
+This result makes the mixed-program refactor accepted within the current narrow compatibility scope; it is not yet evidence that general mixed direct scheduling is possible.
 
 ## Remaining deliberate limitations
 
