@@ -91,6 +91,15 @@ final class ProbeCommands {
                                     context.getSource(), false))));
         }
 
+        // IR-017: bounded original-function native range-guard fixture,
+        // separate from any public function invocation or production API.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_RANGE_TEST_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir017_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")))));
+        }
         // IR-016: dedicated test-only, no-result function entrypoint.
         // It never exists in a normal mod installation.
         if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_MIXED_TEST_HARNESS"))) {
@@ -290,8 +299,12 @@ final class ProbeCommands {
                 && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_MIXED_TEST_HARNESS"))
                 && id.getNamespace().equals("fc_ir")
                 && id.getPath().matches("ir016_[a-z0-9_]+");
+        boolean rangeFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_RANGE_TEST_HARNESS"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir017_[a-z0-9_]+");
         if (!previousArchFixture && !typedIrFixture && !reentrantFixture
-                && !mixedFixture) {
+                && !mixedFixture && !rangeFixture) {
             source.sendFailure(Component.literal("FC_ARCH invalid or disallowed function " + name));
             return 0;
         }
