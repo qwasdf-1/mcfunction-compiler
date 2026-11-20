@@ -195,10 +195,11 @@ def start(mode: str):
         # A headless server has no player ticket. Without a forced chunk the
         # new entity can immediately be unloaded before an RCON snapshot.
         client.command("forceload add 0 0")
-        # Superflat Minecraft 26.3 ground is near world min-Y, not y=64.
-        # Spawn an ordinary stand directly on the flat surface. Avoid marker/
-        # invisibility NBT whose lifecycle can differ between versions.
-        result = client.command('summon minecraft:armor_stand 0 -60 0')
+        # A no-player superflat world has no guaranteed surface at y=64.
+        # Place a solid platform before summoning so an armor stand cannot
+        # die from a long drop or from spawning inside default flat terrain.
+        platform = client.command("setblock 0 63 0 minecraft:stone")
+        result = client.command('summon minecraft:armor_stand 0 64 0')
         if "Summoned new" not in result:
             raise AssertionError(f"{mode}: source entity not summoned: {result!r}")
         client.command(
@@ -210,7 +211,7 @@ def start(mode: str):
             forced = client.command("forceload query 0 0")
             raise AssertionError(
                 f"{mode}: source entity not resident/tagged: tagged={check!r}, "
-                f"any_armor={all_armor!r}, forceload={forced!r}")
+                f"any_armor={all_armor!r}, forceload={forced!r}, platform={platform!r}")
         if mode in ("old_bytecode", "interpreted", "bytecode"):
             result = client.command("fc_ir012_direct off")
             if "enabled=false" not in result:
