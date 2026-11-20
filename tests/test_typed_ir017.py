@@ -78,7 +78,7 @@ class IR017ConditionalRanges(unittest.TestCase):
         self.assertEqual(len(native.QUOTAS), 13)
         self.assertEqual(native.EXPECTED["ir017_inclusive"]["x"], 6)
         self.assertEqual(native.EXPECTED["ir017_guarded_binary"]["x"], 13)
-        self.assertEqual(native.EXPECTED["ir017_reentrant"]["marker"], 11)
+        self.assertEqual(native.EXPECTED["ir017_reentrant"]["ir014_marker"], 11)
         self.assertEqual(native.EXPECTED["ir017_reentrant"]["x"], 14)
         for mode in native.MODES:
             flags=native.options(mode)
