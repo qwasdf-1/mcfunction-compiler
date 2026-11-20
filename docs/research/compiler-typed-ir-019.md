@@ -1,6 +1,6 @@
 # COMPILER-IR-019 — Native conditional-call census, hotness gate and dispatch feasibility
 
-**Status (2026-11-20):** **Accepted research-only dispatch feasibility/measurement stage** including two original Blastback capture-window observations: two SHA-pinned source inventories; three-native-JVM original dispatch parity and passive call census; one genuine one-TNT Blastback capture-stage census; and post-change IR-016/017/018 native regressions. **No compiled function-dispatch opcode, CPU-speedup result, validated full restoration, production promotion or PR merge.** Same branch work/compiler-coverage, draft PR #10.
+**Status (2026-11-20):** **Accepted research-only dispatch feasibility and measurement stage**: two SHA-pinned real-datapack source inventories; three native Minecraft JVMs for dispatch/observer parity; two independent authentic one-TNT Blastback capture-window observations; and 14 native IR-016/017/018 regression JVMs. **No compiled function-dispatch opcode, causal CPU/speedup result, validated full restoration, production promotion or PR merge.** Same branch work/compiler-coverage, draft PR #10.
 
 ## Why the optimizer is gated
 
