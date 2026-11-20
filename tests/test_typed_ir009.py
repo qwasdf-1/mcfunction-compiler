@@ -49,8 +49,9 @@ class TypedIR009(unittest.TestCase):
         self.assertIn("matcher.group(5)", condition)
         self.assertIn("score.toMutation", condition)
         self.assertIn("range.matches", condition)
-        self.assertIn("literal - 1", condition)
-        self.assertIn("literal + 1", condition)
+        self.assertIn("lower - 1", condition)
+        self.assertIn("upper + 1", condition)
+        self.assertIn("sameParsedRange(range, matcher.group(4))", condition)
         self.assertIn("isTargetSelf", condition)
         self.assertIn("operator != null", condition)
 
