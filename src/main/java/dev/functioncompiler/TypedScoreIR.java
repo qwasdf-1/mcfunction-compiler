@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.LongAdder;
  * interpreter and real ASM direct operations. Both retain vanilla function
  * scheduling, result propagation, quota debits and trace callback boundaries.
  */
-final class TypedScoreIR {
+public final class TypedScoreIR {
     private static final String MODE = System.getenv("FC_TYPED_IR_MODE");
     private static final String NAMESPACE = System.getenv("FC_TYPED_IR_NAMESPACE");
     private static final boolean ACTIVE = ("interpreted".equals(MODE) || "bytecode".equals(MODE))
