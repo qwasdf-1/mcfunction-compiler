@@ -49,6 +49,18 @@ final class ScoreOperationCommand implements FusableCommand {
      * operation was already validated by Brigadier and ScoreAddPrototype;
      * this additional text/argument equality check is an eligibility gate.
      */
+    private static final java.util.regex.Pattern IR_LITERAL_BINARY_SOURCE =
+            java.util.regex.Pattern.compile(
+                    "^scoreboard players operation #[A-Za-z0-9_.+\\-]+ "
+                            + "[A-Za-z0-9_.+\\-]+ (=|\\+=|-=|\\*=) "
+                            + "#[A-Za-z0-9_.+\\-]+ [A-Za-z0-9_.+\\-]+$");
+
+    // Preflight only: accepted commands still require their existing
+    // Brigadier-validated callback and the strict argument equality below.
+    static boolean typedIrLiteralSourceShape(String source) {
+        return source != null && IR_LITERAL_BINARY_SOURCE.matcher(source).matches();
+    }
+
     TypedScoreIR.Binary toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
         if (isTargetSelf || isSourceSelf || targetHolder == null || sourceHolder == null) {
             return null;
