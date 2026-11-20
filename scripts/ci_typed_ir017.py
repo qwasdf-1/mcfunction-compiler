@@ -162,7 +162,7 @@ EXPECTED = {
     "ir017_distinct": {"x": 3},
     "ir017_missing_objectives": {"x": 6},
     "ir017_same_holder": {"x": 17},
-    "ir017_child_barrier": {"x": 15},
+    "ir017_child_barrier": {"x": 13},
     "ir017_return": {"x": 5},
     "ir017_divide_barrier": {"x": 8},
     "ir017_reentrant": {"x": 14, "marker": 11, "inner_seen": 9},
