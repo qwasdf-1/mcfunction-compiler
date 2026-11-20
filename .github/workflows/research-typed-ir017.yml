@@ -1,0 +1,58 @@
+name: COMPILER-IR-017 native ranged-score and guarded-binary acceptance
+
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir017.yml'
+      - 'src/main/java/dev/functioncompiler/ScoreConditionCommand.java'
+      - 'src/main/java/dev/functioncompiler/ScoreOperationCommand.java'
+      - 'src/main/java/dev/functioncompiler/TypedScoreIR.java'
+      - 'src/main/java/dev/functioncompiler/TypedScoreIRRuntime.java'
+      - 'src/main/java/dev/functioncompiler/TypedScoreIRBytecode.java'
+      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
+      - 'scripts/ci_typed_ir017.py'
+      - 'tests/test_typed_ir017.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir017-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  original-range-guard-native-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build Minecraft 26.3 typed JVM compiler
+        run: ./gradlew --no-daemon build
+      - name: Check IR-009, IR-015, IR-016 and IR-017 language contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir009.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir015_native.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir016.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir017.py' -v
+          python3 -m py_compile scripts/ci_typed_ir017.py
+      - name: Five independent native Minecraft JVMs including legacy bytecode control
+        timeout-minutes: 46
+        run: python3 scripts/ci_typed_ir017.py
+      - name: Archive full native state and source-compiled layout records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir017-native-range-binary
+          path: build/reports/COMPILER-IR-017/
+          if-no-files-found: warn
+          retention-days: 21
