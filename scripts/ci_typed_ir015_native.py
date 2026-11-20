@@ -22,6 +22,7 @@ STUDY_MODES = ("wrapper", "typed_ir")
 IR_COUNTERS = (
     "compiled_regions", "bytecode_regions", "executed_regions",
     "executed_steps", "binary_steps", "conditional_steps",
+    "guarded_binary_steps",
     "fallback_steps", "reentrant_yields", "reentrant_queued_steps",
 )
 
