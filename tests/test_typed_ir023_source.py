@@ -13,8 +13,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from ci_typed_ir023_source import EXACT_SELECTOR, audit_archive
 
 
-def example_archive(commands: list[str] | None = None) -> bytes:
-    lines = ["say first", "say second", "say third", "say fourth", EXACT_SELECTOR]
+def example_archive(commands: list[str] | None = None, selector: str = EXACT_SELECTOR) -> bytes:
+    lines = ["say first", "say second", "say third", "say fourth", selector]
     lines.extend(commands or [])
     data = BytesIO()
     with zipfile.ZipFile(data, "w") as archive:
@@ -54,8 +54,8 @@ class IR023SourceContracts(unittest.TestCase):
             audit_archive(content, "0" * 64)
 
     def test_changed_exact_selector_fails_closed(self):
-        content = example_archive()
-        wrong = content.replace(b"tag=!erb.verified", b"tag=erb.verified")
+        wrong = example_archive(selector=EXACT_SELECTOR.replace(
+            "tag=!erb.verified", "tag=erb.verified"))
         with self.assertRaisesRegex(AssertionError, "index-4 selector changed"):
             audit_archive(wrong, hashlib.sha256(wrong).hexdigest())
 
