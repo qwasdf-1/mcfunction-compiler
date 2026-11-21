@@ -1,9 +1,5 @@
 name: COMPILER-IR-026 tick-matched original publisher world-state comparison
 on:
-  push:
-    branches: [work/compiler-coverage]
-    paths:
-      - '.github/workflows/research-typed-ir026-tick-matched.yml'
   workflow_dispatch:
 
 permissions:
