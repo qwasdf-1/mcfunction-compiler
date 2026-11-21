@@ -209,11 +209,23 @@ def run_arm(mode:str)->dict:
     try:
         for case in ("cycle","nested_parent","summon_kill","near_limit","raw_cycle"):
             reset(client,case)
+            if case != "summon_kill":
+                client.command("scoreboard players set #setup_visible fc023 0")
+                client.command(f"execute if entity {ALL} run "
+                               "scoreboard players add #setup_visible fc023 1")
+                visible=nullable_score(client,"#setup_visible","fc023")
+                if visible!=1:
+                    raise AssertionError(
+                        f"Original vanilla @e fixture marker invisible before {case}: {visible}")
             if case=="raw_cycle" and mode=="observer":
                 response=client.command("functioncompiler cpu023-start")
                 if "FC_CPU023 started mode=plain" not in response:
                     raise AssertionError("IR023 observer not started: "+repr(response))
-            client.command(f"function fc_ir023:{case}")
+            response=client.command(f"function fc_ir023:{case}")
+            print("IR023_VISIBILITY_CALL "+json.dumps({
+                "mode":mode,"case":case,"response":response[:240]}),flush=True)
+            if "unknown function" in response.lower() or "not found" in response.lower():
+                raise AssertionError(f"Fixture function unavailable: {case} {response!r}")
             observed=snapshot(client)
             assert_case(case,observed)
             result["snapshots"][case]=observed
