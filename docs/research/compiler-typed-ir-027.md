@@ -170,3 +170,20 @@ unchanged.
 
 **Disposition:** IR027 is accepted as the **correctness basis**, not a
 performance result. Draft PR #10 remains unmerged and production flags off.
+
+
+## Follow-up — IR028 uninstrumented CPU pilot (2026-11-21)
+
+The subsequent [IR028 completed-event CPU pilot](compiler-typed-ir-028.md)
+ran four fresh JVMs in A–B–B–A order, with only the compiled-fork flag
+differing between plan-only and compiled arms. All four original TNT events
+captured the same 5,769 block markers and fully restored the controlled 17³
+template. Server-thread CPU medians were **20.877 ms/tick** plan-only and
+**20.849 ms/tick** compiled, an observed **0.137%** reduction against a
+**4.804%** A/A spread. Adjacent paired differences had opposite signs.
+
+IR028 is accepted as an uninstrumented exploratory pilot with valid host and
+restoration checks, but it does **not** demonstrate a meaningful speedup.
+Production remains disabled and PR #10 remains draft/unmerged. The next
+investigation is separate JFR stack attribution to determine whether the
+compiled path removes enough Brigadier work to justify further optimization.
