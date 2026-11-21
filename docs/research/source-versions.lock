@@ -33,3 +33,9 @@ project.fabric_loader=0.20.1
 project.fabric_api=0.165.0+26.3
 project.fabric_loom=1.18.4
 project.runtime_probe=wrapper-off/on startup and quota checks passed on Minecraft 26.3
+
+# IR-030 independently observed GitHub Actions mapped output after successful 26.3/Java25/Loom1.18.4 Gradle build.
+# This is a derived Loom artifact fingerprint, NOT the official Mojang server SHA-256.
+# First observed in run 44962162304 (2026-11-21), Gradle wrapper 9.9.0, Temurin 25.0.5.
+verification.ir030.actions_2026_11_21_mapped_sha256=cde5273d134d4e1914a563552ab1b3e0e478dc11bb62730b9aedb7c0da2fd042
+verification.ir030.actions_run=https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44962162304
