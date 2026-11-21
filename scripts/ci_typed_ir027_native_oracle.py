@@ -172,6 +172,53 @@ def configure_stable_original_scene(client)->dict:
     raise AssertionError("Controlled fixed stone scene did not initialize: "
                          +repr(attempts))
 
+def prove_original_capture_activity(client,actor_start_tick:int)->dict:
+    """Observe one original saved-block/restore-job marker AFTER spawning TNT.
+
+    A vanished TNT and a restored stone template alone could be a false
+    positive if an obstructed TNT never triggered Blastback. This checkpoint
+    samples native selectors for at most 360 original datapack ticks and
+    requires publisher-owned capture/restore marker evidence. The counters
+    are read-only observations through vanilla selectors, not debug callbacks.
+    """
+    deadline=time.monotonic()+60
+    sampled=0
+    maximum_blocks=0
+    maximum_jobs=0
+    first_observed=None
+    last_tick=actor_start_tick
+    while last_tick-actor_start_tick<360:
+        last_tick=score(client,"#tick_id","erb.cfg")
+        block=count_native(client,"#fc027_count",
+                           "@e[type=minecraft:marker,tag=erb.block]")
+        job=count_native(client,"#fc027_count",
+                         "@e[type=minecraft:marker,tag=erb.restore_job]")
+        sampled+=1
+        maximum_blocks=max(maximum_blocks,block)
+        maximum_jobs=max(maximum_jobs,job)
+        if (block>0 or job>0) and first_observed is None:
+            first_observed={"delta_tick":last_tick-actor_start_tick,
+                            "block":block,"restore_jobs":job}
+            break
+        if time.monotonic()>deadline:
+            raise AssertionError("Original TNT event did not generate observable "
+                                 "publisher capture markers within 60 seconds")
+        time.sleep(.25)
+    report={
+        "first_original_capture":first_observed,
+        "sampled_native_selectors":sampled,
+        "max_original_block_markers":maximum_blocks,
+        "max_original_restore_jobs":maximum_jobs,
+        "last_actor_relative_tick":last_tick-actor_start_tick,
+        "compiled_code_used":False,
+    }
+    if first_observed is None:
+        raise AssertionError("No native original Blastback capture or restoration "
+                             "activity proved after tagged TNT actor")
+    print("IR027_NATIVE_CAPTURE_WITNESS "+json.dumps(report,sort_keys=True),
+          flush=True)
+    return report
+
 def run(mode:str)->dict:
     if mode not in ("no_tnt","native_tnt"):
         raise ValueError("No compiler arms admitted in source restoration diagnosis")
@@ -193,6 +240,8 @@ def run(mode:str)->dict:
                 base.verify_started_actor(client))
             start=score(client,"#tick_id","erb.cfg")
             result["event_before_tick"]=start
+            result["original_capture_witness"]=prove_original_capture_activity(
+                client,start)
         targets=(NO_EVENT_TICKS,) if mode=="no_tnt" else TICK_TARGETS
         deadline=time.monotonic()+MAX_WAIT_SECONDS
         for delta in targets:
@@ -208,6 +257,11 @@ def run(mode:str)->dict:
             if result["checkpoints"][-1]["marker_counts"]["block"]!=0:
                 raise AssertionError("No TNT spawned but Blastback block markers exist")
         else:
+            result["tnt_remaining_after"]=count_native(
+                client,"#fc027_count",
+                "@e[type=minecraft:tnt,tag=fc_blastback_probe]")
+            if result["tnt_remaining_after"]!=0:
+                raise AssertionError("The originally spawned TNT actor never detonated")
             last=result["checkpoints"][-1]
             saved=last["marker_counts"]["block"]
             jobs=last["marker_counts"]["restore_job"]
