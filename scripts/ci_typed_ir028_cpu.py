@@ -44,7 +44,7 @@ def mode_options(mode:str)->dict:
     # stream operates within the CPU measurement window.
     env.update({
         "FC_TYPED_IR_DIAGNOSTICS":"false",
-        "FC_TYPED_IR_REENTRANT_SAFE":"false",
+        # Queue epoch guard is SEMANTICALLY REQUIRED by the accepted IR027\n        # compiler path. Keep it enabled in both arms; it is not a probe.\n        "FC_TYPED_IR_REENTRANT_SAFE":"true",
         "FC_TYPED_IR_COMPILED_FORK":str(mode=="compiled").lower(),
         "FC_COMPILER_EXEC_CENSUS":"false",
         "FC_RUNTIME_TRACE":"false",
