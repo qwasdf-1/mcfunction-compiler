@@ -4,6 +4,7 @@ on:
     branches: [work/compiler-coverage]
     paths:
       - '.github/workflows/research-typed-ir023-visibility.yml'
+      - 'scripts/ci_typed_ir023_visibility.py'
   workflow_dispatch:
 
 permissions:
