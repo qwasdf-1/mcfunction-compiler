@@ -39,6 +39,8 @@ class IR028Cpu(unittest.TestCase):
             "original_datapack_unchanged",
             "oracle.configure_stable_original_scene(client)",
             "actual_original_capture_markers_seen",
+            "original_capture_sampling_attempts",
+            "capture_deadline=time.monotonic()+20",
             "oracle.observe(client",
             "whole_template_equal",
             "native_tnt_remaining",
