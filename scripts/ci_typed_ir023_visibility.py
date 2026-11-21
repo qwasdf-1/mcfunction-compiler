@@ -87,12 +87,9 @@ COMMANDS={
         f"kill {ALL}",
         f"execute as {SELECT} run scoreboard players add #s3 fc023 1",
     ],
-    "near_limit": [
-        f"execute positioned 0 64 0 as {SELECT}[INVALID] run scoreboard players set #unused fc023 999",
-    ],
 }
-# SOURCE-FIXTURE freeze: construct the sorted variant once, in source order;
-# no modifying the production selector, no additional predicate evaluations.
+# The native nearest/limit variant is authored once with its final source;
+# no selector substitution or extra predicate evaluations.
 ORDERED_SELECT="@e[type=minecraft:marker,tag=fc023.fixture,tag=erb.block,tag=!erb.verified,sort=nearest,limit=1]"
 COMMANDS["near_limit"]=[
     'summon minecraft:marker 0 64 0 {Tags:["fc023.fixture","erb.block"]}',
