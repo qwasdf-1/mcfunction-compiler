@@ -264,20 +264,6 @@ def run_arm(mode:str)->dict:
                 response=client.command("functioncompiler cpu023-stop")
                 if "FC_CPU023 ended mode=plain" not in response:
                     raise AssertionError("IR023 observer not stopped: "+repr(response))
-        if mode=="observer":
-            # stop() writes the row block synchronously to stdout.
-            log.flush()
-            raw=(OUT/(mode+".server.log")).read_text(errors="replace")
-            counter=parse_cpu023(raw,"plain")
-            result["direct_set_observer_rows"]=counter
-            watched=(x for x in METRICS if x.startswith(("add_","remove_","eligible_")))
-            if any(counter[x]!=0 for x in watched):
-                raise AssertionError("Direct mutable Set mutation unexpectedly recorded by tag method hooks")
-            if (result["snapshots"]["raw_cycle"]["#r1"]!=1 or
-                    result["snapshots"]["raw_cycle"]["#r2"]!=0 or
-                    result["snapshots"]["raw_cycle"]["#r3"]!=1):
-                raise AssertionError("Native selector did not observe direct-set changes")
-            result["direct_set_invalidation_gap_reproduced"]=True
         result["status"]="accepted_arm"
         print("IR023_VISIBILITY_ARM "+json.dumps({
             "mode":mode,
@@ -315,6 +301,25 @@ def main()->None:
             (OUT/"results.json").write_text(json.dumps(report,indent=2)+"\n")
         reference=report["arms"]["native"]["snapshots"]
         observed=report["arms"]["observer"]["snapshots"]
+        # Read the counter dump only AFTER run_arm's finally block stopped
+        # Minecraft/Gradle and closed its stdout file. Reading before native
+        # process termination can see incomplete buffered SLF4J output.
+        raw=(OUT/"observer.server.log").read_text(errors="replace")
+        counter=parse_cpu023(raw,"plain")
+        watched=(name for name in METRICS
+                 if name.startswith(("add_","remove_","eligible_")))
+        if any(counter[name]!=0 for name in watched):
+            raise AssertionError(
+                "Direct entityTags() Set writes unexpectedly fired addTag/removeTag hooks")
+        if (observed["raw_cycle"]["#r1"]!=1 or
+                observed["raw_cycle"]["#r2"]!=0 or
+                observed["raw_cycle"]["#r3"]!=1 or
+                observed["raw_cycle"]["#r4"]!=0):
+            raise AssertionError("Original selector failed direct-set immediate visibility")
+        report["arms"]["observer"]["direct_set_observer_rows"]=counter
+        report["arms"]["observer"]["direct_set_invalidation_gap_reproduced"]=True
+        (OUT/"observer.json").write_text(
+            json.dumps(report["arms"]["observer"],indent=2)+"\\n")
         if reference!=observed:
             mismatch={k:{"native":reference[k],"observer":observed[k]}
                       for k in reference if reference[k]!=observed[k]}
