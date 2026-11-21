@@ -1,5 +1,9 @@
 name: COMPILER-IR-023 SHA-pinned Blastback tag/lifecycle static preflight
 on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir023-source.yml'
   workflow_dispatch:
 
 permissions:
