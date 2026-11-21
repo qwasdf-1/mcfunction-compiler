@@ -263,12 +263,18 @@ def analyze(arms:dict)->dict:
     result={"inclusive_profile_fractions":{},
             "server_thread_sample_counts":{},
             "top_leaf_frames":{},
+            "capture_marker_samples":{},
             "categories_overlap":True,
             "causal_cpu_claim":False}
     for label,_ in RUN_ORDER:
         profile=arms[label]["profile"]
         result["server_thread_sample_counts"][label]=profile["server_thread_runnable_samples"]
         result["top_leaf_frames"][label]=profile["top_leaf_frames"]
+        result["capture_marker_samples"][label]=arms[label]["capture_markers_sampled"]
+    capture_values=list(result["capture_marker_samples"].values())
+    result["capture_population_equal"]=len(set(capture_values))==1
+    result["capture_population_range"]=max(capture_values)-min(capture_values)
+    result["workload_equalized_for_A_B_comparison"]=result["capture_population_equal"]
     for mode in ("plan_only","compiled"):
         labels=[label for label,arm_mode in RUN_ORDER if arm_mode==mode]
         result["inclusive_profile_fractions"][mode]={
