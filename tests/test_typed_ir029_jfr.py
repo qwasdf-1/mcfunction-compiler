@@ -30,6 +30,10 @@ class IR029JFR(unittest.TestCase):
                       "jfr_profile_is_not_cpu_benchmark"):
             self.assertIn(token,src)
         self.assertNotIn("read_thread_schedstat(",src)
+        self.assertIn('result["compiler_mode_flags"]',src)
+        self.assertIn('"FC_TYPED_IR_DIAGNOSTICS":"false"',src)
+        self.assertIn('"FC_TYPED_IR_COMPILED_FORK":str(mode=="compiled").lower()',src)
+        self.assertNotIn("base.ledger_gate(client,mode)",src)
         self.assertNotIn("event_cpu_delta(",src)
 
     def test_parse_jfr_json_filters_exact_server_os_thread(self):
