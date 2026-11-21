@@ -51,19 +51,19 @@ EXACT_ORIGINAL_LINE=(
 PIN=PINS["blastback"]["sha256"]
 
 
-def parse_cpu021(text: str, mode: str)->dict:
+def parse_cpu022(text: str, mode: str)->dict:
     rows={}
     started=False
     ended=False
     for line in text.splitlines():
-        if "FC_CPU021_BEGIN mode=" in line:
+        if "FC_CPU022_BEGIN mode=" in line:
             if started:raise ValueError("Multiple IR022 BEGIN markers")
-            started="FC_CPU021_BEGIN mode="+mode in line
-        if "FC_CPU021_END mode=" in line:
+            started="FC_CPU022_BEGIN mode="+mode in line
+        if "FC_CPU022_END mode=" in line:
             if ended:raise ValueError("Multiple IR022 END markers")
-            ended="FC_CPU021_END mode="+mode in line
-        if "FC_CPU021_ROW " in line:
-            body=line.split("FC_CPU021_ROW ",1)[1]
+            ended="FC_CPU022_END mode="+mode in line
+        if "FC_CPU022_ROW " in line:
+            body=line.split("FC_CPU022_ROW ",1)[1]
             data=dict(re.findall(r"(\w+)=(\S+)",body))
             kind=data.get("kind")
             if kind not in STREAMS or kind in rows:
@@ -242,16 +242,16 @@ def run_arm(mode: str)->dict:
             raise AssertionError(
                 f"Original native TNT not observed before CPU window: {actor_probes!r} {spawn!r}")
         tick_before=score(client,"#tick_id","erb.cfg")
-        status=client.command("functioncompiler cpu021-start")
-        if f"FC_CPU021 started mode={mode}" not in status:
+        status=client.command("functioncompiler cpu022-start")
+        if f"FC_CPU022 started mode={mode}" not in status:
             raise AssertionError(f"Native original-clock mode unavailable: {status!r}")
         cpu_before=read_thread_schedstat(minecraft_pid,server_tid)
         throttle_before=cgroup_throttle_count()
         time.sleep(WINDOW_SECONDS)
         cpu_after=read_thread_schedstat(minecraft_pid,server_tid)
         throttle_after=cgroup_throttle_count()
-        status=client.command("functioncompiler cpu021-stop")
-        if f"FC_CPU021 ended mode={mode}" not in status:
+        status=client.command("functioncompiler cpu022-stop")
+        if f"FC_CPU022 ended mode={mode}" not in status:
             raise AssertionError(f"Native original-clock stop unavailable: {status!r}")
         tick_after=score(client,"#tick_id","erb.cfg")
         after={block:block_matches(client,block,*pos) for block,pos in WITNESSES.items()}
@@ -267,9 +267,9 @@ def run_arm(mode: str)->dict:
             cpu_before,cpu_after,throttle_before,throttle_after)
         time.sleep(0.3)
         raw=(output/"server.log").read_text(errors="replace")
-        raw_rows="\n".join(line for line in raw.splitlines() if "FC_CPU021_" in line)
+        raw_rows="\n".join(line for line in raw.splitlines() if "FC_CPU022_" in line)
         (output/"clock-rows.log").write_text(raw_rows+"\n",encoding="utf-8")
-        rows=parse_cpu021(raw_rows,mode)
+        rows=parse_cpu022(raw_rows,mode)
         report["cpu_rows"]=rows
         # Native source and exact-candidate selection must actually run.
         if report["tick_delta"]<100 or rows["selector_find_entire"]["visits"]<50:
