@@ -140,7 +140,7 @@ def fixture(work):
     injected.mkdir(parents=True,exist_ok=True)
     for name in ("ir014_inject_first","ir014_inject_second"):
         (injected/(name+".mcfunction")).write_text(
-            "\\n".join(callbacks.FUNCTIONS[name])+"\\n",encoding="utf-8")
+            "\n".join(callbacks.FUNCTIONS[name])+"\n",encoding="utf-8")
 
 def start(mode):
     process,client,log=BASE_START(mode)
