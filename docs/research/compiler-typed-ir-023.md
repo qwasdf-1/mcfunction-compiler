@@ -1,6 +1,6 @@
 # COMPILER-IR-023 — Tag membership, mutation and filtered-index invalidation
 
-**Status (2026-11-20):** Stage 1 SHA-pinned static source audit ACCEPTED; Stage 2 mapped method inventory ACCEPTED (read-only original-game bytecode). Neither stage establishes native mutation frequency. This document precommits the semantic and measurement gates. No tag-index runtime, selector replacement, changed compiler mode, speedup evidence or production promotion. Existing branch `work/compiler-coverage`; PR #10 remains draft/unmerged. The new source-audit workflow is manual-only.
+**Status (2026-11-20):** Stage 1 SHA-pinned static source audit ACCEPTED, Stage 2 mapped method inventory ACCEPTED, and Stage 3 bounded native mutation-frequency census ACCEPTED across two independent two-JVM CONTROL/PLAIN runs (four Minecraft server boots). Full index invalidation and same-queue tag/selector semantics remain unproven. No index, production promotion or causal CPU speedup. This document precommits the semantic and measurement gates. No tag-index runtime, selector replacement, changed compiler mode, speedup evidence or production promotion. Existing branch `work/compiler-coverage`; PR #10 remains draft/unmerged. The new source-audit workflow is manual-only.
 
 ## Starting evidence and what it does NOT prove
 
@@ -91,6 +91,31 @@ The `Entity.load` callback count **does not mean 3,282 disk/chunk reloads**: ent
 
 Both server CPU totals are **descriptive quality diagnostics only**: they are separate JVMs, not paired identical-work A/B samples, and neither measures removable index work or a speedup. The study establishes that watched-tag membership is mutated repeatedly during real Blastback restoration, although it changes far fewer times than the number of earlier observed type-qualified candidate tests. This favors investigating a narrowly scoped index *only after* complete invalidation and native scheduling semantics are validated.
 
+### Independent native replication — accepted
+
+A second, independently booted two-JVM matrix was [completed successfully under original workflow run #44864099421, attempt 2](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44864099421/attempts/2), archived as [native replication artifact #14690613661](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44864099421/artifacts/14690613661). The new servers independently verify publisher bytes and original source, original tagged TNT and witnesses, native CTRL/PLAIN selector scoping, zero control-only mutation counters, full metric conservation and Linux Server-thread host-quality. Again neither restored world reaches complete template equality, so we assert no world-restoration success and no CPU causality.
+
+| Native original observation | First PLAIN JVM | Independent PLAIN JVM |
+| --- | ---: | ---: |
+| Exact original selector invocations | 1,240 | 1,242 |
+| Native selected source results | 317,320 | 319,343 |
+| Successful `erb.block` adds | **3,278** | **3,278** |
+| Successful `erb.verified` adds | **3,278** | **3,278** |
+| Successful `erb.verified` removes | **27** | **31** |
+| Effective entry into watched-tag eligibility | 3,305 | 3,309 |
+| Effective exit from watched-tag eligibility | 3,278 | 3,278 |
+| Successful watched-tag mutations | **6,583** | **6,587** |
+| Successful watched-tag mutations / selector visit | **5.3089** | **5.3035** |
+| Marker `load` callback returns | 3,282 | 3,282 |
+| Accepted marker storage additions / tracking starts | 3,282 / 3,282 | 3,282 / 3,282 |
+| Tracking starts with currently eligible watched tags | 886 | 1,318 |
+
+The ratio of watched-tag mutations per exact selector visit is consistent in these two bounded original Blastback events; the varying eligible-at-tracking count **warns against treating lifecycle stage populations as fixed**. There were zero no-op watched-tag add/remove attempts in both PLAIN arms and no direct proof that no other Java code modified `Entity.entityTags()` through its exposed mutable set. Reproduction does not remove that coverage gap.
+
+**Decision:** Continue only with event-order/native-visibility semantic fixtures and inspection of all possible backing-set mutation paths. Do not implement a tag index on the assumption that addTag/removeTag or NBT load hooks form a complete invalidation model. An average of ~5.3 mutations per selector call demonstrates low observed relative frequency, not an isolated CPU saving, index maintenance cost, source-order guarantee or permission to change result ordering.
+
+The original native census workflow is now **manual-only** after both accepted attempts. Draft PR #10 remains unmerged; production compiler settings are unchanged. Disabled Mixin hooks may still add overhead, which this experiment has not independently isolated.
+
 ## Stage 4 — exact command-to-command visibility fixtures
 
 Build native 26.3 vanilla-versus-research-disabled and eventual index-on differential tests in separate fresh JVMs:
@@ -109,4 +134,4 @@ Precommit **STOP** when one or more is true: native mutation coverage is incompl
 
 Only after these gates pass could a narrowly allowlisted, opt-in filtered-index prototype be justified. The original selector remains exact fallback. Prove full native parity before **uninstrumented placebo-controlled same-work A/A+A/B** CPU comparison. IR-022's approximately 2.9–4.8% descriptive selector CPU shares are *inclusive*, not a promised improvement. Any future index must preserve Minecraft's world lifecycle, source predicates, ordering and scheduler, without global polling.
 
-**Current disposition:** Stage 1 original-publisher source audit and Stage 2 mapped method inventory accepted, with both workflows archived manual-only. The first two-JVM passive native mutation-frequency experiment has passed; independent replication and mutation-visibility differential fixtures remain open. No index or CPU optimization experiment is admitted.
+**Current disposition:** Stage 1 original-publisher source audit and Stage 2 mapped method inventory accepted, with both workflows archived manual-only. Both independent two-JVM native mutation-frequency experiments have passed; the four native regression suites and mutation-visibility differential fixtures are separate acceptance gates. No index or CPU optimization experiment is admitted. No index or CPU optimization experiment is admitted.
