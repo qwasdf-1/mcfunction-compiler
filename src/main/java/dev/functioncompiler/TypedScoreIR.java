@@ -34,6 +34,10 @@ import java.util.concurrent.atomic.LongAdder;
 public final class TypedScoreIR {
     private static final String MODE = System.getenv("FC_TYPED_IR_MODE");
     private static final String NAMESPACE = System.getenv("FC_TYPED_IR_NAMESPACE");
+    // Optional exact function boundary for original-publisher real-world pilots.
+    // Empty/unset retains the existing namespace-wide typed compiler contract.
+    private static final String FUNCTION_FILTER =
+            System.getenv("FC_TYPED_IR_FUNCTION_FILTER");
     private static final boolean ACTIVE = ("interpreted".equals(MODE) || "bytecode".equals(MODE))
             && NAMESPACE != null && !NAMESPACE.isBlank();
     private static final boolean DIAGNOSTICS =
@@ -78,7 +82,9 @@ public final class TypedScoreIR {
 
     static boolean enabledFor(Identifier id) {
         return ACTIVE && id != null && NAMESPACE.equals(id.getNamespace())
-                && !ProbeConfiguration.isNamespaceExcluded(id.getNamespace());
+                && !ProbeConfiguration.isNamespaceExcluded(id.getNamespace())
+                && (FUNCTION_FILTER == null || FUNCTION_FILTER.isEmpty()
+                    || FUNCTION_FILTER.equals(id.toString()));
     }
 
     /** Abstract scoreboard location; a namespace-local type, not a cached score. */
@@ -246,7 +252,11 @@ public final class TypedScoreIR {
             PlainTextFunction<CommandSourceStack> original
     ) {
         MixedFunctionIR.Program mixed = MixedFunctionIR.lower(original);
-        if (mixed.typedRegionCount() == 0) return original;
+        // IR025 can emit an actual compiled fork with zero neighboring typed
+        // scoreboard regions. Never silently discard it just because the
+        // original IR016 compiler first admitted only typed-score regions.
+        // Plan-only/native-only forks are not sufficient to replace a function.
+        if (mixed.typedRegionCount() == 0 && mixed.compiledForkCount() == 0) return original;
         List<UnboundEntryAction<CommandSourceStack>> entries = mixed.executableEntries();
         List<UnboundEntryAction<CommandSourceStack>> directChunks =
                 TypedScoreIRDirectScheduler.compilationEnabled()
