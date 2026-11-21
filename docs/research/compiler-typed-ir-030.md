@@ -1,6 +1,6 @@
 # COMPILER-IR-030 — Vein Miner coordinate-result-store specialization feasibility
 
-**Status (2026-11-21): SCOPED / NOT EXECUTED.** This is a read-only candidate selection and a pre-implementation decision gate, not a new native benchmark, accepted mapped-code audit, semantic result, or performance claim. Work remains on `work/compiler-coverage`, draft PR #10. The research compiler, IR-025 fork, and new NBT specializations remain disabled by default. Do not merge research instrumentation or promote an optimizer based on this document.
+**Status (2026-11-21): GATE A STATIC INSPECTION ACCEPTED; GATE B ORIGINAL-EVENT JFR EXPERIMENT IN PROGRESS.** No runtime replacement semantics or CPU gain demonstrated. Work remains on `work/compiler-coverage`, draft PR #10. The research compiler, IR-025 fork, and new NBT specializations remain disabled by default. Do not merge research instrumentation or promote an optimizer based on this document.
 
 ## 1. Why change targets after IR-029?
 
@@ -92,3 +92,24 @@ The overall project policy continues to require a material real-workload improve
 - [IR025–029 completed fork, restoration, CPU and JFR follow-ups](compiler-typed-ir-025.md)
 - [IR029 descriptive JFR](compiler-typed-ir-029.md)
 - [Bellows 1.1.3 native data-accessor comparison](bellows-audit.md)
+
+
+## 6. Gate A verification — native command contracts (2026-11-21)
+
+The [original source-order gate #44962242736](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44962242736) passed publisher SHA-256 verification of the exact original Vein Miner ZIP and proved all five non-comment \`vm:queue/append_here\` lines occur in original order at zero-based source indices 0–4, uniquely across the publisher functions. Five source-parser unit tests also passed. This is a source-order proof, **not** an independent parsed Brigadier or gameplay semantic proof.
+
+The [mapped Java25/Minecraft26.3 inspection #44962539874](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44962539874) succeeded with the explicit observed Loom artifact SHA-256 \`cde5273d134d4e1914a563552ab1b3e0e478dc11bb62730b9aedb7c0da2fd042\` (provenance separately recorded in \`source-versions.lock\`). Its method inventory and original javap bytecode text are in the CI artifact, including **both distinct native ExecuteCommand classes** and the nested \`NbtPathArgument$NbtPath\`. Current mapped \`NbtPredicate\` is \`net.minecraft.advancements.predicates.NbtPredicate\`. This derived mapped artifact's SHA is not the official Mojang server SHA.
+
+### Mapped method facts
+
+- \`DataCommands.getSingleTag(path, accessor)\` invokes \`DataAccessor.getData()\` **before** \`NbtPath.get(compound)\`, then rejects multiple matches; missing path nodes throw a command exception. In the unscaled \`DataCommands.getData(source, accessor, path)\`, numeric results are **\`Mth.floor(NumericTag.doubleValue())\`**, not truncating Java casts. It emits its original success feedback with \`sendSuccess(..., false)\`. Non-numeric tags have different result rules; a direct read cannot presume a numeric tag without admission/fallback.
+- \`EntityDataAccessor.getData()\` delegates to \`NbtPredicate.getEntityTagToCompare\`, constructing a \`TagValueOutput\`, invoking \`Entity.saveWithoutId\`, and building a complete \`CompoundTag\`. That is an expensive-looking native snapshot operation, **not yet a measured avoidable CPU fraction**.
+- **Mounted-entity counterexample:** \`Entity.saveWithoutId\` writes ordinary \`Pos\` from \`entity.position()\` if not riding. If the entity has a vehicle, it writes the **vehicle X and Z** with the **passenger Y**. Therefore the tempting replacement \`entity.getX()/getZ()\` is not generally semantically equivalent, independent of any possible modded serialization.
+- \`net.minecraft.server.commands.ExecuteCommand.storeData\` installs a callback using \`CommandSourceStack.withCallback\`. The callback \`lambda$storeData$0\` **independently reads destination NBT**, computes the result-versus-success integer, invokes \`NbtPath.set\`, and then \`DataAccessor.setData\` even when the setter's return count is not used. It catches \`CommandSyntaxException\`. \`EntityDataAccessor.setData\` refuses player destinations, creates \`TagValueInput\`, invokes \`Entity.load\`, restores UUID and calls \`postDataManipulated\`. This mutable state work cannot be bypassed by optimizing the inner getter alone.
+- \`DataGetCommand\` in the current compiler is a wrapper that delegates the original callback. Its legacy outer \`DataStoreParser\` accepts storage destinations, not \`execute store ... entity\`, so it does not compile away this native entity store.
+
+**Gate A decision:** Static native path inspection is accepted. A naïve unguarded coordinate getter is **rejected**. A future bounded specialization would need to preserve native flooring, NBT-path errors, feedback, per-command quota/result callbacks and passenger positioning; decline to native when the source or serialization semantics are not demonstrably identical. Do not merge x/y/z stores or bypass \`Entity.load\` as an untested shortcut.
+
+## 7. Gate B separate attribution (running)
+
+The [original-event JFR workflow](../../.github/workflows/research-typed-ir030-jfr.yml) runs the unchanged SHA-pinned publisher in two independent compiler-off Fabric/Minecraft 26.3 servers, requiring 215 original work units, 1,952 queue steps, host-quality gates and real Server-thread ExecutionSample stacks. It reports **overlapping inclusive** read-command, entity-serialization, outer-store, and full entity-write stack presence; these must never be summed or interpreted as a speedup. The prior CPU005 ~11.15% inclusive inner \`data get\` estimate, already below the project's ≥15% full-event promotion bar, is a warning to measure genuinely removable read cost before building any optimizer. No treatment path or production change is active.
