@@ -1,9 +1,5 @@
 name: COMPILER-IR-025 post-compiled-fork default-off native IR016-019 regression
 on:
-  push:
-    branches: [work/compiler-coverage]
-    paths:
-      - '.github/workflows/research-typed-ir025-regression.yml'
   workflow_dispatch:
 
 permissions:
