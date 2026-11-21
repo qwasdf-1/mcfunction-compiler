@@ -4,6 +4,7 @@ on:
     branches: [work/compiler-coverage]
     paths:
       - '.github/workflows/research-typed-ir024-fork-plan.yml'
+      - 'src/main/java/dev/functioncompiler/CompilerForkPlan024.java'
   workflow_dispatch:
 
 permissions:
