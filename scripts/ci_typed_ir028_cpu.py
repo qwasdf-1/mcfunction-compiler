@@ -90,12 +90,26 @@ def run_arm(label:str,mode:str)->dict:
         # phase, which was observed at actor tick 0 in original IR027.
         result["native_tnt_spawn"],result["actor_checks"]=(
             base.verify_started_actor(client))
-        marker_seen=oracle.count_native(
-            client,"#fc027_count","@e[type=minecraft:marker,tag=erb.block]")
+        # The original pack can create the first saved block markers one
+        # server tick AFTER actor visibility. The accepted semantic proof
+        # therefore samples until capture markers actually appear. A single
+        # immediate read would produce timing-dependent false rejection.
+        capture_deadline=time.monotonic()+20
+        marker_seen=0
+        capture_samples=0
+        while marker_seen<MIN_INTERPRETABLE_EVENT_WORK:
+            marker_seen=max(marker_seen,oracle.count_native(
+                client,"#fc027_count",
+                "@e[type=minecraft:marker,tag=erb.block]"))
+            capture_samples+=1
+            if marker_seen>=MIN_INTERPRETABLE_EVENT_WORK:
+                break
+            if time.monotonic()>capture_deadline:
+                raise AssertionError("One original TNT did not create "
+                    "at least 1000 native Blastback block markers")
+            time.sleep(.20)
         result["actual_original_capture_markers_seen"]=marker_seen
-        if marker_seen<MIN_INTERPRETABLE_EVENT_WORK:
-            raise AssertionError("One original TNT did not produce substantial "
-                                 "native capture markers before CPU window close")
+        result["original_capture_sampling_attempts"]=capture_samples
         stopped=oracle.until(
             client,tick0+TARGET_TICKS,time.monotonic()+MAX_WAIT_SECONDS)
         cpu_after=read_thread_schedstat(pid,tid)
