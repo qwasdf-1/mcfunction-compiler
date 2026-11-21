@@ -232,6 +232,10 @@ final class ProbeCommands {
                         CompilerSelector022Probe.start(context.getSource())))
                 .then(Commands.literal("cpu022-stop").executes(context ->
                         CompilerSelector022Probe.stop(context.getSource())))
+                .then(Commands.literal("cpu023-start").executes(context ->
+                        CompilerTagMutation023Probe.start(context.getSource())))
+                .then(Commands.literal("cpu023-stop").executes(context ->
+                        CompilerTagMutation023Probe.stop(context.getSource())))
                 .then(Commands.literal("macro006-start").executes(context ->
                         CompilerMacroLoadCpuProbe.start(context.getSource())))
                 .then(Commands.literal("macro006-stop").executes(context ->
