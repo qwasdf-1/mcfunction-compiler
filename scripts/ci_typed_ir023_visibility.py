@@ -32,9 +32,11 @@ SELECT="@e[type=minecraft:marker,tag=fc023.fixture,tag=erb.block,tag=!erb.verifi
 ALL="@e[type=minecraft:marker,tag=fc023.fixture]"
 COMMANDS={
     "cycle": [
+        "scoreboard players add #root fc023 1",
         'summon minecraft:marker 0 64 0 {Tags:["fc023.fixture"]}',
         f"execute as {SELECT} run scoreboard players add #c0 fc023 1",
         f"tag {ALL} add erb.block",
+        "scoreboard players add #root fc023 1",
         f"execute as {SELECT} run scoreboard players add #c1 fc023 1",
         f"tag {ALL} add erb.block",
         f"execute as {SELECT} run scoreboard players add #c2 fc023 1",
@@ -99,9 +101,9 @@ COMMANDS["near_limit"]=[
 SCORES=tuple("#"+tag+str(i)
     for tag,upper in (("c",6),("r",5),("s",4))
     for i in range(upper)
-)+("#child0","#child1","#parent0","#parent1","#pick0","#pick1")
+)+("#child0","#child1","#parent0","#parent1","#pick0","#pick1","#root")
 EXPECTED={
-    "cycle":{f"#c{i}":v for i,v in enumerate((0,1,1,0,1,0))},
+    "cycle":{**{f"#c{i}":v for i,v in enumerate((0,1,1,0,1,0))},"#root":2},
     "raw_cycle":{f"#r{i}":v for i,v in enumerate((0,1,0,1,0))},
     "summon_kill":{f"#s{i}":v for i,v in enumerate((0,1,0,0))},
     "near_limit":{"#pick0":11,"#pick1":22},
@@ -215,6 +217,21 @@ def run_arm(mode:str)->dict:
             if "unknown function" in response.lower() or "not found" in response.lower():
                 raise AssertionError(f"Fixture function unavailable: {case} {response!r}")
             observed=snapshot(client)
+            if case=="cycle" and observed.get("#c1")!=1:
+                debug={}
+                for label,selector in (
+                    ("any_marker","@e[type=minecraft:marker]"),
+                    ("fixture",ALL),
+                    ("eligible",SELECT),
+                ):
+                    client.command("scoreboard players set #selector_diag fc023 0")
+                    answer=client.command(f"execute if entity {selector} run "
+                                          "scoreboard players set #selector_diag fc023 1")
+                    debug[label]={"response":answer[:220],
+                                  "found":nullable_score(client,"#selector_diag","fc023")}
+                debug["forceload"]=client.command("forceload query 0 0")[:220]
+                debug["cycle_root"]=observed.get("#root")
+                print("IR023_VISIBILITY_DIAGNOSTIC "+json.dumps(debug,sort_keys=True),flush=True)
             assert_case(case,observed)
             result["snapshots"][case]=observed
             if case=="raw_cycle" and mode=="observer":
