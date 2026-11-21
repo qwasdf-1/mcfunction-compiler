@@ -29,6 +29,8 @@ import java.util.regex.Pattern;
 final class CompilerForkPlan024 {
     private static final boolean ENABLED =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_NATIVE_FORK_PLAN"));
+    private static final java.util.concurrent.atomic.AtomicInteger DEBUG =
+            new java.util.concurrent.atomic.AtomicInteger();
     private static final Pattern SOURCE = Pattern.compile(
             "^execute as (@e\\[[^\\s\\]]+\\]) "
             + "if score @s ([a-zA-Z0-9_.:-]+) = (#[a-zA-Z0-9_.:-]+) ([a-zA-Z0-9_.:-]+) "
@@ -71,7 +73,13 @@ final class CompilerForkPlan024 {
             String source = access.functionCompiler$getCommandInput();
             if (source == null) return null;
             Matcher matcher = SOURCE.matcher(source);
-            if (!matcher.matches()) return null;
+            if (!matcher.matches()) {
+                if (source.startsWith("execute as @e[type=minecraft:marker,")
+                        && DEBUG.getAndIncrement() < 8)
+                    FunctionCompilerMod.LOGGER.info(
+                            "IR024_DIAG shape_rejected source={}", source);
+                return null;
+            }
             // Reject selectors outside the initial measured family, including
             // @a, @s, world-crossing or arbitrary parser suggestions.
             String selectorText = matcher.group(1);
@@ -85,6 +93,14 @@ final class CompilerForkPlan024 {
                     (ContextChainAccessor<CommandSourceStack>) (Object) chain;
             List<CommandContext<CommandSourceStack>> modifiers =
                     stages.functionCompiler$getModifiers();
+            if (DEBUG.getAndIncrement() < 8)
+                FunctionCompilerMod.LOGGER.info(
+                        "IR024_DIAG parsed_modifier_count={} modifier_names={} terminal_names={} source={}",
+                        modifiers.size(),
+                        modifiers.stream().map(ScoreAddPrototype::nodeNames).toList(),
+                        stages.functionCompiler$getExecutable() == null ? "NULL" :
+                            ScoreAddPrototype.nodeNames(stages.functionCompiler$getExecutable()),
+                        source);
             if (modifiers.size() != 2) return null;
             CommandContext<CommandSourceStack> as = modifiers.get(0);
             CommandContext<CommandSourceStack> condition = modifiers.get(1);
