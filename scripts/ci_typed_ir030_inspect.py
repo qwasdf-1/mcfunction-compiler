@@ -41,7 +41,7 @@ FOCUS = re.compile(
     r"CommandSyntaxException|sendSuccess|sendFailure|execute|runCommand",
     re.I,
 )
-HEADER = re.compile(r"^  [^ ].*\([^;]*\);$")
+HEADER = re.compile(r"^  [^ ].*\([^;]*\)(?: throws [^;]+)?;$")
 
 
 def lock_properties(contents: str) -> dict[str, str]:
