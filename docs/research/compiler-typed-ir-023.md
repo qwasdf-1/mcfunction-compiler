@@ -64,6 +64,33 @@ Do **not** use a global log of individual entity IDs, allocate a new object on e
 
 For meaningful economics, report **per original selector scan**: observed eligible size, candidate volume, successful membership changes, lifecycle invalidations, and a conservative upper bound on index update work. Count duplicate attempts separately from effective membership changes. Source tag mutation counts and runtime mutation counts must remain separate quantities.
 
+## Stage 3a — first accepted original native mutation-frequency census
+
+The opt-in IR-023 observer runs only with `FC_CPU023_NAMESPACE=erb`, `FC_CPU023_MODE=control|plain` and explicit bounded `functioncompiler cpu023-start/cpu023-stop` commands. It observes the original mapped `Entity.addTag/removeTag/load/setRemoved` methods and the original `PersistentEntitySectionManager.addEntity/startTracking/stopTracking` methods. The observer does **not** replace or reorder any native method, selector, callback or stored entity, and it retains no entity references. Original selector volume comes from simultaneous IR-022 **CONTROL**, never delegated candidate/predicate wrappers. Both runs use untouched SHA-pinned Blastback Hotfix 3, identical pre-event witness/template checks and a tagged one-TNT event.
+
+**Accepted two-JVM native run [#44864099421](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44864099421)** ([original results artifact](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44864099421/artifacts/14691032944)): Java25/Minecraft26.3 build and all 023 static tests passed; SHA-pinned original publisher verified; two 30-second new-server windows passed original actor, before-state and selector-exposure gates; no missing, invalid or irreconcilable native counts; Linux Server-thread host-quality tests passed. CONTROL counts were zero by design. Post-event template equality is **false in both arms**, consistent with the earlier unresolved Blastback complete-restoration oracle; no full-world restoration or identical-work parity is claimed.
+
+| Exact observation | CONTROL | PLAIN observer |
+| --- | ---: | ---: |
+| Game ticks in bounded window | 588 | 600 |
+| Exact original `execute as` selector visits | 1,245 | **1,240** |
+| Native selected entity sources | 324,546 | **317,320** |
+| Successful add `erb.block` on markers | Unobserved (control) | **3,278** |
+| Successful add `erb.verified` on markers | Unobserved | **3,278** |
+| Successful remove `erb.verified` | Unobserved | **27** |
+| Add/remove unsuccessful/no-op attempts for watched tags | Unobserved | 0 |
+| Observed membership enters (from tag mutation) | Unobserved | **3,305** |
+| Observed membership leaves (from tag mutation) | Unobserved | **3,278** |
+| `Marker` load callback returns | Unobserved | **3,282** |
+| Accepted marker manager additions / visibility tracking starts | Unobserved | **3,282 / 3,282** |
+| Marker removal / tracking end | Unobserved | 1 / 1 |
+
+**Per selector scan:** 6,583 successful watched-tag changes / 1,240 scans = **5.3089 successful tag changes per original selector invocation** in this specific 30-second event. All 6,583 membership transitions reconcile exactly with those successful tag mutations (3,278 block adds + 27 verified removals enter; 3,278 verified adds leave). Mutation rates during the window are not necessarily uniform, and an average **does not** establish the worst-case burst/invalidation cost.
+
+The `Entity.load` callback count **does not mean 3,282 disk/chunk reloads**: entity construction and summon-NBT loading can also reach the native load path. Likewise a tracking event and a tag mutation of the *same entity* are counted in separate channels and must not be added as unique entities. The 317,320 selector sources are not 317,320 distinct marker objects. Direct `entityTags()` mutable-set operations outside the explicit methods remain unobservable. IR-022's separate earlier four-JVM candidate-filter statistics cannot be treated as exact per-candidate counts in this IR-023 control-only selector run.
+
+Both server CPU totals are **descriptive quality diagnostics only**: they are separate JVMs, not paired identical-work A/B samples, and neither measures removable index work or a speedup. The study establishes that watched-tag membership is mutated repeatedly during real Blastback restoration, although it changes far fewer times than the number of earlier observed type-qualified candidate tests. This favors investigating a narrowly scoped index *only after* complete invalidation and native scheduling semantics are validated.
+
 ## Stage 4 — exact command-to-command visibility fixtures
 
 Build native 26.3 vanilla-versus-research-disabled and eventual index-on differential tests in separate fresh JVMs:
@@ -82,4 +109,4 @@ Precommit **STOP** when one or more is true: native mutation coverage is incompl
 
 Only after these gates pass could a narrowly allowlisted, opt-in filtered-index prototype be justified. The original selector remains exact fallback. Prove full native parity before **uninstrumented placebo-controlled same-work A/A+A/B** CPU comparison. IR-022's approximately 2.9–4.8% descriptive selector CPU shares are *inclusive*, not a promised improvement. Any future index must preserve Minecraft's world lifecycle, source predicates, ordering and scheduler, without global polling.
 
-**Current disposition:** Stage 1 original-publisher source audit and Stage 2 mapped method inventory accepted, with both workflows archived manual-only. Lifecycle observer, native mutation-frequency measurements, command-to-command differential fixtures and CPU/index experiments are **not yet completed or accepted**.
+**Current disposition:** Stage 1 original-publisher source audit and Stage 2 mapped method inventory accepted, with both workflows archived manual-only. The first two-JVM passive native mutation-frequency experiment has passed; independent replication and mutation-visibility differential fixtures remain open. No index or CPU optimization experiment is admitted.
