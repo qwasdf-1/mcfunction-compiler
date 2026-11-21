@@ -197,6 +197,8 @@ final class ProbeCommands {
                         CompilerMacroLoadCpuProbe.stop(context.getSource())))
                 .then(Commands.literal("ir008").executes(context ->
                         TypedScoreIR.report(context.getSource())))
+                .then(Commands.literal("ir025").executes(context ->
+                        CompilerForkExecutor025.report(context.getSource())))
                 .then(Commands.literal("ir016")
                         .then(Commands.argument("function", StringArgumentType.greedyString())
                                 .executes(context -> MixedFunctionIR.report(
@@ -257,6 +259,8 @@ final class ProbeCommands {
                         CompilerMacroLoadCpuProbe.stop(context.getSource())))
                 .then(Commands.literal("ir008").executes(context ->
                         TypedScoreIR.report(context.getSource())))
+                .then(Commands.literal("ir025").executes(context ->
+                        CompilerForkExecutor025.report(context.getSource())))
                 .then(Commands.literal("ir016")
                         .then(Commands.argument("function", StringArgumentType.greedyString())
                                 .executes(context -> MixedFunctionIR.report(
