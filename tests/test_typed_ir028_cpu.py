@@ -21,7 +21,7 @@ class IR028Cpu(unittest.TestCase):
                              str(mode=="compiled").lower())
             self.assertEqual(actual["FC_TYPED_IR_DIAGNOSTICS"],"false")
             self.assertEqual(actual["FC_COMPILER_EXEC_CENSUS"],"false")
-            self.assertEqual(actual["FC_TYPED_IR_REENTRANT_SAFE"],"false")
+            self.assertEqual(actual["FC_TYPED_IR_REENTRANT_SAFE"],"true")
             self.assertEqual(actual["FC_TYPED_IR_SCORE_CACHE"],"false")
             self.assertEqual(actual["FC_TYPED_IR_DIRECT_FUNCTION"],"false")
             self.assertEqual(original["FC_TYPED_IR_NATIVE_FORK_PLAN"],"true")
