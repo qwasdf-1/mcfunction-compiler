@@ -1,0 +1,55 @@
+name: COMPILER-IR-029 JFR original Blastback compiled-fork stack attribution
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir029-jfr.yml'
+      - 'scripts/ci_typed_ir029_jfr.py'
+      - 'tests/test_typed_ir029_jfr.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: compiler-ir029-jfr-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  jfr-original-event-profile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build actual opt-in original-publisher backend
+        run: ./gradlew --no-daemon build
+      - name: Validate JFR parser, identical treatment flags and profile-only contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir029_jfr.py' -v
+          python3 -m py_compile scripts/ci_typed_ir029_jfr.py
+      - name: Byte-check unchanged original publisher
+        run: PYTHONPATH=scripts python3 -c 'from ci_typed_ir015_fetch import fetch; print(fetch("blastback"))'
+      - name: Profile original TNT capture and restoration on exact Server-thread JFR stacks
+        timeout-minutes: 30
+        run: python3 scripts/ci_typed_ir029_jfr.py
+      - name: Archive per-arm JFR recordings and complete-world evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir029-original-event-jfr-stacks
+          path: |
+            build/reports/COMPILER-IR-029-JFR/results.json
+            build/reports/COMPILER-IR-029-JFR/A1.json
+            build/reports/COMPILER-IR-029-JFR/B1.json
+            build/reports/COMPILER-IR-029-JFR/B2.json
+            build/reports/COMPILER-IR-029-JFR/A2.json
+            build/reports/COMPILER-IR-029-JFR/A1.jfr
+            build/reports/COMPILER-IR-029-JFR/B1.jfr
+            build/reports/COMPILER-IR-029-JFR/B2.jfr
+            build/reports/COMPILER-IR-029-JFR/A2.jfr
+          retention-days: 21
