@@ -1,11 +1,13 @@
 package dev.functioncompiler;
 
+import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.entity.EntityTypeTest;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
@@ -69,11 +71,14 @@ public final class CompilerSelector022Probe {
     private static final class Scope {
         final Scope parent;
         final boolean activeSelector;
+        final boolean findScope;
+        final ArrayDeque<Boolean> modifierAs = new ArrayDeque<>();
         long findStarted=-1, predicateStarted=-1, gatherStarted=-1, sortStarted=-1;
         int gatherBefore=-1;
-        Scope(Scope parent, boolean activeSelector) {
+        Scope(Scope parent, boolean activeSelector, boolean findScope) {
             this.parent=parent;
             this.activeSelector=activeSelector;
+            this.findScope=findScope;
         }
     }
     private static final ThreadLocal<Scope> CURRENT=new ThreadLocal<>();
@@ -105,31 +110,57 @@ public final class CompilerSelector022Probe {
     /** Marks only the exact original BuildContexts command's synchronous scope. */
     public static void buildStart(String input) {
         if (!CONFIGURED || !ACTIVE || !ORIGINAL.equals(input)) return;
-        CURRENT.set(new Scope(CURRENT.get(),false));
+        CURRENT.set(new Scope(CURRENT.get(),false,false));
     }
     public static void buildEnd(String input) {
         if (!CONFIGURED || !ORIGINAL.equals(input)) return;
         Scope scope=CURRENT.get();
-        if(scope==null || scope.activeSelector) {
+        if(scope==null || scope.findScope || !scope.modifierAs.isEmpty()) {
             if(ACTIVE) STREAMS[FIND].invalid.incrementAndGet();
             return;
         }
         if(scope.parent==null) CURRENT.remove();
         else CURRENT.set(scope.parent);
     }
+    /** Exact Brigadier stage: only execute AS @e is the target selector. */
+    public static void modifierStart(CommandContext<?> context) {
+        Scope scope=CURRENT.get();
+        if(!ACTIVE || scope==null || scope.findScope)return;
+        boolean executeAs=false;
+        for(var node:context.getNodes()) {
+            if("as".equals(node.getNode().getName())) {
+                executeAs=true;
+                break;
+            }
+        }
+        scope.modifierAs.push(executeAs);
+    }
+    public static void modifierEnd() {
+        Scope scope=CURRENT.get();
+        if(!ACTIVE || scope==null || scope.findScope)return;
+        if(scope.modifierAs.isEmpty()) {
+            STREAMS[FIND].invalid.incrementAndGet();
+            return;
+        }
+        scope.modifierAs.pop();
+    }
     public static void findStart() {
         Scope parent=CURRENT.get();
-        if(!ACTIVE || parent==null) return;
-        // A selector query nested inside the tagged original selector remains
-        // uninstrumented; never attribute unrelated child lookups to Blastback.
-        boolean selected=!parent.activeSelector;
-        Scope child=new Scope(parent,selected);
+        if(!ACTIVE || parent==null)return;
+        // Original execute-if-score executes hundreds of thousands of @s
+        // lookups. NONE of those are the target execute-as marker selector.
+        // Only tag the selector invoked under the native AS modifier.
+        boolean nested=parent.findScope;
+        if(!nested && !Boolean.TRUE.equals(parent.modifierAs.peekFirst()))
+            return;
+        boolean selected=!nested;
+        Scope child=new Scope(parent,selected,true);
         CURRENT.set(child);
         if(selected)child.findStarted=begin(FIND);
     }
     public static void findEnd(int count) {
         Scope child=CURRENT.get();
-        if(!ACTIVE || child==null)return;
+        if(!ACTIVE || child==null || !child.findScope)return;
         if(!child.activeSelector) {
             // Nested unrelated selector calls must restore the exact parent
             // scope, even though we deliberately do not time their work.
