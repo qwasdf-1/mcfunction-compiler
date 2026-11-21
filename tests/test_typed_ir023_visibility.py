@@ -21,9 +21,12 @@ class IR023VisibilityContracts(unittest.TestCase):
                          {"#s0":0,"#s1":1,"#s2":0,"#s3":0})
         self.assertEqual(v.EXPECTED["near_limit"],
                          {"#pick0":11,"#pick1":22})
-        self.assertEqual(len(v.COMMANDS["cycle"]),11)
-        self.assertEqual(len(v.COMMANDS["raw_cycle"]),9)
+        self.assertEqual(len(v.COMMANDS["cycle"]),12)
+        self.assertEqual(len(v.COMMANDS["raw_cycle"]),10)
         self.assertIn("function fc_ir023:nested_child",v.COMMANDS["nested_parent"])
+        self.assertTrue(v.COMMANDS["cycle"][0].startswith("summon minecraft:marker"))
+        self.assertTrue(v.COMMANDS["raw_cycle"][0].startswith("summon minecraft:marker"))
+        self.assertTrue(v.COMMANDS["nested_parent"][0].startswith("summon minecraft:marker"))
         self.assertIn("sort=nearest,limit=1",v.ORDERED_SELECT)
         for name,commands in v.COMMANDS.items():
             with self.subTest(name=name):
