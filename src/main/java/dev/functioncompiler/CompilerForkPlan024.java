@@ -29,8 +29,6 @@ import java.util.regex.Pattern;
 final class CompilerForkPlan024 {
     private static final boolean ENABLED =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_NATIVE_FORK_PLAN"));
-    private static final java.util.concurrent.atomic.AtomicInteger DEBUG =
-            new java.util.concurrent.atomic.AtomicInteger();
     private static final Pattern SOURCE = Pattern.compile(
             "^execute as (@e\\[[^\\s\\]]+\\]) "
             + "if score @s ([a-zA-Z0-9_.:-]+) = (#[a-zA-Z0-9_.:-]+) ([a-zA-Z0-9_.:-]+) "
@@ -73,13 +71,7 @@ final class CompilerForkPlan024 {
             String source = access.functionCompiler$getCommandInput();
             if (source == null) return null;
             Matcher matcher = SOURCE.matcher(source);
-            if (!matcher.matches()) {
-                if (source.startsWith("execute as @e[type=minecraft:marker,")
-                        && DEBUG.getAndIncrement() < 8)
-                    FunctionCompilerMod.LOGGER.info(
-                            "IR024_DIAG shape_rejected source={}", source);
-                return null;
-            }
+            if (!matcher.matches()) return null;
             // Reject selectors outside the initial measured family, including
             // @a, @s, world-crossing or arbitrary parser suggestions.
             String selectorText = matcher.group(1);
@@ -93,15 +85,14 @@ final class CompilerForkPlan024 {
                     (ContextChainAccessor<CommandSourceStack>) (Object) chain;
             List<CommandContext<CommandSourceStack>> modifiers =
                     stages.functionCompiler$getModifiers();
-            if (DEBUG.getAndIncrement() < 8)
-                FunctionCompilerMod.LOGGER.info(
-                        "IR024_DIAG parsed_modifier_count={} modifier_names={} terminal_names={} source={}",
-                        modifiers.size(),
-                        modifiers.stream().map(ScoreAddPrototype::nodeNames).toList(),
-                        stages.functionCompiler$getExecutable() == null ? "NULL" :
-                            ScoreAddPrototype.nodeNames(stages.functionCompiler$getExecutable()),
-                        source);
-            if (modifiers.size() != 2) return null;
+            // Mapped native Brigadier parser stages are:
+            // 0 [execute, as, targets]
+            // 1 [if, score, target, targetObjective, =, source, sourceObjective]
+            // 2 [run] -- a real parsed redirect bridge, NOT another condition.
+            // Verified in original Minecraft 26.3 native IR024 diagnostics.
+            if (modifiers.size() != 3
+                    || !ScoreAddPrototype.nodeNames(modifiers.get(2)).equals(List.of("run")))
+                return null;
             CommandContext<CommandSourceStack> as = modifiers.get(0);
             CommandContext<CommandSourceStack> condition = modifiers.get(1);
             CommandContext<CommandSourceStack> terminal =
@@ -110,8 +101,9 @@ final class CompilerForkPlan024 {
             List<String> asNodes = ScoreAddPrototype.nodeNames(as);
             List<String> conditionNodes = ScoreAddPrototype.nodeNames(condition);
             List<String> terminalNodes = ScoreAddPrototype.nodeNames(terminal);
-            if (!asNodes.contains("as") || !asNodes.contains("targets")
-                    || !conditionNodes.contains("if") || !conditionNodes.contains("score")
+            if (!asNodes.equals(List.of("execute", "as", "targets"))
+                    || !conditionNodes.equals(List.of("if", "score", "target",
+                            "targetObjective", "=", "source", "sourceObjective"))
                     || !terminalNodes.contains("scoreboard")
                     || !terminalNodes.contains("players")
                     || !terminalNodes.contains("set")) return null;
