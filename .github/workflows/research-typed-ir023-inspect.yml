@@ -4,6 +4,7 @@ on:
     branches: [work/compiler-coverage]
     paths:
       - '.github/workflows/research-typed-ir023-inspect.yml'
+      - 'scripts/ci_typed_ir023_inspect.py'
   workflow_dispatch:
 
 permissions:
