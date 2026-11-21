@@ -1,6 +1,6 @@
 # COMPILER-IR-023 — Tag membership, mutation and filtered-index invalidation
 
-**Status (2026-11-20):** Stage 1 SOURCE-AUDIT IMPLEMENTED, not yet native-accepted. This document precommits the semantic and measurement gates. No tag-index runtime, selector replacement, changed compiler mode, speedup evidence or production promotion. Existing branch `work/compiler-coverage`; PR #10 remains draft/unmerged. The new source-audit workflow is manual-only.
+**Status (2026-11-20):** Stage 1 SHA-pinned static source audit ACCEPTED; Stage 2 mapped method inventory in progress, not yet native-accepted. This document precommits the semantic and measurement gates. No tag-index runtime, selector replacement, changed compiler mode, speedup evidence or production promotion. Existing branch `work/compiler-coverage`; PR #10 remains draft/unmerged. The new source-audit workflow is manual-only.
 
 ## Starting evidence and what it does NOT prove
 
@@ -16,7 +16,25 @@ About 92% of **type-qualified candidates** failed that entire predicate, but the
 
 `scripts/ci_typed_ir023_source.py` operates on only the unmodified original Blastback Hotfix 3 26.3 publisher ZIP, SHA-256 `8578ad9f277a8d8c1e5a1aba50b3f36f624f009a61beb33441d8c59494597b90`. It fails closed if the exact original selector changes or no longer occupies index 4. It classifies literal sites for watched-tag add/remove, related selector reads, entity NBT edits, `Tags` references, summoning, killing, and unresolved macro commands, with bounded source examples. It must not convert static source occurrences to runtime frequencies or infer entity identity from a textual tag command.
 
-The source report is `build/reports/COMPILER-IR-023-SOURCE/source-audit.json`. A manual-only GitHub workflow can acquire the exact pinned ZIP; publisher bytes are never uploaded as research output. The independent synthetic auditor tests cover pin failures, exact-source drift, tagging, lifecycle paths, NBT ambiguities and the non-optimization flag. Source audit results are not declared accepted until the pinned workflow produces and validates the actual source report.
+The source report is `build/reports/COMPILER-IR-023-SOURCE/source-audit.json`. A manual-only GitHub workflow can acquire the exact pinned ZIP; publisher bytes are never uploaded as research output. The independent synthetic auditor tests cover pin failures, exact-source drift, tagging, lifecycle paths, NBT ambiguities and the non-optimization flag. The pinned source audit and all four synthetic auditor tests passed in [GitHub Actions #44863183534](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44863183534), with original-publisher SHA and index-4 command verified.
+
+### Accepted static results and exact watched-tag writes
+
+The unchanged 9,414,337-byte original publisher ZIP contains **21,318 functions** and **269,141 noncomment command lines**. Exactly one full-line target selector is present. The auditor found **four static watched-tag additions** and **one static watched-tag removal**:
+
+| Function | Source index (0-based) | Exact watched-tag mutation |
+| --- | ---: | --- |
+| `erb:capture/store` | 0 | `tag @s add erb.block` |
+| `erb:capture/store_air` | 0 | `tag @s add erb.block` |
+| `erb:restore/accept_existing` | 0 | `tag @s add erb.verified` |
+| `erb:restore/verify_one` | 7 | `tag @s add erb.verified` |
+| `erb:restore/audit_failed` | 0 | `tag @s remove erb.verified` |
+
+The same source-only classification finds **35,813 tag-add command sites** and **153 tag-remove sites** for *all tag names*, **29 related selector/tag-read lines**, **eight summons**, **40 kill lines**, **23 macro-placeholder commands**, **eight NBT `Tags` references**, and **two entity NBT-write lines**. Those two NBT edit lines modify `data.saved_nbt` and `Age/Invulnerable`, not the tracked `Tags` fields directly. The eight literal `Tags` references are initial marker summon compounds, not observed runtime mutations of existing watched-tag memberships.
+
+**Interpretation:** The original datapack has a very small set of *explicitly written watched-tag source locations*, but this supplies **no bound on their dynamic execution frequency**. In particular, `erb.block` is added as part of capture and `erb.verified` is toggled during restore auditing, so any index would require immediate same-queue visibility, not eventual per-tick refresh. Kills/removals can invalidate references without changing tags. External entities/mods/chunk events remain unmeasured. Counts do not determine tag rejection within the combined predicate.
+
+[Archived source-audit artifact](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44863183534/artifacts/14690897051) includes the bounded exact source examples.
 
 ## Stage 2 — map native 26.3 mutation and index lifecycle boundaries
 
@@ -52,4 +70,4 @@ Precommit **STOP** when one or more is true: native mutation coverage is incompl
 
 Only after these gates pass could a narrowly allowlisted, opt-in filtered-index prototype be justified. The original selector remains exact fallback. Prove full native parity before **uninstrumented placebo-controlled same-work A/A+A/B** CPU comparison. IR-022's approximately 2.9–4.8% descriptive selector CPU shares are *inclusive*, not a promised improvement. Any future index must preserve Minecraft's world lifecycle, source predicates, ordering and scheduler, without global polling.
 
-**Current disposition:** Stage 1 code and synthetic tests prepared; publisher audit run, lifecycle observer, native mutation measurements, differential fixtures and any CPU experiments are **not yet completed or accepted**.
+**Current disposition:** Stage 1 original-publisher source audit accepted; mapped API inventory under validation. Lifecycle observer, native mutation-frequency measurements, command-to-command differential fixtures and CPU/index experiments are **not yet completed or accepted**.
