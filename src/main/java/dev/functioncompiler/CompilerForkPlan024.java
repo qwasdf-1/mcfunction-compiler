@@ -49,7 +49,9 @@ final class CompilerForkPlan024 {
             String comparisonObjective,
             String mutationHolder,
             String mutationObjective,
-            int mutationValue
+            int mutationValue,
+            String commandInput,
+            CommandContext<CommandSourceStack> terminalContext
     ) {
         Plan {
             Objects.requireNonNull(nativeSelector);
@@ -59,6 +61,8 @@ final class CompilerForkPlan024 {
             Objects.requireNonNull(comparisonObjective);
             Objects.requireNonNull(mutationHolder);
             Objects.requireNonNull(mutationObjective);
+            Objects.requireNonNull(commandInput);
+            Objects.requireNonNull(terminalContext);
         }
     }
 
@@ -106,14 +110,35 @@ final class CompilerForkPlan024 {
                             "targetObjective", "=", "source", "sourceObjective"))
                     || !terminalNodes.contains("scoreboard")
                     || !terminalNodes.contains("players")
-                    || !terminalNodes.contains("set")) return null;
+                    || !terminalNodes.contains("set")
+                    || as.getRedirectModifier() == null
+                    || condition.getRedirectModifier() == null
+                    || !as.isForked()
+                    || terminal.getCommand() == null) return null;
+            // Validate source-shaped operand identities AGAINST already parsed
+            // node ranges; the regex is never used to instantiate a selector
+            // or invent a command argument.
+            if (!selectorText.equals(ScoreAddPrototype.extractNodeText(as, "targets"))
+                    || !"@s".equals(ScoreAddPrototype.extractNodeText(condition, "target"))
+                    || !matcher.group(2).equals(ScoreAddPrototype.extractNodeText(
+                            condition, "targetObjective"))
+                    || !matcher.group(3).equals(ScoreAddPrototype.extractNodeText(
+                            condition, "source"))
+                    || !matcher.group(4).equals(ScoreAddPrototype.extractNodeText(
+                            condition, "sourceObjective"))
+                    || !matcher.group(5).equals(ScoreAddPrototype.extractNodeText(
+                            terminal, "targets"))
+                    || !matcher.group(6).equals(ScoreAddPrototype.extractNodeText(
+                            terminal, "objective"))
+                    || !matcher.group(7).equals(ScoreAddPrototype.extractNodeText(
+                            terminal, "score"))) return null;
             // This is the native parser's EntitySelector object, with all
             // world permission, feature, filtering, sorting and limit logic.
             EntitySelector selector = as.getArgument("targets", EntitySelector.class);
             int value = Integer.parseInt(matcher.group(7));
             return new Plan(selector, selectorText, matcher.group(2),
                     matcher.group(3), matcher.group(4), matcher.group(5),
-                    matcher.group(6), value);
+                    matcher.group(6), value, source, terminal);
         } catch (ClassCastException | IllegalArgumentException | NullPointerException e) {
             return null;
         }
