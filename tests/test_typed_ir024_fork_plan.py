@@ -18,7 +18,8 @@ class IR024CompilerPlanContracts(unittest.TestCase):
             "ContextChainAccessor<CommandSourceStack>",
             "stages.functionCompiler$getModifiers()",
             'as.getArgument("targets", EntitySelector.class)',
-            "if (modifiers.size() != 2) return null",
+            "if (modifiers.size() != 3",
+            'ScoreAddPrototype.nodeNames(modifiers.get(2)).equals(List.of("run"))',
             "terminalNodes.contains(\"set\")",
             "if (!ENABLED", "original instanceof BuildContexts.Unbound<?>",
         ):
