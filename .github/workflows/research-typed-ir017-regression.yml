@@ -1,0 +1,51 @@
+name: COMPILER-IR-017 native post-language-expansion regressions
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir017-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-legacy-queue-and-mixed-ir:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build compiler and validate all old/new IR contracts
+        run: |
+          ./gradlew --no-daemon build
+          python3 -m unittest discover -s tests -p 'test_typed_ir009.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir013.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir014.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir015_native.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir016.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir017.py' -v
+      - name: Repeat IR-014 nested-callback and objective recreation parity in four native JVMs
+        timeout-minutes: 29
+        run: python3 scripts/ci_typed_ir014.py
+      - name: Repeat IR-016 mixed command barriers and low-quota parity in four native JVMs
+        timeout-minutes: 26
+        run: python3 scripts/ci_typed_ir016.py
+      - name: Archive full native state, quota and command feedback records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir017-native-regression
+          path: |
+            build/reports/COMPILER-IR-014/
+            build/reports/COMPILER-IR-016/
+          if-no-files-found: warn
+          retention-days: 21

@@ -1,0 +1,38 @@
+name: COMPILER-IR-021 original Minecraft 26.3 selector-method inspection
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir021-internals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  precise-mapped-methods:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build pinned Mojang 26.3 mapped Java 25 project
+        run: ./gradlew --no-daemon compileJava
+      - name: Inspect original scheduler and selector method boundaries
+        run: python3 scripts/ci_typed_ir021_inspect.py
+      - name: Archive bytecode inspection reports (research artifact only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir021-original-26_3-method-inspection
+          path: build/reports/COMPILER-IR-021-INSPECTION/
+          if-no-files-found: warn
+          retention-days: 14

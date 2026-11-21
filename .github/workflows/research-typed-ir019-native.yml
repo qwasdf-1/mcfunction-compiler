@@ -1,0 +1,43 @@
+name: COMPILER-IR-019 passive native child-function dispatch census
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir019-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  original-function-call-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build actual Minecraft 26.3 typed JVM compiler
+        run: ./gradlew --no-daemon build
+      - name: Validate census safety and original mcfunction source fixtures
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir019.py' -v
+          python3 -m py_compile scripts/ci_typed_ir019_native.py
+      - name: Compare native, transparent census and old typed ASM under eleven quotas
+        timeout-minutes: 39
+        run: python3 scripts/ci_typed_ir019_native.py
+      - name: Archive per-site entry reaches, original native callee tasks and states
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir019-native-dispatch-census
+          path: build/reports/COMPILER-IR-019-NATIVE/
+          if-no-files-found: warn
+          retention-days: 21

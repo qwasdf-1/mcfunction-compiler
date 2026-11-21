@@ -1,0 +1,49 @@
+name: COMPILER-IR-015 real Vein Miner player-event activation and parity
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir015-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-veinminer-native-semantic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build Minecraft 26.3 compiler and pinned runtime protocol
+        run: ./gradlew --no-daemon build
+      - name: Validate event options, source pin, and diagnostic boundary
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir015_native.py' -v
+          python3 -m py_compile scripts/run_veinminer_profile.py scripts/ci_typed_ir015_native.py
+      - name: Fetch only original SHA-verified Vein Miner pack
+        run: |
+          PYTHONPATH=scripts python3 -c "from ci_typed_ir015_fetch import fetch; print(fetch('veinminer'))"
+      - name: Run two original 215-block Minecraft player events, check semantic parity and runtime IR execution
+        timeout-minutes: 35
+        run: python3 scripts/ci_typed_ir015_native.py
+      - name: Preserve complete native observations and server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir015-real-veinminer-native
+          path: |
+            build/reports/COMPILER-IR-015-NATIVE/
+            build/benchmarks/PERF-011-veinminer/vein-6-fabric-wrapper*/*.json
+            build/benchmarks/PERF-011-veinminer/vein-6-fabric-wrapper*/*.log
+          if-no-files-found: warn
+          retention-days: 21

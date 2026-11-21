@@ -67,28 +67,63 @@ public final class ScoreAddPrototype {
         } catch (ClassCastException exception) {
             return;
         }
+        // IR-only mode is intentionally narrower than ScoreAddPrototype's
+        // legacy parser. The legacy parser mutates Brigadier contexts while
+        // rewriting "execute" chains; if TypedScoreIR subsequently rejects
+        // the command, the saved fallback can reference the mutated wrapper
+        // recursively (observed on real Vein Miner 5.3.0 at startup).
+        //
+        // Before *any* parser mutation, leave every unsupported source shape
+        // on its original BuildContexts/vanilla scheduler path. This is
+        // admission control, NOT text parsing: accepted candidates still
+        // pass the ordinary Brigadier and typed-IR argument verification.
+        boolean typedOnly = TypedScoreIR.enabledFor(functionId)
+                && !ProbeConfiguration.scoreAddPrototypeEnabled()
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled();
+        if (typedOnly) {
+            String input = ((BuildContextsAccessor<CommandSourceStack>) buildContexts)
+                    .functionCompiler$getCommandInput();
+            boolean acceptedShape = chain.getStage() == ContextChain.Stage.EXECUTE
+                    ? ScoreAddCommand.typedIrLiteralSourceShape(input)
+                            || ScoreOperationCommand.typedIrLiteralSourceShape(input)
+                    : ScoreConditionCommand.typedIrLiteralGuardShape(input);
+            if (!acceptedShape) return;
+        }
+
         if (chain.getStage() != ContextChain.Stage.EXECUTE) {
             compileChainedModifiers(buildContexts, chain, functionId);
             return;
         }
 
         CommandContext<CommandSourceStack> context = chain.getTopContext();
-        if (compileScoreAdd(context, functionId)) {
-            return;
+        boolean audit = CompilerAcceptanceAudit.enabledFor(functionId);
+        Command<CommandSourceStack> before = audit ? context.getCommand() : null;
+        try {
+            if (compileScoreAdd(context, functionId)) {
+                return;
+            }
+            if (compileScoreOperation(context, functionId)) {
+                return;
+            }
+            if (compileScoreReset(context, functionId)) {
+                return;
+            }
+            if (DataStorageParser.compile(context, functionId)) {
+                return;
+            }
+            if (StateMachineParser.compile(context, functionId)) {
+                return;
+            }
+            LeafFunctionParser.compile(context, functionId);
+        } finally {
+            if (audit) {
+                CompilerAcceptanceAudit.record(functionId,
+                        context.getCommand() == before ? "bare_declined" : "bare_terminal_installed",
+                        context.getInput());
+            }
         }
-        if (compileScoreOperation(context, functionId)) {
-            return;
-        }
-        if (compileScoreReset(context, functionId)) {
-            return;
-        }
-        if (DataStorageParser.compile(context, functionId)) {
-            return;
-        }
-        if (StateMachineParser.compile(context, functionId)) {
-            return;
-        }
-        LeafFunctionParser.compile(context, functionId);
     }
 
     @SuppressWarnings("unchecked")
@@ -109,20 +144,69 @@ public final class ScoreAddPrototype {
         CommandContext<CommandSourceStack> executable =
                 chainAccessor.functionCompiler$getExecutable();
         if (modifiers == null || modifiers.isEmpty() || executable == null) {
+            CompilerAcceptanceAudit.record(functionId, "chain_missing_parts",
+                    chain.getTopContext().getInput());
             return;
         }
 
+        // Snapshot the real Brigadier terminal BEFORE a prototype replaces
+        // the live parsed callback. For typed-only guarded commands, the
+        // original parsed fallback must not share the mutated executable
+        // context: that would recursively call ScoreConditionCommand again
+        // when @s (or a runtime objective) is unavailable.
+        Command<CommandSourceStack> originalExecutableCommand = executable.getCommand();
         if (!compileExecutable(executable, functionId)) {
+            CompilerAcceptanceAudit.record(functionId, "chain_executable_declined",
+                    chain.getTopContext().getInput());
             return;
         }
 
-        List<Object> parsedModifiers = parseModifiers(modifiers);
+        // Correct the historical literal target-node lookup only when the
+        // *whole* source line has the exact IR-009 guard/terminal shape.
+        // Unsupported modifiers must stay on their existing vanilla path.
+        boolean typedLiteralGuard = TypedScoreIR.enabledFor(functionId)
+                && ScoreConditionCommand.typedIrLiteralGuardShape(
+                        ((BuildContextsAccessor<CommandSourceStack>) buildContexts)
+                                .functionCompiler$getCommandInput());
+        List<Object> parsedModifiers = parseModifiers(modifiers, typedLiteralGuard);
         if (parsedModifiers == null) {
+            // The terminal callback may have been replaced already even though
+            // vanilla must continue to interpret the surrounding modifiers.
+            CompilerAcceptanceAudit.record(functionId, "chain_terminal_only",
+                    chain.getTopContext().getInput());
             return;
         }
 
+        ContextChain<CommandSourceStack> nativeFallback = chain;
+        boolean typedOnly = TypedScoreIR.enabledFor(functionId)
+                && !ProbeConfiguration.scoreAddPrototypeEnabled()
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled();
+        if (typedOnly && typedLiteralGuard) {
+            // Brigadier CommandContext is mutable through our mixin. Clone
+            // ONLY the terminal with its original vanilla callback, leaving
+            // modifier contexts and their parsed selector/range arguments
+            // untouched. This is the genuine original command for error and
+            // objective-lifecycle fallback, not a reparse or emulation.
+            CommandContext<CommandSourceStack> originalExecutable =
+                    new CommandContext<>(
+                            executable.getSource(),
+                            executable.getInput(),
+                            ((CommandContextAccessor<CommandSourceStack>) (Object) executable)
+                                    .functionCompiler$getArguments(),
+                            originalExecutableCommand,
+                            executable.getRootNode(),
+                            executable.getNodes(),
+                            executable.getRange(),
+                            executable.getChild(),
+                            executable.getRedirectModifier(),
+                            executable.isForked()
+                    );
+            nativeFallback = new ContextChain<>(List.copyOf(modifiers), originalExecutable);
+        }
         Command<CommandSourceStack> wrapped = wrapModifiers(
-                chain, parsedModifiers, executable.getCommand(), functionId
+                nativeFallback, parsedModifiers, executable.getCommand(), functionId
         );
 
         CommandContextAccessor<CommandSourceStack> execAccessor =
@@ -135,6 +219,8 @@ public final class ScoreAddPrototype {
                 new ContextChain<>(List.of(), executable)
         );
         ProbeMetrics.scoreAddCompiled(functionId);
+        CompilerAcceptanceAudit.record(functionId, "chain_fully_lowered",
+                chain.getTopContext().getInput());
     }
 
     @FunctionalInterface
@@ -172,7 +258,10 @@ public final class ScoreAddPrototype {
         return false;
     }
 
-    private static List<Object> parseModifiers(List<CommandContext<CommandSourceStack>> modifiers) {
+    private static List<Object> parseModifiers(
+            List<CommandContext<CommandSourceStack>> modifiers,
+            boolean typedLiteralGuard
+    ) {
         List<Object> result = new ArrayList<>();
         for (CommandContext<CommandSourceStack> mod : modifiers) {
             // 26.3 measured chain shape: the `run` literal redirects to the
@@ -189,7 +278,7 @@ public final class ScoreAddPrototype {
             if (nodeNames(mod).equals(List.of("run"))) {
                 continue;
             }
-            Object parsed = parseSingleModifier(mod);
+            Object parsed = parseSingleModifier(mod, typedLiteralGuard);
             if (parsed == null) {
                 return null;
             }
@@ -213,7 +302,16 @@ public final class ScoreAddPrototype {
             ScoreAddPrototype::parseContextModifier
     );
 
-    private static Object parseSingleModifier(CommandContext<CommandSourceStack> mod) {
+    private static Object parseSingleModifier(
+            CommandContext<CommandSourceStack> mod, boolean typedLiteralGuard
+    ) {
+        // Only IR-009's exact literal guard shape is allowed to correct the
+        // historical target/targets lookup, preventing an otherwise declined
+        // nonliteral / ranged condition from being silently rewritten.
+        if (typedLiteralGuard) {
+            Object guarded = parseScoreCondition(mod, true);
+            if (guarded != null) return guarded;
+        }
         for (SingleModifierParser parser : MODIFIER_PARSERS) {
             Object parsed = parser.parse(mod);
             if (parsed != null) {
@@ -413,6 +511,12 @@ public final class ScoreAddPrototype {
     private static ParsedCondition parseScoreCondition(
             CommandContext<CommandSourceStack> context
     ) {
+        return parseScoreCondition(context, false);
+    }
+
+    private static ParsedCondition parseScoreCondition(
+            CommandContext<CommandSourceStack> context, boolean typedIrTargetFix
+    ) {
         List<String> names = nodeNames(context);
         if (names.size() < 7
                 || !"execute".equals(names.get(0))
@@ -436,7 +540,8 @@ public final class ScoreAddPrototype {
         boolean isTargetSelf = "@s".equals(targetText);
         ScoreHolder targetHolder = isTargetSelf
                 ? null
-                : resolveStaticHolder(targetResult, context.getSource(), extractNodeText(context, "targets"));
+                : resolveStaticHolder(targetResult, context.getSource(),
+                        typedIrTargetFix ? targetText : extractNodeText(context, "targets"));
         if (!isTargetSelf && targetHolder == null) {
             return null;
         }

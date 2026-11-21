@@ -22,6 +22,28 @@ final class ProbeCommands {
     }
 
     static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        // IR-011: research-only same-JVM singleton response A/B control.
+        // Both arms execute the exact same emitted instructions and
+        // scoreboard writes; only one-result bookkeeping differs.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SINGLETON_FEEDBACK"))
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SINGLETON_FEEDBACK_TOGGLE"))) {
+            dispatcher.register(Commands.literal("fc_ir011_feedback")
+                    .then(Commands.literal("on").executes(context ->
+                            TypedScoreIR.toggleSingletonFeedback(context.getSource(), true)))
+                    .then(Commands.literal("off").executes(context ->
+                            TypedScoreIR.toggleSingletonFeedback(context.getSource(), false))));
+        }
+        // IR-010 research-only A/B switch. Both arms use identical compiled
+        // bytecode in one native Minecraft JVM; only guarded source-value
+        // reuse differs. Command does not exist in normal installations.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SCORE_CACHE_TOGGLE"))
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SCORE_CACHE"))) {
+            dispatcher.register(Commands.literal("fc_ir010_cache")
+                    .then(Commands.literal("on").executes(context ->
+                            TypedScoreIR.toggleCache(context.getSource(), true)))
+                    .then(Commands.literal("off").executes(context ->
+                            TypedScoreIR.toggleCache(context.getSource(), false))));
+        }
         // CI-only scheduler-cost experiment. Never register these commands in
         // ordinary installations; the optional leaf increments a server-thread
         // local counter so the research harness can prove exact work completion.
@@ -50,10 +72,138 @@ final class ProbeCommands {
                                     StringArgumentType.getString(context, "function")
                             ))));
         }
+        // IR-012 separate research-only call-site harness; queues with an
+        // empty result callback like the tick scheduler, not public /function.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIRECT_FUNCTION_HARNESS"))
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIRECT_FUNCTION"))) {
+            dispatcher.register(Commands.literal("fc_ir012_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")
+                            ))));
+            dispatcher.register(Commands.literal("fc_ir012_direct")
+                    .then(Commands.literal("on").executes(context ->
+                            dev.functioncompiler.TypedScoreIRDirectScheduler.toggle(
+                                    context.getSource(), true)))
+                    .then(Commands.literal("off").executes(context ->
+                            dev.functioncompiler.TypedScoreIRDirectScheduler.toggle(
+                                    context.getSource(), false))));
+        }
+
+        // IR-023: research-only direct mutable Tag Set fixture. Without this
+        // explicit flag the commands do not exist. Marker-only and fixture-
+        // tag-only so the experiment cannot mutate unrelated entities.
+        if (Boolean.parseBoolean(System.getenv("FC_IR023_VISIBILITY_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir023_raw_tag")
+                    .then(Commands.literal("add_block").executes(ctx ->
+                            CompilerTagVisibility023Harness.mutate(ctx.getSource(), "erb.block", true)))
+                    .then(Commands.literal("remove_block").executes(ctx ->
+                            CompilerTagVisibility023Harness.mutate(ctx.getSource(), "erb.block", false)))
+                    .then(Commands.literal("add_verified").executes(ctx ->
+                            CompilerTagVisibility023Harness.mutate(ctx.getSource(), "erb.verified", true)))
+                    .then(Commands.literal("remove_verified").executes(ctx ->
+                            CompilerTagVisibility023Harness.mutate(ctx.getSource(), "erb.verified", false))));
+        }
+
+        // IR-019: strictly namespaced fixture call; all actual child
+        // scheduling remains Minecraft's own CallFunction execution.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DISPATCH_TEST_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir019_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")))));
+        }
+        // IR-018: entity-bound @s invocation via native execute-as source.
+        // Guarded fixture namespace/name only; unavailable in production.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SELF_TEST_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir018_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")))));
+        }
+        // IR-017: bounded original-function native range-guard fixture,
+        // separate from any public function invocation or production API.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_RANGE_TEST_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir017_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")))));
+        }
+        // IR-016: dedicated test-only, no-result function entrypoint.
+        // It never exists in a normal mod installation.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_MIXED_TEST_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir016_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")))));
+        }
+        // IR-013 adversarial native test: queue a function from a synchronous
+        // scoreboard callback. No command exists in normal installations.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_REENTRANT_TEST_OBSERVER"))) {
+            dispatcher.register(Commands.literal("fc_ir013_call")
+                    .then(Commands.argument("function", StringArgumentType.greedyString())
+                            .executes(context -> researchQueueFunction(
+                                    context.getSource(),
+                                    StringArgumentType.getString(context, "function")
+                            ))));
+            dispatcher.register(Commands.literal("fc_ir013_status").executes(context -> {
+                context.getSource().sendSuccess(
+                        () -> Component.literal("IR013" + ReentrantQueueProbe.diagnostics()), false);
+                return 1;
+            }));
+        }
 
         dispatcher.register(Commands.literal("function_compiler_probe")
                 .then(Commands.literal("status").executes(context -> ProbeStatus.status(context.getSource())))
                 .then(Commands.literal("metrics").executes(context -> ProbeStatus.metrics(context.getSource())))
+                .then(Commands.literal("acceptance").executes(context ->
+                        CompilerAcceptanceAudit.report(context.getSource())))
+                .then(Commands.literal("exec-census-start").executes(context ->
+                        CompilerExecutionCensus.begin(context.getSource())))
+                .then(Commands.literal("exec-census-stop").executes(context ->
+                        CompilerExecutionCensus.finish(context.getSource())))
+                .then(Commands.literal("cpu004-start").executes(context ->
+                        CompilerPositionedCpuProbe.start(context.getSource())))
+                .then(Commands.literal("cpu004-stop").executes(context ->
+                        CompilerPositionedCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu005-start").executes(context ->
+                        CompilerQueueCpuProbe.start(context.getSource())))
+                .then(Commands.literal("cpu005-stop").executes(context ->
+                        CompilerQueueCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu020-start").executes(context ->
+                        CompilerRestoreCpuProbe.start(context.getSource())))
+                .then(Commands.literal("cpu020-stop").executes(context ->
+                        CompilerRestoreCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu021-start").executes(context ->
+                        CompilerForkBreakdownProbe.start(context.getSource())))
+                .then(Commands.literal("cpu021-stop").executes(context ->
+                        CompilerForkBreakdownProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu022-start").executes(context ->
+                        CompilerSelector022Probe.start(context.getSource())))
+                .then(Commands.literal("cpu022-stop").executes(context ->
+                        CompilerSelector022Probe.stop(context.getSource())))
+                .then(Commands.literal("cpu023-start").executes(context ->
+                        CompilerTagMutation023Probe.start(context.getSource())))
+                .then(Commands.literal("cpu023-stop").executes(context ->
+                        CompilerTagMutation023Probe.stop(context.getSource())))
+                .then(Commands.literal("macro006-start").executes(context ->
+                        CompilerMacroLoadCpuProbe.start(context.getSource())))
+                .then(Commands.literal("macro006-stop").executes(context ->
+                        CompilerMacroLoadCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("ir008").executes(context ->
+                        TypedScoreIR.report(context.getSource())))
+                .then(Commands.literal("ir025").executes(context ->
+                        CompilerForkExecutor025.report(context.getSource())))
+                .then(Commands.literal("ir016")
+                        .then(Commands.argument("function", StringArgumentType.greedyString())
+                                .executes(context -> MixedFunctionIR.report(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "function")))))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
@@ -73,6 +223,49 @@ final class ProbeCommands {
         dispatcher.register(Commands.literal("functioncompiler")
                 .then(Commands.literal("status").executes(context -> ProbeStatus.status(context.getSource())))
                 .then(Commands.literal("metrics").executes(context -> ProbeStatus.metrics(context.getSource())))
+                .then(Commands.literal("acceptance").executes(context ->
+                        CompilerAcceptanceAudit.report(context.getSource())))
+                .then(Commands.literal("exec-census-start").executes(context ->
+                        CompilerExecutionCensus.begin(context.getSource())))
+                .then(Commands.literal("exec-census-stop").executes(context ->
+                        CompilerExecutionCensus.finish(context.getSource())))
+                .then(Commands.literal("cpu004-start").executes(context ->
+                        CompilerPositionedCpuProbe.start(context.getSource())))
+                .then(Commands.literal("cpu004-stop").executes(context ->
+                        CompilerPositionedCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu005-start").executes(context ->
+                        CompilerQueueCpuProbe.start(context.getSource())))
+                .then(Commands.literal("cpu005-stop").executes(context ->
+                        CompilerQueueCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu020-start").executes(context ->
+                        CompilerRestoreCpuProbe.start(context.getSource())))
+                .then(Commands.literal("cpu020-stop").executes(context ->
+                        CompilerRestoreCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu021-start").executes(context ->
+                        CompilerForkBreakdownProbe.start(context.getSource())))
+                .then(Commands.literal("cpu021-stop").executes(context ->
+                        CompilerForkBreakdownProbe.stop(context.getSource())))
+                .then(Commands.literal("cpu022-start").executes(context ->
+                        CompilerSelector022Probe.start(context.getSource())))
+                .then(Commands.literal("cpu022-stop").executes(context ->
+                        CompilerSelector022Probe.stop(context.getSource())))
+                .then(Commands.literal("cpu023-start").executes(context ->
+                        CompilerTagMutation023Probe.start(context.getSource())))
+                .then(Commands.literal("cpu023-stop").executes(context ->
+                        CompilerTagMutation023Probe.stop(context.getSource())))
+                .then(Commands.literal("macro006-start").executes(context ->
+                        CompilerMacroLoadCpuProbe.start(context.getSource())))
+                .then(Commands.literal("macro006-stop").executes(context ->
+                        CompilerMacroLoadCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("ir008").executes(context ->
+                        TypedScoreIR.report(context.getSource())))
+                .then(Commands.literal("ir025").executes(context ->
+                        CompilerForkExecutor025.report(context.getSource())))
+                .then(Commands.literal("ir016")
+                        .then(Commands.argument("function", StringArgumentType.greedyString())
+                                .executes(context -> MixedFunctionIR.report(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "function")))))
                 .then(Commands.literal("reload").executes(context -> ProbeStatus.reloadConfig(context.getSource())))
                 .then(Commands.literal("collect").executes(context -> ProbeStatus.collect(context.getSource())))
                 .then(Commands.literal("stats")
@@ -158,10 +351,38 @@ final class ProbeCommands {
      */
     private static int researchQueueFunction(CommandSourceStack source, String name) {
         Identifier id = Identifier.tryParse(name);
-        if (id == null
-                || !(id.getNamespace().equals("fc_arch_fused")
-                     || id.getNamespace().equals("fc_arch_direct"))
-                || !id.getPath().matches("score(_null)?_[0-9]+")) {
+        boolean previousArchFixture = id != null
+                && (id.getNamespace().equals("fc_arch_fused")
+                        || id.getNamespace().equals("fc_arch_direct"))
+                && id.getPath().matches("score(_null)?_[0-9]+");
+        boolean typedIrFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIRECT_FUNCTION_HARNESS"))
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIRECT_FUNCTION"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir012_[a-z0-9_]+");
+        boolean reentrantFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_REENTRANT_TEST_OBSERVER"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir01[34]_[a-z0-9_]+");
+        boolean mixedFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_MIXED_TEST_HARNESS"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir016_[a-z0-9_]+");
+        boolean rangeFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_RANGE_TEST_HARNESS"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir017_[a-z0-9_]+");
+        boolean selfFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SELF_TEST_HARNESS"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir018_[a-z0-9_]+");
+        boolean dispatchFixture = id != null
+                && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DISPATCH_TEST_HARNESS"))
+                && id.getNamespace().equals("fc_ir")
+                && id.getPath().matches("ir019_[a-z0-9_]+");
+        if (!previousArchFixture && !typedIrFixture && !reentrantFixture
+                && !mixedFixture && !rangeFixture && !selfFixture
+                && !dispatchFixture) {
             source.sendFailure(Component.literal("FC_ARCH invalid or disallowed function " + name));
             return 0;
         }

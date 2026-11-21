@@ -1,0 +1,46 @@
+name: COMPILER-IR-011 singleton scoreboard feedback lowering
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir011-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Compile exact Minecraft 26.3 Fabric mod
+        run: ./gradlew --no-daemon build
+      - name: Verify the singleton-result compiler and test contract
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir011.py' -v
+          python3 -m py_compile scripts/ci_typed_ir011.py
+      - name: Four real Minecraft JVM semantic arms
+        timeout-minutes: 21
+        run: python3 scripts/ci_typed_ir011.py --phase semantic
+      - name: Two same-JVM feedback on/off CPU crossover runs and A/A
+        timeout-minutes: 21
+        run: python3 scripts/ci_typed_ir011.py --phase crossover
+      - name: Archive every real Minecraft observation and CPU window
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir011-singleton-response-native-acceptance
+          path: build/reports/COMPILER-IR-011/
+          retention-days: 21
+          if-no-files-found: warn

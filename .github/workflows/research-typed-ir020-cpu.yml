@@ -1,0 +1,46 @@
+name: COMPILER-IR-020 original Blastback selector-fork CPU method clock screen
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir020-cpu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  original-publisher-native-cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 44
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build Minecraft 26.3 Fabric compiler and native research hooks
+        run: ./gradlew --no-daemon build
+      - name: Verify native CPU study and source contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir020_cpu.py' -v
+          python3 -m py_compile scripts/ci_typed_ir020_cpu.py
+      - name: Fetch untouched exact SHA-256 publisher Blastback ZIP
+        run: |
+          PYTHONPATH=scripts python3 -c "from ci_typed_ir015_fetch import fetch; print(fetch('blastback'))"
+      - name: Run 3 original native PLAIN EMPTY TIMED event-window CPU arms
+        timeout-minutes: 36
+        run: python3 scripts/ci_typed_ir020_cpu.py
+      - name: Preserve exact CPU clock samples, original world and host state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir020-original-blastback-cpu-samples
+          path: build/reports/COMPILER-IR-020-CPU/
+          if-no-files-found: warn
+          retention-days: 21

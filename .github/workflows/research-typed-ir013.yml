@@ -1,0 +1,49 @@
+name: COMPILER-IR-013 reentrant queue interleaving parity
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir013-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-reentrant-queue-semantics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build exact Minecraft 26.3 Fabric mod / Java 25
+        run: ./gradlew --no-daemon build
+      - name: Verify bounded queue interleaving contracts and fixture
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir013.py' -v
+          python3 -m py_compile scripts/ci_typed_ir013.py
+          python3 -m py_compile scripts/ci_typed_ir013_cpu.py
+      - name: Six real Minecraft JVMs with synchronous queue callback, low quotas and unsafe negative controls
+        timeout-minutes: 32
+        run: python3 scripts/ci_typed_ir013.py
+      - name: Guarded no-reentrancy same-JVM direct scheduling CPU screen
+        timeout-minutes: 14
+        run: python3 scripts/ci_typed_ir013_cpu.py
+      - name: Preserve original source, native observations, queue logs and CPU windows
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir013-reentrant-queue-native
+          path: |
+            build/reports/COMPILER-IR-013/
+            build/reports/COMPILER-IR-013-GUARDED-CPU/
+          retention-days: 21
+          if-no-files-found: warn

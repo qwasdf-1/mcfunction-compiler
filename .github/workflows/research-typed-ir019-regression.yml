@@ -1,0 +1,52 @@
+name: COMPILER-IR-019 native backward regression after passive CallFunction census
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir019-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-prior-milestone-parity:
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [ir016, ir017, ir018]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build actual Minecraft 26.3 research compiler
+        run: ./gradlew --no-daemon build
+      - name: Audit original instruction and native dispatch census safety contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir016.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir017.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir018.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir019.py' -v
+      - name: Repeat previous accepted original-native semantic regression
+        timeout-minutes: 36
+        run: python3 scripts/ci_typed_${{ matrix.suite }}.py
+      - name: Preserve original native state and quota evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir019-regression-${{ matrix.suite }}
+          path: |
+            build/reports/COMPILER-IR-016/
+            build/reports/COMPILER-IR-017/
+            build/reports/COMPILER-IR-018/
+          if-no-files-found: warn
+          retention-days: 21

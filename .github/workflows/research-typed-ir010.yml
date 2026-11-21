@@ -1,0 +1,46 @@
+name: COMPILER-IR-010 version-validated scoreboard source read reuse
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir010-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-parity-and-crossover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Compile exact Fabric 26.3 mod and Java tests
+        run: ./gradlew --no-daemon build
+      - name: Validate IR-010 opt-in, semantics and counterbalanced research design
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir010.py' -v
+          python3 -m py_compile scripts/ci_typed_ir010.py
+      - name: Native semantic parity with forced scoreboard callback and row reset
+        timeout-minutes: 20
+        run: python3 scripts/ci_typed_ir010.py --phase semantic
+      - name: Two Minecraft JVMs, same compiled bytecode, cache toggled ABBA plus A/A
+        timeout-minutes: 25
+        run: python3 scripts/ci_typed_ir010.py --phase crossover
+      - name: Preserve all native logs, exact scoreboard states and crossover windows
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir010-revision-cache-semantics-and-cpu
+          path: build/reports/COMPILER-IR-010/
+          if-no-files-found: warn
+          retention-days: 21

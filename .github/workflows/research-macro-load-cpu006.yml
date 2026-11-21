@@ -1,0 +1,64 @@
+name: Unique indexed macro instantiation CPU (COMPILER-MACRO-006)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-macro-cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - name: Check out the research worktree
+        uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - name: Set up Java 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Configure Gradle and dependency cache
+        uses: gradle/actions/setup-gradle@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build and run strict macro006 sample/parser contracts
+        run: |
+          ./gradlew build
+          python3 -m unittest discover -s tests -p test_macro_load_cpu006.py -v
+          python3 -m py_compile scripts/ci_macro_load_cpu006.py scripts/analyze_macro_load_cpu006.py scripts/run_veinminer_profile.py
+      - name: Fetch exact original pinned publisher Vein Miner datapack
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,urllib.request
+          from pathlib import Path
+          dest=Path("references/real-world/candidates/VeinMiner-5.3.0+26.3.zip")
+          dest.parent.mkdir(parents=True,exist_ok=True)
+          req=urllib.request.Request("https://api.modrinth.com/v2/version/5jzz5SkG",headers={"User-Agent":"MCFC-COMPILER-MACRO006/1.0"})
+          with urllib.request.urlopen(req,timeout=40) as response: manifest=json.load(response)
+          files=[f for f in manifest["files"] if f["filename"]=="VeinMiner-5.3.0+26.3.zip"]
+          if len(files)!=1: raise SystemExit("Pinned publisher archive absent or ambiguous")
+          req=urllib.request.Request(files[0]["url"],headers={"User-Agent":"MCFC-COMPILER-MACRO006/1.0"})
+          with urllib.request.urlopen(req,timeout=90) as response: payload=response.read()
+          pin="fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e"
+          if hashlib.sha256(payload).hexdigest()!=pin: raise SystemExit("Publisher SHA mismatch")
+          dest.write_bytes(payload)
+          print("MACRO006_SOURCE_PIN",pin)
+          PY
+      - name: Three independent real-gameplay macro instantiation clock arms
+        run: python3 scripts/ci_macro_load_cpu006.py
+      - name: Upload only compact diagnostic evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-macro006-raw
+          path: function-compiler/build/benchmarks/COMPILER-MACRO-006/
+          if-no-files-found: warn
+          retention-days: 21

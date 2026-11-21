@@ -1,0 +1,45 @@
+name: COMPILER-IR-015 post-admission IR-009 and IR-014 semantic regression
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir015-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typed-ir-parser-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build compiled Java 25 / Minecraft 26.3 mod
+        run: ./gradlew --no-daemon build
+      - name: Verify IR-009, IR-013, IR-014 and IR-015 structural regression contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir009.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir013.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir014.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir015_native.py' -v
+      - name: Four real JVMs with nested callbacks, objective identity and low-quota typed guards
+        timeout-minutes: 37
+        run: python3 scripts/ci_typed_ir014.py
+      - name: Preserve guarded native regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir015-parser-regression
+          path: build/reports/COMPILER-IR-014/
+          if-no-files-found: warn
+          retention-days: 21

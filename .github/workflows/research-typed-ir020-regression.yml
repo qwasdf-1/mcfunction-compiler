@@ -1,0 +1,56 @@
+name: COMPILER-IR-020 post-probe native scoreboard and dispatch regressions
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir020-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  original-vanilla-differential:
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [ir016, ir017, ir018, ir019]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Compile native Minecraft 26.3 Fabric compiler
+        run: ./gradlew --no-daemon build
+      - name: Check research clock opt-in and native source contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir020_cpu.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir019.py' -v
+      - name: Compare original native queued functions and earlier compiler arms
+        timeout-minutes: 43
+        run: |
+          if [ "${{ matrix.suite }}" = "ir019" ]; then
+            python3 scripts/ci_typed_ir019_native.py
+          else
+            python3 scripts/ci_typed_${{ matrix.suite }}.py
+          fi
+      - name: Archive complete original scoreboard/command-quota state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir020-native-regression-${{ matrix.suite }}
+          path: |
+            build/reports/COMPILER-IR-016/
+            build/reports/COMPILER-IR-017/
+            build/reports/COMPILER-IR-018/
+            build/reports/COMPILER-IR-019-NATIVE/
+          if-no-files-found: warn
+          retention-days: 21

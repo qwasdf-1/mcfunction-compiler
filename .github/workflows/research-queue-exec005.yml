@@ -1,0 +1,60 @@
+name: Queue enqueue_match native dynamic census (COMPILER-QUEUE-005)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  queue-native-census:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: function-compiler
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: function-compiler
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify Java and bounded census parser
+        run: |
+          ./gradlew build
+          python3 -m unittest discover -s tests -p test_compiler_execution.py -v
+          python3 -m py_compile scripts/ci_queue_execution005.py
+      - name: Download SHA-verified original 26.3 Vein Miner
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,urllib.request
+          from pathlib import Path
+          target=Path("references/real-world/candidates/VeinMiner-5.3.0+26.3.zip")
+          target.parent.mkdir(parents=True,exist_ok=True)
+          req=urllib.request.Request("https://api.modrinth.com/v2/version/5jzz5SkG",headers={"User-Agent":"MCFC-QUEUE005/1.0"})
+          with urllib.request.urlopen(req,timeout=40) as response: manifest=json.load(response)
+          files=[f for f in manifest["files"] if f["filename"]=="VeinMiner-5.3.0+26.3.zip"]
+          if len(files)!=1: raise SystemExit("Publisher file missing or ambiguous")
+          req=urllib.request.Request(files[0]["url"],headers={"User-Agent":"MCFC-QUEUE005/1.0"})
+          with urllib.request.urlopen(req,timeout=90) as response: payload=response.read()
+          pin="fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e"
+          if hashlib.sha256(payload).hexdigest()!=pin: raise SystemExit("Pinned archive mismatch")
+          target.write_bytes(payload)
+          print("QUEUE005_SOURCE_PIN", pin)
+          PY
+      - name: Run one native 6x6x6 event with exact-function execution counters
+        run: python3 scripts/ci_queue_execution005.py
+      - name: Preserve raw bounded command-level evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-queue005-exec-raw
+          path: function-compiler/build/benchmarks/COMPILER-QUEUE-005-EXEC/
+          if-no-files-found: warn
+          retention-days: 21

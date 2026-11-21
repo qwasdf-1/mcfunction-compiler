@@ -1,0 +1,35 @@
+name: COMPILER-IR-022 official Minecraft selector type and predicate method inspection
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: compiler-ir022-inspect-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  mapped-mojang-methods:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build mapped original Minecraft 26.3
+        run: ./gradlew --no-daemon compileJava
+      - name: Inspect exact original EntityTypeTest and EntitySelector method bounds
+        run: python3 scripts/ci_typed_ir022_inspect.py
+      - name: Archive source-free mapped method signatures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir022-original-type-selector-methods
+          path: build/reports/COMPILER-IR-022-INSPECTION/
+          if-no-files-found: error
+          retention-days: 21

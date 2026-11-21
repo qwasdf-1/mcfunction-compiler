@@ -1,0 +1,47 @@
+name: Compiler IR-008 same-JVM ASM versus fused CPU crossover
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir008-crossover-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-crossover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    steps:
+      - name: Checkout original compiler worktree
+        uses: actions/checkout@v4
+      - name: Java 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Cache Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build exact source branch
+        run: ./gradlew --no-daemon build
+      - name: Validate same-source comparison protocol
+        run: |
+          python3 -m unittest discover -s tests -p test_typed_ir008_crossover.py -v
+          python3 -m py_compile scripts/ci_typed_ir008_crossover.py
+      - name: Two independent actual Minecraft JVMs, counterbalanced blocks and A/A
+        timeout-minutes: 34
+        run: python3 scripts/ci_typed_ir008_crossover.py
+      - name: Preserve every window, source and native log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir008-same-jvm-crossover
+          path: build/reports/COMPILER-IR-008-CROSSOVER/
+          if-no-files-found: warn
+          retention-days: 21

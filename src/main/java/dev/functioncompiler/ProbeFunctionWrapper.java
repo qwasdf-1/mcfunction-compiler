@@ -19,6 +19,10 @@ import java.util.Map;
 public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> implements CommandFunction<T> {
     private final CommandFunction<T> delegate;
     private final InstantiatedFunction<T> compiledInstantiation;
+    private final InstantiatedFunction<T> countedPlainInstantiation;
+    private final InstantiatedFunction<T> timedPlainInstantiation;
+    private final InstantiatedFunction<T> queueCpuPlainInstantiation;
+    private final InstantiatedFunction<T> restoreCpuPlainInstantiation;
     private final Map<List<String>, InstantiatedFunction<T>> parameterizedMacroCache =
             Collections.synchronizedMap(new LinkedHashMap<>(64, 0.75f, true) {
                 @Override
@@ -41,13 +45,15 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         boolean excluded = delegate.id() != null
                 && ProbeConfiguration.isNamespaceExcluded(delegate.id().getNamespace());
         boolean fuseThisFunction = !excluded && ProbeConfiguration.fusedRegionForFunction(delegate.id());
+        boolean typedIrThisFunction = !excluded && TypedScoreIR.enabledFor(delegate.id());
         boolean directThisFunction = !excluded
                 && ProbeConfiguration.directSchedulerForFunction(delegate.id());
         if (!excluded && (ProbeConfiguration.scoreAddPrototypeEnabled()
                 || ProbeConfiguration.scoreAddTimingEnabled()
                 || ProbeConfiguration.fusedRegionPrototypeEnabled()
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled()
-                || directThisFunction)) {
+                || directThisFunction
+                || typedIrThisFunction)) {
             if (Boolean.parseBoolean(System.getenv("FC_BENCH_COMPILE_TIMING"))) {
                 long started = System.nanoTime();
                 try {
@@ -59,13 +65,15 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
                 ScoreAddPrototype.compile(delegate);
             }
         }
-        if (!excluded && (fuseThisFunction || directThisFunction
+        if (!excluded && (fuseThisFunction || directThisFunction || typedIrThisFunction
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled())
                 && delegate instanceof PlainTextFunction<?> plainTextFunction) {
             PlainTextFunction<CommandSourceStack> typedFunction =
                     (PlainTextFunction<CommandSourceStack>) plainTextFunction;
             InstantiatedFunction<CommandSourceStack> compiled;
-            if (fuseThisFunction && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()
+            if (typedIrThisFunction) {
+                compiled = TypedScoreIR.compile(typedFunction);
+            } else if (fuseThisFunction && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()
                     && Boolean.parseBoolean(System.getenv("FC_BENCH_COMPILE_TIMING"))) {
                 long started = System.nanoTime();
                 try {
@@ -84,8 +92,47 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
         } else {
             compiledInstantiation = null;
         }
+        if (!excluded && CompilerAcceptanceAudit.enabledFor(delegate.id())
+                && delegate instanceof PlainTextFunction<?>
+                && !ProbeConfiguration.scoreAddPrototypeEnabled()
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()
+                && !directThisFunction) {
+            CompilerAcceptanceAudit.record(delegate.id(), "plain_parser_gate_off", "");
+        }
         if (!excluded && ProbeConfiguration.commandCallbackMetricsEnabled()) {
             CommandCallbackMetricPrototype.compile(delegate);
+        }
+        // Construct once after existing parser lowering, never during a hot
+        // invocation. Ordinary function entry/callback census is opt-in only.
+        if (!excluded && CompilerExecutionCensus.enabledFor(delegate.id())
+                && delegate instanceof PlainTextFunction<?> plainTextFunction) {
+            countedPlainInstantiation = CompilerExecutionCensus.instrument(
+                    (InstantiatedFunction<T>) plainTextFunction, delegate.id());
+        } else {
+            countedPlainInstantiation = null;
+        }
+        if (!excluded && CompilerPositionedCpuProbe.enabledFor(delegate.id())
+                && delegate instanceof PlainTextFunction<?> plainTextFunction) {
+            timedPlainInstantiation = CompilerPositionedCpuProbe.instrument(
+                    (InstantiatedFunction<T>) plainTextFunction, delegate.id());
+        } else {
+            timedPlainInstantiation = null;
+        }
+        if (!excluded && CompilerQueueCpuProbe.enabledFor(delegate.id())
+                && delegate instanceof PlainTextFunction<?> plainTextFunction) {
+            queueCpuPlainInstantiation = CompilerQueueCpuProbe.instrument(
+                    (InstantiatedFunction<T>) plainTextFunction, delegate.id());
+        } else {
+            queueCpuPlainInstantiation = null;
+        }
+        if (!excluded && CompilerRestoreCpuProbe.enabledFor(delegate.id())
+                && delegate instanceof PlainTextFunction<?> plainTextFunction) {
+            restoreCpuPlainInstantiation = CompilerRestoreCpuProbe.instrument(
+                    (InstantiatedFunction<T>) plainTextFunction, delegate.id());
+        } else {
+            restoreCpuPlainInstantiation = null;
         }
     }
 
@@ -103,29 +150,81 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
             CompoundTag arguments,
             CommandDispatcher<T> dispatcher
     ) throws FunctionInstantiationException {
+        long macro006TotalStart = CompilerMacroLoadCpuProbe.begin(
+                delegate.id(), CompilerMacroLoadCpuProbe.TOTAL);
+        try {
         ProbeMetrics.wrapperInstantiated();
         if (compiledInstantiation != null) {
             return compiledInstantiation;
         }
         if (delegate instanceof MacroFunction<?> macro) {
-            List<String> argValues = MacroTemplateCompiler.extractArguments(macro, arguments);
+            List<String> argValues;
+            long macro006ExtractionStart = CompilerMacroLoadCpuProbe.begin(
+                    delegate.id(), CompilerMacroLoadCpuProbe.EXTRACTION);
+            try {
+                argValues = MacroTemplateCompiler.extractArguments(macro, arguments);
+            } finally {
+                CompilerMacroLoadCpuProbe.finish(
+                        CompilerMacroLoadCpuProbe.EXTRACTION, macro006ExtractionStart);
+            }
+            if (argValues == null) {
+                CompilerMacroLoadCpuProbe.missingExtraction(delegate.id());
+            }
             if (argValues != null) {
                 InstantiatedFunction<T> cached = parameterizedMacroCache.get(argValues);
                 if (cached != null) {
+                    CompilerMacroLoadCpuProbe.cacheHit(delegate.id());
+                    CompilerAcceptanceAudit.record(delegate.id(), "macro_parameter_cache_hit", "");
                     return cached;
                 }
             }
-            InstantiatedFunction<T> instantiated = delegate.instantiate(arguments, dispatcher);
-            if (isEligibleMacro(instantiated)) {
-                InstantiatedFunction<T> compiled = specializeMacro((PlainTextFunction<?>) instantiated);
-                if (argValues != null) {
-                    parameterizedMacroCache.put(argValues, compiled);
-                }
-                return compiled;
+            InstantiatedFunction<T> instantiated;
+            long macro006VanillaStart = CompilerMacroLoadCpuProbe.begin(
+                    delegate.id(), CompilerMacroLoadCpuProbe.VANILLA_INSTANTIATION);
+            try {
+                instantiated = delegate.instantiate(arguments, dispatcher);
+            } finally {
+                CompilerMacroLoadCpuProbe.finish(
+                        CompilerMacroLoadCpuProbe.VANILLA_INSTANTIATION, macro006VanillaStart);
             }
-            return instantiated;
+            CompilerAcceptanceAudit.record(delegate.id(), "macro_new_expansion", "");
+            if (isEligibleMacro(instantiated)) {
+                CompilerAcceptanceAudit.record(delegate.id(), "macro_plaintext_eligible", "");
+                InstantiatedFunction<T> compiled = specializeMacro((PlainTextFunction<?>) instantiated);
+                InstantiatedFunction<T> counted = CompilerExecutionCensus.instrument(
+                        CompilerPositionedCpuProbe.instrument(
+                                CompilerQueueCpuProbe.instrument(compiled, delegate.id()),
+                                delegate.id()),
+                        delegate.id());
+                if (argValues != null) {
+                    parameterizedMacroCache.put(argValues, counted);
+                }
+                return counted;
+            }
+            CompilerAcceptanceAudit.record(delegate.id(), "macro_not_eligible", "");
+            return CompilerExecutionCensus.instrument(
+                    CompilerPositionedCpuProbe.instrument(
+                            CompilerQueueCpuProbe.instrument(instantiated, delegate.id()),
+                            delegate.id()),
+                    delegate.id());
+        }
+        if (countedPlainInstantiation != null) {
+            return countedPlainInstantiation;
+        }
+        if (timedPlainInstantiation != null) {
+            return timedPlainInstantiation;
+        }
+        if (queueCpuPlainInstantiation != null) {
+            return queueCpuPlainInstantiation;
+        }
+        if (restoreCpuPlainInstantiation != null) {
+            return restoreCpuPlainInstantiation;
         }
         return delegate.instantiate(arguments, dispatcher);
+        } finally {
+            CompilerMacroLoadCpuProbe.finish(
+                    CompilerMacroLoadCpuProbe.TOTAL, macro006TotalStart);
+        }
     }
 
     private boolean isEligibleMacro(InstantiatedFunction<T> instantiated) {
@@ -142,6 +241,7 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
                 || ProbeConfiguration.fusedRegionPrototypeEnabled()
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled();
         if (!shouldSpecialize && !ProbeConfiguration.commandCallbackMetricsEnabled()) {
+            CompilerAcceptanceAudit.record(delegate.id(), "macro_parser_gate_off", "");
             return (InstantiatedFunction<T>) plainTextFunction;
         }
         InstantiatedFunction<T> cached = macroCompilationCache.get(plainTextFunction);
@@ -149,7 +249,10 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
             return cached;
         }
         if (shouldSpecialize) {
+            CompilerAcceptanceAudit.record(delegate.id(), "macro_parser_visited", "");
             ScoreAddPrototype.compile(plainTextFunction, delegate.id());
+        } else {
+            CompilerAcceptanceAudit.record(delegate.id(), "macro_parser_gate_off", "");
         }
         if (ProbeConfiguration.commandCallbackMetricsEnabled()) {
             CommandCallbackMetricPrototype.compile(plainTextFunction);
@@ -177,6 +280,7 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
             return true;
         }
         return DirectSchedulerPrototype.retainsOriginal(compiledInstantiation, original)
+                || TypedScoreIR.retainsOriginal(compiledInstantiation, original)
                 || FusedRegionPrototype.retainsOriginal(
                 (InstantiatedFunction<CommandSourceStack>) (Object) compiledInstantiation,
                 (InstantiatedFunction<CommandSourceStack>) (Object) original

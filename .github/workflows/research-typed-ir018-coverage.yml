@@ -1,0 +1,37 @@
+name: COMPILER-IR-018 original Vein Miner / Blastback source coverage
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir018-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sha-pinned-source-screen:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Validate code and existing strict baseline contracts
+        run: |
+          python3 -m py_compile scripts/ci_typed_ir018_coverage.py
+          python3 -m unittest discover -s tests -p 'test_typed_ir015_coverage.py' -v
+      - name: Fetch and SHA-verify unmodified original publisher ZIPs
+        run: python3 scripts/ci_typed_ir015_fetch.py
+      - name: Census IR-018 selector sources and deliberately opaque dispatches
+        run: python3 scripts/ci_typed_ir018_coverage.py
+      - name: Preserve full source-classification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir018-two-publisher-source-coverage
+          path: build/reports/COMPILER-IR-018-COVERAGE/
+          if-no-files-found: warn
+          retention-days: 21

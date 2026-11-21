@@ -402,8 +402,86 @@ def main() -> int:
     }
     capture_spark = not args.no_spark
     capture_jfr_cpu = args.capture_jfr_cpu
+    cpu004_mode = os.environ.get("FC_CPU004_MODE", "")
+    cpu004_enabled = cpu004_mode in ("plain", "empty", "timed")
+    if cpu004_mode and (
+        not cpu004_enabled
+        or os.environ.get("FC_CPU004_NAMESPACE") != "vm"
+        or args.stack == "vanilla"
+        or args.compiler_mode != "wrapper"
+        or args.count_command_callbacks
+        or args.capture_jfr_cpu
+        or not args.no_spark
+        or not args.capture_server_thread_cpu
+    ):
+        raise ValueError("CPU004 requires vm namespace, Fabric wrapper mode, --no-spark, "
+                         "--capture-server-thread-cpu and no other callback/JFR metrics")
+    cpu005_mode = os.environ.get("FC_CPU005_MODE", "")
+    cpu005_enabled = cpu005_mode in ("plain", "empty", "timed")
+    if cpu005_mode and (
+        not cpu005_enabled
+        or os.environ.get("FC_CPU005_NAMESPACE") != "vm"
+        or args.stack == "vanilla"
+        or args.compiler_mode != "wrapper"
+        or args.count_command_callbacks
+        or args.capture_jfr_cpu
+        or not args.no_spark
+        or not args.capture_server_thread_cpu
+        or cpu004_enabled
+    ):
+        raise ValueError("CPU005 requires vm namespace, Fabric wrapper mode, --no-spark, "
+                         "--capture-server-thread-cpu and no other command/JFR metrics")
+    macro006_mode = os.environ.get("FC_MACRO006_MODE", "")
+    macro006_enabled = macro006_mode in ("plain", "empty", "timed")
+    if macro006_mode and (
+        not macro006_enabled
+        or os.environ.get("FC_MACRO006_NAMESPACE") != "vm"
+        or args.stack == "vanilla"
+        or args.compiler_mode != "selective-macro"
+        or args.count_command_callbacks
+        or args.capture_jfr_cpu
+        or not args.no_spark
+        or not args.capture_server_thread_cpu
+        or cpu004_enabled or cpu005_enabled
+    ):
+        raise ValueError("Macro006 needs shipped selective-macro mode, vm namespace, --no-spark, "
+                         "--capture-server-thread-cpu, and no other CPU diagnostics")
+    exec_census_enabled = os.environ.get(
+        "FC_COMPILER_EXEC_CENSUS", "").lower() in {"true", "1"}
+    if exec_census_enabled and (
+        args.stack == "vanilla"
+        or not os.environ.get("FC_COMPILER_EXEC_CENSUS_NAMESPACE")
+        or not os.environ.get("FC_COMPILER_EXEC_CENSUS_FUNCTIONS")
+        or args.compiler_mode not in ("wrapper", "score-add")
+    ):
+        raise ValueError(
+            "Execution census requires Fabric, wrapper/score-add, namespace and allowlist"
+        )
+    acceptance_audit_enabled = os.environ.get(
+        "FC_COMPILER_ACCEPTANCE_AUDIT", "").lower() in {"true", "1"}
+    if acceptance_audit_enabled and (
+        args.stack == "vanilla"
+        or not os.environ.get("FC_COMPILER_ACCEPTANCE_NAMESPACE")
+    ):
+        raise ValueError("Acceptance audit requires Fabric and an explicit namespace")
     compiler_probe_active = compiler_enabled or callback_metrics_enabled
     diagnostics = []
+    if acceptance_audit_enabled:
+        diagnostics.append("namespace-scoped compiler acceptance census")
+    if exec_census_enabled:
+        diagnostics.append("event-scoped selected command entry/callback counters")
+    if cpu004_enabled:
+        if exec_census_enabled or acceptance_audit_enabled:
+            raise ValueError("CPU004 and other compiler audits must run in separate JVMs")
+        diagnostics.append("sparse CPU004 command-site timers (" + cpu004_mode + ")")
+    if cpu005_enabled:
+        if exec_census_enabled or acceptance_audit_enabled or callback_metrics_enabled:
+            raise ValueError("CPU005 must run without other command/callback audits")
+        diagnostics.append("sparse CPU005 queue macro predicate/NBT task clocks (" + cpu005_mode + ")")
+    if macro006_enabled:
+        if exec_census_enabled or acceptance_audit_enabled or callback_metrics_enabled:
+            raise ValueError("Macro006 needs a standalone boot without any parser/callback census")
+        diagnostics.append("sparse CPU006 exact load_next macro instantiation clocks (" + macro006_mode + ")")
     if callback_metrics_enabled:
         diagnostics.append("command callback counters")
     if selective_macro_metrics_enabled:
@@ -473,6 +551,18 @@ def main() -> int:
     jfr_stop_message: str | None = None
     succeeded = False
     manifest_path = output / "results.json"
+    exec_census_started = False
+    exec_census_start_status = None
+    exec_census_stop_status = None
+    cpu004_started = False
+    cpu004_start_status = None
+    cpu004_stop_status = None
+    cpu005_started = False
+    cpu005_start_status = None
+    cpu005_stop_status = None
+    macro006_started = False
+    macro006_start_status = None
+    macro006_stop_status = None
 
     try:
         datapacks = work / "world/datapacks"
@@ -716,6 +806,13 @@ def main() -> int:
         head_before = read_score_or_zero(rcon, "#head", "vmr.runtime")
         queue_stats_before = function_stats(rcon, "vm:queue/drain", compiler_enabled)
         ray_stats_before = function_stats(rcon, "vm:detection/ray_step", compiler_enabled)
+        # IR-015: optional real-datapack event activation census. This is
+        # queried outside the event window, never as a timed instruction.
+        typed_ir_event_census = (args.stack != "vanilla"
+                and os.environ.get("FC_TYPED_IR_MODE") in ("interpreted", "bytecode")
+                and os.environ.get("FC_TYPED_IR_DIAGNOSTICS") == "true")
+        typed_ir_status_before = (
+            rcon.command("functioncompiler ir008") if typed_ir_event_census else None)
         compiler_status_before = (
             rcon.command("function_compiler_probe status") if compiler_probe_active else None
         )
@@ -773,6 +870,28 @@ def main() -> int:
             pid, tid = event_thread
             event_cpu_before = read_thread_schedstat(pid, tid)
             event_throttle_before = cgroup_throttle_count()
+        if macro006_enabled:
+            macro006_start_status = rcon.command("function_compiler_probe macro006-start")
+            if "FC_MACRO006 started mode=" + macro006_mode not in macro006_start_status:
+                raise RuntimeError(f"Macro006 failed to start: {macro006_start_status!r}")
+            macro006_started = True
+        if cpu005_enabled:
+            cpu005_start_status = rcon.command("function_compiler_probe cpu005-start")
+            if "FC_CPU005 started mode=" + cpu005_mode not in cpu005_start_status:
+                raise RuntimeError(f"CPU005 failed to start: {cpu005_start_status!r}")
+            cpu005_started = True
+        if cpu004_enabled:
+            cpu004_start_status = rcon.command("function_compiler_probe cpu004-start")
+            if "FC_CPU004 started mode=" + cpu004_mode not in cpu004_start_status:
+                raise RuntimeError(f"CPU004 failed to start: {cpu004_start_status!r}")
+            cpu004_started = True
+        if exec_census_enabled:
+            exec_census_start_status = rcon.command(
+                "function_compiler_probe exec-census-start")
+            if "FC_EXEC started namespace=" not in exec_census_start_status:
+                raise RuntimeError(
+                    f"Execution census failed to start: {exec_census_start_status!r}")
+            exec_census_started = True
         # Set the irreversible intervention boundary before attempting the
         # first mining packet. Any failure from here is never retryable.
         mining_started = True
@@ -837,9 +956,41 @@ def main() -> int:
             jfr_started = False
             if not jfr_path.is_file() or jfr_path.stat().st_size == 0:
                 raise RuntimeError("JFR CPU sampler did not save a recording")
+        if macro006_started:
+            macro006_stop_status = rcon.command("function_compiler_probe macro006-stop")
+            if "FC_MACRO006 ended mode=" + macro006_mode not in macro006_stop_status:
+                raise RuntimeError(f"Macro006 failed to stop: {macro006_stop_status!r}")
+            macro006_started = False
+        if cpu005_started:
+            cpu005_stop_status = rcon.command("function_compiler_probe cpu005-stop")
+            if "FC_CPU005 ended mode=" + cpu005_mode not in cpu005_stop_status:
+                raise RuntimeError(f"CPU005 failed to stop: {cpu005_stop_status!r}")
+            cpu005_started = False
+        if cpu004_started:
+            cpu004_stop_status = rcon.command("function_compiler_probe cpu004-stop")
+            if "FC_CPU004 ended mode=" + cpu004_mode not in cpu004_stop_status:
+                raise RuntimeError(f"CPU004 failed to stop: {cpu004_stop_status!r}")
+            cpu004_started = False
+        if exec_census_started:
+            exec_census_stop_status = rcon.command(
+                "function_compiler_probe exec-census-stop")
+            if "FC_EXEC ended entries=" not in exec_census_stop_status:
+                raise RuntimeError(
+                    f"Execution census failed to stop: {exec_census_stop_status!r}")
+            exec_census_started = False
         compiler_status_after = (
             rcon.command("function_compiler_probe status") if compiler_probe_active else None
         )
+        typed_ir_status_after = (
+            rcon.command("functioncompiler ir008") if typed_ir_event_census else None)
+        acceptance_dump_status = (
+            rcon.command("function_compiler_probe acceptance")
+            if acceptance_audit_enabled else None
+        )
+        if acceptance_audit_enabled and (
+            acceptance_dump_status is None or "FC_ACCEPTANCE entries=" not in acceptance_dump_status
+        ):
+            raise RuntimeError(f"Acceptance audit dump failed: {acceptance_dump_status!r}")
         queue_stats_after = function_stats(rcon, "vm:queue/drain", compiler_enabled)
         ray_stats_after = function_stats(rcon, "vm:detection/ray_step", compiler_enabled)
         head_after_capture = read_score_or_zero(rcon, "#head", "vmr.runtime")
@@ -1070,6 +1221,31 @@ def main() -> int:
             },
             "compiler_mode": args.compiler_mode if args.stack != "vanilla" else None,
             "command_callback_metrics_enabled": callback_metrics_enabled,
+            "compiler_acceptance_audit_enabled": acceptance_audit_enabled,
+            "compiler_exec_census_enabled": exec_census_enabled,
+            "cpu004_mode": cpu004_mode if cpu004_enabled else None,
+            "cpu005_mode": cpu005_mode if cpu005_enabled else None,
+            "macro006_mode": macro006_mode if macro006_enabled else None,
+            "macro006_start_status": macro006_start_status,
+            "macro006_stop_status": macro006_stop_status,
+            "cpu005_start_status": cpu005_start_status,
+            "cpu005_stop_status": cpu005_stop_status,
+            "cpu004_start_status": cpu004_start_status,
+            "cpu004_stop_status": cpu004_stop_status,
+            "compiler_exec_census_namespace": (
+                os.environ.get("FC_COMPILER_EXEC_CENSUS_NAMESPACE")
+                if exec_census_enabled else None
+            ),
+            "compiler_exec_census_targets": (
+                os.environ.get("FC_COMPILER_EXEC_CENSUS_FUNCTIONS")
+                if exec_census_enabled else None
+            ),
+            "compiler_exec_census_start_status": exec_census_start_status,
+            "compiler_exec_census_stop_status": exec_census_stop_status,
+            "compiler_acceptance_audit_namespace": (
+                os.environ.get("FC_COMPILER_ACCEPTANCE_NAMESPACE") if acceptance_audit_enabled else None
+            ),
+            "compiler_acceptance_dump_status": acceptance_dump_status,
             "selective_macro_arguments_metrics_enabled": selective_macro_metrics_enabled,
             "selective_macro_argument_calls_delta": selective_macro_argument_calls_delta,
             "selective_macro_diagnostics_delta": selective_macro_diagnostics_delta,
@@ -1082,6 +1258,9 @@ def main() -> int:
             "diagnostic_only": bool(diagnostics) or capture_jfr_cpu,
             "compiler_status_before": compiler_status_before,
             "compiler_status_after": compiler_status_after,
+            "typed_ir_event_census": typed_ir_event_census,
+            "typed_ir_status_before": typed_ir_status_before,
+            "typed_ir_status_after": typed_ir_status_after,
             "command_callback_metrics": command_callback_metrics,
             "scenario": {
                 "native_player_mining_packet": True,
@@ -1298,6 +1477,28 @@ def main() -> int:
                 stop_spark_shell(spark)
             except Exception:
                 spark.terminate()
+        if macro006_started and rcon is not None:
+            try:
+                rcon.command("function_compiler_probe macro006-stop")
+            except Exception:
+                pass
+        if cpu005_started and rcon is not None:
+            try:
+                rcon.command("function_compiler_probe cpu005-stop")
+            except Exception:
+                pass
+        if cpu004_started and rcon is not None:
+            try:
+                rcon.command("function_compiler_probe cpu004-stop")
+            except Exception:
+                pass
+        if exec_census_started and rcon is not None:
+            # An incomplete event must not be interpreted as an accepted census.
+            # Preserve a partial dump for forensic review only.
+            try:
+                rcon.command("function_compiler_probe exec-census-stop")
+            except Exception:
+                pass
         if rcon is not None:
             try:
                 rcon.command("stop")
@@ -1317,6 +1518,53 @@ def main() -> int:
                     server.wait()
         if log_handle is not None:
             log_handle.close()
+        if macro006_enabled and (work / "server.log").is_file():
+            macro_rows = [
+                line for line in (work / "server.log").read_text(
+                    errors="replace").splitlines()
+                if "FC_MACRO006_" in line
+            ]
+            (output / "macro006.log").write_text(
+                "\n".join(macro_rows) + "\n", encoding="utf-8"
+            )
+        if cpu005_enabled and (work / "server.log").is_file():
+            cpu_rows = [
+                line for line in (work / "server.log").read_text(
+                    errors="replace").splitlines()
+                if "FC_CPU005_" in line
+            ]
+            (output / "cpu005.log").write_text(
+                "\n".join(cpu_rows) + "\n", encoding="utf-8"
+            )
+        if cpu004_enabled and (work / "server.log").is_file():
+            audit_rows = [
+                line for line in (work / "server.log").read_text(
+                    errors="replace").splitlines()
+                if "FC_CPU004_" in line
+            ]
+            (output / "cpu004.log").write_text(
+                "\n".join(audit_rows) + "\n", encoding="utf-8"
+            )
+        if exec_census_enabled and (work / "server.log").is_file():
+            audit_rows = [
+                line for line in (work / "server.log").read_text(
+                    errors="replace").splitlines()
+                if "FC_EXEC_" in line
+            ]
+            (output / "exec-census.log").write_text(
+                "\n".join(audit_rows) + "\n", encoding="utf-8"
+            )
+        if acceptance_audit_enabled and (work / "server.log").is_file():
+            # Preserve the complete bounded audit independently of the temporary server.
+            # This is a post-event diagnostic, never a wall/CPU timing sample.
+            audit_rows = [
+                line for line in (work / "server.log").read_text(
+                    errors="replace").splitlines()
+                if "FC_ACCEPTANCE_" in line
+            ]
+            (output / "acceptance.log").write_text(
+                "\n".join(audit_rows) + "\n", encoding="utf-8"
+            )
         if not succeeded and (work / "server.log").is_file():
             (output / "failure.log").write_text(
                 (work / "server.log").read_text(errors="replace")[-16000:],

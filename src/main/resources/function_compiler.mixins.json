@@ -5,6 +5,15 @@
   "mixins": [
     "ServerFunctionLibraryMixin",
     "CallFunctionMixin",
+    "CompilerQueueBuildCpuMixin",
+    "CompilerQueueExecuteCpuMixin",
+    "CompilerForkContextChainMixin",
+    "CompilerForkEntitySelectorMixin",
+    "CompilerSelector022Mixin",
+    "CompilerTagMutation023EntityMixin",
+    "CompilerTagMutation023ManagerMixin",
+    "CompilerForkSourceMixin",
+    "CompilerForkContinuationMixin",
     "FunctionBuilderMixin",
     "ExecutionContextMixin",
     "CommandFunctionMixin",
@@ -20,7 +29,9 @@
     "FunctionCommandInvoker",
     "MacroFunctionAccessor",
     "CustomDataAccessor",
-    "BellowsHomePosAdapterMixin"
+    "BellowsHomePosAdapterMixin",
+    "ScoreValueRevisionMixin",
+    "ScoreboardQueueInjectionMixin"
   ],
   "injectors": {
     "defaultRequire": 1

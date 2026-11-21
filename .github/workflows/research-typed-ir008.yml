@@ -1,0 +1,47 @@
+name: Compiler typed IR direct scoreboard JVM lowering (IR-008)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir008-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-typed-ir:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Check out the exact research branch
+        uses: actions/checkout@v4
+      - name: Install Java 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v6
+      - name: Install Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build compiler (including ASM verifier / Java types)
+        run: ./gradlew --no-daemon build
+      - name: Validate source and parity contracts
+        run: |
+          python3 -m unittest discover -s tests -p test_typed_ir008.py -v
+          python3 -m py_compile scripts/ci_typed_ir008.py
+      - name: Four fresh Fabric JVMs with native, fused, IR interpreter, and IR ASM
+        timeout-minutes: 32
+        run: python3 scripts/ci_typed_ir008.py
+      - name: Archive actual world-state observations and native server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir008-native-semantic-and-cpu-screen
+          path: build/reports/COMPILER-IR-008/
+          if-no-files-found: warn
+          retention-days: 21

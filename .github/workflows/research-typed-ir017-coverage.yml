@@ -1,0 +1,37 @@
+name: COMPILER-IR-017 pinned real datapack source-coverage difference
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir017-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-shape-delta:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify source-only scripts and original SHA-pins
+        run: |
+          python3 -m py_compile scripts/ci_typed_ir017_coverage.py
+          python3 -m unittest discover -s tests -p 'test_typed_ir015_coverage.py' -v
+      - name: Download and SHA-verify two untouched publisher datapacks
+        run: python3 scripts/ci_typed_ir015_fetch.py
+      - name: Screen static compiler region and full-function coverage
+        run: python3 scripts/ci_typed_ir017_coverage.py
+      - name: Archive exact-source classification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir017-pinned-source-coverage
+          path: build/reports/COMPILER-IR-017-COVERAGE/
+          if-no-files-found: warn
+          retention-days: 21
