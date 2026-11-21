@@ -14,6 +14,10 @@ OUT=Path("build/reports/COMPILER-IR-027-SOURCE")
 PIN=PINS["blastback"]["sha256"]; PACK=Path(PINS["blastback"]["path"])
 EXACT=(
 "erb:restore/job_tick","erb:status/collect","erb:runtime_tick",
+"erb:restore/tick","erb:restore/group_loop","erb:restore/group_once",
+"erb:restore/revisit","erb:restore/consider","erb:restore/one",
+"erb:restore/audit_loop_macro","erb:restore/finish_job_macro",
+"erb:job/quiet_tick","erb:job/tick_once","erb:status/count_group",
 "erb:restore/job_complete","erb:restore/job_finish",
 "erb:restore/finish","erb:runtime/finish",
 "erb:job/create","erb:restore/step","erb:restore/run",
