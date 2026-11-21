@@ -58,6 +58,7 @@ FUNCTIONS={
     ],
     # Changed selector shape (no negative watched tag) must not be admitted:
     "near_miss": [
+        "scoreboard players set #active fc024 7",
         "scoreboard players set #miss fc024 0",
         "scoreboard players set #steps fc024 0",
         'summon minecraft:marker 0 64 0 {Tags:["fc024.fixture","erb.block"]}',
