@@ -1,6 +1,6 @@
 # COMPILER-IR-030 — Vein Miner coordinate-result-store specialization feasibility
 
-**Status (2026-11-21): GATE A STATIC INSPECTION ACCEPTED; GATE B ORIGINAL-EVENT JFR EXPERIMENT IN PROGRESS.** No runtime replacement semantics or CPU gain demonstrated. Work remains on `work/compiler-coverage`, draft PR #10. The research compiler, IR-025 fork, and new NBT specializations remain disabled by default. Do not merge research instrumentation or promote an optimizer based on this document.
+**Status (2026-11-21): GATE A VERIFIED; GATE B TWO ORIGINAL-EVENT JFR PROFILES ACCEPTED (DESCRIPTIVE ONLY).** No runtime replacement semantics or CPU gain demonstrated. Work remains on `work/compiler-coverage`, draft PR #10. The research compiler, IR-025 fork, and new NBT specializations remain disabled by default. Do not merge research instrumentation or promote an optimizer based on this document.
 
 ## 1. Why change targets after IR-029?
 
@@ -110,6 +110,27 @@ The [mapped Java25/Minecraft26.3 inspection #44962539874](https://github.com/qwa
 
 **Gate A decision:** Static native path inspection is accepted. A naïve unguarded coordinate getter is **rejected**. A future bounded specialization would need to preserve native flooring, NBT-path errors, feedback, per-command quota/result callbacks and passenger positioning; decline to native when the source or serialization semantics are not demonstrably identical. Do not merge x/y/z stores or bypass `Entity.load` as an untested shortcut.
 
-## 7. Gate B separate attribution (running)
+## 7. Gate B separate attribution (accepted, descriptive)
 
 The [original-event JFR workflow](../../.github/workflows/research-typed-ir030-jfr.yml) runs the unchanged SHA-pinned publisher in two independent compiler-off Fabric/Minecraft 26.3 servers, requiring 215 original work units, 1,952 queue steps, host-quality gates and real Server-thread ExecutionSample stacks. It reports **overlapping inclusive** read-command, entity-serialization, outer-store, and full entity-write stack presence; these must never be summed or interpreted as a speedup. The prior CPU005 ~11.15% inclusive inner `data get` estimate, already below the project's ≥15% full-event promotion bar, is a warning to measure genuinely removable read cost before building any optimizer. No treatment path or production change is active.
+
+
+### Gate B two-original-JVM JFR results — 2026-11-21
+
+The [accepted original-publisher JFR workflow #44962701664](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44962701664) completed with [raw JFR, original-event manifests, and parsed results](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44962701664/artifacts/14730685562). Both Java25/Minecraft26.3 Fabric arms ran the **unchanged pinned publisher with compiler off**, no Spark or callback metrics. Each completed 215 ore work units, exactly 1,952 queue-head increments, with zero remaining source/ore/markers, valid idle/host-quality gates, zero throttling. Separately measured original Server-thread running CPU was 14.034s and 13.352s, **not** a treatment comparison.
+
+| Inclusive JFR runnable Server-thread frame presence | Original 1 (1,254 samples) | Original 2 (1,195 samples) |
+| --- | ---: | ---: |
+| Original DataCommands inner read | **21.61%** | **16.99%** |
+| Inner read with entity snapshot serialization | **21.45%** | **16.99%** |
+| Native outer result-store callback | **13.80%** | **12.72%** |
+| Outer store with entity serialization | **8.37%** | **7.20%** |
+| Any entity snapshot serialization | **51.75%** | **45.69%** |
+| EntityDataAccessor.setData | **7.74%** | **8.95%** |
+| Entity.load | **7.50%** | **8.95%** |
+
+**Interpretation and nonclaims.** All fractions are inclusive, may overlap and must not be added. The ~46–52% entity-serialization presence covers many original event commands, macro activity and NBT operations, not just the three coordinate getter sites. Even the ~17–22% original read-path presence applies to **all** matching DataCommands read callsites in the event; JFR stack frame alone does not identify which specific mcfunction line initiated it. The earlier CPU005 original five-command site-specific sparse-clock projection (11.15% inclusive in nested getter) is distinct and cannot be subtracted from or replaced by this profile. None of these observations is a demonstrated avoidable cost or speedup.
+
+Observed read-path innermost frames most often included CompoundTag copying, ListTag copying, HashMap iteration/insertion, and DelegatingOps map creation. This is concrete evidence for expensive entity NBT materialization, but leaves uncertain the safely eliminable part. The prior bytecode audit separately proved that an unconditional direct entity coordinate getter is incorrect when an entity is riding a vehicle.
+
+**Gate B decision: ACCEPTED as descriptive mechanism attribution.** Follow with exact *source-site* exposure attribution and focused native semantic fixtures for a **narrow conditional getter** (entity type, no vehicle, exact parsed path, numeric flooring, native feedback, quota and error behavior). Preserve outer native result-store callback and entity write/reload, and fall back under any unproved condition. Do not implement or promote a general entity NBT cache or replacement. Only after semantic Gate C passes is an uninstrumented causal A/A–A/B compiler CPU pilot justified.
