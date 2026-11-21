@@ -25,6 +25,7 @@ CLASSES = (
     "net.minecraft.server.commands.data.DataAccessor",
     "net.minecraft.server.commands.ExecuteCommand",
     "net.minecraft.commands.arguments.NbtPathArgument",
+    "net.minecraft.commands.arguments.NbtPathArgument$NbtPath",
     "net.minecraft.world.entity.Entity",
     "net.minecraft.commands.CommandSourceStack",
     "net.minecraft.commands.execution.tasks.ExecuteCommand",
@@ -156,7 +157,9 @@ def inspect() -> dict:
         methods = method_sections(result.stdout)
         if not methods:
             raise AssertionError(f"No method declarations found: {classname}")
-        short = classname.rsplit(".", 1)[-1].replace("$", "_")
+        # Keep namespaced source and scheduler classes distinct. Both native
+        # ExecuteCommand classes must have separate archived disassemblies.
+        short = classname.removeprefix("net.minecraft.").replace(".", "_").replace("$", "_")
         # Prevent publishing/committing game classfiles; bytecode text only.
         (OUT / f"{short}.javap.txt").write_text(result.stdout, encoding="utf-8")
         report["class_results"][classname] = {
