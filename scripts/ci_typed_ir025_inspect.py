@@ -44,7 +44,7 @@ def main():
         name=clazz.rsplit(".",1)[-1].replace("$","_")
         (OUT/(name+".txt")).write_text(result.stdout,encoding="utf-8")
         headers=[line.strip() for line in result.stdout.splitlines()
-                 if re.search(r"^  (public|protected|private|static) .+\\(",line)]
+                 if re.search(r"^  (public|protected|private|static) .+\(",line)]
         report["inspected_classes"].append({"class":clazz,"methods":headers})
         print("IR025_MAPPED "+json.dumps({"class":clazz,"methods":headers[:30]}),flush=True)
     build=(OUT/"BuildContexts.txt").read_text()
