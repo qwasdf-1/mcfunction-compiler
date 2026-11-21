@@ -1,6 +1,6 @@
 # COMPILER-IR-023 — Tag membership, mutation and filtered-index invalidation
 
-**Status (2026-11-20):** Stage 1 SHA-pinned static source audit ACCEPTED, Stage 2 mapped method inventory ACCEPTED, and Stage 3 bounded native mutation-frequency census ACCEPTED across two independent two-JVM CONTROL/PLAIN runs (four Minecraft server boots). Full index invalidation and same-queue tag/selector semantics remain unproven. No index, production promotion or causal CPU speedup. This document precommits the semantic and measurement gates. No tag-index runtime, selector replacement, changed compiler mode, speedup evidence or production promotion. Existing branch `work/compiler-coverage`; PR #10 remains draft/unmerged. The new source-audit workflow is manual-only.
+**Status (2026-11-20):** Stage 1 SHA-pinned static source audit ACCEPTED, Stage 2 mapped method inventory ACCEPTED, and Stage 3 bounded native mutation-frequency census ACCEPTED across two independent two-JVM CONTROL/PLAIN runs (four Minecraft server boots). The post-observer disabled native IR-016–019 semantic regressions also passed. Full index invalidation and same-queue tag/selector semantics remain unproven. No index, production promotion or causal CPU speedup. This document precommits the semantic and measurement gates. No tag-index runtime, selector replacement, changed compiler mode, speedup evidence or production promotion. Existing branch `work/compiler-coverage`; PR #10 remains draft/unmerged. The new source-audit workflow is manual-only.
 
 ## Starting evidence and what it does NOT prove
 
@@ -116,6 +116,19 @@ The ratio of watched-tag mutations per exact selector visit is consistent in the
 
 The original native census workflow is now **manual-only** after both accepted attempts. Draft PR #10 remains unmerged; production compiler settings are unchanged. Disabled Mixin hooks may still add overhead, which this experiment has not independently isolated.
 
+## Post-observer native regression acceptance
+
+The [IR-023 native semantic regression workflow #44864492693](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44864492693) passed all four independent Java25/Minecraft26.3 original-game suites after installing the **new IR-023 Entity and PersistentEntitySectionManager Mixins**, with the new mutation probe unconfigured/default-off:
+
+| Original regression suite | Fully matching vanilla state observations |
+| --- | ---: |
+| IR-016 mixed typed regions, fallback and direct scheduling | **126/126** |
+| IR-017 dynamic score guard / source / reentrant behavior | **168/168** |
+| IR-018 entity `@s` binding, guarded operations and dispatch barriers | **87/87** |
+| IR-019 conditional function dispatch, callbacks, quotas and native child scheduling | **84/84** |
+
+These tests establish preserved behavior for their **tested fixtures**, not complete support for arbitrary mutated tag-set operations, production-wide correctness or zero disabled-Mixin overhead. No index or selector replacement was active. The four-suite regression workflow has been archived as manual-only alongside the twice-accepted real-world mutation census workflow, and all prior IR-022 workflows remain manual-only.
+
 ## Stage 4 — exact command-to-command visibility fixtures
 
 Build native 26.3 vanilla-versus-research-disabled and eventual index-on differential tests in separate fresh JVMs:
@@ -134,4 +147,4 @@ Precommit **STOP** when one or more is true: native mutation coverage is incompl
 
 Only after these gates pass could a narrowly allowlisted, opt-in filtered-index prototype be justified. The original selector remains exact fallback. Prove full native parity before **uninstrumented placebo-controlled same-work A/A+A/B** CPU comparison. IR-022's approximately 2.9–4.8% descriptive selector CPU shares are *inclusive*, not a promised improvement. Any future index must preserve Minecraft's world lifecycle, source predicates, ordering and scheduler, without global polling.
 
-**Current disposition:** Stage 1 original-publisher source audit and Stage 2 mapped method inventory accepted, with both workflows archived manual-only. Both independent two-JVM native mutation-frequency experiments have passed; the four native regression suites and mutation-visibility differential fixtures are separate acceptance gates. No index or CPU optimization experiment is admitted. No index or CPU optimization experiment is admitted.
+**Current disposition:** Stage 1 original-publisher source audit and Stage 2 mapped method inventory accepted, with both workflows archived manual-only. Both independent two-JVM native mutation-frequency experiments and all four prior native semantic regressions have passed. Mutation-visibility differential fixtures remain the next separate acceptance gate. No index or CPU optimization experiment is admitted. No index or CPU optimization experiment is admitted.
