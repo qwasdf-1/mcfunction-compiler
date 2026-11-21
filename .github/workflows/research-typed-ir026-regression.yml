@@ -1,9 +1,5 @@
 name: COMPILER-IR-026 original-publisher gate default-off native IR016-019 regression
 on:
-  push:
-    branches: [work/compiler-coverage]
-    paths:
-      - '.github/workflows/research-typed-ir026-regression.yml'
   workflow_dispatch:
 
 permissions:
