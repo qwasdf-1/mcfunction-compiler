@@ -35,7 +35,8 @@ class IR024CompilerPlanContracts(unittest.TestCase):
             "record NativeForkPlanBarrier(",
             "CompilerForkPlan024.classify(entry)",
             "nodes.add(new NativeForkPlanBarrier(index, plan, entry))",
-            "node instanceof NativeForkPlanBarrier ? \"N\"",
+            "node instanceof NativeForkPlanBarrier f",
+            '(f.bytecode() ? "C" : "N")',
             '" native_fork_plans=" + nativeForkPlanCount()',
             "n instanceof NativeForkPlanBarrier",
             "node instanceof TypedRegion t",  # direct BytecodeChunks whitelist
