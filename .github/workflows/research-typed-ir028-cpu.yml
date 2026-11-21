@@ -1,11 +1,5 @@
 name: COMPILER-IR-028 original full-completion uninstrumented CPU A/A A/B pilot
 on:
-  push:
-    branches: [work/compiler-coverage]
-    paths:
-      - '.github/workflows/research-typed-ir028-cpu.yml'
-      - 'scripts/ci_typed_ir028_cpu.py'
-      - 'tests/test_typed_ir028_cpu.py'
   workflow_dispatch:
 permissions:
   contents: read
