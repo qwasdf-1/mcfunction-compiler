@@ -44,5 +44,6 @@ jobs:
             build/reports/COMPILER-IR-024/results.json
             build/reports/COMPILER-IR-024/native.json
             build/reports/COMPILER-IR-024/fork_plan.json
+            build/reports/COMPILER-IR-024/fork_plan.server.log
           if-no-files-found: warn
           retention-days: 21
