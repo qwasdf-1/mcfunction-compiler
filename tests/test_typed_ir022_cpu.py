@@ -73,6 +73,15 @@ class IR022Contracts(unittest.TestCase):
             self.assertIn(term,runner)
         self.assertEqual(ir.MODES,("control","plain","empty","timed"))
 
+    def test_marker_query_only_under_brigadier_execute_as_not_score_self(self):
+        java=(ROOT/"src/main/java/dev/functioncompiler/CompilerSelector022Probe.java").read_text()
+        chain=(ROOT/"src/main/java/dev/functioncompiler/mixin/CompilerForkContextChainMixin.java").read_text()
+        self.assertIn('if("as".equals(node.getNode().getName()))',java)
+        self.assertIn('Boolean.TRUE.equals(parent.modifierAs.peekFirst())',java)
+        self.assertIn("if(!ACTIVE || child==null || !child.findScope)return;",java)
+        self.assertIn("CompilerSelector022Probe.modifierStart(context);",chain)
+        self.assertIn("CompilerSelector022Probe.modifierEnd();",chain)
+
     def test_native_empty_timed_clock_signed_and_no_speedup(self):
         data={mode:arm(mode) for mode in ir.MODES}
         result=ir.analysis(data)
