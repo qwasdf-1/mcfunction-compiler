@@ -1,0 +1,48 @@
+name: COMPILER-IR-025 native selector compiled JVM fork and quota parity
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir025-native.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: compiler-ir025-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native-versus-actual-compiled-fork:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Compile actual JVM fork bytecode using the mapped Minecraft API
+        run: ./gradlew --no-daemon build
+      - name: Verify IR025 compile-time safety and native source fixture bounds
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir025_compiled_fork.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir024_fork_plan.py' -v
+          python3 -m py_compile scripts/ci_typed_ir025_compiled_fork.py
+      - name: Native, plan-only and compiled-fork JVM queue and scoreboard parity
+        run: python3 scripts/ci_typed_ir025_compiled_fork.py
+      - name: Archive original game semantic comparisons and compiled diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir025-native-compiled-fork-matrix
+          path: |
+            build/reports/COMPILER-IR-025-NATIVE/results.json
+            build/reports/COMPILER-IR-025-NATIVE/native.json
+            build/reports/COMPILER-IR-025-NATIVE/plan_only.json
+            build/reports/COMPILER-IR-025-NATIVE/compiled.json
+            build/reports/COMPILER-IR-025-NATIVE/compiled.server.log
+          retention-days: 21
