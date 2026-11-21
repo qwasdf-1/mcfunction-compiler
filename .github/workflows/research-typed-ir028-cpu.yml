@@ -1,0 +1,46 @@
+name: COMPILER-IR-028 original full-completion uninstrumented CPU A/A A/B pilot
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: compiler-ir028-original-cpu-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  uninstrumented-original-world-ABBA:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build actual opt-in original-publisher backend
+        run: ./gradlew --no-daemon build
+      - name: Verify explicit uninstrumented A/A A/B source contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir028_cpu.py' -v
+          python3 -m py_compile scripts/ci_typed_ir028_cpu.py
+      - name: Byte-check original publisher untouched
+        run: PYTHONPATH=scripts python3 -c 'from ci_typed_ir015_fetch import fetch; print(fetch("blastback"))'
+      - name: Original real TNT full-completion Server-thread CPU ABBA study
+        timeout-minutes: 32
+        run: python3 scripts/ci_typed_ir028_cpu.py
+      - name: Archive ALL CPU/host-quality samples including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir028-original-world-cpu-abba
+          path: |
+            build/reports/COMPILER-IR-028-CPU/results.json
+            build/reports/COMPILER-IR-028-CPU/A1.json
+            build/reports/COMPILER-IR-028-CPU/B1.json
+            build/reports/COMPILER-IR-028-CPU/B2.json
+            build/reports/COMPILER-IR-028-CPU/A2.json
+            build/reports/COMPILER-IR-028-CPU/compiled.server.log
+          retention-days: 21
