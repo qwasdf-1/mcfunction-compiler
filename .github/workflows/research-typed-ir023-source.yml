@@ -1,0 +1,35 @@
+name: COMPILER-IR-023 SHA-pinned Blastback tag/lifecycle static preflight
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: compiler-ir023-source-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  static-original-publisher-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Test conservative auditor with synthetic publisher
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir023_source.py' -v
+          python3 -m py_compile scripts/ci_typed_ir023_source.py
+      - name: Fetch only original SHA-pinned publisher Blastback ZIP
+        run: |
+          PYTHONPATH=scripts python3 -c 'from ci_typed_ir015_fetch import fetch; print(fetch("blastback"))'
+      - name: Audit exact original tag mutation and lifecycle source sites
+        run: python3 scripts/ci_typed_ir023_source.py
+      - name: Archive bounded source-only report (never publisher ZIP)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir023-tag-source-preflight
+          path: build/reports/COMPILER-IR-023-SOURCE/source-audit.json
+          if-no-files-found: warn
+          retention-days: 21
