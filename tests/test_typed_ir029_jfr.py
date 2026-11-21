@@ -34,6 +34,8 @@ class IR029JFR(unittest.TestCase):
         self.assertIn('"FC_TYPED_IR_DIAGNOSTICS":"false"',src)
         self.assertIn('"FC_TYPED_IR_COMPILED_FORK":str(mode=="compiled").lower()',src)
         self.assertNotIn("base.ledger_gate(client,mode)",src)
+        self.assertIn("capture_population_equal",src)
+        self.assertIn("compiled_action_nested_stack_sample_fractions",src)
         self.assertNotIn("event_cpu_delta(",src)
 
     def test_parse_jfr_json_filters_exact_server_os_thread(self):
@@ -72,6 +74,11 @@ class IR029JFR(unittest.TestCase):
         self.assertEqual(p.frame_identity({
             "method":{"type":{"name":"java/util/ArrayList"},"name":"add"}}),
             ("java.util.ArrayList","add"))
+        self.assertEqual(summary["inclusive_stack_sample_counts"]["entity_type_try_cast"],
+                         p.MIN_SAMPLES)
+        self.assertEqual(summary["compiled_action_nested_stack_sample_counts"]["entity_selector_find"],
+                         p.MIN_SAMPLES)
+        self.assertIn("compiled_action_sample_fraction",summary)
         self.assertTrue(summary["categories_are_overlapping"])
 
 if __name__=="__main__":unittest.main()
