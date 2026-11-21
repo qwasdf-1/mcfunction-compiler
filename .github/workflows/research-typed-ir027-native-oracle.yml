@@ -1,11 +1,5 @@
 name: COMPILER-IR-027 native Blastback no-event and restoration-completion forensic
 on:
-  push:
-    branches: [work/compiler-coverage]
-    paths:
-      - '.github/workflows/research-typed-ir027-native-oracle.yml'
-      - 'scripts/ci_typed_ir027_native_oracle.py'
-      - 'tests/test_typed_ir027_oracle.py'
   workflow_dispatch:
 permissions:
   contents: read
