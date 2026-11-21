@@ -14,17 +14,17 @@ class IR023VisibilityContracts(unittest.TestCase):
         self.assertEqual(set(v.EXPECTED),
                          {"cycle","raw_cycle","summon_kill","near_limit"})
         self.assertEqual(v.EXPECTED["cycle"],
-                         {"#c0":0,"#c1":1,"#c2":1,"#c3":0,"#c4":1,"#c5":0})
+                         {"#c0":0,"#c1":1,"#c2":1,"#c3":0,"#c4":1,"#c5":0,"#root":2})
         self.assertEqual(v.EXPECTED["raw_cycle"],
                          {"#r0":0,"#r1":1,"#r2":0,"#r3":1,"#r4":0})
         self.assertEqual(v.EXPECTED["summon_kill"],
                          {"#s0":0,"#s1":1,"#s2":0,"#s3":0})
         self.assertEqual(v.EXPECTED["near_limit"],
                          {"#pick0":11,"#pick1":22})
-        self.assertEqual(len(v.COMMANDS["cycle"]),12)
+        self.assertEqual(len(v.COMMANDS["cycle"]),14)
         self.assertEqual(len(v.COMMANDS["raw_cycle"]),10)
         self.assertIn("function fc_ir023:nested_child",v.COMMANDS["nested_parent"])
-        self.assertTrue(v.COMMANDS["cycle"][0].startswith("summon minecraft:marker"))
+        self.assertTrue(v.COMMANDS["cycle"][1].startswith("summon minecraft:marker"))
         self.assertTrue(v.COMMANDS["raw_cycle"][0].startswith("summon minecraft:marker"))
         self.assertTrue(v.COMMANDS["nested_parent"][0].startswith("summon minecraft:marker"))
         self.assertIn("sort=nearest,limit=1",v.ORDERED_SELECT)
