@@ -48,7 +48,7 @@ final class MixedFunctionIR {
 
     private MixedFunctionIR() {}
 
-    sealed interface Node permits TypedRegion, OpaqueBarrier {
+    sealed interface Node permits TypedRegion, OpaqueBarrier, NativeForkPlanBarrier {
         int firstSourceIndex();
         int sourceCount();
         UnboundEntryAction<CommandSourceStack> action();
@@ -85,6 +85,24 @@ final class MixedFunctionIR {
 
         @Override
         public int sourceCount() { return 1; }
+    }
+
+    /**
+     * IR-024 recognized post-Brigadier fork, but NEVER a selector replacement.
+     * An original native queue action remains in the exact same source slot.
+     * The existing typed bytecode direct scheduler declines this node.
+     */
+    record NativeForkPlanBarrier(
+            int firstSourceIndex,
+            CompilerForkPlan024.Plan plan,
+            UnboundEntryAction<CommandSourceStack> action
+    ) implements Node {
+        NativeForkPlanBarrier {
+            if (firstSourceIndex < 0) throw new IllegalArgumentException("negative source index");
+            java.util.Objects.requireNonNull(plan);
+            java.util.Objects.requireNonNull(action);
+        }
+        @Override public int sourceCount() { return 1; }
     }
 
     record Program(Identifier id, int sourceCount, List<Node> nodes) {
@@ -146,6 +164,10 @@ final class MixedFunctionIR {
                     && b.kind() == BarrierKind.FUNCTION_DISPATCH).count();
         }
 
+        int nativeForkPlanCount() {
+            return (int) nodes.stream().filter(NativeForkPlanBarrier.class::isInstance).count();
+        }
+
         List<UnboundEntryAction<CommandSourceStack>> executableEntries() {
             return List.copyOf(nodes.stream().map(Node::action).toList());
         }
@@ -176,6 +198,7 @@ final class MixedFunctionIR {
                 if (!layout.isEmpty()) layout.append(',');
                 layout.append(node instanceof TypedRegion t
                         ? (t.bytecode() ? "J" : "I")
+                        : node instanceof NativeForkPlanBarrier ? "N"
                         : node instanceof OpaqueBarrier b
                             && b.kind() == BarrierKind.TYPED_SINGLETON ? "S"
                         : node instanceof OpaqueBarrier b
@@ -189,6 +212,7 @@ final class MixedFunctionIR {
                     + " opaque_barriers=" + opaqueCount()
                     + " singleton_barriers=" + singletonCount()
                     + " dispatch_barriers=" + dispatchBarrierCount()
+                    + " native_fork_plans=" + nativeForkPlanCount()
                     + " direct_candidate=" + (directBytecodeChunks() != null)
                     + " layout=" + layout;
         }
@@ -204,9 +228,16 @@ final class MixedFunctionIR {
             TypedScoreIR.Instruction instruction = TypedScoreIR.lower(entry);
             if (instruction == null) {
                 flush(nodes, pending, first);
-                nodes.add(new OpaqueBarrier(index, entry,
-                        isFunctionDispatch(entry) ? BarrierKind.FUNCTION_DISPATCH
-                                : BarrierKind.UNSUPPORTED_OR_CONTROL));
+                CompilerForkPlan024.Plan plan = CompilerForkPlan024.classify(entry);
+                if (plan != null) {
+                    // Compiler admission, NOT code generation: original
+                    // BuildContexts.Unbound still executes all native stages.
+                    nodes.add(new NativeForkPlanBarrier(index, plan, entry));
+                } else {
+                    nodes.add(new OpaqueBarrier(index, entry,
+                            isFunctionDispatch(entry) ? BarrierKind.FUNCTION_DISPATCH
+                                    : BarrierKind.UNSUPPORTED_OR_CONTROL));
+                }
             } else {
                 if (pending.isEmpty()) first = index;
                 if (pending.size() == TypedScoreIR.MAX_REGION_LENGTH) {
