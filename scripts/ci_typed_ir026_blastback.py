@@ -167,8 +167,12 @@ def marker_counts(client)->dict[str,int]:
     for name,selector in MARKERS.items():
         holder="#fc026_"+name
         client.command(f"scoreboard players set {holder} fc_probe 0")
-        client.command(f"execute as {selector} run "
-                       f"scoreboard players add {holder} fc_probe 1")
+        # One native selector evaluation returns its matched cardinality.
+        # Never iterate /scoreboard add over thousands of entities: one RCON
+        # response per selected entity floods the command-response stream,
+        # making the following /scoreboard get appear malformed.
+        client.command(f"execute store result score {holder} fc_probe "
+                       f"if entity {selector}")
         result[name]=score(client,holder,"fc_probe")
     return result
 
