@@ -1,6 +1,6 @@
 # COMPILER-IR-022 — Original Blastback selector candidate/type/predicate/result investigation
 
-**Status (2026-11-20):** ACCEPTED research-only IR-022: exact mapped 26.3 method signatures, two independent four-JVM CONTROL/PLAIN/EMPTY/TIMED original Blastback studies (eight JVMs), and post-hook IR-016–019 native semantic regressions. The initial overbroad selector census was explicitly invalidated and corrected. No compiled selector, tag index, cache, optimized scheduler, causal CPU speedup, complete restored-world correctness or production promotion. Branch work/compiler-coverage; draft PR #10 unmerged; production OFF.
+**Status (2026-11-20):** ACCEPTED research-only IR-022: exact mapped 26.3 method signatures, two independent four-JVM CONTROL/PLAIN/EMPTY/TIMED original Blastback studies (eight JVMs), and post-hook IR-016–019 native semantic regressions. The initial overbroad selector census was explicitly invalidated and corrected. No compiled selector, tag index, cache, optimized scheduler, causal CPU speedup, complete restored-world correctness or production promotion. Branch work/compiler-coverage; draft PR #10 unmerged; production OFF. All five IR-022 research workflows are archived as manual-only after acceptance.
 
 ## Why IR-022, and exact original source
 
@@ -112,6 +112,12 @@ The combined native predicate signed correction was **49.26 ns/test** and **46.8
 6. Archive research workflows as manual-only and retain draft/unmerged PR #10, production flags OFF.
 
 If a stage proves cheap, mandatory or dominated by probe overhead, record that fact and do **not** implement a replacement. A future optimization would require a specific native semantics-preserving mechanism (e.g. carefully justified selector predicate reuse) and an *unwrapped*, unbiased or placebo-controlled CPU A/B study, including entity/tag mutation, sorting/limit, permissions, error, quota, frame and reentrancy parity.
+
+## Final test and workflow archival
+
+[Dedicated static safety closeout #44842567344](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44842567344) passed a fresh Java25/Minecraft26.3 build, exact original selector-source/Brigadier execute-as scoping regression tests, legacy IR-021 tests and Python runner syntax checks. This locks in the correction that excludes hundreds of thousands of downstream @s score-selector lookups from the original execute-as selector census.
+
+All five research workflows (mapped-source inspection, first four-JVM CPU matrix, independently repeated four-JVM matrix, IR-016–019 native regression, and source-scope safety closeout) are **manual-only** after their accepted native/static gates. PR #10 remains draft/open/unmerged, no production flags were promoted.
 
 ## Reproduce
 
