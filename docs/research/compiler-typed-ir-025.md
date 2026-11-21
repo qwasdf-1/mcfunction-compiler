@@ -216,3 +216,20 @@ Draft PR #10 remains unmerged.
   optional backend with complete invalidation and per-execution fallback.
   IR023's demonstrated mutable `Entity.entityTags()` bypass forbids using
   the prior partial tag mutation hooks to cache membership across commands.
+
+
+## Follow-up — IR026 original-publisher execution (2026-11-21)
+
+The subsequent [COMPILER-IR-026 original-publisher report](compiler-typed-ir-026.md)
+documents two independently accepted 30-second and two independently accepted
+600-datapack-tick comparisons of the **unchanged SHA-pinned original Blastback**
+world. The actual fifth-source-line compiled fork executed over 1,200 times
+per real event, with native selector execution and no persistent entity index.
+Named block witnesses and job/restore status flags agreed across original,
+plan-only and compiled arms; aggregate marker counts were close and matched
+exactly between original and compiled in one independent tick-matched run.
+
+This **does not resolve** the native baseline's full-template restoration
+oracle (`template_equal=false` in every original-publisher arm) and does
+not establish arbitrary per-entity identity/ordering, complete semantics,
+or CPU speedup. IR025 remains research-only, opt-in, and unmerged.
