@@ -42,6 +42,10 @@ class IR027OriginalOracle(unittest.TestCase):
             if 'if False' in token:continue
             self.assertIn(token,s)
         self.assertNotIn('FC_TYPED_IR_COMPILED_FORK":"true"',s)
+        for required in ("prove_original_capture_activity(", "original_capture_witness",
+                         "max_original_block_markers", "first_original_capture",
+                         "tnt_remaining_after", "The originally spawned TNT actor never detonated"):
+            self.assertIn(required,s)
         self.assertNotIn("System.nanoTime(",s)
 
     def test_markers_and_mismatch_layers_are_read_only(self):
