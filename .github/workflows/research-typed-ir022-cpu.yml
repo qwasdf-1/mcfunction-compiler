@@ -6,6 +6,7 @@ on:
       - '.github/workflows/research-typed-ir022-cpu.yml'
       - 'src/main/java/dev/functioncompiler/CompilerSelector022Probe.java'
       - 'src/main/java/dev/functioncompiler/mixin/CompilerSelector022Mixin.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerForkContextChainMixin.java'
       - 'src/main/java/dev/functioncompiler/mixin/CompilerQueueBuildCpuMixin.java'
       - 'src/main/resources/function_compiler.mixins.json'
       - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
