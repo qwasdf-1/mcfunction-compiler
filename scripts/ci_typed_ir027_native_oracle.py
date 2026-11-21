@@ -127,6 +127,51 @@ def until(client,target:int,deadline:float):
                                   f"target={target}")
         time.sleep(.22)
 
+def configure_stable_original_scene(client)->dict:
+    """New research fixture, NOT the earlier naturally generated IR026 scene.
+
+    The full source and template are fixed stone rather than a single stone
+    plane over naturally generated caves/water; the original Blastback pack
+    remains byte-identical. The no-event arm must show long-term template
+    stability before a TNT arm is considered interpretable.
+    """
+    for cmd in (
+        "gamerule sendCommandFeedback false",
+        "gamerule doMobSpawning false",
+        "gamerule doDaylightCycle false",
+        "gamerule doWeatherCycle false",
+        "gamerule randomTickSpeed 0",
+        "gamerule maxEntityCramming 10000",
+        "difficulty peaceful",
+        "scoreboard objectives add fc_probe dummy",
+        "forceload add -16 -16 16 16",
+        "forceload add 64 32",
+        # New *controlled* fixture. Never claim that it replicates IR026's
+        # natural-world terrain mix or its prior CPU/work denominator.
+        "fill -4 56 -4 12 72 12 minecraft:stone",
+    ):
+        client.command(cmd)
+    for block,pos in base.WITNESSES.items():
+        if block!="stone":
+            x,y,z=pos
+            client.command(f"setblock {x} {y} {z} minecraft:{block}")
+    attempts=[]
+    for _ in range(3):
+        result=client.command(
+            "clone -4 56 -4 12 72 12 64 56 32 replace force")
+        match=region_matches_template(client)
+        witnesses=base.native_witnesses(client)
+        attempts.append({"clone":result,"full_template_equal":match,
+                         "witnesses":witnesses})
+        if match and all(witnesses.values()):
+            return {"scene":"controlled_full_stone_17_cube",
+                    "original_publisher_unchanged":True,
+                    "natural_IR026_terrain_comparability_claim":False,
+                    "pre_event_clone_attempts":attempts}
+        time.sleep(.2)
+    raise AssertionError("Controlled fixed stone scene did not initialize: "
+                         +repr(attempts))
+
 def run(mode:str)->dict:
     if mode not in ("no_tnt","native_tnt"):
         raise ValueError("No compiler arms admitted in source restoration diagnosis")
@@ -138,7 +183,7 @@ def run(mode:str)->dict:
             "cpu_claim":False,"full_restoration_claim":False,
             "checkpoints":[]}
     try:
-        result["pre_event_scene"]=base.configure_original_scene(client)
+        result["pre_event_scene"]=configure_stable_original_scene(client)
         if not region_matches_template(client):
             raise AssertionError("Original source differs from template before event")
         start=score(client,"#tick_id","erb.cfg")
