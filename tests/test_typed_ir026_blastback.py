@@ -55,6 +55,11 @@ class IR026OriginalPublisherContracts(unittest.TestCase):
         self.assertGreaterEqual(i.MIN_TICKS,100)
         self.assertEqual(len(i.WITNESSES),5)
         self.assertEqual(len(i.MARKERS),3)
+        # Count matching marker entities in one native selector command,
+        # not thousands of feedback-producing per-entity score callbacks.
+        marker_body=(ROOT/"scripts/ci_typed_ir026_blastback.py").read_text()
+        self.assertIn("execute store result score {holder} fc_probe",marker_body)
+        self.assertNotIn("execute as {selector} run",marker_body)
         self.assertIn("needs_restore",[x[0] for x in i.SCORES])
         self.assertIn("active_job",[x[0] for x in i.SCORES])
 
