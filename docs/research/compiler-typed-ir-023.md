@@ -1,6 +1,6 @@
 # COMPILER-IR-023 — Tag membership, mutation and filtered-index invalidation
 
-**Status (2026-11-20):** Stage 1 SHA-pinned static source audit ACCEPTED; Stage 2 mapped method inventory in progress, not yet native-accepted. This document precommits the semantic and measurement gates. No tag-index runtime, selector replacement, changed compiler mode, speedup evidence or production promotion. Existing branch `work/compiler-coverage`; PR #10 remains draft/unmerged. The new source-audit workflow is manual-only.
+**Status (2026-11-20):** Stage 1 SHA-pinned static source audit ACCEPTED; Stage 2 mapped method inventory ACCEPTED (read-only original-game bytecode). Neither stage establishes native mutation frequency. This document precommits the semantic and measurement gates. No tag-index runtime, selector replacement, changed compiler mode, speedup evidence or production promotion. Existing branch `work/compiler-coverage`; PR #10 remains draft/unmerged. The new source-audit workflow is manual-only.
 
 ## Starting evidence and what it does NOT prove
 
@@ -46,7 +46,7 @@ If any transition cannot be reliably observed without a general full-world scan 
 
 ### Mapped 26.3 implementation finding — invalidation must cover the backing set
 
-The initial mapped inventory exposed a **mapping correction**, not a successful mutation-frequency run: the actual official-mapped `Entity` method is `entityTags(): Set<String>`, **not** `getTags()`. The first inspector rejected the stale expectation [in workflow #44863303102](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44863303102). The corrected official-method inspection requires `entityTags` and the actual tag methods. The first run's read-only disassembly nevertheless established:
+The initial mapped inventory exposed a **mapping correction**, not a successful mutation-frequency run: the actual official-mapped `Entity` method is `entityTags(): Set<String>`, **not** `getTags()`. The first inspector rejected the stale expectation [in workflow #44863303102](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44863303102). The corrected official-method inspection verifies `entityTags`, `addTag`, `removeTag` and `setRemoved`, and completed successfully in [mapped Minecraft 26.3 inspection #44863425889](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44863425889). The first run's read-only disassembly nevertheless established:
 
 - `Entity.entityTags()` returns its underlying `tags` set, not a defensive immutable copy.
 - `Entity.addTag(String)` delegates to `Set.add`, returning its success result (after enforcing the 1,024-tag guard); `removeTag(String)` delegates to `Set.remove`.
@@ -82,4 +82,4 @@ Precommit **STOP** when one or more is true: native mutation coverage is incompl
 
 Only after these gates pass could a narrowly allowlisted, opt-in filtered-index prototype be justified. The original selector remains exact fallback. Prove full native parity before **uninstrumented placebo-controlled same-work A/A+A/B** CPU comparison. IR-022's approximately 2.9–4.8% descriptive selector CPU shares are *inclusive*, not a promised improvement. Any future index must preserve Minecraft's world lifecycle, source predicates, ordering and scheduler, without global polling.
 
-**Current disposition:** Stage 1 original-publisher source audit accepted; mapped API inventory under validation. Lifecycle observer, native mutation-frequency measurements, command-to-command differential fixtures and CPU/index experiments are **not yet completed or accepted**.
+**Current disposition:** Stage 1 original-publisher source audit and Stage 2 mapped method inventory accepted, with both workflows archived manual-only. Lifecycle observer, native mutation-frequency measurements, command-to-command differential fixtures and CPU/index experiments are **not yet completed or accepted**.
