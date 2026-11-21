@@ -1,0 +1,48 @@
+name: COMPILER-IR-027 native Blastback no-event and restoration-completion forensic
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir027-native-oracle.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: compiler-ir027-original-oracle-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  original-native-restoration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build pinned Fabric native research server
+        run: ./gradlew --no-daemon build
+      - name: Check source and completion-oracle instrumentation tests
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir027_oracle.py' -v
+          python3 -m py_compile scripts/ci_typed_ir027_native_oracle.py
+      - name: Fetch byte-pinned original Blastback
+        run: PYTHONPATH=scripts python3 -c 'from ci_typed_ir015_fetch import fetch; print(fetch("blastback"))'
+      - name: Diagnose original publisher restoration and no-TNT baseline only
+        timeout-minutes: 32
+        run: python3 scripts/ci_typed_ir027_native_oracle.py
+      - name: Preserve original world progress and mismatch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir027-native-original-restoration-forensic
+          path: |
+            build/reports/COMPILER-IR-027-NATIVE-ORACLE/results.json
+            build/reports/COMPILER-IR-027-NATIVE-ORACLE/no_tnt.json
+            build/reports/COMPILER-IR-027-NATIVE-ORACLE/native_tnt.json
+            build/reports/COMPILER-IR-027-NATIVE-ORACLE/native.server.log
+          retention-days: 21
