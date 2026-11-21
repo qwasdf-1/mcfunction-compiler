@@ -233,3 +233,32 @@ This **does not resolve** the native baseline's full-template restoration
 oracle (`template_equal=false` in every original-publisher arm) and does
 not establish arbitrary per-entity identity/ordering, complete semantics,
 or CPU speedup. IR025 remains research-only, opt-in, and unmerged.
+
+
+## Follow-up — IR027–IR029 original publisher completion, CPU and profile gates
+
+The subsequent [IR027 completion oracle](compiler-typed-ir-027.md) replaced
+the naturally drifting IR026 template with a separately identified controlled
+stone fixture, proved native capture and complete 17³ restoration, and
+independently replicated full-volume native / plan-only / compiled parity.
+This resolves the *controlled-fixture* completion gate, not arbitrary
+natural-world equivalence.
+
+The [IR028 uninstrumented CPU pilot](compiler-typed-ir-028.md) then ran four
+fresh JVMs in A–B–B–A order. All four original events restored the full volume,
+but the observed compiled reduction was only **0.137%** against **4.804%**
+A/A spread, with opposite signs in the two adjacent pairs. No meaningful
+speedup was established.
+
+The [IR029 JFR profile](compiler-typed-ir-029.md) confirmed the generated
+compiled action frame in the compiled Server-thread stacks. Within those
+samples, much of the work remains in the original native entity selector,
+selector-option predicate/type filtering and scoreboard lookup. The JFR
+capture populations varied across arms, so this is descriptive attribution,
+not a work-equalized CPU comparison.
+
+**Current disposition:** IR025 remains a research-only functional prototype.
+Do not promote it or add a global entity/tag cache without a complete
+invalidation contract; IR023's direct mutable entity-tag access finding
+remains unresolved. The default compiler and native game behavior remain
+unchanged, and draft PR #10 remains unmerged.
