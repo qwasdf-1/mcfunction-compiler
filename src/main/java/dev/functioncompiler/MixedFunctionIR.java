@@ -95,8 +95,16 @@ final class MixedFunctionIR {
     record NativeForkPlanBarrier(
             int firstSourceIndex,
             CompilerForkPlan024.Plan plan,
-            UnboundEntryAction<CommandSourceStack> action
+            UnboundEntryAction<CommandSourceStack> action,
+            boolean bytecode
     ) implements Node {
+        NativeForkPlanBarrier(
+                int firstSourceIndex,
+                CompilerForkPlan024.Plan plan,
+                UnboundEntryAction<CommandSourceStack> original
+        ) {
+            this(firstSourceIndex, plan, original, false);
+        }
         NativeForkPlanBarrier {
             if (firstSourceIndex < 0) throw new IllegalArgumentException("negative source index");
             java.util.Objects.requireNonNull(plan);
@@ -171,6 +179,11 @@ final class MixedFunctionIR {
             return (int) nodes.stream().filter(NativeForkPlanBarrier.class::isInstance).count();
         }
 
+        int compiledForkCount() {
+            return (int) nodes.stream().filter(n -> n instanceof NativeForkPlanBarrier b
+                    && b.bytecode()).count();
+        }
+
         List<UnboundEntryAction<CommandSourceStack>> executableEntries() {
             return List.copyOf(nodes.stream().map(Node::action).toList());
         }
@@ -201,7 +214,8 @@ final class MixedFunctionIR {
                 if (!layout.isEmpty()) layout.append(',');
                 layout.append(node instanceof TypedRegion t
                         ? (t.bytecode() ? "J" : "I")
-                        : node instanceof NativeForkPlanBarrier ? "N"
+                        : node instanceof NativeForkPlanBarrier f
+                            ? (f.bytecode() ? "C" : "N")
                         : node instanceof OpaqueBarrier b
                             && b.kind() == BarrierKind.TYPED_SINGLETON ? "S"
                         : node instanceof OpaqueBarrier b
@@ -216,6 +230,7 @@ final class MixedFunctionIR {
                     + " singleton_barriers=" + singletonCount()
                     + " dispatch_barriers=" + dispatchBarrierCount()
                     + " native_fork_plans=" + nativeForkPlanCount()
+                    + " compiled_forks=" + compiledForkCount()
                     + " direct_candidate=" + (directBytecodeChunks() != null)
                     + " layout=" + layout;
         }
@@ -235,7 +250,18 @@ final class MixedFunctionIR {
                 if (plan != null) {
                     // Compiler admission, NOT code generation: original
                     // BuildContexts.Unbound still executes all native stages.
-                    nodes.add(new NativeForkPlanBarrier(index, plan, entry));
+                    if (CompilerForkExecutor025.enabled()) {
+                        UnboundEntryAction<CommandSourceStack> generated =
+                                CompilerForkExecutor025.compile(plan, entry);
+                        if (generated != entry) {
+                            nodes.add(new NativeForkPlanBarrier(
+                                    index, plan, generated, true));
+                        } else {
+                            nodes.add(new NativeForkPlanBarrier(index, plan, entry));
+                        }
+                    } else {
+                        nodes.add(new NativeForkPlanBarrier(index, plan, entry));
+                    }
                 } else {
                     nodes.add(new OpaqueBarrier(index, entry,
                             isFunctionDispatch(entry) ? BarrierKind.FUNCTION_DISPATCH
