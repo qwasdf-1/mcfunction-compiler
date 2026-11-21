@@ -4,6 +4,7 @@ on:
     branches: [work/compiler-coverage]
     paths:
       - '.github/workflows/research-typed-ir023-source.yml'
+      - 'tests/test_typed_ir023_source.py'
   workflow_dispatch:
 
 permissions:
