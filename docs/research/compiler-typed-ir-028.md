@@ -145,3 +145,20 @@ CPU pilot.
 controlled original-publisher event. IR028 shows no measurable whole-event
 speedup. No production promotion, default enablement, or general performance
 claim is authorized.
+
+
+## Follow-up — IR029 JFR stack attribution (2026-11-21)
+
+The subsequent [IR029 JFR profile](compiler-typed-ir-029.md) confirmed that the
+generated action frame is present in the compiled Server-thread stacks, but
+the action's sampled work is largely in the retained native
+`EntitySelector.findEntities`, selector-options predicate, entity-type
+filtering and scoreboard lookup. The action frame appeared in about 3.7% of
+runnable Server-thread samples. Its four profile arms did **not** have equal
+capture-marker populations (1,530–5,769), so their broad stack fractions are
+descriptive only and cannot be treated as a comparative performance result.
+
+The JFR evidence is consistent with, but does not causally explain, IR028's
+0.137% observed CPU reduction. The compiler fork remains research-only; no
+global tag cache or selector index is authorized without a complete mutation
+invalidation design.
