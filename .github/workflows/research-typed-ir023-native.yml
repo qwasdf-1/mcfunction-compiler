@@ -1,0 +1,52 @@
+name: COMPILER-IR-023 original Blastback marker tag and lifecycle native census
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir023-native.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: compiler-ir023-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  original-blastback-two-jvm-mutation-observer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 54
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build original Minecraft 26.3 and gated read-only observer
+        run: ./gradlew --no-daemon build
+      - name: Validate IR023 parser, static safety and pin contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir023_native.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir023_source.py' -v
+          python3 -m py_compile scripts/ci_typed_ir023_native.py scripts/ci_typed_ir019_blastback.py
+      - name: Fetch original byte-pinned publisher only
+        run: |
+          PYTHONPATH=scripts python3 -c 'from ci_typed_ir015_fetch import fetch; print(fetch("blastback"))'
+      - name: Two independent native JVMs with original TNT source and selector denominator
+        run: python3 scripts/ci_typed_ir023_native.py
+      - name: Archive bounded native reports, not publisher ZIP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir023-original-tag-lifecycle-native
+          path: |
+            build/reports/COMPILER-IR-023-NATIVE/results.json
+            build/reports/COMPILER-IR-023-NATIVE/control/results.json
+            build/reports/COMPILER-IR-023-NATIVE/plain/results.json
+            build/reports/COMPILER-IR-023-NATIVE/control/clock-rows.log
+            build/reports/COMPILER-IR-023-NATIVE/plain/clock-rows.log
+          if-no-files-found: warn
+          retention-days: 21
