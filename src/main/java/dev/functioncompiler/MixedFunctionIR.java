@@ -151,7 +151,10 @@ final class MixedFunctionIR {
         }
 
         int opaqueCount() {
-            return (int) nodes.stream().filter(OpaqueBarrier.class::isInstance).count();
+            // Recognized native fork plans are still exact opaque queue actions.
+            // Do not undercount them or accidentally imply a direct-only program.
+            return (int) nodes.stream().filter(n -> n instanceof OpaqueBarrier
+                    || n instanceof NativeForkPlanBarrier).count();
         }
 
         int singletonCount() {
