@@ -19,6 +19,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import time
 
 from ci_smoke_server import ROOT, RUNS, unused_port, wait_for_rcon
 from ci_typed_ir013 import stop
@@ -31,6 +32,12 @@ MODES=("native","observer")
 SELECT="@e[type=minecraft:marker,tag=fc023.fixture,tag=erb.block,tag=!erb.verified]"
 ALL="@e[type=minecraft:marker,tag=fc023.fixture]"
 COMMANDS={
+    "readiness": [
+        'summon minecraft:marker 0 64 0 {Tags:["fc023.ready"]}',
+        "execute if entity @e[type=minecraft:marker,tag=fc023.ready] "
+        "run scoreboard players set #ready fc023 1",
+        "kill @e[type=minecraft:marker,tag=fc023.ready]",
+    ],
     "cycle": [
         "scoreboard players add #root fc023 1",
         'summon minecraft:marker 0 64 0 {Tags:["fc023.fixture"]}',
@@ -167,6 +174,25 @@ def start(mode:str):
         client.command("scoreboard objectives add fc023 dummy")
         client.command("forceload add 0 0")
         client.command("setblock 0 63 0 minecraft:stone")
+        # Forceload marks a ticket; its entity-section lookup may not yet be
+        # ready on a newly booted empty server. Require original same-queue
+        # summon -> world-entity lookup -> kill before each experimental arm.
+        # This readiness work is OUTSIDE all measured native tag windows.
+        attempts=[]
+        for attempt in range(24):
+            client.command("scoreboard players set #ready fc023 0")
+            result=client.command("function fc_ir023:readiness")
+            seen=nullable_score(client,"#ready","fc023")
+            attempts.append(seen)
+            if seen==1:
+                print("IR023_READY "+json.dumps({
+                    "mode":mode,"attempts":attempt+1,"last_result":result[:120],
+                    "marked_forceload":True}),flush=True)
+                break
+            time.sleep(0.15)
+        else:
+            raise AssertionError(
+                f"Native marker lookup not ready after bounded warmup {mode}: {attempts!r}")
         return proc,client,log
     except BaseException:
         proc.terminate();proc.wait(timeout=40);log.close();raise
