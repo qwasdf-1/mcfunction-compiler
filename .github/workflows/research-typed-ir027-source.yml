@@ -1,0 +1,28 @@
+name: COMPILER-IR-027 original publisher restore-completion source forensic
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir027-source.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pinned-source-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Acquire original publisher and verify byte pin
+        run: PYTHONPATH=scripts python3 -c 'from ci_typed_ir015_fetch import fetch; print(fetch("blastback"))'
+      - name: Read only original completion and restore functions
+        run: python3 scripts/ci_typed_ir027_source.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ir027-original-publisher-completion-source
+          path: build/reports/COMPILER-IR-027-SOURCE/inventory.json
+          retention-days: 21
