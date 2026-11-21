@@ -41,10 +41,14 @@ class IR029JFR(unittest.TestCase):
             "sampledThread":{"osThreadId":42,"javaName":"Server thread"},
             "state":"STATE_RUNNABLE",
             "stackTrace":{"frames":[
-                {"method":{"type":{"name":"dev.functioncompiler.CompilerForkExecutor025"},
+                {"method":{"type":{"name":"dev.functioncompiler.CompiledFork025$Generated$1"},
+                           "name":"execute"}},
+                {"method":{"type":{"name":"dev/functioncompiler/CompilerForkExecutor025"},
                            "name":"run"}},
                 {"method":{"type":{"name":"net.minecraft.commands.arguments.selector.EntitySelector"},
                            "name":"findEntities"}},
+                {"method":{"type":{"name":"java/util/ArrayList"},
+                           "name":"add"}},
             ]}}}
         payload={"recording":{"events":[event]*p.MIN_SAMPLES}}
         with tempfile.NamedTemporaryFile(suffix=".jfr") as f:
@@ -58,6 +62,16 @@ class IR029JFR(unittest.TestCase):
                          p.MIN_SAMPLES)
         self.assertEqual(summary["inclusive_stack_sample_counts"]["entity_selector_find"],
                          p.MIN_SAMPLES)
+        self.assertEqual(summary["inclusive_stack_sample_counts"]["array_list_add"],
+                         p.MIN_SAMPLES)
+        self.assertEqual(summary["compiled_action_runnable_samples"],p.MIN_SAMPLES)
+        self.assertEqual(summary["compiled_action_nested_stack_sample_counts"]["entity_selector_find"],
+                         p.MIN_SAMPLES)
+        self.assertEqual(summary["compiled_action_nested_stack_sample_counts"]["array_list_add"],
+                         p.MIN_SAMPLES)
+        self.assertEqual(p.frame_identity({
+            "method":{"type":{"name":"java/util/ArrayList"},"name":"add"}}),
+            ("java.util.ArrayList","add"))
         self.assertTrue(summary["categories_are_overlapping"])
 
 if __name__=="__main__":unittest.main()
