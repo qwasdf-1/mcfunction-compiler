@@ -1,0 +1,34 @@
+name: COMPILER-IR-022 standalone static safety closeout
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir022-closeout.yml'
+      - 'tests/test_typed_ir022_cpu.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: compiler-ir022-closeout-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  exact-brigadier-stage-and-previous-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Compile official Minecraft 26.3 integration
+        run: ./gradlew --no-daemon build
+      - name: Audit precise original selector stage, native type test and clock/controls
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir022_cpu.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir021_cpu.py' -v
+          python3 -m py_compile scripts/ci_typed_ir022_cpu.py
