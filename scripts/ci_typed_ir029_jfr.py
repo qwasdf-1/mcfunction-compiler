@@ -155,7 +155,20 @@ def run_arm(label:str,mode:str)->dict:
     pid=None
     try:
         result["pre_scene"]=oracle.configure_stable_original_scene(client)
-        result["compiler_source_ledger"]=base.ledger_gate(client,mode)
+        flags=cpu.mode_options(mode)
+        expected={
+            "FC_TYPED_IR_MODE":"bytecode",
+            "FC_TYPED_IR_NAMESPACE":"erb",
+            "FC_TYPED_IR_FUNCTION_FILTER":base.TARGET,
+            "FC_TYPED_IR_NATIVE_FORK_PLAN":"true",
+            "FC_TYPED_IR_COMPILED_FORK":str(mode=="compiled").lower(),
+            "FC_TYPED_IR_REENTRANT_SAFE":"true",
+            "FC_TYPED_IR_DIAGNOSTICS":"false",
+        }
+        for key,value in expected.items():
+            if flags.get(key)!=value:
+                raise AssertionError(f"Unexpected JFR arm flag {key}={flags.get(key)!r}, expected {value!r}")
+        result["compiler_mode_flags"]={key:flags.get(key) for key in expected}
         pid,tid=find_server_thread(proc.pid)
         result["server_pid"]=pid
         result["server_thread_tid"]=tid
