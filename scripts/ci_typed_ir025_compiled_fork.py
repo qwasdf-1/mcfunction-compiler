@@ -16,6 +16,7 @@ import re
 from pathlib import Path
 
 import ci_typed_ir024_fork_plan as base
+import ci_typed_ir014 as callbacks
 from ci_typed_ir013 import stop, stat
 from ci_typed_ir017 import nullable_score
 from ci_smoke_server import ROOT
@@ -90,6 +91,20 @@ ADDED={
         "run scoreboard players set #missing fc024 1",
         "scoreboard players add #steps fc024 1",
     ],
+    # The original ScoreboardQueueInjectionMixin observes the native
+    # terminal scoreboard write and queues two original Minecraft child
+    # function calls, one nested inside the other. Comparing the following
+    # scoreboard read proves native depth-first callback/continuation order.
+    "reentrant_callback": [
+        "scoreboard players set #active fc024 7",
+        "scoreboard players set #steps fc024 0",
+        'summon minecraft:marker 0 64 0 {Tags:["fc024.fixture","erb.block"]}',
+        f"execute as {ALL} run scoreboard players set @s fc024 7",
+        f"execute as {SELECT} if score @s fc024 = #active fc024 "
+        "run scoreboard players set #ir014_chain fc_ir 1",
+        "scoreboard players operation #observed fc_ir = #ir014_marker fc_ir",
+        "scoreboard players add #steps fc024 1",
+    ],
     "missing_terminal_objective": [
         "scoreboard players set #active fc024 7",
         "scoreboard players set #missing fc024 0",
@@ -111,9 +126,26 @@ EXPECTED={
     "sorted_first_fails":{"#sorted":0,"#steps":2},
     "missing_guard_objective":{"#missing":0,"#steps":1},
     "missing_terminal_objective":{"#missing":0,"#steps":1},
+    "reentrant_callback":{"#steps":1,"#observed_fc_ir":11,
+                          "#marker_fc_ir":11,"#inner_fc_ir":9},
 }
 CASES=tuple(EXPECTED)
 BASE_OPTIONS=base.options
+BASE_FIXTURE=base.fixture
+BASE_START=base.start
+
+def fixture(work):
+    BASE_FIXTURE(work)
+    injected=work/"world/datapacks"/base.PACK/"data/fc_ir/function"
+    injected.mkdir(parents=True,exist_ok=True)
+    for name in ("ir014_inject_first","ir014_inject_second"):
+        (injected/(name+".mcfunction")).write_text(
+            "\\n".join(callbacks.FUNCTIONS[name])+"\\n",encoding="utf-8")
+
+def start(mode):
+    process,client,log=BASE_START(mode)
+    answer=client.command("scoreboard objectives add fc_ir dummy")
+    return process,client,log
 
 def options(mode):
     if mode not in MODES:raise ValueError("Invalid IR025 execution mode")
@@ -123,7 +155,8 @@ def options(mode):
         "FC_TYPED_IR_COMPILED_FORK":str(mode=="compiled").lower(),
         "FC_TYPED_IR_NATIVE_FORK_PLAN":str(mode!="native").lower(),
         "FC_TYPED_IR_DIAGNOSTICS":str(mode!="native").lower(),
-        "FC_TYPED_IR_REENTRANT_SAFE":"false",
+        "FC_TYPED_IR_REENTRANT_SAFE":"true",
+        "FC_TYPED_IR_REENTRANT_TEST_OBSERVER":"true",
         "FC_TYPED_IR_SCORE_CACHE":"false",
         "FC_TYPED_IR_DIRECT_FUNCTION":"false",
         "FC_IR023_VISIBILITY_HARNESS":"false",
@@ -132,12 +165,18 @@ def options(mode):
 def configure_base():
     base.OUT=OUT
     base.options=options
+    base.fixture=fixture
+    base.start=start
     base.FUNCTIONS={**base.FUNCTIONS,**ADDED}
     base.SCORES=ALL_SCORES
     base.EXPECTED=EXPECTED
 
 def snapshot(client):
-    return {holder:nullable_score(client,holder,"fc024") for holder in ALL_SCORES}
+    return {holder:nullable_score(client,holder,"fc024") for holder in ALL_SCORES} | {
+        "#observed_fc_ir":nullable_score(client,"#observed","fc_ir"),
+        "#marker_fc_ir":nullable_score(client,"#ir014_marker","fc_ir"),
+        "#inner_fc_ir":nullable_score(client,"#ir014_inner_seen","fc_ir"),
+    }
 
 def reset(client):
     client.command("gamerule minecraft:max_command_sequence_length 65536")
@@ -145,6 +184,12 @@ def reset(client):
     client.command("scoreboard objectives remove fc_absent")
     for holder in ALL_SCORES:
         client.command(f"scoreboard players set {holder} fc024 0")
+    for watched in ("#ir014_chain","#ir014_second"):
+        # Reset rather than assigning zero: a score change here would enqueue
+        # a callback before the function under test had even started.
+        client.command(f"scoreboard players reset {watched} fc_ir")
+    for holder in ("#ir014_marker","#ir014_inner_seen","#observed"):
+        client.command(f"scoreboard players set {holder} fc_ir 0")
 
 def run_arm(mode):
     process,client,log=base.start(mode)
