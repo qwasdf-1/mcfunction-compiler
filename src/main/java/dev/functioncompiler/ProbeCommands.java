@@ -91,6 +91,21 @@ final class ProbeCommands {
                                     context.getSource(), false))));
         }
 
+        // IR-023: research-only direct mutable Tag Set fixture. Without this
+        // explicit flag the commands do not exist. Marker-only and fixture-
+        // tag-only so the experiment cannot mutate unrelated entities.
+        if (Boolean.parseBoolean(System.getenv("FC_IR023_VISIBILITY_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir023_raw_tag")
+                    .then(Commands.literal("add_block").executes(ctx ->
+                            CompilerTagVisibility023Harness.mutate(ctx.getSource(), "erb.block", true)))
+                    .then(Commands.literal("remove_block").executes(ctx ->
+                            CompilerTagVisibility023Harness.mutate(ctx.getSource(), "erb.block", false)))
+                    .then(Commands.literal("add_verified").executes(ctx ->
+                            CompilerTagVisibility023Harness.mutate(ctx.getSource(), "erb.verified", true)))
+                    .then(Commands.literal("remove_verified").executes(ctx ->
+                            CompilerTagVisibility023Harness.mutate(ctx.getSource(), "erb.verified", false))));
+        }
+
         // IR-019: strictly namespaced fixture call; all actual child
         // scheduling remains Minecraft's own CallFunction execution.
         if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DISPATCH_TEST_HARNESS"))) {
