@@ -6,6 +6,7 @@ on:
       - '.github/workflows/research-typed-ir022-regression.yml'
       - 'src/main/java/dev/functioncompiler/CompilerSelector022Probe.java'
       - 'src/main/java/dev/functioncompiler/mixin/CompilerSelector022Mixin.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerForkContextChainMixin.java'
       - 'tests/test_typed_ir022_cpu.py'
       - 'scripts/ci_typed_ir022_cpu.py'
   workflow_dispatch:
