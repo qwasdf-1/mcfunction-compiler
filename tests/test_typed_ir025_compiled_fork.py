@@ -84,6 +84,13 @@ class IR025ForkCompilerContracts(unittest.TestCase):
         self.assertEqual(sum("summon minecraft:marker" in line
                              for line in f.ADDED["partial"]),4)
         self.assertIn("sort=nearest,limit=1",f.SORTED)
+        self.assertIn("reentrant_callback",f.ADDED)
+        self.assertTrue(any("scoreboard players set #ir014_chain fc_ir 1" in cmd
+                            for cmd in f.ADDED["reentrant_callback"]))
+        self.assertEqual(f.EXPECTED["reentrant_callback"]["#observed_fc_ir"],11)
+        self.assertEqual(f.EXPECTED["reentrant_callback"]["#inner_fc_ir"],9)
+        self.assertIn("ir014_inject_first",f.callbacks.FUNCTIONS)
+        self.assertIn("ir014_inject_second",f.callbacks.FUNCTIONS)
         for name in ("no_candidate","multi_four","partial","sorted_first_fails",
                      "missing_guard_objective","missing_terminal_objective"):
             self.assertIn(name,f.EXPECTED)
