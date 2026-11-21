@@ -32,6 +32,7 @@ SELECT="@e[type=minecraft:marker,tag=fc023.fixture,tag=erb.block,tag=!erb.verifi
 ALL="@e[type=minecraft:marker,tag=fc023.fixture]"
 COMMANDS={
     "cycle": [
+        'summon minecraft:marker 0 64 0 {Tags:["fc023.fixture"]}',
         f"execute as {SELECT} run scoreboard players add #c0 fc023 1",
         f"tag {ALL} add erb.block",
         f"execute as {SELECT} run scoreboard players add #c1 fc023 1",
@@ -50,12 +51,14 @@ COMMANDS={
         f"execute as {SELECT} run scoreboard players add #child1 fc023 1",
     ],
     "nested_parent": [
+        'summon minecraft:marker 0 64 0 {Tags:["fc023.fixture"]}',
         f"tag {ALL} add erb.block",
         f"execute as {SELECT} run scoreboard players add #parent0 fc023 1",
         "function fc_ir023:nested_child",
         f"execute as {SELECT} run scoreboard players add #parent1 fc023 1",
     ],
     "raw_cycle": [
+        'summon minecraft:marker 0 64 0 {Tags:["fc023.fixture"]}',
         f"execute as {SELECT} run scoreboard players add #r0 fc023 1",
         f"execute as {ALL} run fc_ir023_raw_tag add_block",
         f"execute as {SELECT} run scoreboard players add #r1 fc023 1",
@@ -83,6 +86,12 @@ COMMANDS={
 # no modifying the production selector, no additional predicate evaluations.
 ORDERED_SELECT="@e[type=minecraft:marker,tag=fc023.fixture,tag=erb.block,tag=!erb.verified,sort=nearest,limit=1]"
 COMMANDS["near_limit"]=[
+    'summon minecraft:marker 0 64 0 {Tags:["fc023.fixture","erb.block"]}',
+    'summon minecraft:marker 4 64 0 {Tags:["fc023.fixture","erb.block"]}',
+    'execute positioned 0 64 0 run scoreboard players set '
+    '@e[type=minecraft:marker,tag=fc023.fixture,sort=nearest,limit=1] fc023 11',
+    'execute positioned 4 64 0 run scoreboard players set '
+    '@e[type=minecraft:marker,tag=fc023.fixture,sort=nearest,limit=1] fc023 22',
     f"execute positioned 0 64 0 as {ORDERED_SELECT} run scoreboard players operation #pick0 fc023 = @s fc023",
     f"execute positioned 0 64 0 as {ORDERED_SELECT} run tag @s add erb.verified",
     f"execute positioned 0 64 0 as {ORDERED_SELECT} run scoreboard players operation #pick1 fc023 = @s fc023",
@@ -166,21 +175,8 @@ def reset(client,case:str)->None:
     client.command(f"kill {ALL}")
     for holder in SCORES:
         client.command(f"scoreboard players set {holder} fc023 0")
-    if case in ("cycle","nested_parent","raw_cycle"):
-        summon=client.command('summon minecraft:marker 0 64 0 {Tags:["fc023.fixture"]}')
-        if "Summoned new" not in summon:
-            raise AssertionError(f"Expected vanilla marker summon for {case}: {summon!r}")
-    if case=="near_limit":
-        for x in (0,4):
-            summon=client.command(f'summon minecraft:marker {x} 64 0 {{Tags:["fc023.fixture","erb.block"]}}')
-            if "Summoned new" not in summon:
-                raise AssertionError("Native sorted fixture summon failed: "+repr(summon))
-        client.command("execute positioned 0 64 0 run scoreboard players set "
-                       "@e[type=minecraft:marker,tag=fc023.fixture,sort=nearest,limit=1] fc023 11")
-        client.command("execute positioned 4 64 0 run scoreboard players set "
-                       "@e[type=minecraft:marker,tag=fc023.fixture,sort=nearest,limit=1] fc023 22")
-    # summon_kill starts deliberately empty and creates its marker as a
-    # native function command, exercising same-queue storage/visibility.
+    # All marker creation occurs in the SAME native function queue that
+    # checks the selector. No fixture depends on persistence across RCON.
 
 
 def snapshot(client)->dict[str,int|None]:
@@ -209,14 +205,6 @@ def run_arm(mode:str)->dict:
     try:
         for case in ("cycle","nested_parent","summon_kill","near_limit","raw_cycle"):
             reset(client,case)
-            if case != "summon_kill":
-                client.command("scoreboard players set #setup_visible fc023 0")
-                client.command(f"execute if entity {ALL} run "
-                               "scoreboard players add #setup_visible fc023 1")
-                visible=nullable_score(client,"#setup_visible","fc023")
-                if visible!=1:
-                    raise AssertionError(
-                        f"Original vanilla @e fixture marker invisible before {case}: {visible}")
             if case=="raw_cycle" and mode=="observer":
                 response=client.command("functioncompiler cpu023-start")
                 if "FC_CPU023 started mode=plain" not in response:
