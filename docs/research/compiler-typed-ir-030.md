@@ -18,7 +18,7 @@ The earlier SHA-pinned, genuine Vein Miner 5.3.0+26.3 event gives a more substan
 
 These CPU005 fractions come from a single separately booted PLAIN/EMPTY/TIMED sparse-clock diagnostic (fixed 1/16 samples), not a paired optimization trial or a precise exclusive breakdown. The estimated residual between nested observations is **not** an established avoidable fraction. The PLAIN, EMPTY and TIMED whole-event CPU denominators differ. No speedup is claimed here. The 215-mined-block, 1,952-queue-head event and original publisher ZIP SHA remain the reproducible control.
 
-The pinned, unchanged publisher ZIP is `VeinMiner-5.3.0+26.3.zip`, SHA-256 `fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e`. Existing `scripts/ci_queue_cpu005.py::verify_original_source` already verifies the exact original five-line function and uniqueness; reuse it rather than adding another unverified text copy.
+The pinned, unchanged publisher ZIP is `VeinMiner-5.3.0+26.3.zip`, SHA-256 `fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4e`. Existing `scripts/ci_queue_cpu005.py::verify_original_source` already verifies the five expected command texts occur uniquely in the specified original function files; it does **not** independently prove command ordering or that no additional lines were inserted. A new admission test must also verify ordered source indices and the parsed command graph.
 
 ## 2. Exact candidate source path
 
@@ -44,6 +44,8 @@ The pinned event reached this function **1,940** times, for **5,820** original s
 ## 4. IR-030 investigation gates
 
 ### Gate A — original 26.3 method-contract audit, no optimizer
+
+**Existing verified partial evidence:** `docs/research/26.3-internals.md` inspected the exact mapped 26.3 entity macro-argument path and found `EntityDataAccessor.getData()` calls `NbtPredicate.getEntityTagToCompare`, which constructs a `TagValueOutput` and invokes `Entity.saveWithoutId` **before** projecting the requested NBT path. That is evidence of full entity NBT materialization in a **macro argument** path, not yet proof that the `data get entity @s Pos[i]` command uses exactly the same execution path, or that any direct position getter matches its numeric, feedback and callback semantics.
 
 Inspect the exact Loom-mapped Minecraft 26.3 server bytecode (fingerprint in `docs/research/source-versions.lock`) for `DataCommands`, entity data accessors, `execute store result entity`'s callback factory, `NbtPathArgument`, CommandSourceStack result consumers and native queued execution. Record method descriptors and control flow, not third-party decompiled source. Establish:
 
