@@ -1,0 +1,53 @@
+name: COMPILER-IR-026 real pinned Blastback compiled fork world-state gate
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir026-blastback.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: compiler-ir026-real-blastback-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  original-publisher-native-versus-compiled:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 56
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build and validate exact native Minecraft 26.3 compiled fork
+        run: ./gradlew --no-daemon build
+      - name: Verify compile-time function isolation and original-source tests
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir026_blastback.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir025_compiled_fork.py' -v
+          python3 -m py_compile scripts/ci_typed_ir026_blastback.py
+      - name: Download ONLY exact SHA-256-pinned original Blastback publisher
+        run: |
+          PYTHONPATH=scripts python3 -c 'from ci_typed_ir015_fetch import fetch; print(fetch("blastback"))'
+      - name: Original Blastback TNT native vs plan-only vs compiled fork world witness gate
+        timeout-minutes: 40
+        run: python3 scripts/ci_typed_ir026_blastback.py
+      - name: Archive original publisher hash and all native state/dynamic-diagnostics evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir026-original-blastback-native-matrix
+          path: |
+            build/reports/COMPILER-IR-026-BLASTBACK/results.json
+            build/reports/COMPILER-IR-026-BLASTBACK/native.json
+            build/reports/COMPILER-IR-026-BLASTBACK/plan_only.json
+            build/reports/COMPILER-IR-026-BLASTBACK/compiled.json
+            build/reports/COMPILER-IR-026-BLASTBACK/compiled.server.log
+          if-no-files-found: warn
+          retention-days: 21
