@@ -10,6 +10,8 @@
     "CompilerForkContextChainMixin",
     "CompilerForkEntitySelectorMixin",
     "CompilerSelector022Mixin",
+    "CompilerTagMutation023EntityMixin",
+    "CompilerTagMutation023ManagerMixin",
     "CompilerForkSourceMixin",
     "CompilerForkContinuationMixin",
     "FunctionBuilderMixin",
