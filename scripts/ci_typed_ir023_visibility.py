@@ -319,7 +319,7 @@ def main()->None:
         report["arms"]["observer"]["direct_set_observer_rows"]=counter
         report["arms"]["observer"]["direct_set_invalidation_gap_reproduced"]=True
         (OUT/"observer.json").write_text(
-            json.dumps(report["arms"]["observer"],indent=2)+"\\n")
+            json.dumps(report["arms"]["observer"],indent=2)+"\n")
         if reference!=observed:
             mismatch={k:{"native":reference[k],"observer":observed[k]}
                       for k in reference if reference[k]!=observed[k]}
