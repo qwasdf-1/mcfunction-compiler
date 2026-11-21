@@ -1,0 +1,50 @@
+name: COMPILER-IR-027 original publisher completed full volume native vs compiled
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - '.github/workflows/research-typed-ir027-stable-parity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: compiler-ir027-stone-completion-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  three-original-source-servers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build original game with opt-in compiled fork backend
+        run: ./gradlew --no-daemon build
+      - name: Verify original completion and compiled full-volume contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir027_oracle.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir027_stable_parity.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir025_compiled_fork.py' -v
+      - name: Fetch original SHA-pinned publisher unchanged
+        run: PYTHONPATH=scripts python3 -c 'from ci_typed_ir015_fetch import fetch; print(fetch("blastback"))'
+      - name: Compare completed original 17-cube restored worlds with genuine TNT capture
+        timeout-minutes: 35
+        run: python3 scripts/ci_typed_ir027_stable_parity.py
+      - name: Archive per-arm original completion checkpoints and compiler execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir027-original-blastback-completed-volume
+          path: |
+            build/reports/COMPILER-IR-027-COMPLETED/results.json
+            build/reports/COMPILER-IR-027-COMPLETED/native.json
+            build/reports/COMPILER-IR-027-COMPLETED/plan_only.json
+            build/reports/COMPILER-IR-027-COMPLETED/compiled.json
+            build/reports/COMPILER-IR-027-COMPLETED/compiled.server.log
+          retention-days: 21
