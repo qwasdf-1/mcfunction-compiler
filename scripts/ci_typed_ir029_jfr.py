@@ -48,6 +48,11 @@ TARGETS={
     "scoreboard_player_lookup":lambda c,m:c.endswith("Scoreboard") and m=="getPlayerScoreInfo",
     "continuation_schedule":lambda c,m:c.endswith("ContinuationTask") and m=="schedule",
     "array_list_add":lambda c,m:c=="java.util.ArrayList" and m=="add",
+    "array_list_grow":lambda c,m:c=="java.util.ArrayList" and m=="grow",
+    "entity_type_try_cast":lambda c,m:c.endswith("EntityType") and m=="tryCast",
+    "selector_option_predicate":lambda c,m:c.endswith("EntitySelectorOptions") and m.startswith("lambda$bootStrap$"),
+    "hash_set_contains":lambda c,m:c=="java.util.HashSet" and m=="contains",
+    "hash_map_contains_key":lambda c,m:c=="java.util.HashMap" and m=="containsKey",
 }
 
 def java_tool(name:str)->str:
@@ -88,7 +93,9 @@ def dump_recording(pid:int,path:Path)->str:
 def frame_identity(frame:dict)->tuple[str,str]:
     method=frame.get("method") or {}
     typ=method.get("type") or {}
-    return str(typ.get("name") or ""),str(method.get("name") or "")
+    # JFR JSON can render some names as internal slash-separated names and
+    # others as dotted binary names. Normalize before exact class matching.
+    return str(typ.get("name") or "").replace("/", "."),str(method.get("name") or "")
 
 def summarize_jfr(path:Path,server_tid:int)->dict:
     printed=subprocess.run(
@@ -117,14 +124,26 @@ def summarize_jfr(path:Path,server_tid:int)->dict:
             f"need at least {MIN_SAMPLES} (all-thread events={len(events)})")
     inclusive=Counter()
     leaf=Counter()
+    generated_samples=[]
+    identities_by_event=[]
     for event in runnable:
         frames=(event.get("stackTrace") or {}).get("frames") or []
         identities=[frame_identity(frame) for frame in frames]
+        identities_by_event.append(identities)
         if identities:
             leaf[identities[0][0]+"."+identities[0][1]]+=1
         for key,predicate in TARGETS.items():
             if any(predicate(c,m) for c,m in identities):
                 inclusive[key]+=1
+        if any(TARGETS["compiled_generated_action"](c,m) for c,m in identities):
+            generated_samples.append(identities)
+    nested=Counter()
+    for identities in generated_samples:
+        for key,predicate in TARGETS.items():
+            if key in ("compiled_executor_run","compiled_generated_action"):
+                continue
+            if any(predicate(c,m) for c,m in identities):
+                nested[key]+=1
     return {
         "recording_bytes":path.stat().st_size,
         "execution_sample_events_all_threads":len(events),
@@ -135,6 +154,12 @@ def summarize_jfr(path:Path,server_tid:int)->dict:
         "inclusive_stack_sample_counts":dict(inclusive),
         "inclusive_stack_sample_fractions":{
             key:inclusive[key]/len(runnable) for key in TARGETS},
+        "compiled_action_runnable_samples":len(generated_samples),
+        "compiled_action_sample_fraction":len(generated_samples)/len(runnable),
+        "compiled_action_nested_stack_sample_counts":dict(nested),
+        "compiled_action_nested_stack_sample_fractions":{
+            key:nested[key]/len(generated_samples) if generated_samples else 0.0
+            for key in TARGETS if key not in ("compiled_executor_run","compiled_generated_action")},
         "top_leaf_frames":[{"frame":name,"samples":count}
                            for name,count in leaf.most_common(20)],
         "categories_are_overlapping":True,
