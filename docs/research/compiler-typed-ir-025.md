@@ -1,11 +1,15 @@
 # COMPILER-IR-025 — Generated native-selector fork execution
 
-**Status (2026-11-21): IMPLEMENTED CANDIDATE, native semantic validation in progress.**
-Experimental branch `work/compiler-coverage`; PR #10 draft and unmerged.
+**Status (2026-11-21): ACCEPTED — research-only generated JVM fork-execution path.**
+Two complete independently booted three-JVM (native / plan-only / compiled)
+semantic matrices passed all **144/144 full scoreboard snapshots per arm**,
+including actual original Scoreboard listener reentrancy and nested queued
+callbacks, alongside **all four default-off native IR016–019 regressions**.
 No production flags changed, no selector index, no cached entity membership,
-no causal performance claim and no original Blastback complete-restoration claim.
-`docs/research/compiler-typed-ir-024.md` is the already-accepted *classifier
-only* milestone; this is the first new executable generated fork.
+no causal speedup or original Blastback complete-restoration claim. The original
+native selector and continuation are reused. Branch `work/compiler-coverage`;
+PR #10 remains draft/unmerged. All IR025 workflows archived manual-only.
+`compiler-typed-ir-024.md` is the predecessor classifier-only milestone.
 
 ## Goal and scope
 
@@ -104,11 +108,20 @@ Native comparison uses *three separate fresh Minecraft 26.3/Java25 JVMs*:
 2. IR024 plan-only: typed neighbor regions, original fork barrier.
 3. IR025 generated fork: typed neighbor regions and generated fork action.
 
-One fixture corpus runs 0, 1, 2, and 4 selected sources; dynamic score
-accept/reject, four-entity deferred continuation, tag changes between
-consecutive commands, nearest+limit before score matching, deliberately
-unadmitted near-miss source shape, and absent guard/terminal objectives.
-All mode snapshots include low, intermediate and unlimited command quotas.
+Nine original-source fixture cases cover 0, 1, 2 and 4 selected sources,
+dynamic score accept/reject, four-entity deferred continuation, tag changes
+between successive selectors, nearest+limit selection **before** the score
+comparison, a deliberately unadmitted near-miss source shape, absent guard or
+terminal objectives, and an actual reentrant native scoreboard listener. The
+listener queues `fc_ir:ir014_inject_first`, which queues
+`fc_ir:ir014_inject_second`; the fixture captures both intermediate and
+post-injection score values. The live same-queue callback ordering is compared
+against the original native reference, not a simulated callback.
+
+The suite checks each case at **16 quota settings** (unlimited and 15 finite
+quotas from 1 through 1,024), for **144 full-state snapshots per JVM arm**.
+The compiled path is allowed only with an available quota of at least 1,024;
+below that it executes the original command before any compiled effects.
 The CI parser rejects absent generated fork counts, missing original fallback
 counts, wrong source ledger positions, or any differing scoreboard snapshot.
 
@@ -118,14 +131,85 @@ callbacks, every score objective lifecycle edge, all entity order/identity
 equivalence, tracer event-by-event parity, complete original Blastback
 restoration, causal whole-event CPU savings or general production readiness.
 
+## Accepted native execution and independent replication
+
+The initial three-JVM native-versus-compiled experiment
+[GitHub Actions #44871911105, first successful attempt](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44871911105)
+accepted **128/128** original scoreboard snapshots per arm before adding the
+scoreboard-listener reentrancy case. This verified actual generated execution
+rather than mere IR admission: 9 emitted fork sites, 7 executed compiled forks,
+7 native selector scans, 11 selected candidates, 8 passing score guards,
+4 native continuation schedules, and 74 deliberate original fallbacks.
+
+The expanded **nine-fixture** study completed twice from fresh JVM servers:
+[First expanded three-JVM matrix #44872225786](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44872225786/attempts/1)
+([original evidence artifact #14693679094](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44872225786/artifacts/14693679094))
+and [independent three-JVM rerun, attempt 2](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44872225786/attempts/2)
+([replication evidence #14694645772](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44872225786/artifacts/14694645772)).
+Both passed all authored original gameplay-state, compiled-admission, native
+quota, feedback and research diagnostics. Every arm is a separately
+booted Java25/Minecraft26.3 server with a new forced-loaded world and
+same-queue marker summon/select/kill readiness check before running fixtures.
+
+| Actual native result | First expanded matrix | Independent replication |
+| --- | ---: | ---: |
+| Native source-mode full scoreboard snapshots | **144/144** | **144/144** |
+| Plan-only source-mode snapshots against vanilla | **144/144** | **144/144** |
+| Generated compiled fork-mode snapshots against vanilla | **144/144** | **144/144** |
+| Emitted compiled fork sites | 10 | 10 |
+| Compiled fork executions (not fallback) | 8 | 8 |
+| Original `EntitySelector.findEntities` calls on fast path | 8 | 8 |
+| Native selected source results | 12 | 12 |
+| Per-entity score comparison matches | 9 | 9 |
+| Native `ContinuationTask.schedule` calls | 5 | 5 |
+| Original `BuildContexts.Unbound` action fallbacks | 83 | 83 |
+| Original fork-limit violations or selector exceptions in compiled path | 0 | 0 |
+| Production opt-in or causal speedup | **None** | **None** |
+
+The original listener test witnessed the expected `#ir014_inner_seen=9`,
+`#ir014_marker=11`, `#observed=11` scoreboard states in all three modes;
+that verifies the two-level queue-inserted callback **for this fixture**.
+Fallback counts reflect low quotas and unsupported/missing objective states;
+they do **not** mean 83 completed executions took the fast compiled path.
+The fixed authoring objective and deterministic fixture do not establish a
+workload-equalized original-Blastback A/B CPU result.
+
+The [default-off post-compiler native regression matrix #44872090155](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44872090155)
+also passed all four independent suites after the compiled fork classes and
+IR changes were installed:
+
+| Existing suite | Original vanilla state parity |
+| --- | ---: |
+| IR016 source-positioned mixed typed regions and opaque controls | 126/126 |
+| IR017 score guard and binary/ranged operations | 168/168 |
+| IR018 dynamic entity source, `@s` and native barriers | 87/87 |
+| IR019 native conditional function dispatch and callbacks | 84/84 |
+
+Those backward-compatibility checks do not prove zero overhead of installed
+but disabled code. The native mapped API inventory
+[GitHub Actions #44871381290](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44871381290)
+was accepted before runtime implementation, and the original source, mapped
+method disassembly and artifact contracts are retained as research evidence.
+
+**Disposition:** The first generated compiler fork backend is admitted as a
+**research-only functional prototype**, not a production feature. It removes
+Brigadier redirect/context-copy processing for the allowlisted shape when the
+guard passes, while delegating entity selection, native terminal effects and
+continuation scheduling to Minecraft's original implementations. No
+persistent entity index is used. The original runtime fallback is retained at
+every site, and the direct scheduler remains conservatively ineligible.
+All three IR025 research workflows are manual-only after acceptance.
+Draft PR #10 remains unmerged.
+
 ## Follow-up gates before enabling for real workloads
 
 - Native original-world event A/A and A/B using unchanged SHA-pinned
   Blastback publisher and identical-work witness checks; report any residual
   restoration-oracle failure honestly.
-- Stronger differential tests for custom scoreboard listeners and callback
-  reentrancy, exact entity identity/order, fork limit, error/result forwarding,
-  frame/return and profiling.
+- Stronger differential tests **beyond the accepted two-level native
+  scoreboard-listener reentrancy fixture**: arbitrary custom listener
+  behavior, exact entity UUID/order, triggered fork-limit errors, error/result
+  forwarding, frame/return, and per-event tracer/profiler parity.
 - Uninstrumented original-host CPU measurement only after all semantic gates.
   No benchmark result can be inferred merely from replacing Brigadier calls.
 - If optional runtime indexing is ever revisited, treat it as a separate
