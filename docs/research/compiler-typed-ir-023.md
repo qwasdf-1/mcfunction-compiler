@@ -44,6 +44,18 @@ Questions to verify against native code: whether unsuccessful duplicate add/remo
 
 If any transition cannot be reliably observed without a general full-world scan or excessive per-entity bookkeeping, stop the index experiment or use an exact fallback at the unsupported boundary. Do not rely on a per-tick global poll.
 
+### Mapped 26.3 implementation finding — invalidation must cover the backing set
+
+The initial mapped inventory exposed a **mapping correction**, not a successful mutation-frequency run: the actual official-mapped `Entity` method is `entityTags(): Set<String>`, **not** `getTags()`. The first inspector rejected the stale expectation [in workflow #44863303102](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44863303102). The corrected official-method inspection requires `entityTags` and the actual tag methods. The first run's read-only disassembly nevertheless established:
+
+- `Entity.entityTags()` returns its underlying `tags` set, not a defensive immutable copy.
+- `Entity.addTag(String)` delegates to `Set.add`, returning its success result (after enforcing the 1,024-tag guard); `removeTag(String)` delegates to `Set.remove`.
+- The original `TagCommand` uses `Entity.addTag/removeTag` to implement ordinary `/tag` commands.
+- `Entity.load(ValueInput)` directly calls `tags.clear()` then reloads the serialized `Tags` list into the same set, **without calling addTag/removeTag**.
+- `Entity.setRemoved(RemovalReason)` delegates removal notification through `EntityInLevelCallback.onRemove`.
+
+**Correctness consequence:** Wrapping only addTag/removeTag cannot maintain a complete tag-index revision counter even for vanilla serialization/load; the exposed backing set also allows other Java code to mutate membership without these methods. A full index would need to address all these mutation paths and lifecycle callbacks, preserve selector iteration order, and still handle arbitrary modded consumers. Observing original datapack `/tag` commands is useful for *frequency estimates* but not a proof of general cache correctness. A mutation probe scoped only to addTag/removeTag must label its coverage as partial.
+
 ## Stage 3 — native mutation-frequency census
 
 Use original Blastback and a bounded **unchanged** one-TNT event window, reusing IR-022's source hash, pre-event witnesses, actor checks and Linux CPU-quality gates. Add passive, explicit-start/stop research counters (no CPU clocks initially): watched-tag successful adds, successful removes, failed/no-op add/remove attempts, marker spawn/load/removal/dimension transitions, selector visits, selected entity counts, and entities for which membership transitions from eligible to ineligible and vice versa. Distinguish command-initiated mutations from other native mutation sources where possible.
