@@ -210,7 +210,7 @@ def prove_original_capture_activity(client,actor_start_tick:int)->dict:
         "max_original_block_markers":maximum_blocks,
         "max_original_restore_jobs":maximum_jobs,
         "last_actor_relative_tick":last_tick-actor_start_tick,
-        "compiled_code_used":False,
+        "compiler_mode_neutral_live_native_selector_observation":True,
     }
     if first_observed is None:
         raise AssertionError("No native original Blastback capture or restoration "
