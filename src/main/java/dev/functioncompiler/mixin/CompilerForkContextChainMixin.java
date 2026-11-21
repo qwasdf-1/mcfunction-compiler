@@ -4,6 +4,7 @@ import com.mojang.brigadier.ResultConsumer;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ContextChain;
 import dev.functioncompiler.CompilerForkBreakdownProbe;
+import dev.functioncompiler.CompilerSelector022Probe;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -27,6 +28,7 @@ abstract class CompilerForkContextChainMixin {
             boolean forked, CallbackInfoReturnable<Collection<?>> ci
     ) {
         CompilerForkBreakdownProbe.modifierStart(context);
+        CompilerSelector022Probe.modifierStart(context);
     }
 
     @Inject(
@@ -38,5 +40,6 @@ abstract class CompilerForkContextChainMixin {
             boolean forked, CallbackInfoReturnable<Collection<?>> ci
     ) {
         CompilerForkBreakdownProbe.modifierEnd(ci.getReturnValue());
+        CompilerSelector022Probe.modifierEnd();
     }
 }
