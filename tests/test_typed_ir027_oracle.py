@@ -15,6 +15,11 @@ class IR027OriginalOracle(unittest.TestCase):
         self.assertEqual(o.MAX_WAIT_SECONDS,210)
         self.assertEqual(o.base.options("native")["FC_TYPED_IR_MODE"],"")
         self.assertEqual(len(o.base.WITNESSES),5)
+        oracle=(ROOT/"scripts/ci_typed_ir027_native_oracle.py").read_text()
+        self.assertIn("configure_stable_original_scene(client)",oracle)
+        self.assertIn("fill -4 56 -4 12 72 12 minecraft:stone",oracle)
+        self.assertIn("controlled_full_stone_17_cube",oracle)
+        self.assertIn("natural_IR026_terrain_comparability_claim",oracle)
 
     def test_finish_condition_uses_original_job_marker_cleanup_not_scratch_flag(self):
         s=(ROOT/"scripts/ci_typed_ir027_native_oracle.py").read_text()
