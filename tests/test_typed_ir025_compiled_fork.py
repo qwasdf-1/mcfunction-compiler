@@ -37,6 +37,7 @@ class IR025ForkCompilerContracts(unittest.TestCase):
     def test_runtime_calls_original_selector_native_continuation_and_terminal(self):
         runtime=src("CompilerForkExecutor025.java")
         plan=src("CompilerForkPlan024.java")
+        emitter=src("CompilerForkBytecode025.java")
         for term in (
             "plan.nativeSelector().findEntities(source)",
             "candidates.add(source.withEntity(entity))",
