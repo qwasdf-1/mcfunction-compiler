@@ -26,7 +26,6 @@ CLASSES = (
     "net.minecraft.server.commands.ExecuteCommand",
     "net.minecraft.commands.arguments.NbtPathArgument",
     "net.minecraft.world.entity.Entity",
-    "net.minecraft.advancements.critereon.NbtPredicate",
     "net.minecraft.commands.CommandSourceStack",
     "net.minecraft.commands.execution.tasks.ExecuteCommand",
     "net.minecraft.commands.execution.tasks.BuildContexts",
@@ -111,11 +110,15 @@ def inspect() -> dict:
     OUT.mkdir(parents=True, exist_ok=True)
     # Discover nested command/accessor classfiles from the actual jar rather
     # than assuming 26.3 synthetic lambda or nested-class identifiers.
+    nbt_predicates = sorted(name for name in present
+                            if name.endswith("/NbtPredicate.class"))
+    if len(nbt_predicates) != 1:
+        raise AssertionError(f"Mapped NbtPredicate class is absent/ambiguous: {nbt_predicates}")
     nested = sorted(name for name in present
                     if (name.startswith(PREFIX + "DataCommands$")
                         or name.startswith(PREFIX + "EntityDataAccessor$"))
                     and name.endswith(".class"))
-    classes = list(CLASSES) + [
+    classes = list(CLASSES) + [nbt_predicates[0][:-6].replace("/", ".")] + [
         name[:-6].replace("/", ".") for name in nested[:24]
     ]
     report = {
@@ -125,6 +128,7 @@ def inspect() -> dict:
         "mapped_jar_sha256": sha,
         "class_results": {},
         "nested_candidates": nested,
+        "mapped_nbt_predicate_class": nbt_predicates[0][:-6].replace("/", "."),
         "runtime_code_changed": False,
         "optimization_implemented": False,
         "native_semantic_parity_proven": False,
@@ -138,7 +142,7 @@ def inspect() -> dict:
     }
     for index, classname in enumerate(classes):
         entry = classname.replace(".", "/") + ".class"
-        required = index < len(CLASSES)
+        required = index < len(CLASSES) + 1
         if entry not in present:
             if required:
                 raise AssertionError(f"Missing required mapped class {classname}")
