@@ -4,6 +4,8 @@ on:
     branches: [work/compiler-coverage]
     paths:
       - '.github/workflows/research-typed-ir026-blastback.yml'
+      - 'scripts/ci_typed_ir026_blastback.py'
+      - 'tests/test_typed_ir026_blastback.py'
   workflow_dispatch:
 
 permissions:
