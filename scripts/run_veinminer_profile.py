@@ -286,6 +286,12 @@ def parse_args() -> object:
         ),
     )
     parser.add_argument(
+        "--capture-jfr-execution", action="store_true",
+        help=("IR-030 read-only Server-thread JFR ExecutionSample attribution "
+              "during the original Vein Miner event. Requires Fabric/compiler-off, "
+              "--no-spark, --capture-server-thread-cpu; no callback counters."),
+    )
+    parser.add_argument(
         "--capture-jfr-cpu",
         action="store_true",
         help=(
@@ -337,6 +343,17 @@ def parse_args() -> object:
         parser.error(
             "--count-selective-macro-arguments requires --compiler-mode selective-macro"
         )
+    if args.capture_jfr_execution and not (
+        args.no_spark and args.capture_server_thread_cpu
+        and args.stack == "fabric" and args.compiler_mode == "off"
+        and not args.capture_jfr_cpu
+        and not args.count_command_callbacks
+        and not args.count_selective_macro_arguments
+        and os.environ.get("FC_COMPILER_EXEC_CENSUS", "").lower() not in ("1", "true")
+    ):
+        parser.error(
+            "IR030 JFR ExecutionSample requires uninstrumented Fabric compiler-off "
+            "and cannot combine with Spark, CPUTimeSample or callback counters")
     if args.capture_jfr_cpu and not (
         args.no_spark and args.capture_server_thread_cpu
         and not args.count_command_callbacks
@@ -402,6 +419,8 @@ def main() -> int:
     }
     capture_spark = not args.no_spark
     capture_jfr_cpu = args.capture_jfr_cpu
+    capture_jfr_execution = args.capture_jfr_execution
+    jfr_name = "fc_ir030_exec" if capture_jfr_execution else "fc_comp_021"
     cpu004_mode = os.environ.get("FC_CPU004_MODE", "")
     cpu004_enabled = cpu004_mode in ("plain", "empty", "timed")
     if cpu004_mode and (
@@ -411,6 +430,7 @@ def main() -> int:
         or args.compiler_mode != "wrapper"
         or args.count_command_callbacks
         or args.capture_jfr_cpu
+        or args.capture_jfr_execution
         or not args.no_spark
         or not args.capture_server_thread_cpu
     ):
@@ -425,6 +445,7 @@ def main() -> int:
         or args.compiler_mode != "wrapper"
         or args.count_command_callbacks
         or args.capture_jfr_cpu
+        or args.capture_jfr_execution
         or not args.no_spark
         or not args.capture_server_thread_cpu
         or cpu004_enabled
@@ -440,6 +461,7 @@ def main() -> int:
         or args.compiler_mode != "selective-macro"
         or args.count_command_callbacks
         or args.capture_jfr_cpu
+        or args.capture_jfr_execution
         or not args.no_spark
         or not args.capture_server_thread_cpu
         or cpu004_enabled or cpu005_enabled
@@ -503,6 +525,13 @@ def main() -> int:
             "JDK 25 JFR CPUTimeSample (5ms CPU-time period),"
             " no Spark or Function Compiler callback counters;"
             " event-level CPU total is separately read from /proc"
+        )
+    if capture_jfr_execution:
+        timing_instrumentation = (
+            "IR030 JDK 25 JFR ExecutionSample (settings=profile), "
+            "original compiler-off Vein Miner; no Spark/callback counters; "
+            "Linux Server-thread CPU recorded separately and is NOT "
+            "a treatment/control performance comparison"
         )
 
     pinned_artifacts = [(PACK, PACK_SHA256, "Vein Miner 5.3.0 datapack")]
@@ -845,23 +874,34 @@ def main() -> int:
             event_thread = (pid, tid)
             event_cpu_before = read_thread_schedstat(pid, tid)
             event_throttle_before = cgroup_throttle_count()
-        if capture_jfr_cpu:
+        if capture_jfr_cpu or capture_jfr_execution:
             # Attach to the actual Minecraft child JVM rather than Gradle.
             # Start after idle stability and all baseline RCON commands;
             # stop immediately after the event CPU clock is closed.
             if event_thread is None:
                 raise RuntimeError("JFR capture needs an identified Server thread")
             jfr_pid = event_thread[0]
-            jfr_path = output / "veinminer-cpu.jfr"
-            jfr_cmd = [
-                "jcmd", str(jfr_pid), "JFR.start",
-                "name=fc_comp_021", "settings=profile",
-                "jdk.CPUTimeSample#enabled=true",
-                "jdk.CPUTimeSample#throttle=5ms",
-                "jdk.CPUTimeSample#stackTrace=true",
-                "jdk.CPUTimeSamplesLost#enabled=true",
-                "jdk.ExecutionSample#enabled=false",
-            ]
+            jfr_path = output / (
+                "veinminer-ir030-execution.jfr" if capture_jfr_execution
+                else "veinminer-cpu.jfr")
+            if capture_jfr_execution:
+                jfr_cmd = [
+                    "jcmd", str(jfr_pid), "JFR.start",
+                    f"name={jfr_name}", "settings=profile",
+                    "jdk.ExecutionSample#enabled=true",
+                    "jdk.CPUTimeSample#enabled=false",
+                    "disk=true", "dumponexit=false", "maxsize=128m",
+                ]
+            else:
+                jfr_cmd = [
+                    "jcmd", str(jfr_pid), "JFR.start",
+                    f"name={jfr_name}", "settings=profile",
+                    "jdk.CPUTimeSample#enabled=true",
+                    "jdk.CPUTimeSample#throttle=5ms",
+                    "jdk.CPUTimeSample#stackTrace=true",
+                    "jdk.CPUTimeSamplesLost#enabled=true",
+                    "jdk.ExecutionSample#enabled=false",
+                ]
             jfr_start = subprocess.run(
                 jfr_cmd, text=True, capture_output=True, timeout=30, check=True)
             jfr_start_message = jfr_start.stdout
@@ -949,13 +989,13 @@ def main() -> int:
         if jfr_started:
             assert jfr_pid is not None and jfr_path is not None
             jfr_stop = subprocess.run(
-                ["jcmd", str(jfr_pid), "JFR.stop", "name=fc_comp_021",
+                ["jcmd", str(jfr_pid), "JFR.stop", f"name={jfr_name}",
                  f"filename={jfr_path.resolve()}"],
                 text=True, capture_output=True, timeout=40, check=True)
             jfr_stop_message = jfr_stop.stdout
             jfr_started = False
             if not jfr_path.is_file() or jfr_path.stat().st_size == 0:
-                raise RuntimeError("JFR CPU sampler did not save a recording")
+                raise RuntimeError("JFR sampler did not save a recording")
         if macro006_started:
             macro006_stop_status = rcon.command("function_compiler_probe macro006-stop")
             if "FC_MACRO006 ended mode=" + macro006_mode not in macro006_stop_status:
@@ -1205,6 +1245,10 @@ def main() -> int:
             "spark_sha256": sha256(SPARK_AGENT) if capture_spark else None,
             "spark_capture_enabled": capture_spark,
             "jfr_cpu_capture_enabled": capture_jfr_cpu,
+            "jfr_execution_capture_enabled": capture_jfr_execution,
+            "jfr_profile_kind": (
+                "execution_sample" if capture_jfr_execution else
+                "cpu_time_sample" if capture_jfr_cpu else None),
             "jfr_cpu_profile_path": (
                 str(jfr_path.relative_to(ROOT)) if jfr_path else None
             ),
@@ -1255,7 +1299,7 @@ def main() -> int:
             "callback_metrics_forced_wrapper": (
                 callback_metrics_enabled and not compiler_enabled
             ),
-            "diagnostic_only": bool(diagnostics) or capture_jfr_cpu,
+            "diagnostic_only": bool(diagnostics) or capture_jfr_cpu or capture_jfr_execution,
             "compiler_status_before": compiler_status_before,
             "compiler_status_after": compiler_status_after,
             "typed_ir_event_census": typed_ir_event_census,
@@ -1467,7 +1511,7 @@ def main() -> int:
             # best-effort raw samples for forensic review without reclassification.
             try:
                 subprocess.run(
-                    ["jcmd", str(jfr_pid), "JFR.stop", "name=fc_comp_021",
+                    ["jcmd", str(jfr_pid), "JFR.stop", f"name={jfr_name}",
                      f"filename={jfr_path.resolve()}"],
                     text=True, capture_output=True, timeout=15, check=False)
             except (OSError, subprocess.SubprocessError):
