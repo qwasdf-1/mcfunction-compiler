@@ -4,6 +4,8 @@ on:
     branches: [work/compiler-coverage]
     paths:
       - '.github/workflows/research-typed-ir025-native.yml'
+      - 'tests/test_typed_ir025_compiled_fork.py'
+      - 'scripts/ci_typed_ir025_compiled_fork.py'
   workflow_dispatch:
 
 permissions:
