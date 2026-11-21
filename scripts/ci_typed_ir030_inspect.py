@@ -92,9 +92,14 @@ def find_mapped_jar() -> tuple[Path, str, set[str]]:
     accepted = {
         props.get("inspection.classfile_artifact_sha256"),
         props.get("verification.current_26.3_classfile_artifact_sha256"),
+        props.get("verification.ir030.actions_2026_11_21_mapped_sha256"),
     }
     accepted.discard(None)
-    if props.get("minecraft.version") != "26.3" or sha not in accepted:
+    build_props = lock_properties((ROOT / "gradle.properties").read_text(encoding="utf-8"))
+    if (props.get("minecraft.version") != "26.3"
+            or build_props.get("minecraft_version") != "26.3"
+            or build_props.get("loom_version") != props.get("project.fabric_loom")
+            or sha not in accepted):
         raise AssertionError(f"Wrong unverified mapped Minecraft version/hash: {sha}")
     with zipfile.ZipFile(jar) as archive:
         present = set(archive.namelist())
