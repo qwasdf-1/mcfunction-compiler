@@ -26,7 +26,7 @@ CLASSES = {
     "net.minecraft.world.level.entity.EntityLookup": False,
 }
 NEEDLES = re.compile(
-    r"addTag|removeTag|getTags|setRemoved|load\(|readAdditionalSaveData|"
+    r"addTag|removeTag|entityTags|getTags|setRemoved|load\(|readAdditionalSaveData|"
     r"addFreshEntity|addDuringTeleport|addEntity|entityCallback|"
     r"onTrackingStart|onTrackingEnd|startTracking|stopTracking|"
     r"getEntities|findEntities|updateChunkStatus|removeSection|"
@@ -44,7 +44,7 @@ def summarize_javap(output: str) -> dict:
                             "previous": lines[number - 1].strip() if number else "",
                             "next": lines[number + 1].strip()
                             if number + 1 < len(lines) else ""})
-    return {"lines": len(lines), "matching_details": details[:180],
+    return {"lines": len(lines), "matching_details": details,
             "total_matching_lines": len(details)}
 
 
@@ -73,7 +73,7 @@ def main() -> None:
               classes[full_name]["total_matching_lines"], flush=True)
     entity = classes["net.minecraft.world.entity.Entity"]
     tag_command = classes["net.minecraft.server.commands.TagCommand"]
-    for name in ("addTag", "removeTag", "getTags", "setRemoved"):
+    for name in ("addTag", "removeTag", "entityTags", "setRemoved"):
         if not any(name + "(" in row["text"] for row in entity["matching_details"]):
             raise AssertionError(f"Actual mapped Entity method not verified: {name}")
     if not any("addTag" in row["text"] or "removeTag" in row["text"]
@@ -91,7 +91,7 @@ def main() -> None:
     (OUT / "inventory.json").write_text(json.dumps(report, indent=2) + "\n")
     print("IR023_MAPPED_INVENTORY", json.dumps({
         "status": report["status"], "sha256": report["mapped_jar_sha256"],
-        "methods_verified": ["addTag", "removeTag", "getTags", "setRemoved"],
+        "methods_verified": ["addTag", "removeTag", "entityTags", "setRemoved"],
         "classes_found": [n for n, d in classes.items() if d["status"] == "found"],
         "native_visibility_or_mutation_frequency_measured": False
     }), flush=True)
