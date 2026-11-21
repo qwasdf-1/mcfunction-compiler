@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/research-typed-ir023-visibility.yml'
       - 'scripts/ci_typed_ir023_visibility.py'
+      - 'tests/test_typed_ir023_visibility.py'
   workflow_dispatch:
 
 permissions:
