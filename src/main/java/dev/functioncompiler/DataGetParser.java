@@ -29,7 +29,7 @@ final class DataGetParser {
                         context,
                         new EntityPosGetCommand(
                                 new DataGetCommand(command, functionId),
-                                path, positionAxis, functionId),
+                                path, positionAxis),
                         functionId
                 );
             } else {
