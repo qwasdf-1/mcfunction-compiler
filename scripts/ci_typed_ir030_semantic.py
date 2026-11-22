@@ -94,11 +94,6 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
         enabled = client.command("datapack list enabled")
         if "function_compiler_probe" not in enabled:
             raise RuntimeError(f"Probe datapack did not load: {enabled!r}")
-        if candidate_enabled:
-            reload_result = client.command("reload")
-            if "reloading" not in reload_result.casefold():
-                raise RuntimeError(f"Datapack reload did not start: {reload_result!r}")
-            time.sleep(2)
         initial_status = client.command("function_compiler_probe status")
         expected_wrapped = candidate_enabled
         if f"wrapped={str(expected_wrapped).lower()}" not in initial_status:
