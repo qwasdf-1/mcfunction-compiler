@@ -143,10 +143,12 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
             "execute positioned 10.25 100.5 20.75 summon minecraft:horse "
             "run function function_compiler_probe:ir030_vehicle_setup")
         passenger_call = client.command(
-            "execute positioned 20.25 65.5 20.75 summon minecraft:marker "
+            "execute positioned 20.25 65.5 20.75 summon minecraft:armor_stand "
             "run function function_compiler_probe:ir030_pos_store_passenger")
         passenger_frontier = tuple(score_value(client.command(
             f"scoreboard players get #passenger_{axis} fc_ir030")) for axis in "xyz")
+        ride_success = score_value(client.command(
+            "scoreboard players get #ride_success fc_ir030"))
 
         nonmarker_call = client.command(
             "execute positioned -1.25 64.5 -0.75 summon minecraft:armor_stand "
@@ -173,9 +175,10 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
                 "function_response": free_call,
                 "frontier": free_frontier,
             },
-            "passenger_marker": {
+            "passenger_entity": {
                 "vehicle_setup_response": vehicle_call,
                 "function_response": passenger_call,
+                "ride_success": ride_success,
                 "frontier": passenger_frontier,
             },
             "nonmarker": {
@@ -219,7 +222,7 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
 
 
 def compare(control: dict, candidate: dict) -> dict:
-    for key in ("free_marker", "passenger_marker", "nonmarker", "missing_path"):
+    for key in ("free_marker", "passenger_entity", "nonmarker", "missing_path"):
         if control[key]["frontier"] != candidate[key]["frontier"]:
             raise AssertionError(
                 f"Native/candidate {key} frontier mismatch: "
@@ -235,6 +238,8 @@ def compare(control: dict, candidate: dict) -> dict:
         raise AssertionError(
             f"Negative fractional Marker position did not floor correctly: "
             f"{candidate['free_marker']['frontier']}")
+    if candidate["passenger_entity"]["ride_success"] != 1:
+        raise AssertionError("Passenger fixture did not mount on the vehicle")
     if candidate["nonmarker"]["frontier"] != (-2, 64, -1):
         raise AssertionError("Non-Marker native fallback did not preserve coordinates")
     counters = candidate["ir030_counters"]
