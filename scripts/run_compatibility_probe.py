@@ -197,7 +197,9 @@ def start_server(mode: str, work: Path, server_jar: Path, log_path: Path):
         if "GRADLE_USER_HOME" not in env and gradle_home.is_dir():
             env["GRADLE_USER_HOME"] = str(gradle_home)
         shared_cache = Path.home() / ".gradle" / "caches"
-        if "GRADLE_RO_DEP_CACHE" not in env and shared_cache.is_dir():
+        if ("GRADLE_RO_DEP_CACHE" not in env
+                and "GRADLE_USER_HOME" not in env
+                and shared_cache.is_dir()):
             env["GRADLE_RO_DEP_CACHE"] = str(shared_cache)
         env.update(
             {
