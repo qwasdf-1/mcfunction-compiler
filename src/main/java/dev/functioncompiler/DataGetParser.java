@@ -21,8 +21,14 @@ final class DataGetParser {
 
         List<String> names = ScoreAddPrototype.nodeNames(context);
         if (isDataGetCommand(context, names)) {
-            int positionAxis = ir030PositionAxis(context, functionId, names);
-            if (positionAxis >= 0) {
+            if (ProbeConfiguration.ir030PosGetForFunction(functionId)) {
+                // In an IR-030 allowlisted function, only the exact admitted
+                // Pos[0..2] terminal is replaced. Every other data-get command
+                // remains the original native callback (no generic wrapper).
+                int positionAxis = ir030PositionAxis(context, functionId, names);
+                if (positionAxis < 0) {
+                    return false;
+                }
                 NbtPathArgument.NbtPath path =
                         NbtPathArgument.getPath(context, "path");
                 ScoreAddPrototype.applyCommand(
