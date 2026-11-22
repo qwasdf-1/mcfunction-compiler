@@ -140,11 +140,23 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
         free_frontier = tuple(score_value(client.command(
             f"scoreboard players get #free_{axis} fc_ir030")) for axis in "xyz")
 
+        # The prior /ride command inside execute summon failed in both arms,
+        # so it never exercised getVehicle(). Construct the relationship using
+        # native summon Passengers NBT, then verify it from the rider itself.
         vehicle_call = client.command(
-            "execute positioned 10.25 100.5 20.75 summon minecraft:horse "
-            "run function function_compiler_probe:ir030_vehicle_setup")
+            'summon minecraft:horse 10.25 100.5 20.75 '
+            '{NoAI:1b,NoGravity:1b,Invulnerable:1b,Tags:["ir030_vehicle"],'
+            'Passengers:[{id:"minecraft:zombie",NoAI:1b,'
+            'Invulnerable:1b,Tags:["ir030_passenger"]}]}')
+        must_not_fail("summon vehicle with passenger", vehicle_call)
+        passenger_presence = client.command(
+            "execute if entity @e[type=minecraft:zombie,tag=ir030_passenger,limit=1]")
+        if "test passed" not in passenger_presence.casefold():
+            raise AssertionError(
+                f"Native horse/passenger NBT fixture did not create a selectable rider: "
+                f"{passenger_presence!r}")
         passenger_call = client.command(
-            "execute positioned 20.25 65.5 20.75 summon minecraft:armor_stand "
+            "execute as @e[type=minecraft:zombie,tag=ir030_passenger,limit=1] "
             "run function function_compiler_probe:ir030_pos_store_passenger")
         passenger_frontier = tuple(score_value(client.command(
             f"scoreboard players get #passenger_{axis} fc_ir030")) for axis in "xyz")
@@ -178,6 +190,7 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
             },
             "passenger_entity": {
                 "vehicle_setup_response": vehicle_call,
+                "passenger_presence_response": passenger_presence,
                 "function_response": passenger_call,
                 "ride_success": ride_success,
                 "frontier": passenger_frontier,
@@ -324,7 +337,7 @@ def main() -> None:
     print("IR030_SEMANTIC_PARITY " + json.dumps({
         "status": report["status"],
         "free": report["arms"].get("candidate_verify", {}).get("free_marker", {}).get("frontier"),
-        "passenger": report["arms"].get("candidate_verify", {}).get("passenger_marker", {}).get("frontier"),
+        "passenger": report["arms"].get("candidate_verify", {}).get("passenger_entity", {}).get("frontier"),
         "nonmarker": report["arms"].get("candidate_verify", {}).get("nonmarker", {}).get("frontier"),
         "counters": report["arms"].get("candidate_verify", {}).get("ir030_counters"),
     }), flush=True)
