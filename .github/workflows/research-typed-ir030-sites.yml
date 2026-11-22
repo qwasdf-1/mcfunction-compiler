@@ -48,6 +48,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: compiler-ir030-exact-native-coordinate-site-counts
-          path: build/reports/COMPILER-IR-030-SITES/
+          path: |
+            build/reports/COMPILER-IR-030-SITES/
+            build/benchmarks/PERF-011-veinminer/vein-*/
           if-no-files-found: warn
           retention-days: 21
