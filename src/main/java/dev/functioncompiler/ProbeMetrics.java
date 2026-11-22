@@ -677,7 +677,7 @@ public final class ProbeMetrics {
         if (axis >= 0 && axis < 3) IR030_POS_COMPILED[axis]++;
     }
 
-    public static long ir030PosCompiled(int axis) {
+    public static long ir030PosCompiledCount(int axis) {
         return axis >= 0 && axis < 3 ? IR030_POS_COMPILED[axis] : 0L;
     }
 
@@ -685,7 +685,7 @@ public final class ProbeMetrics {
         if (axis >= 0 && axis < 3) IR030_POS_FAST_PATHS[axis]++;
     }
 
-    public static long ir030PosFastPath(int axis) {
+    public static long ir030PosFastPathCount(int axis) {
         return axis >= 0 && axis < 3 ? IR030_POS_FAST_PATHS[axis] : 0L;
     }
 
