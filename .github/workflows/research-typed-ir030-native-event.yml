@@ -5,6 +5,8 @@ on:
     branches: [work/compiler-coverage]
     paths:
       - 'scripts/ci_typed_ir030_native_event.py'
+      - 'src/main/java/dev/functioncompiler/EntityPosGetCommand.java'
+      - 'src/main/java/dev/functioncompiler/DataGetParser.java'
       - 'tests/test_typed_ir030_native_event.py'
       - '.github/workflows/research-typed-ir030-native-event.yml'
   workflow_dispatch:
