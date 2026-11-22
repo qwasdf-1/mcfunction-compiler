@@ -147,7 +147,8 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
             'summon minecraft:horse 10.25 100.5 20.75 '
             '{NoAI:1b,NoGravity:1b,Invulnerable:1b,Tags:["ir030_vehicle"],'
             'Passengers:[{id:"minecraft:zombie",NoAI:1b,'
-            'Invulnerable:1b,Tags:["ir030_passenger"]}]}')
+            'Invulnerable:1b,Tags:["ir030_passenger"],'
+            'data:{frontier:[{x:0,y:0,z:0}]}}]}')
         must_not_fail("summon vehicle with passenger", vehicle_call)
         passenger_presence = client.command(
             "execute if entity @e[type=minecraft:zombie,tag=ir030_passenger,limit=1]")
