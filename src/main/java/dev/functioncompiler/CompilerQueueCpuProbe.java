@@ -45,6 +45,12 @@ public final class CompilerQueueCpuProbe {
     private static final int APPEND_FRONTIER = 2;
     private static final int APPEND_STORE = 3;
     private static final int STORE_LEAF = 4;
+    private static final int POS_GET_X = 0;
+    private static final int POS_GET_Y = 1;
+    private static final int POS_GET_Z = 2;
+    private static final AtomicLong[] POS_GET_SITE_CALLS = {
+            new AtomicLong(), new AtomicLong(), new AtomicLong()
+    };
 
     private static final Stream[] STREAMS = {
             new Stream("enqueue_macro_predicate_build"),
@@ -103,6 +109,16 @@ public final class CompilerQueueCpuProbe {
         return -1;
     }
 
+    private static int positionGetSite(String input) {
+        if ("execute store result entity @s data.frontier[-1].x int 1 run data get entity @s Pos[0]"
+                .equals(input)) return POS_GET_X;
+        if ("execute store result entity @s data.frontier[-1].y int 1 run data get entity @s Pos[1]"
+                .equals(input)) return POS_GET_Y;
+        if ("execute store result entity @s data.frontier[-1].z int 1 run data get entity @s Pos[2]"
+                .equals(input)) return POS_GET_Z;
+        return -1;
+    }
+
     private static long now() { return CLOCK.getCurrentThreadCpuTime(); }
 
     /** -1 means no CPU interval opened. Counts every selected command call. */
@@ -143,8 +159,12 @@ public final class CompilerQueueCpuProbe {
     private static final class LeafCommand<T extends ExecutionCommandSource<T>>
             implements Command<T> {
         private final Command<T> original;
+        private final int positionAxis;
 
-        LeafCommand(Command<T> original) { this.original = original; }
+        LeafCommand(Command<T> original, int positionAxis) {
+            this.original = original;
+            this.positionAxis = positionAxis;
+        }
 
         @Override
         public int run(CommandContext<T> context) throws CommandSyntaxException {
@@ -153,6 +173,9 @@ public final class CompilerQueueCpuProbe {
                 return original.run(context);
             } finally {
                 end(STORE_LEAF, started);
+                if (ACTIVE && positionAxis >= 0) {
+                    POS_GET_SITE_CALLS[positionAxis].incrementAndGet();
+                }
             }
         }
     }
@@ -176,7 +199,8 @@ public final class CompilerQueueCpuProbe {
             if (!(entry instanceof BuildContexts.Unbound<?> contexts)) continue;
             BuildContextsAccessor<T> accessor = (BuildContextsAccessor<T>) (Object) contexts;
             String input = accessor.functionCompiler$getCommandInput();
-            if (executeKind(input) != APPEND_STORE) continue;
+            int positionAxis = positionGetSite(input);
+            if (executeKind(input) != APPEND_STORE || positionAxis < 0) continue;
             ContextChain<T> chain = accessor.functionCompiler$getCommand();
             while (chain != null && chain.getStage() != ContextChain.Stage.EXECUTE) {
                 chain = chain.nextStage();
@@ -187,7 +211,7 @@ public final class CompilerQueueCpuProbe {
             if (command != null && !(command instanceof CustomCommandExecutor<?>)
                     && !(command instanceof LeafCommand<?>)) {
                 ((CommandContextAccessor<T>) (Object) terminal)
-                        .functionCompiler$setCommand(new LeafCommand<>(command));
+                        .functionCompiler$setCommand(new LeafCommand<>(command, positionAxis));
             }
         }
         return new WrappedFunction<>(original, List.copyOf(entries));
@@ -211,6 +235,7 @@ public final class CompilerQueueCpuProbe {
         }
         ACTIVE = false;
         for (Stream stream : STREAMS) stream.reset();
+        for (AtomicLong calls : POS_GET_SITE_CALLS) calls.set(0L);
         ACTIVE = true;
         source.sendSuccess(() -> Component.literal("FC_CPU005 started mode=" + MODE), false);
         return 1;
@@ -229,6 +254,9 @@ public final class CompilerQueueCpuProbe {
                     stream.label, stream.calls.get(), stream.samples.get(),
                     stream.cpuNs.get(), stream.invalid.get());
         }
+        FunctionCompilerMod.LOGGER.info("FC_IR030_SITE_ROW axis=x calls={}", POS_GET_SITE_CALLS[POS_GET_X].get());
+        FunctionCompilerMod.LOGGER.info("FC_IR030_SITE_ROW axis=y calls={}", POS_GET_SITE_CALLS[POS_GET_Y].get());
+        FunctionCompilerMod.LOGGER.info("FC_IR030_SITE_ROW axis=z calls={}", POS_GET_SITE_CALLS[POS_GET_Z].get());
         FunctionCompilerMod.LOGGER.info("FC_CPU005_END mode={} stride={}", MODE, STRIDE);
         source.sendSuccess(() -> Component.literal(
                 "FC_CPU005 ended mode=" + MODE
