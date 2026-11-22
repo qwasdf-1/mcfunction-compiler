@@ -11,7 +11,7 @@ def arm(label, candidate=False):
     return {
         "label": label,
         "free_marker": {"function_response": "Executed free", "frontier": (-2, 64, -1)},
-        "passenger_marker": {"function_response": "Executed passenger", "frontier": (10, 65, 20)},
+        "passenger_entity": {"function_response": "Executed passenger", "ride_success": 1, "frontier": (10, 65, 20)},
         "nonmarker": {"function_response": "Executed nonmarker", "frontier": (-2, 64, -1)},
         "missing_path": {"function_response": "Executed missing", "frontier": (0, 0, 0)},
         "invalid_target_response": "No entity was found",
