@@ -10,10 +10,10 @@ from ci_typed_ir030_semantic import compare, must_not_fail, stat_value, xyz
 def arm(label, candidate=False):
     return {
         "label": label,
-        "free_marker": {"frontier": (-2, 64, -1)},
-        "passenger_marker": {"frontier": (10, 65, 20)},
-        "nonmarker": {"frontier": (-2, 64, -1)},
-        "missing_path": {"frontier": (0, 0, 0)},
+        "free_marker": {"function_response": "Executed free", "frontier": (-2, 64, -1)},
+        "passenger_marker": {"function_response": "Executed passenger", "frontier": (10, 65, 20)},
+        "nonmarker": {"function_response": "Executed nonmarker", "frontier": (-2, 64, -1)},
+        "missing_path": {"function_response": "Executed missing", "frontier": (0, 0, 0)},
         "invalid_target_response": "No entity was found",
         "ir030_counters": {
             "ir030_pos_compiled_x": 1 if candidate else 0,
