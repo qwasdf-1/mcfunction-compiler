@@ -1,0 +1,58 @@
+name: COMPILER-IR-030 native versus candidate Pos semantic gate
+
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - 'src/main/java/dev/functioncompiler/EntityPosGetCommand.java'
+      - 'src/main/java/dev/functioncompiler/DataGetParser.java'
+      - 'src/main/java/dev/functioncompiler/ProbeConfiguration.java'
+      - 'src/main/java/dev/functioncompiler/ProbeFunctionWrapper.java'
+      - 'src/main/java/dev/functioncompiler/ProbeMetrics.java'
+      - 'src/main/java/dev/functioncompiler/ProbeStatus.java'
+      - 'src/main/resources/data/function_compiler_probe/function/ir030_*.mcfunction'
+      - 'scripts/ci_typed_ir030_semantic.py'
+      - 'tests/test_typed_ir030_semantic.py'
+      - '.github/workflows/research-typed-ir030-semantic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir030-semantic
+  cancel-in-progress: true
+
+jobs:
+  native-candidate-differential:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Validate semantic runner parser contracts and build
+        run: |
+          python3 -m py_compile scripts/ci_typed_ir030_semantic.py scripts/run_compatibility_probe.py
+          python3 -m unittest discover -s tests -p 'test_typed_ir030_semantic.py' -v
+          ./gradlew --no-daemon build
+      - name: Acquire exact publisher archive and verify source-order/call-site record
+        run: python3 -c "import sys; sys.path.insert(0, 'scripts'); from ci_typed_ir015_fetch import fetch; print(fetch('veinminer'))"
+      - name: Run native-control and exact-function candidate semantic fixtures
+        run: python3 scripts/ci_typed_ir030_semantic.py
+        timeout-minutes: 35
+      - name: Archive both server logs and native/candidate semantic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir030-native-candidate-semantic-gate
+          path: |
+            build/reports/COMPILER-IR-030-SEMANTICS/
+          if-no-files-found: warn
+          retention-days: 21
