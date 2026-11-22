@@ -69,10 +69,11 @@ def configure_candidate(enabled: bool) -> dict[str, str | None]:
     os.environ["FC_IR030_POS_GET"] = "true" if enabled else "false"
     os.environ["FC_IR030_POS_GET_VERIFY"] = "true" if enabled else "false"
     os.environ["FC_IR030_POS_GET_FUNCTIONS"] = CANDIDATE_FUNCTIONS if enabled else ""
-    # The setup-gradle action exports a shared read-only cache. The nested
-    # runServer invocation must use one isolated writable Gradle home instead.
+    # Keep the writable Gradle user home isolated from the setup-gradle home,
+    # but reuse its dependency cache as a distinct read-only cache. Sharing the
+    # same directory for both causes Gradle's "different lock options" error.
     os.environ["GRADLE_USER_HOME"] = str(ROOT / "build/gradle-cache-ir030-semantic")
-    os.environ.pop("GRADLE_RO_DEP_CACHE", None)
+    os.environ["GRADLE_RO_DEP_CACHE"] = str(Path.home() / ".gradle" / "caches")
     return previous
 
 
