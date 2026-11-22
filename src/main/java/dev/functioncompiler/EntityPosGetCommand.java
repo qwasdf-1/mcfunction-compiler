@@ -57,18 +57,24 @@ final class EntityPosGetCommand implements FusableCommand {
         try {
             entity = EntityArgument.getEntity(context, "target");
         } catch (CommandSyntaxException exception) {
-            ProbeMetrics.ir030PosInvalidTarget();
+            if (ProbeConfiguration.ir030PosGetVerify()) {
+                ProbeMetrics.ir030PosInvalidTarget();
+            }
             throw exception;
         }
 
         // Entity.saveWithoutId writes vehicle X/Z with passenger Y. The
         // candidate is therefore valid only for an unmounted vanilla Marker.
         if (entity.getVehicle() != null) {
-            ProbeMetrics.ir030PosFallbackVehicle();
+            if (ProbeConfiguration.ir030PosGetVerify()) {
+                ProbeMetrics.ir030PosFallbackVehicle();
+            }
             return fallback.run(context);
         }
         if (entity.getClass() != Marker.class) {
-            ProbeMetrics.ir030PosFallbackEntityType();
+            if (ProbeConfiguration.ir030PosGetVerify()) {
+                ProbeMetrics.ir030PosFallbackEntityType();
+            }
             return fallback.run(context);
         }
 
@@ -80,7 +86,9 @@ final class EntityPosGetCommand implements FusableCommand {
             default -> throw new IllegalStateException("Invalid IR-030 Pos axis " + axis);
         };
         if (!Double.isFinite(value)) {
-            ProbeMetrics.ir030PosFallbackNonfinite();
+            if (ProbeConfiguration.ir030PosGetVerify()) {
+                ProbeMetrics.ir030PosFallbackNonfinite();
+            }
             return fallback.run(context);
         }
 
@@ -117,7 +125,11 @@ final class EntityPosGetCommand implements FusableCommand {
 
         context.getSource().sendSuccess(
                 () -> accessor.getPrintSuccess(candidateTag), false);
-        ProbeMetrics.ir030PosFastPath(axis);
+        // No per-callback research counters in genuine uninstrumented CPU
+        // arms; diagnostics are exclusive to the native parity verification.
+        if (ProbeConfiguration.ir030PosGetVerify()) {
+            ProbeMetrics.ir030PosFastPath(axis);
+        }
         return result;
     }
 }
