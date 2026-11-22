@@ -21,8 +21,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: compiler-ir030-semantic
-  cancel-in-progress: true
+  # Retain evidence across adjacent research commits. A later push must not
+  # cancel its own semantic run or make an earlier run appear accepted.
+  group: compiler-ir030-semantic-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   native-candidate-differential:
