@@ -1,6 +1,6 @@
 # COMPILER-IR-030 — Vein Miner coordinate-result-store specialization feasibility
 
-**Status (2026-11-21): GATE A VERIFIED; GATE B TWO ORIGINAL-EVENT JFR PROFILES ACCEPTED (DESCRIPTIVE ONLY).** No runtime replacement semantics or CPU gain demonstrated. Work remains on `work/compiler-coverage`, draft PR #10. The research compiler, IR-025 fork, and new NBT specializations remain disabled by default. Do not merge research instrumentation or promote an optimizer based on this document.
+**Status (2026-11-22): GATES A/B ACCEPTED; GATE C1 SOURCE COUNTS, GATE C2 DIFFERENTIAL FIXTURES AND GATE C3 REAL PUBLISHER READ VERIFICATION ACCEPTED. GATE D UNINSTRUMENTED CPU PILOT IN PROGRESS; NO CPU GAIN ESTABLISHED.** Work remains on `work/compiler-coverage`, draft unmerged PR #10. Every new research specialization is disabled by default. No production promotion is authorized.
 
 ## 1. Why change targets after IR-029?
 
@@ -81,9 +81,9 @@ The overall project policy continues to require a material real-workload improve
 
 ## 5. Decision and next action
 
-**IR-030 target selected for feasibility inspection, not implementation:** read-side specialization of the **inner** `data get entity @s Pos[i]` executed by the three original entity result-store commands. It is worth studying because CPU005 measured a much larger inclusive native hot path than IR-025, and current parser/IR coverage does not optimize it. The unresolved question is whether **avoidable** repeated entity-NBT read work is appreciable once real world mutation and feedback semantics are preserved.
+**Current scoped candidate:** a research-only, opt-in typed terminal replacement of precisely the three `data get entity @s Pos[i]` callbacks behind `execute store result entity`, admitted by exact parsed shape and an explicit function allowlist. Only unmounted, exact-class vanilla `Marker` entities take the direct read. Mounted entities, other classes and unsupported command shapes use the native path. The native outer `execute store`, per-command boundary and entity data reload remain unchanged. Per-callback diagnostic counters are active only in verification mode, not in the timed A/B candidate. The disabled-by-default candidate is **not** a general NBT optimizer.
 
-**Immediate next executable stage:** exact mapped 26.3 method inspection (Gate A), then cost attribution (Gate B). No new compiler bytecode, NBT cache, native benchmark result or production-default change has yet occurred. Keep prior IR-023–029 workflows archived/manual-only, and retain draft PR #10.
+**Current decision:** Gates A, B, and bounded C1/C2/C3 semantic studies passed. Gate D must demonstrate a material improvement over host/A/A variation on the real publisher. Even a favorable four-arm pilot would require independent replication and broader semantic/compatibility checks before any promotion. Retain draft PR #10 and keep the earlier IR-023–029 research workflows archived/manual-only.
 
 ## Related evidence
 
@@ -136,3 +136,37 @@ Observed read-path innermost frames most often included CompoundTag copying, Lis
 **Gate B decision: ACCEPTED as descriptive mechanism attribution.** Follow with exact *source-site* exposure attribution and focused native semantic fixtures for a **narrow conditional getter** (entity type, no vehicle, exact parsed path, numeric flooring, native feedback, quota and error behavior). Preserve outer native result-store callback and entity write/reload, and fall back under any unproved condition. Do not implement or promote a general entity NBT cache or replacement. Only after semantic Gate C passes is an uninstrumented causal A/A–A/B compiler CPU pilot justified.
 
 **Research closeout:** Gate A source-order and mapped-JAR inspection, and Gate B two-original-event JFR profiles are accepted; all three purpose-built research workflows have been changed to manual-only dispatch after their accepted runs. This is a verified source/native-profile milestone, **not** an accepted compiled optimization or a causal CPU-speedup result. Draft PR #10 is still unmerged; runtime feature defaults are unchanged.
+
+## 8. Gate C1/C2/C3 — accepted bounded semantic evidence (2026-11-22)
+
+### C1: exact original source-site exposure
+
+The [original publisher native site-count job #44986406752](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/44986406752) completed the real 215-work-unit event with CPU005 **PLAIN** mode: x=**1,940**, y=**1,940**, z=**1,940**, totaling **5,820** original native Brigadier leaf callbacks. Its aggregate counters reconciled exactly to these three complete original command strings. The publisher ZIP and 5-command source order were pinned. The run finished with 1,952 queue steps, all original conservation and host-quality checks passing. These are dynamic site counts, **not** CPU speedup measurements.
+
+### C2: exact-function native-versus-candidate fixtures
+
+The [accepted two-server differential workflow #45085023548](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45085023548), followed by [acceptance of the diagnostic-counter-gating source change #45085660102](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45085660102), compared original parsed native `execute store result entity` with the narrowly admitted candidate:
+
+| Test | Native control and candidate | Candidate counter/evidence |
+| --- | --- | --- |
+| Unmounted vanilla Marker, `(-1.25,64.5,-0.75)` | Stored `(-2,64,-1)` | 1 fast and native-verified read per axis; 0 mismatches |
+| Horse-mounted passenger entity | Stored `(10,101,20)` | Mounted-state gate passed; 3 vehicle fallbacks |
+| Unmounted non-Marker | Stored `(-2,64,-1)` | 3 entity-type fallbacks |
+| Unsupported `Missing[0]` getter | Same native failure/result-store outcome | Unsupported path declined; no fast path |
+| No executor / no `@s` for outer store | Same command response | Native modifier remains responsible for the failure |
+
+The original passenger fixture was initially invalid: a `ride` attempted inside the freshly summoned entity's function never mounted. A later nested-passenger fixture also failed selector visibility in an empty dedicated server. **Neither failed attempt is counted as semantic acceptance.** The accepted fixture explicitly force-loads its chunks, creates a horse with a nested zombie passenger, checks both selectors and the vehicle relationship, and verifies read/store behavior. Its observed 3 vehicle fallbacks prove the guard was actually exercised, rather than assumed.
+
+### C3: candidate on the genuine original Vein Miner event
+
+The [first accepted original-publisher candidate verification #45085468103](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45085468103) and [repeated accepted run after counter-gating #45085668978](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45085668978) used fresh Java25/Minecraft26.3 Fabric servers. The authentic, **unchanged** publisher ZIP produced exactly **215 work units** and **1,952 queue-head increments**, with original source/ore/marker conservation and host gates intact.
+
+In the accepted treatment, `vm:queue/append_here` admitted exactly one terminal per axis, executed **1,940 direct reads per axis (5,820 total)**, and checked **every** direct result against a full native NBT read from the same live entity. The original native tag, integer result and feedback component matched on all **5,820** attempts, with **zero mismatches, invalid targets or runtime fallbacks**. No global NBT behavior or source modification was used.
+
+**Scope boundary:** this proves native parity for the admitted execution states observed in this authentic event plus the listed differential fixtures, **not** for all entities, modded serialization, altered permission models, explicit command-quota truncation, or exotic malformed data. Further guards/fixtures are required before generalizing. With verification enabled, the JVM intentionally performs both original NBT snapshot and candidate read: the observed CPU is **not an optimization result**.
+
+## 9. Gate D pre-registration — uninstrumented original-event CPU pilot
+
+The [dedicated CPU workflow](../../.github/workflows/research-typed-ir030-cpu.yml) runs four fresh Java25/Minecraft26.3 JVMs in fixed **A1–B1–B2–A2** order, each with the identical original publisher ZIP, 6×6×6 mined fixture, 215 affected blocks and 1,952 queue steps. All arms use the same research mod JAR and Fabric **wrapper** mode. The only A/B experimental factor is `FC_IR030_POS_GET=false/true` for `vm:queue/append_here`; `FC_IR030_POS_GET_VERIFY=false` and per-callback research counters are off in **both** arms. No JFR, Spark or CPU005 timers enter the event.
+
+Every arm must pass original-world and CPU-host-quality gates (including zero cgroup throttling); the control's A1/A2 relative CPU spread must be at most **8%**. The threshold for even considering promotion is a **15%** real-event CPU improvement, with independent replication still necessary. The study reports the observed treatment median change and A/A noise even when the result is negative or inconclusive. The four-arm pilot alone **never** proves a generalized causal speedup or authorizes merging PR #10.
