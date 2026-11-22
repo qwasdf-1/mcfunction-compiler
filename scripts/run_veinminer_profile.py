@@ -1575,7 +1575,7 @@ def main() -> int:
             cpu_rows = [
                 line for line in (work / "server.log").read_text(
                     errors="replace").splitlines()
-                if "FC_CPU005_" in line
+                if "FC_CPU005_" in line or "FC_IR030_SITE_ROW" in line
             ]
             (output / "cpu005.log").write_text(
                 "\n".join(cpu_rows) + "\n", encoding="utf-8"
