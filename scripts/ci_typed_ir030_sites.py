@@ -111,6 +111,7 @@ def run() -> dict:
         "publisher_sha256": PIN,
         "source_order_status": source["status"],
         "append_here_call_sites": source["append_here_call_sites"],
+        "enqueue_match_call_sites": source["enqueue_match_call_sites"],
         "minecraft": "26.3",
         "java": "25",
         "compiler_mode": "wrapper (no command optimizer)",
