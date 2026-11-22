@@ -48,6 +48,7 @@ def inspect() -> dict:
         rows = validate_sequence(archive.read(APPEND_PATH).decode("utf-8"))
         sightings = {line: [] for line in COMMANDS}
         callers = []
+        enqueue_callers = []
         for path in archive.namelist():
             if not path.startswith("data/") or not path.endswith(".mcfunction"):
                 continue
@@ -57,6 +58,10 @@ def inspect() -> dict:
                     sightings[line].append({"path": path, "command_index": index})
                 if "function vm:queue/append_here" in line:
                     callers.append({
+                        "path": path, "command_index": index, "command": line,
+                    })
+                if "function vm:queue/enqueue_match" in line:
+                    enqueue_callers.append({
                         "path": path, "command_index": index, "command": line,
                     })
     for i, cmd in enumerate(COMMANDS):
@@ -69,6 +74,7 @@ def inspect() -> dict:
         "function": "vm:queue/append_here",
         "commands": rows,
         "append_here_call_sites": callers,
+        "enqueue_match_call_sites": enqueue_callers,
         "runtime_code_changed": False,
         "parsed_brigadier_chain_verified": False,
         "native_semantic_equivalence_proven": False,
@@ -81,6 +87,7 @@ def inspect() -> dict:
         "sha256": sha, "function": result["function"],
         "source_ordinals": list(range(len(COMMANDS))),
         "append_here_call_sites": callers,
+        "enqueue_match_call_sites": enqueue_callers,
         "native_semantic_equivalence_proven": False,
     }), flush=True)
     return result
