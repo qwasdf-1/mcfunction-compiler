@@ -234,6 +234,11 @@ def compare(control: dict, candidate: dict) -> dict:
             raise AssertionError(
                 f"Native/candidate {key} frontier mismatch: "
                 f"{control[key]['frontier']} != {candidate[key]['frontier']}")
+        if control[key]["function_response"] != candidate[key]["function_response"]:
+            raise AssertionError(
+                f"Native/candidate {key} function result changed: "
+                f"{control[key]['function_response']!r} != "
+                f"{candidate[key]['function_response']!r}")
     if control["invalid_target_response"] != candidate["invalid_target_response"]:
         raise AssertionError("Native/candidate invalid-target response changed")
     if candidate["free_marker"]["frontier"] != (-2, 64, -1):
