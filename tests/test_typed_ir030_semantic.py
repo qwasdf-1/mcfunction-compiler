@@ -64,6 +64,12 @@ class IR030SemanticTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "did not take all three"):
             compare(arm("control"), candidate)
 
+    def test_unmounted_passenger_fixture_rejected(self):
+        candidate = arm("candidate", True)
+        candidate["passenger_entity"]["ride_success"] = 0
+        with self.assertRaisesRegex(AssertionError, "did not mount"):
+            compare(arm("control"), candidate)
+
     def test_status_counter_must_be_present(self):
         with self.assertRaisesRegex(AssertionError, "Missing"):
             stat_value("wrapped=true", "ir030_pos_fast_x")
