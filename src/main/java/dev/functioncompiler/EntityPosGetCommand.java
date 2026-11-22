@@ -13,7 +13,6 @@ import net.minecraft.server.commands.data.DataCommands;
 import net.minecraft.server.commands.data.EntityDataAccessor;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Marker;
 import net.minecraft.world.phys.Vec3;
 
@@ -68,7 +67,7 @@ final class EntityPosGetCommand implements FusableCommand {
             ProbeMetrics.ir030PosFallbackVehicle();
             return fallback.run(context);
         }
-        if (entity.getType() != EntityType.MARKER || entity.getClass() != Marker.class) {
+        if (entity.getClass() != Marker.class) {
             ProbeMetrics.ir030PosFallbackEntityType();
             return fallback.run(context);
         }
