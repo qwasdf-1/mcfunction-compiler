@@ -21,13 +21,12 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "build/reports/COMPILER-IR-030-ORIGINAL-EVENT"
 VEIN = ROOT / "build/benchmarks/PERF-011-veinminer"
 PACK = ROOT / "references/real-world/candidates/VeinMiner-5.3.0+26.3.zip"
-PIN = "fa5fbfc08b54a881ec1cf255fdc2e7714c258e451d17c626309cbf5988df6e4"
 EXPECTED_PER_AXIS = 1940
 EXPECTED_TOTAL = 3 * EXPECTED_PER_AXIS
 
 sys.path.insert(0, str(ROOT / "scripts"))
 from ci_typed_ir015_fetch import fetch  # noqa: E402
-from ci_typed_ir030_source import inspect as inspect_original_source  # noqa: E402
+from ci_typed_ir030_source import PIN, inspect as inspect_original_source  # noqa: E402
 
 
 def status_int(status: str, key: str) -> int:
