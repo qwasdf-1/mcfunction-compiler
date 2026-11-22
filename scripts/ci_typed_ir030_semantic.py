@@ -130,6 +130,13 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
             raise RuntimeError(f"Unexpected wrapper state for {label}: {status_before!r}")
         must_not_fail("scoreboard objective", client.command(
             "scoreboard objectives add fc_ir030 dummy"))
+        # In an empty dedicated server, RCON summons can leave the tracked
+        # entity set when their chunks are unloaded. The old /ride fixture and
+        # nested passenger fixture each proved no selector-visible rider.
+        # Force-load every fixture chunk before creating its entities.
+        forced_chunks = client.command("forceload add -16 -16 64 64")
+        if "marked" not in forced_chunks.casefold() and "already" not in forced_chunks.casefold():
+            raise AssertionError(f"Could not force-load fixture chunks: {forced_chunks!r}")
 
         # execute summon gives the newly-created entity directly as @s. This
         # is important for Marker entities before they enter selector-visible
@@ -150,6 +157,12 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
             'Invulnerable:1b,Tags:["ir030_passenger"],'
             'data:{frontier:[{x:0,y:0,z:0}]}}]}')
         must_not_fail("summon vehicle with passenger", vehicle_call)
+        horse_presence = client.command(
+            "execute if entity @e[type=minecraft:horse,tag=ir030_vehicle,limit=1]")
+        if "test passed" not in horse_presence.casefold():
+            raise AssertionError(
+                f"Native horse fixture not selector-visible despite forced chunks: "
+                f"{horse_presence!r}")
         passenger_presence = client.command(
             "execute if entity @e[type=minecraft:zombie,tag=ir030_passenger,limit=1]")
         if "test passed" not in passenger_presence.casefold():
@@ -191,6 +204,7 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
             },
             "passenger_entity": {
                 "vehicle_setup_response": vehicle_call,
+                "horse_presence_response": horse_presence,
                 "passenger_presence_response": passenger_presence,
                 "function_response": passenger_call,
                 "ride_success": ride_success,
