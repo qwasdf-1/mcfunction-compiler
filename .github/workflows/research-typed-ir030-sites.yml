@@ -8,6 +8,7 @@ on:
       - 'scripts/run_veinminer_profile.py'
       - 'scripts/analyze_typed_ir030_sites.py'
       - 'scripts/ci_typed_ir030_sites.py'
+      - 'scripts/ci_typed_ir030_source.py'
       - 'tests/test_typed_ir030_sites.py'
       - '.github/workflows/research-typed-ir030-sites.yml'
   workflow_dispatch:
