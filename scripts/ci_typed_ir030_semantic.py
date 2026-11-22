@@ -53,7 +53,9 @@ def stat_value(status: str, key: str) -> int:
 
 def must_not_fail(label: str, response: str) -> str:
     lowered = response.casefold()
-    if any(word in lowered for word in ("unknown or invalid command", "syntax error", "failed to execute")):
+    if any(word in lowered for word in (
+            "unknown or invalid command", "unknown entity type",
+            "syntax error", "failed to execute", "no entity was found")):
         raise RuntimeError(f"{label} failed: {response!r}")
     return response
 
@@ -120,7 +122,9 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
 
         # Unmounted Marker at negative fractional coordinates: floor, not cast.
         must_not_fail("summon free marker", client.command(
-            'summon minecraft:marker -1.25 64.5 -0.75 {Tags:["ir030_free"]}'))
+            "summon minecraft:marker -1.25 64.5 -0.75"))
+        must_not_fail("tag free marker", client.command(
+            "tag @e[type=minecraft:marker,sort=nearest,limit=1] add ir030_free"))
         must_not_fail("initialize free marker", client.command(
             "data modify entity @e[type=minecraft:marker,tag=ir030_free,limit=1] "
             "data.frontier set value [{x:0,y:0,z:0}]"))
@@ -134,10 +138,14 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
         # A mounted Marker must use the native snapshot rule (vehicle X/Z,
         # passenger Y) and may become unmounted after EntityDataAccessor.setData.
         must_not_fail("summon vehicle", client.command(
-            'summon minecraft:horse 10.25 100.5 20.75 '
-            '{NoAI:1b,NoGravity:1b,Invulnerable:1b,Tags:["ir030_vehicle"]}'))
+            "summon minecraft:horse 10.25 100.5 20.75 "
+            "{NoAI:1b,NoGravity:1b,Invulnerable:1b}"))
+        must_not_fail("tag vehicle", client.command(
+            "tag @e[type=minecraft:horse,limit=1] add ir030_vehicle"))
         must_not_fail("summon passenger marker", client.command(
-            'summon minecraft:marker -1.25 65.5 -0.75 {Tags:["ir030_passenger"]}'))
+            "summon minecraft:marker 20.25 65.5 20.75"))
+        must_not_fail("tag passenger marker", client.command(
+            "tag @e[type=minecraft:marker,sort=furthest,limit=1] add ir030_passenger"))
         must_not_fail("initialize passenger marker", client.command(
             "data modify entity @e[type=minecraft:marker,tag=ir030_passenger,limit=1] "
             "data.frontier set value [{x:0,y:0,z:0}]"))
@@ -155,8 +163,9 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
 
         # Non-Marker entity type must remain on the original serializer path.
         must_not_fail("summon armor stand", client.command(
-            'summon minecraft:armor_stand -1.25 64.5 -0.75 '
-            '{NoGravity:1b,Tags:["ir030_nonmarker"]}'))
+            "summon minecraft:armor_stand -1.25 64.5 -0.75 {NoGravity:1b}"))
+        must_not_fail("tag armor stand", client.command(
+            "tag @e[type=minecraft:armor_stand,limit=1] add ir030_nonmarker"))
         must_not_fail("initialize armor stand", client.command(
             "data modify entity @e[type=minecraft:armor_stand,tag=ir030_nonmarker,limit=1] "
             "data.frontier set value [{x:0,y:0,z:0}]"))
@@ -172,7 +181,9 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
         # the destination. The function is allowlisted only to exercise parser
         # decline; its Pos-path check must reject Missing[0].
         must_not_fail("summon missing-path marker", client.command(
-            'summon minecraft:marker 2.25 65.5 3.75 {Tags:["ir030_missing"]}'))
+            "summon minecraft:marker 50.25 65.5 50.75"))
+        must_not_fail("tag missing-path marker", client.command(
+            "tag @e[type=minecraft:marker,sort=furthest,limit=1] add ir030_missing"))
         must_not_fail("initialize missing-path marker", client.command(
             "data modify entity @e[type=minecraft:marker,tag=ir030_missing,limit=1] "
             "data.frontier set value [{x:7,y:8,z:9}]"))
