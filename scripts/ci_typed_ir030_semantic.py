@@ -85,7 +85,7 @@ def restore_env(previous: dict[str, str | None]) -> None:
 
 
 def score_value(response: str) -> int:
-    numbers = re.findall(r"(?<![A-Za-z_])-?\d+", response)
+    numbers = re.findall(r"(?<![A-Za-z0-9_])-?\d+(?![A-Za-z0-9_])", response)
     if not numbers:
         raise AssertionError(f"Could not parse scoreboard value from {response!r}")
     return int(numbers[-1])
