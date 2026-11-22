@@ -98,6 +98,18 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
     try:
         process, log_handle = compat.start_server(mode, work, server_jar, log_path)
         client = compat.wait_for_rcon(process, port, timeout=240)
+        responses: dict[str, dict[str, str]] = {}
+        response_path = OUT / f"{label}.commands.json"
+        original_command = client.command
+        def logged_command(command_text: str) -> str:
+            response_text = original_command(command_text)
+            responses[str(len(responses))] = {
+                "command": command_text, "response": response_text,
+            }
+            response_path.write_text(
+                json.dumps(responses, indent=2) + "\\n", encoding="utf-8")
+            return response_text
+        client.command = logged_command
         enabled = client.command("datapack list enabled")
         if "function_compiler_probe" not in enabled:
             raise RuntimeError(f"Probe datapack did not load: {enabled!r}")
