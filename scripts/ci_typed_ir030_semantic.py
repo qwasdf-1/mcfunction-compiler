@@ -59,11 +59,18 @@ def must_not_fail(label: str, response: str) -> str:
 
 
 def configure_candidate(enabled: bool) -> dict[str, str | None]:
-    keys = ("FC_IR030_POS_GET", "FC_IR030_POS_GET_VERIFY", "FC_IR030_POS_GET_FUNCTIONS")
+    keys = (
+        "FC_IR030_POS_GET", "FC_IR030_POS_GET_VERIFY", "FC_IR030_POS_GET_FUNCTIONS",
+        "GRADLE_USER_HOME", "GRADLE_RO_DEP_CACHE",
+    )
     previous = {key: os.environ.get(key) for key in keys}
     os.environ["FC_IR030_POS_GET"] = "true" if enabled else "false"
     os.environ["FC_IR030_POS_GET_VERIFY"] = "true" if enabled else "false"
     os.environ["FC_IR030_POS_GET_FUNCTIONS"] = CANDIDATE_FUNCTIONS if enabled else ""
+    # The setup-gradle action exports a shared read-only cache. The nested
+    # runServer invocation must use one isolated writable Gradle home instead.
+    os.environ["GRADLE_USER_HOME"] = str(ROOT / "build/gradle-cache-ir030-semantic")
+    os.environ.pop("GRADLE_RO_DEP_CACHE", None)
     return previous
 
 
