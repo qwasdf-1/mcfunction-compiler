@@ -53,7 +53,8 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
                 || ProbeConfiguration.fusedRegionPrototypeEnabled()
                 || ProbeConfiguration.bytecodeRegionPrototypeEnabled()
                 || directThisFunction
-                || typedIrThisFunction)) {
+                || typedIrThisFunction
+                || ProbeConfiguration.ir030PosGetForFunction(delegate.id()))) {
             if (Boolean.parseBoolean(System.getenv("FC_BENCH_COMPILE_TIMING"))) {
                 long started = System.nanoTime();
                 try {
