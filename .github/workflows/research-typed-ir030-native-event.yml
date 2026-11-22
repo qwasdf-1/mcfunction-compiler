@@ -1,0 +1,52 @@
+name: COMPILER-IR-030 original Vein Miner opt-in native verification
+
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - 'scripts/ci_typed_ir030_native_event.py'
+      - 'tests/test_typed_ir030_native_event.py'
+      - '.github/workflows/research-typed-ir030-native-event.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir030-native-\${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  original-publisher-5820-read-semantic-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 38
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify original-event contract, parser and Java compile
+        run: |
+          python3 -m py_compile scripts/ci_typed_ir030_native_event.py
+          python3 -m unittest discover -s tests -p 'test_typed_ir030_native_event.py' -v
+          ./gradlew --no-daemon build
+      - name: Fetch and hash-check original Vein Miner 5.3.0+26.3 archive
+        run: python3 -c "import sys; sys.path.insert(0, 'scripts'); from ci_typed_ir015_fetch import fetch; print(fetch('veinminer'))"
+      - name: Check all 5820 candidate reads against native snapshots in genuine original event
+        run: python3 scripts/ci_typed_ir030_native_event.py
+        timeout-minutes: 25
+      - name: Preserve original event, counter verification, and failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir030-original-event-native-verification
+          path: |
+            build/reports/COMPILER-IR-030-ORIGINAL-EVENT/
+            build/benchmarks/PERF-011-veinminer/vein-*/
+          if-no-files-found: warn
+          retention-days: 21
