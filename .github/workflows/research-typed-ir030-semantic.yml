@@ -12,6 +12,7 @@ on:
       - 'src/main/java/dev/functioncompiler/ProbeStatus.java'
       - 'src/main/resources/data/function_compiler_probe/function/ir030_*.mcfunction'
       - 'scripts/ci_typed_ir030_semantic.py'
+      - 'scripts/run_compatibility_probe.py'
       - 'tests/test_typed_ir030_semantic.py'
       - '.github/workflows/research-typed-ir030-semantic.yml'
   workflow_dispatch:
