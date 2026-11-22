@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from ci_typed_ir030_semantic import compare, must_not_fail, stat_value, xyz
+from ci_typed_ir030_semantic import compare, must_not_fail, score_value, stat_value, xyz
 
 
 def arm(label, candidate=False):
@@ -40,6 +40,10 @@ class IR030SemanticTests(unittest.TestCase):
     def test_xyz_requires_three_axes(self):
         with self.assertRaisesRegex(AssertionError, "Could not parse"):
             xyz("Marker has the following entity data: {x:-2,y:64}")
+
+    def test_scoreboard_parser_ignores_objective_id_digits(self):
+        self.assertEqual(score_value("#free_x has -2 [fc_ir030]"), -2)
+        self.assertEqual(score_value("#free_y has 64 [fc_ir030]"), 64)
 
     def test_candidate_parity_report_accepts_expected_fallbacks(self):
         result = compare(arm("control"), arm("candidate", True))
