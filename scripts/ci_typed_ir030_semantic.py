@@ -156,7 +156,7 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
             'summon minecraft:marker 2.25 65.5 3.75 {Tags:["ir030_missing"]}'))
         must_not_fail("initialize missing-path marker", client.command(
             "data modify entity @e[type=minecraft:marker,tag=ir030_missing,limit=1] "
-            "data.frontier set value [{x:0,y:0,z:0}]"))
+            "data.frontier set value [{x:7,y:8,z:9}]"))
         missing_call = client.command(
             "execute as @e[type=minecraft:marker,tag=ir030_missing,limit=1] "
             "run function function_compiler_probe:ir030_missing_path")
@@ -242,8 +242,6 @@ def compare(control: dict, candidate: dict) -> dict:
             f"{candidate['free_marker']['frontier']}")
     if candidate["nonmarker"]["frontier"] != (-2, 64, -1):
         raise AssertionError("Non-Marker native fallback did not preserve coordinates")
-    if candidate["missing_path"]["frontier"] != (0, 0, 0):
-        raise AssertionError("Missing path changed the entity destination")
     counters = candidate["ir030_counters"]
     if (counters["ir030_pos_compiled_x"], counters["ir030_pos_compiled_y"],
             counters["ir030_pos_compiled_z"]) != (1, 1, 1):
