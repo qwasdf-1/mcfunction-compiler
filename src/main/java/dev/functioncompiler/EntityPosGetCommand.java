@@ -9,7 +9,6 @@ import net.minecraft.commands.arguments.NbtPathArgument;
 import net.minecraft.nbt.DoubleTag;
 import net.minecraft.nbt.NumericTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.commands.data.DataCommands;
 import net.minecraft.server.commands.data.EntityDataAccessor;
 import net.minecraft.util.Mth;
@@ -33,26 +32,22 @@ final class EntityPosGetCommand implements FusableCommand {
     private final Command<CommandSourceStack> fallback;
     private final NbtPathArgument.NbtPath path;
     private final int axis;
-    private final Identifier functionId;
 
     EntityPosGetCommand(
             Command<CommandSourceStack> fallback,
             NbtPathArgument.NbtPath path,
-            int axis,
-            Identifier functionId
+            int axis
     ) {
         this.fallback = fallback;
         this.path = path;
         this.axis = axis;
-        this.functionId = functionId;
         ProbeMetrics.ir030PosCompiled(axis);
     }
 
     @Override
     public int run(CommandContext<CommandSourceStack> context)
             throws CommandSyntaxException {
-        if (!ProbeConfiguration.ir030PosGetForFunction(functionId)
-                || ProbeConfiguration.scoreAddMetricsEnabled()
+        if (ProbeConfiguration.scoreAddMetricsEnabled()
                 || ProbeConfiguration.scoreAddTimingEnabled()) {
             return fallback.run(context);
         }
