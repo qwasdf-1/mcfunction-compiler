@@ -84,6 +84,13 @@ def restore_env(previous: dict[str, str | None]) -> None:
             os.environ[key] = value
 
 
+def score_value(response: str) -> int:
+    numbers = re.findall(r"(?<![A-Za-z_])-?\d+", response)
+    if not numbers:
+        raise AssertionError(f"Could not parse scoreboard value from {response!r}")
+    return int(numbers[-1])
+
+
 def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) -> dict:
     work = ROOT / "run" / f"ir030-semantic-{label}"
     if work.exists():
@@ -97,133 +104,86 @@ def run_arm(label: str, mode: str, candidate_enabled: bool, server_jar: Path) ->
     process = None
     log_handle = None
     client = None
+    responses: dict[str, dict[str, str]] = {}
+    response_path = OUT / f"{label}.commands.json"
     try:
         process, log_handle = compat.start_server(mode, work, server_jar, log_path)
         client = compat.wait_for_rcon(process, port, timeout=240)
-        responses: dict[str, dict[str, str]] = {}
-        response_path = OUT / f"{label}.commands.json"
         original_command = client.command
+
         def logged_command(command_text: str) -> str:
             response_text = original_command(command_text)
             responses[str(len(responses))] = {
                 "command": command_text, "response": response_text,
             }
             response_path.write_text(
-                json.dumps(responses, indent=2) + "\\n", encoding="utf-8")
+                json.dumps(responses, indent=2) + "\n", encoding="utf-8")
             return response_text
+
         client.command = logged_command
         enabled = client.command("datapack list enabled")
         if "function_compiler_probe" not in enabled:
             raise RuntimeError(f"Probe datapack did not load: {enabled!r}")
-        initial_status = client.command("function_compiler_probe status")
-        expected_wrapped = candidate_enabled
-        if f"wrapped={str(expected_wrapped).lower()}" not in initial_status:
-            raise RuntimeError(f"Unexpected wrapper state for {label}: {initial_status!r}")
+        status_before = client.command("function_compiler_probe status")
+        if f"wrapped={str(candidate_enabled).lower()}" not in status_before:
+            raise RuntimeError(f"Unexpected wrapper state for {label}: {status_before!r}")
+        must_not_fail("scoreboard objective", client.command(
+            "scoreboard objectives add fc_ir030 dummy"))
 
-        # Unmounted Marker at negative fractional coordinates: floor, not cast.
-        must_not_fail("summon free marker", client.command(
-            "summon minecraft:marker -1.25 64.5 -0.75"))
-        must_not_fail("tag free marker", client.command(
-            "tag @e[type=minecraft:marker,sort=nearest,limit=1] add ir030_free"))
-        must_not_fail("initialize free marker", client.command(
-            "data modify entity @e[type=minecraft:marker,tag=ir030_free,limit=1] "
-            "data.frontier set value [{x:0,y:0,z:0}]"))
+        # execute summon gives the newly-created entity directly as @s. This
+        # is important for Marker entities before they enter selector-visible
+        # entity tracking; it also mirrors datapack summon/function execution.
         free_call = client.command(
-            "execute as @e[type=minecraft:marker,tag=ir030_free,limit=1] "
-            "run function function_compiler_probe:ir030_pos_store")
-        free_frontier_text = client.command(
-            "data get entity @e[type=minecraft:marker,tag=ir030_free,limit=1] data.frontier")
-        free_frontier = xyz(free_frontier_text)
+            "execute positioned -1.25 64.5 -0.75 summon minecraft:marker "
+            "run function function_compiler_probe:ir030_pos_store_free")
+        free_frontier = tuple(score_value(client.command(
+            f"scoreboard players get #free_{axis} fc_ir030")) for axis in "xyz")
 
-        # A mounted Marker must use the native snapshot rule (vehicle X/Z,
-        # passenger Y) and may become unmounted after EntityDataAccessor.setData.
-        must_not_fail("summon vehicle", client.command(
-            "summon minecraft:horse 10.25 100.5 20.75 "
-            "{NoAI:1b,NoGravity:1b,Invulnerable:1b}"))
-        must_not_fail("tag vehicle", client.command(
-            "tag @e[type=minecraft:horse,limit=1] add ir030_vehicle"))
-        must_not_fail("summon passenger marker", client.command(
-            "summon minecraft:marker 20.25 65.5 20.75"))
-        must_not_fail("tag passenger marker", client.command(
-            "tag @e[type=minecraft:marker,sort=furthest,limit=1] add ir030_passenger"))
-        must_not_fail("initialize passenger marker", client.command(
-            "data modify entity @e[type=minecraft:marker,tag=ir030_passenger,limit=1] "
-            "data.frontier set value [{x:0,y:0,z:0}]"))
-        ride_result = client.command(
-            "ride @e[type=minecraft:marker,tag=ir030_passenger,limit=1] mount "
-            "@e[type=minecraft:horse,tag=ir030_vehicle,limit=1]")
-        if any(word in ride_result.casefold() for word in ("couldn't", "cannot", "failed", "no entity")):
-            raise RuntimeError(f"Could not mount the Marker passenger: {ride_result!r}")
+        vehicle_call = client.command(
+            "execute positioned 10.25 100.5 20.75 summon minecraft:horse "
+            "run function function_compiler_probe:ir030_vehicle_setup")
         passenger_call = client.command(
-            "execute as @e[type=minecraft:marker,tag=ir030_passenger,limit=1] "
-            "run function function_compiler_probe:ir030_pos_store")
-        passenger_frontier_text = client.command(
-            "data get entity @e[type=minecraft:marker,tag=ir030_passenger,limit=1] data.frontier")
-        passenger_frontier = xyz(passenger_frontier_text)
+            "execute positioned 20.25 65.5 20.75 summon minecraft:marker "
+            "run function function_compiler_probe:ir030_pos_store_passenger")
+        passenger_frontier = tuple(score_value(client.command(
+            f"scoreboard players get #passenger_{axis} fc_ir030")) for axis in "xyz")
 
-        # Non-Marker entity type must remain on the original serializer path.
-        must_not_fail("summon armor stand", client.command(
-            "summon minecraft:armor_stand -1.25 64.5 -0.75 {NoGravity:1b}"))
-        must_not_fail("tag armor stand", client.command(
-            "tag @e[type=minecraft:armor_stand,limit=1] add ir030_nonmarker"))
-        must_not_fail("initialize armor stand", client.command(
-            "data modify entity @e[type=minecraft:armor_stand,tag=ir030_nonmarker,limit=1] "
-            "data.frontier set value [{x:0,y:0,z:0}]"))
         nonmarker_call = client.command(
-            "execute as @e[type=minecraft:armor_stand,tag=ir030_nonmarker,limit=1] "
-            "run function function_compiler_probe:ir030_pos_store")
-        nonmarker_frontier_text = client.command(
-            "data get entity @e[type=minecraft:armor_stand,tag=ir030_nonmarker,limit=1] "
-            "data.frontier")
-        nonmarker_frontier = xyz(nonmarker_frontier_text)
+            "execute positioned -1.25 64.5 -0.75 summon minecraft:armor_stand "
+            "run function function_compiler_probe:ir030_pos_store_nonmarker")
+        nonmarker_frontier = tuple(score_value(client.command(
+            f"scoreboard players get #nonmarker_{axis} fc_ir030")) for axis in "xyz")
 
-        # A missing NBT path is outside the specialization and must not mutate
-        # the destination. The function is allowlisted only to exercise parser
-        # decline; its Pos-path check must reject Missing[0].
-        must_not_fail("summon missing-path marker", client.command(
-            "summon minecraft:marker 50.25 65.5 50.75"))
-        must_not_fail("tag missing-path marker", client.command(
-            "tag @e[type=minecraft:marker,sort=furthest,limit=1] add ir030_missing"))
-        must_not_fail("initialize missing-path marker", client.command(
-            "data modify entity @e[type=minecraft:marker,tag=ir030_missing,limit=1] "
-            "data.frontier set value [{x:7,y:8,z:9}]"))
         missing_call = client.command(
-            "execute as @e[type=minecraft:marker,tag=ir030_missing,limit=1] "
-            "run function function_compiler_probe:ir030_missing_path")
-        missing_frontier_text = client.command(
-            "data get entity @e[type=minecraft:marker,tag=ir030_missing,limit=1] "
-            "data.frontier")
-        missing_frontier = xyz(missing_frontier_text)
+            "execute positioned 50.25 65.5 50.75 summon minecraft:marker "
+            "run function function_compiler_probe:ir030_missing_path_setup")
+        missing_frontier = tuple(score_value(client.command(
+            f"scoreboard players get #missing_{axis} fc_ir030")) for axis in "xyz")
 
-        # The outer entity store target is @s. From the console there is no
-        # executor, so the native modifier must fail before entering the getter.
+        # No executor: the outer execute-store destination @s fails natively
+        # before the terminal getter can run.
         invalid_target_response = client.command(
             "function function_compiler_probe:ir030_pos_store")
-
         final_status = client.command("function_compiler_probe status")
         result = {
             "label": label,
             "candidate_enabled": candidate_enabled,
-            "wrapper_status": initial_status,
+            "wrapper_status": status_before,
             "free_marker": {
                 "function_response": free_call,
-                "frontier_response": free_frontier_text,
                 "frontier": free_frontier,
             },
             "passenger_marker": {
-                "ride_response": ride_result,
+                "vehicle_setup_response": vehicle_call,
                 "function_response": passenger_call,
-                "frontier_response": passenger_frontier_text,
                 "frontier": passenger_frontier,
             },
             "nonmarker": {
                 "function_response": nonmarker_call,
-                "frontier_response": nonmarker_frontier_text,
                 "frontier": nonmarker_frontier,
             },
             "missing_path": {
                 "function_response": missing_call,
-                "frontier_response": missing_frontier_text,
                 "frontier": missing_frontier,
             },
             "invalid_target_response": invalid_target_response,
