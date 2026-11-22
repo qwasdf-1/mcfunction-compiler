@@ -48,7 +48,7 @@ class IR030SemanticTests(unittest.TestCase):
 
     def test_frontier_mismatch_rejected(self):
         candidate = arm("candidate", True)
-        candidate["passenger_marker"]["frontier"] = (11, 65, 20)
+        candidate["passenger_entity"]["frontier"] = (11, 65, 20)
         with self.assertRaisesRegex(AssertionError, "frontier mismatch"):
             compare(arm("control"), candidate)
 
