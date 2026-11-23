@@ -8,6 +8,7 @@
     "CompilerQueueBuildCpuMixin",
     "CompilerQueueExecuteCpuMixin",
     "CompilerEntityWritebackCpuMixin",
+    "CompilerEntityDataLoadCpuMixin",
     "CompilerForkContextChainMixin",
     "CompilerForkEntitySelectorMixin",
     "CompilerSelector022Mixin",
