@@ -1156,6 +1156,11 @@ def main() -> int:
                 "dynamic_lights_tick_state_after_profile": dynamic_lights_tick_state,
                 "mob_spawning_gamerule_status": mob_spawning_gamerule_status,
                 "source_cleanup_responses": source_cleanup_responses,
+                "source_population_cleanup_policy": (
+                    "Before player login, remove all non-player/non-item/non-marker entities, "
+                    "all preexisting dropped items, and all preexisting Dynamic Lights markers; "
+                    "then require exactly four player holders and 24 torch items."
+                ),
                 "source_population_before_profile": source_population_before_profile,
                 "source_population_after_profile": source_population_after_profile,
                 "first_source_light_level_score": first_source_score,
