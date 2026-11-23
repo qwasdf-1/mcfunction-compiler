@@ -38,6 +38,7 @@ jobs:
           name: compiler-ir032-dynamic-lights-26-3-source-census
           path: |
             build/reports/COMPILER-IR-032-DYNAMIC-LIGHTS-SOURCE/
+            references/real-world/dynamic-lights-creepermeyt/
           if-no-files-found: warn
           retention-days: 21
           include-hidden-files: true
