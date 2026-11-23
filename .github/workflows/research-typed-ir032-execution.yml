@@ -1,7 +1,7 @@
 name: COMPILER-IR-032 Dynamic Lights stationary vs moving execution census
 
 on:
-  # One path-scoped dispatch for the corrected, controlled 26.3 fixture.
+  # Rerun with post-warmup non-fixture drops purged exactly once.
   # Restore manual-only after the evidence is archived.
   push:
     branches: [work/compiler-coverage]
