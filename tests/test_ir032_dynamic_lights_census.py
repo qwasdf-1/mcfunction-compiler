@@ -9,6 +9,7 @@ from ci_ir032_dynamic_lights_census import NAMESPACE, TARGETS, parse_exec_census
 from run_dynamic_lights_profile import (
     MOVING_MIN_DISPLACEMENT_BLOCKS,
     STATIONARY_MAX_DISPLACEMENT_BLOCKS,
+    assert_clean_dynamic_lights_population,
     assert_item_motion_scenario,
     data_modify_succeeded,
     entity_position,
@@ -42,6 +43,42 @@ class IR032DynamicLightsRunnerTests(unittest.TestCase):
             "Nothing changed. The specified properties already have these values"
         ))
         self.assertFalse(data_modify_succeeded("No entity was found"))
+
+    def clean_source_population(self):
+        return {
+            "item_entities": 24,
+            "holder_entities": 4,
+            "holder_entities_by_type": {
+                "players": 4, "zombies": 0, "husks": 0, "foxes": 0,
+                "zombie_villagers": 0, "allays": 0,
+            },
+            "other_light_sources": {
+                "on_fire": 0, "tnt": 0, "glowing": 0,
+                "glow_squids": 0, "allays": 0, "enchanted_armor": 0,
+            },
+        }
+
+    def test_clean_source_population_accepts_only_fixture_players_and_torches(self):
+        assert_clean_dynamic_lights_population(self.clean_source_population())
+
+    def test_clean_source_population_rejects_extra_holder_mobs(self):
+        population = self.clean_source_population()
+        population["holder_entities"] = 5
+        population["holder_entities_by_type"]["zombies"] = 1
+        with self.assertRaisesRegex(RuntimeError, "uncontrolled holder entities"):
+            assert_clean_dynamic_lights_population(population)
+
+    def test_clean_source_population_rejects_other_light_sources(self):
+        population = self.clean_source_population()
+        population["other_light_sources"]["on_fire"] = 1
+        with self.assertRaisesRegex(RuntimeError, "non-torch light sources"):
+            assert_clean_dynamic_lights_population(population)
+
+    def test_clean_source_population_rejects_extra_dropped_items(self):
+        population = self.clean_source_population()
+        population["item_entities"] = 25
+        with self.assertRaisesRegex(RuntimeError, "exactly 24 dropped items"):
+            assert_clean_dynamic_lights_population(population)
 
     def test_motion_vectors_keep_each_source_near_its_player(self):
         vectors = [item_motion(index) for index in range(24)]
