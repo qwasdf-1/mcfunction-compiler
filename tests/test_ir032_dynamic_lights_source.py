@@ -81,17 +81,65 @@ class IR032DynamicLightsSourceTests(unittest.TestCase):
         self.assertEqual(functions["test:.toggle"]["commands"], 1)
 
     def test_runtime_census_allowlist_is_namespace_and_capacity_bounded(self):
+        stale_call = {
+            "source": "test:tick",
+            "target": "test:overloadcheck",
+            "kind": "function",
+            "classification": "stale_unconditional_overloadcheck_call",
+        }
         report = {
             "namespace": "test",
             "tick_reachable_functions": ["test:tick", "test:.toggle"],
             "reachable_functions": ["test:tick", "test:.toggle"],
             "tick_reachable_static_command_count": 7,
+            "missing_function_references": [stale_call],
+            "missing_reachable_function_references": [stale_call],
+            "unclassified_missing_function_references": [],
+            "required_runtime_hotfixes": ["ir032-remove-obsolete-overloadcheck-call"],
         }
         allowlist = execution_census_allowlist(report)
         self.assertEqual(allowlist["namespace"], "test")
         self.assertEqual(allowlist["functions"], ["test:.toggle", "test:tick"])
         self.assertEqual(allowlist["callees"], ["test:.toggle", "test:tick"])
         self.assertEqual(allowlist["static_site_upper_bound"], 7)
+        self.assertEqual(
+            allowlist["required_runtime_hotfixes"],
+            ["ir032-remove-obsolete-overloadcheck-call"],
+        )
+
+    def test_runtime_census_allowlist_rejects_unclassified_missing_reference(self):
+        stale_call = {
+            "source": "test:tick",
+            "target": "test:overloadcheck",
+            "kind": "function",
+            "classification": "stale_unconditional_overloadcheck_call",
+        }
+        report = {
+            "namespace": "test",
+            "tick_reachable_functions": ["test:tick"],
+            "reachable_functions": ["test:tick"],
+            "tick_reachable_static_command_count": 1,
+            "missing_function_references": [stale_call],
+            "missing_reachable_function_references": [stale_call],
+            "unclassified_missing_function_references": [
+                {**stale_call, "classification": "unclassified"}
+            ],
+        }
+        with self.assertRaisesRegex(AssertionError, "unclassified"):
+            execution_census_allowlist(report)
+
+    def test_runtime_census_allowlist_requires_known_stale_call_to_be_present(self):
+        report = {
+            "namespace": "test",
+            "tick_reachable_functions": ["test:tick"],
+            "reachable_functions": ["test:tick"],
+            "tick_reachable_static_command_count": 1,
+            "missing_function_references": [],
+            "missing_reachable_function_references": [],
+            "unclassified_missing_function_references": [],
+        }
+        with self.assertRaisesRegex(AssertionError, "exactly one known stale"):
+            execution_census_allowlist(report)
 
     def test_runtime_census_allowlist_rejects_more_than_96_callees(self):
         names = [f"test:fn_{index}" for index in range(97)]
