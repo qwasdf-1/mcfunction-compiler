@@ -5,7 +5,10 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from ci_ir032_dynamic_lights_census import NAMESPACE, TARGETS, parse_exec_census
+from ci_ir032_dynamic_lights_census import (
+    NAMESPACE, TARGETS, parse_exec_census,
+    verify_clean_minecraft_26_3_environment,
+)
 from run_dynamic_lights_profile import (
     MOVING_MIN_DISPLACEMENT_BLOCKS,
     STATIONARY_MAX_DISPLACEMENT_BLOCKS,
@@ -126,6 +129,67 @@ class IR032DynamicLightsRunnerTests(unittest.TestCase):
             summarize_item_displacements({0: float("nan")})
         with self.assertRaisesRegex(ValueError, "Invalid Dynamic Lights"):
             summarize_item_displacements({0: -0.01})
+
+
+class IR032EnvironmentGateTests(unittest.TestCase):
+    def example_manifest(self):
+        population = {
+            "item_entities": 24,
+            "holder_entities": 4,
+            "holder_entities_by_type": {
+                "players": 4, "zombies": 0, "husks": 0, "foxes": 0,
+                "zombie_villagers": 0, "allays": 0,
+            },
+            "other_light_sources": {
+                "on_fire": 0, "tnt": 0, "glowing": 0, "glow_squids": 0,
+                "allays": 0, "enchanted_armor": 0,
+            },
+        }
+        return {
+            "mob_spawning_gamerule_status": {
+                "rule": "minecraft:spawn_mobs",
+                "set_response": "Gamerule changed",
+                "query_response": "Gamerule minecraft:spawn_mobs is set to false",
+            },
+            "daylight_gamerule_status": {
+                "rule": "minecraft:advance_time",
+                "set_response": "Gamerule changed",
+                "query_response": "Gamerule minecraft:advance_time is set to false",
+            },
+            "source_population_before_profile": population,
+            "source_population_after_profile": {
+                **population,
+                "other_light_sources": dict(population["other_light_sources"]),
+                "holder_entities_by_type": dict(population["holder_entities_by_type"]),
+            },
+        }
+
+    def test_accepts_both_current_gamerules_and_clean_matched_populations(self):
+        result = verify_clean_minecraft_26_3_environment(self.example_manifest())
+        self.assertTrue(result["pre_and_post_source_population_verified"])
+        self.assertTrue(result["minecraft_26_3_spawn_mobs_disabled"])
+
+    def test_rejects_legacy_gamerule_or_true_readback(self):
+        for invalid in ("doMobSpawning", "minecraft:spawn_mobs_old"):
+            case = self.example_manifest()
+            case["mob_spawning_gamerule_status"]["rule"] = invalid
+            with self.assertRaisesRegex(AssertionError, "Unverified Minecraft"):
+                verify_clean_minecraft_26_3_environment(case)
+        case = self.example_manifest()
+        case["daylight_gamerule_status"]["query_response"] = "Gamerule is set to true"
+        with self.assertRaisesRegex(AssertionError, "Unverified Minecraft"):
+            verify_clean_minecraft_26_3_environment(case)
+
+    def test_rejects_cleanliness_drift_before_or_after_profile(self):
+        for label in ("source_population_before_profile", "source_population_after_profile"):
+            case = self.example_manifest()
+            case[label]["other_light_sources"]["on_fire"] = 1
+            with self.assertRaisesRegex(AssertionError, "Unexpected other light source"):
+                verify_clean_minecraft_26_3_environment(case)
+        case = self.example_manifest()
+        case["source_population_after_profile"]["holder_entities"] = 5
+        with self.assertRaisesRegex(AssertionError, "Uncontrolled source/holder"):
+            verify_clean_minecraft_26_3_environment(case)
 
 
 class IR032ExecutionCensusParserTests(unittest.TestCase):
