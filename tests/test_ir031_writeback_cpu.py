@@ -53,7 +53,7 @@ class IR031WritebackAttributionTests(unittest.TestCase):
             self.read(bad, "plain")
 
     def test_plain_never_reads_cpu_clock(self):
-        bad = log("plain").replace("samples=0 cpu_ns=0", "samples=1 cpu_ns=1", 1)
+        bad = log("plain").replace("samples=0 cpu_ns=0", "samples=0 cpu_ns=1", 1)
         with self.assertRaisesRegex(ValueError, "plain mode"):
             self.read(bad, "plain")
 
@@ -65,11 +65,11 @@ class IR031WritebackAttributionTests(unittest.TestCase):
     def test_entity_load_only_projection_and_materiality_screen(self):
         plain = self.read(log("plain"), "plain")
         empty = self.read(log("empty", empty_ns=1600), "empty")
-        timed = self.read(log("timed", timed_ns=11600), "timed")
+        timed = self.read(log("timed", timed_ns=200000), "timed")
         out = project(plain, empty, timed, 20_000_000_000)
         self.assertEqual(
             out["signed_projected_entity_load_cpu_ns"],
-            3 * 1940 * (11600 - 1600),
+            3 * 1940 * (200000 - 1600),
         )
         self.assertTrue(out["candidate_research_warranted"])
         self.assertFalse(out["semantic_equivalence_proven"])
