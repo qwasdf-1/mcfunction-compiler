@@ -9,6 +9,7 @@ sys.path.insert(0, str(ROOT / "tests" / "runtime"))
 
 from run_dynamic_lights_profile import (
     assert_compiler_research_features_disabled,
+    configure_gradle_cache_environment,
     parse_exec_census_lines,
 )
 
@@ -63,6 +64,25 @@ class IR032DynamicLightsProfileTests(unittest.TestCase):
         ]
         with self.assertRaisesRegex(ValueError, "BEGIN/END mismatch"):
             parse_exec_census_lines(altered, "test")
+
+    def test_gradle_cache_helper_removes_same_writable_readonly_path(self):
+        environment = {
+            "GRADLE_USER_HOME": "/tmp/gradle-home",
+            "GRADLE_RO_DEP_CACHE": "/tmp/gradle-home/caches",
+        }
+        configured = configure_gradle_cache_environment(environment)
+        self.assertNotIn("GRADLE_RO_DEP_CACHE", configured)
+        self.assertEqual(environment["GRADLE_RO_DEP_CACHE"], "/tmp/gradle-home/caches")
+
+    def test_gradle_cache_helper_preserves_distinct_readonly_cache(self):
+        environment = {
+            "GRADLE_USER_HOME": "/tmp/gradle-home",
+            "GRADLE_RO_DEP_CACHE": "/tmp/readonly-gradle-cache",
+        }
+        configured = configure_gradle_cache_environment(environment)
+        self.assertEqual(
+            configured["GRADLE_RO_DEP_CACHE"], "/tmp/readonly-gradle-cache"
+        )
 
     def test_research_feature_gate_accepts_all_disabled_status(self):
         status = " ".join(
