@@ -181,21 +181,39 @@ class IR032DynamicLightsSourceTests(unittest.TestCase):
 
     def test_runtime_census_allowlist_rejects_more_than_96_callees(self):
         names = [f"test:fn_{index}" for index in range(97)]
+        stale_call = {
+            "source": "test:tick",
+            "target": "test:overloadcheck",
+            "kind": "function",
+            "classification": "stale_unconditional_overloadcheck_call",
+        }
         report = {
             "namespace": "test",
             "tick_reachable_functions": names,
             "reachable_functions": names,
             "tick_reachable_static_command_count": 97,
+            "missing_function_references": [stale_call],
+            "missing_reachable_function_references": [stale_call],
+            "unclassified_missing_function_references": [],
         }
         with self.assertRaisesRegex(AssertionError, "exceeds 96"):
             execution_census_allowlist(report)
 
     def test_runtime_census_allowlist_rejects_site_capacity_overflow(self):
+        stale_call = {
+            "source": "test:tick",
+            "target": "test:overloadcheck",
+            "kind": "function",
+            "classification": "stale_unconditional_overloadcheck_call",
+        }
         report = {
             "namespace": "test",
             "tick_reachable_functions": ["test:tick"],
             "reachable_functions": ["test:tick"],
             "tick_reachable_static_command_count": 1025,
+            "missing_function_references": [stale_call],
+            "missing_reachable_function_references": [stale_call],
+            "unclassified_missing_function_references": [],
         }
         with self.assertRaisesRegex(AssertionError, "MAX_SITES"):
             execution_census_allowlist(report)
