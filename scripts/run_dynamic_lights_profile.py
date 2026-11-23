@@ -264,6 +264,37 @@ def parse_exec_census_lines(lines: list[str], expected_namespace: str) -> dict:
     }
 
 
+DISABLED_COMPILER_STATUS_FLAGS = (
+    "score_add_prototype_enabled",
+    "score_add_metrics_enabled",
+    "score_add_timing_enabled",
+    "score_add_attr_enabled",
+    "score_attr_diag_enabled",
+    "fused_region_prototype_enabled",
+    "direct_scheduler_prototype_enabled",
+    "direct_scheduler_diagnostics_enabled",
+    "bytecode_region_prototype_enabled",
+    "bytecode_compile_failure_forced",
+    "arch_counters_enabled",
+    "ir030_pos_get_enabled",
+    "ir030_pos_get_verify",
+    "function_timing_enabled",
+    "command_callback_metrics_enabled",
+    "command_callback_metrics_all_queues",
+    "selective_macro_arguments_enabled",
+    "selective_macro_arguments_metrics_enabled",
+)
+
+
+def assert_compiler_research_features_disabled(status: str) -> None:
+    for name in DISABLED_COMPILER_STATUS_FLAGS:
+        match = re.search(rf"\\b{name}=(true|false)\\b", status)
+        if match is None or match.group(1) != "false":
+            raise RuntimeError(
+                f"Dynamic Lights census requires {name}=false; status={status!r}"
+            )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stack", choices=("vanilla", *STACK_MODS), default="vanilla")
@@ -457,6 +488,30 @@ def main() -> int:
                     {
                         "FC_WRAPPER_PROBE": "true" if args.wrapper == "on" else "false",
                         "FC_RUNTIME_TRACE": "false",
+                        "FC_SCORE_ADD_PROTOTYPE": "false",
+                        "FC_SCORE_ADD_METRICS": "false",
+                        "FC_SCORE_ADD_TIMING": "false",
+                        "FC_SCORE_ADD_ATTRIBUTION": "false",
+                        "FC_SCORE_ADD_PHASE_TIMERS": "false",
+                        "FC_SCORE_ADD_ATTR_DIAGNOSTICS": "false",
+                        "FC_FUSED_REGION_PROTOTYPE": "false",
+                        "FC_DIRECT_SCHEDULER_PROTOTYPE": "false",
+                        "FC_DIRECT_SCHEDULER_DIAGNOSTICS": "false",
+                        "FC_BYTECODE_REGION_PROTOTYPE": "false",
+                        "FC_BYTECODE_FORCE_COMPILE_FAILURE": "false",
+                        "FC_FUNCTION_TIMING": "false",
+                        "FC_COMMAND_CALLBACK_METRICS": "false",
+                        "FC_COMMAND_CALLBACK_METRICS_ALL_QUEUES": "false",
+                        "FC_SCHED_ARCH_COUNTERS": "false",
+                        "FC_SELECTIVE_MACRO_ARGUMENTS": "false",
+                        "FC_SELECTIVE_MACRO_ARGUMENTS_METRICS": "false",
+                        "FC_IR030_POS_GET": "false",
+                        "FC_IR030_POS_GET_VERIFY": "false",
+                        "FC_TYPED_IR_MODE": "off",
+                        "FC_TYPED_IR_DIAGNOSTICS": "false",
+                        "FC_TYPED_IR_SELF_HOLDER": "false",
+                        "FC_TYPED_IR_SCORE_CACHE": "false",
+                        "FC_TYPED_IR_SINGLETON_FEEDBACK": "false",
                         # Never inherit an ambient census toggle into a non-census run.
                         "FC_COMPILER_EXEC_CENSUS": "true" if args.exec_census else "false",
                         "FC_COMPILER_EXEC_CENSUS_NAMESPACE": (
@@ -525,6 +580,7 @@ def main() -> int:
                 for invariant in ("tag_same_instance=true", "delegates_original=true"):
                     if invariant not in compiler_probe_status:
                         raise RuntimeError(f"Wrapper probe invariant failed ({invariant}): {compiler_probe_status!r}")
+                assert_compiler_research_features_disabled(compiler_probe_status)
             if args.datapack == "on":
                 rcon.command("scoreboard players set p dynbclevel 2")
             rcon.command("gamerule doDaylightCycle false")
