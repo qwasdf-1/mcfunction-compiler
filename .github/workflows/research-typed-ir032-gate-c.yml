@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: compiler-ir032-gate-c-manual
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   controlled-dynamic-lights-cpu:
