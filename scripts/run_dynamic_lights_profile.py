@@ -152,6 +152,7 @@ def count_entities_with_tag_predicate(
 
 
 def data_modify_succeeded(response: str) -> bool:
+    """Accept both a real mutation and Minecraft's explicit already-equal no-op."""
     normalized = response.casefold()
     return "modified" in normalized or "nothing changed" in normalized
 
