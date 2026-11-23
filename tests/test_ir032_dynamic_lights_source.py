@@ -12,6 +12,7 @@ from ci_ir032_dynamic_lights_source import (
     logical_pack_files,
     parse_functions,
     selected_overlays,
+    execution_census_allowlist,
 )
 
 
@@ -58,6 +59,54 @@ class IR032DynamicLightsSourceTests(unittest.TestCase):
         }
         functions, _ = parse_functions(files)
         self.assertEqual(functions["test:work"]["command_preview"], ["say current"])
+
+    def test_hidden_dotfile_functions_are_parsed_and_reachable(self):
+        files = {
+            "data/test/function/tickcheck.mcfunction": (
+                0, b"schedule function test:tickcheck 1t\\nfunction test:.toggle\\n",
+                "data/test/function/tickcheck.mcfunction"),
+            "data/test/function/.toggle.mcfunction": (
+                0, b"scoreboard players add #x obj 1\\n",
+                "data/test/function/.toggle.mcfunction"),
+        }
+        functions, tags = parse_functions(files)
+        graph = build_reachable(functions, tags)
+        self.assertIn("test:.toggle", graph["tick_reachable_functions"])
+        self.assertEqual(functions["test:.toggle"]["commands"], 1)
+
+    def test_runtime_census_allowlist_is_namespace_and_capacity_bounded(self):
+        report = {
+            "namespace": "test",
+            "tick_reachable_functions": ["test:tick", "test:.toggle"],
+            "reachable_functions": ["test:tick", "test:.toggle"],
+            "tick_reachable_static_command_count": 7,
+        }
+        allowlist = execution_census_allowlist(report)
+        self.assertEqual(allowlist["namespace"], "test")
+        self.assertEqual(allowlist["functions"], ["test:.toggle", "test:tick"])
+        self.assertEqual(allowlist["callees"], ["test:.toggle", "test:tick"])
+        self.assertEqual(allowlist["static_site_upper_bound"], 7)
+
+    def test_runtime_census_allowlist_rejects_more_than_96_callees(self):
+        names = [f"test:fn_{index}" for index in range(97)]
+        report = {
+            "namespace": "test",
+            "tick_reachable_functions": names,
+            "reachable_functions": names,
+            "tick_reachable_static_command_count": 97,
+        }
+        with self.assertRaisesRegex(AssertionError, "exceeds 96"):
+            execution_census_allowlist(report)
+
+    def test_runtime_census_allowlist_rejects_site_capacity_overflow(self):
+        report = {
+            "namespace": "test",
+            "tick_reachable_functions": ["test:tick"],
+            "reachable_functions": ["test:tick"],
+            "tick_reachable_static_command_count": 1025,
+        }
+        with self.assertRaisesRegex(AssertionError, "MAX_SITES"):
+            execution_census_allowlist(report)
 
     def test_schedule_inside_execute_is_not_a_direct_function_call(self):
         files = {
