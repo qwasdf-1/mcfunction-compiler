@@ -13,8 +13,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * IR-031 measurement boundary only. Wraps the original setter invocation
- * inside the exact execute-store callback; the Operation is always called.
+ * IR-031 measurement boundary only. Establishes an exact, synchronous context
+ * around the original execute-store setter; the Operation is always called.
  */
 @Mixin(ExecuteCommand.class)
 abstract class CompilerEntityWritebackCpuMixin {
@@ -34,12 +34,11 @@ abstract class CompilerEntityWritebackCpuMixin {
             Operation<Void> original,
             @Local(argsOnly = true) NbtPathArgument.NbtPath path
     ) throws CommandSyntaxException {
-        int axis = CompilerEntityWritebackProbe.classify(path, accessor);
-        long started = CompilerEntityWritebackProbe.begin(axis);
+        int axis = CompilerEntityWritebackProbe.beginStore(path, accessor);
         try {
             original.call(accessor, compound);
         } finally {
-            CompilerEntityWritebackProbe.end(axis, started);
+            CompilerEntityWritebackProbe.endStore(axis);
         }
     }
 }
