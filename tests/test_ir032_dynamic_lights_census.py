@@ -10,6 +10,7 @@ from run_dynamic_lights_profile import (
     MOVING_MIN_DISPLACEMENT_BLOCKS,
     STATIONARY_MAX_DISPLACEMENT_BLOCKS,
     assert_item_motion_scenario,
+    data_modify_succeeded,
     entity_position,
     item_motion,
     summarize_item_displacements,
@@ -34,6 +35,13 @@ class IR032DynamicLightsRunnerTests(unittest.TestCase):
     def test_entity_position_rejects_missing_entity(self):
         with self.assertRaisesRegex(RuntimeError, "Could not parse position"):
             entity_position(FakeRcon("No entity was found"), 0)
+
+    def test_motion_reset_accepts_modified_and_already_zero_responses(self):
+        self.assertTrue(data_modify_succeeded("Modified entity data of 1 entity"))
+        self.assertTrue(data_modify_succeeded(
+            "Nothing changed. The specified properties already have these values"
+        ))
+        self.assertFalse(data_modify_succeeded("No entity was found"))
 
     def test_motion_vectors_keep_each_source_near_its_player(self):
         vectors = [item_motion(index) for index in range(24)]
