@@ -7,7 +7,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests" / "runtime"))
 
-from run_dynamic_lights_profile import parse_exec_census_lines
+from run_dynamic_lights_profile import (
+    assert_compiler_research_features_disabled,
+    parse_exec_census_lines,
+)
 
 
 VALID_LOG = [
@@ -60,6 +63,59 @@ class IR032DynamicLightsProfileTests(unittest.TestCase):
         ]
         with self.assertRaisesRegex(ValueError, "BEGIN/END mismatch"):
             parse_exec_census_lines(altered, "test")
+
+    def test_research_feature_gate_accepts_all_disabled_status(self):
+        status = " ".join(
+            f"{name}=false"
+            for name in (
+                "score_add_prototype_enabled",
+                "score_add_metrics_enabled",
+                "score_add_timing_enabled",
+                "score_add_attr_enabled",
+                "score_attr_diag_enabled",
+                "fused_region_prototype_enabled",
+                "direct_scheduler_prototype_enabled",
+                "direct_scheduler_diagnostics_enabled",
+                "bytecode_region_prototype_enabled",
+                "bytecode_compile_failure_forced",
+                "arch_counters_enabled",
+                "ir030_pos_get_enabled",
+                "ir030_pos_get_verify",
+                "function_timing_enabled",
+                "command_callback_metrics_enabled",
+                "command_callback_metrics_all_queues",
+                "selective_macro_arguments_enabled",
+                "selective_macro_arguments_metrics_enabled",
+            )
+        )
+        assert_compiler_research_features_disabled(status)
+
+    def test_research_feature_gate_rejects_enabled_optimizer(self):
+        status = " ".join(
+            f"{name}={'true' if name == 'fused_region_prototype_enabled' else 'false'}"
+            for name in (
+                "score_add_prototype_enabled",
+                "score_add_metrics_enabled",
+                "score_add_timing_enabled",
+                "score_add_attr_enabled",
+                "score_attr_diag_enabled",
+                "fused_region_prototype_enabled",
+                "direct_scheduler_prototype_enabled",
+                "direct_scheduler_diagnostics_enabled",
+                "bytecode_region_prototype_enabled",
+                "bytecode_compile_failure_forced",
+                "arch_counters_enabled",
+                "ir030_pos_get_enabled",
+                "ir030_pos_get_verify",
+                "function_timing_enabled",
+                "command_callback_metrics_enabled",
+                "command_callback_metrics_all_queues",
+                "selective_macro_arguments_enabled",
+                "selective_macro_arguments_metrics_enabled",
+            )
+        )
+        with self.assertRaisesRegex(RuntimeError, "fused_region_prototype_enabled=false"):
+            assert_compiler_research_features_disabled(status)
 
     def test_rejects_registration_overflow(self):
         altered = [
