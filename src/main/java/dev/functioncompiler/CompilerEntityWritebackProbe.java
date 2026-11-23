@@ -1,6 +1,5 @@
 package dev.functioncompiler;
 
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.NbtPathArgument;
 import net.minecraft.server.commands.data.DataAccessor;
@@ -13,11 +12,12 @@ import java.lang.management.ThreadMXBean;
 
 /**
  * IR-031 diagnostic only: sparse server-thread CPU clock around the exact
- * EntityDataAccessor.setData call inside ExecuteCommand.lambda$storeData$0.
+ * Entity.load call nested in EntityDataAccessor.setData for the original
+ * execute-store frontier coordinate paths.
  *
- * Counts only the three original vm:queue/append_here custom-data leaf paths
- * and requires an unmounted exact vanilla Marker. It does not alter the
- * accessor, NBT, result callback, command return, or Entity.load behavior.
+ * The outer execute-store callback establishes a short-lived, exact Marker
+ * context. Only the same entity's synchronous Entity.load is timed. All
+ * original operations still execute; this class is observation-only.
  */
 public final class CompilerEntityWritebackProbe {
     private static final String MODE = System.getenv("FC_IR031_MODE");
@@ -34,19 +34,23 @@ public final class CompilerEntityWritebackProbe {
     private static final long[] ELIGIBLE_CALLS = new long[3];
     private static final long[] MOUNTED_CALLS = new long[3];
     private static final long[] OTHER_ENTITY_CALLS = new long[3];
-    private static final long[] COMPLETED_CALLS = new long[3];
+    private static final long[] STORE_COMPLETED = new long[3];
+    private static final long[] LOAD_CALLS = new long[3];
+    private static final long[] LOAD_COMPLETED = new long[3];
     private static final long[] SAMPLES = new long[3];
     private static final long[] CPU_NS = new long[3];
     private static final long[] INVALID = new long[3];
+    private static final ThreadLocal<Integer> CURRENT_AXIS = new ThreadLocal<>();
+    private static final ThreadLocal<Entity> CURRENT_ENTITY = new ThreadLocal<>();
 
     private CompilerEntityWritebackProbe() {
     }
 
     /**
-     * Classify the exact outer-store setter invocation. Returns an axis only
-     * for an unmounted exact Marker; all other calls remain native and untimed.
+     * Called at the exact DataAccessor.setData invocation in
+     * ExecuteCommand.lambda$storeData$0. Returns -1 for every non-target.
      */
-    public static int classify(
+    public static int beginStore(
             NbtPathArgument.NbtPath path,
             DataAccessor accessor
     ) {
@@ -78,15 +82,35 @@ public final class CompilerEntityWritebackProbe {
             return -1;
         }
         ELIGIBLE_CALLS[axis]++;
+        CURRENT_AXIS.set(axis);
+        CURRENT_ENTITY.set(entity);
         return axis;
     }
 
-    /** -1 means no CPU interval opened for this callback. */
-    public static long begin(int axis) {
+    /** Ends the outer store scope and restores the thread-local diagnostic state. */
+    public static void endStore(int axis) {
         if (axis < 0) {
+            return;
+        }
+        STORE_COMPLETED[axis]++;
+        CURRENT_AXIS.remove();
+        CURRENT_ENTITY.remove();
+    }
+
+    /**
+     * Called only around Entity.load inside EntityDataAccessor.setData.
+     * The identity guard ensures unrelated nested loads are not attributed.
+     */
+    public static long beginEntityLoad(Entity entity) {
+        if (!CONFIGURED || !ACTIVE) {
             return -1L;
         }
-        long ordinal = ELIGIBLE_CALLS[axis];
+        Integer axisValue = CURRENT_AXIS.get();
+        if (axisValue == null || CURRENT_ENTITY.get() != entity) {
+            return -1L;
+        }
+        int axis = axisValue;
+        long ordinal = ++LOAD_CALLS[axis];
         if ("plain".equals(MODE) || ordinal % STRIDE != 0) {
             return -1L;
         }
@@ -98,11 +122,16 @@ public final class CompilerEntityWritebackProbe {
         return now();
     }
 
-    public static void end(int axis, long started) {
-        if (axis < 0) {
+    public static void endEntityLoad(long started) {
+        if (!CONFIGURED || !ACTIVE) {
             return;
         }
-        COMPLETED_CALLS[axis]++;
+        Integer axisValue = CURRENT_AXIS.get();
+        if (axisValue == null) {
+            return;
+        }
+        int axis = axisValue;
+        LOAD_COMPLETED[axis]++;
         if (started >= 0L) {
             observe(axis, now() - started);
         }
@@ -128,11 +157,15 @@ public final class CompilerEntityWritebackProbe {
             ELIGIBLE_CALLS[axis] = 0L;
             MOUNTED_CALLS[axis] = 0L;
             OTHER_ENTITY_CALLS[axis] = 0L;
-            COMPLETED_CALLS[axis] = 0L;
+            STORE_COMPLETED[axis] = 0L;
+            LOAD_CALLS[axis] = 0L;
+            LOAD_COMPLETED[axis] = 0L;
             SAMPLES[axis] = 0L;
             CPU_NS[axis] = 0L;
             INVALID[axis] = 0L;
         }
+        CURRENT_AXIS.remove();
+        CURRENT_ENTITY.remove();
     }
 
     public static int start(CommandSourceStack source) {
@@ -175,17 +208,18 @@ public final class CompilerEntityWritebackProbe {
         for (int axis = 0; axis < 3; axis++) {
             FunctionCompilerMod.LOGGER.info(
                     "FC_IR031_ROW axis={} path_calls={} marker_calls={} eligible={} "
-                            + "completed={} mounted={} other={} samples={} cpu_ns={} invalid={}",
+                            + "store_completed={} load_calls={} load_completed={} mounted={} "
+                            + "other={} samples={} cpu_ns={} invalid={}",
                     AXES[axis], PATH_CALLS[axis], MARKER_CALLS[axis],
-                    ELIGIBLE_CALLS[axis], COMPLETED_CALLS[axis],
-                    MOUNTED_CALLS[axis], OTHER_ENTITY_CALLS[axis],
-                    SAMPLES[axis], CPU_NS[axis], INVALID[axis]);
+                    ELIGIBLE_CALLS[axis], STORE_COMPLETED[axis], LOAD_CALLS[axis],
+                    LOAD_COMPLETED[axis], MOUNTED_CALLS[axis],
+                    OTHER_ENTITY_CALLS[axis], SAMPLES[axis], CPU_NS[axis], INVALID[axis]);
         }
         FunctionCompilerMod.LOGGER.info("FC_IR031_END mode={} stride={}", MODE, STRIDE);
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
                 "IR031 ended mode=" + MODE
-                        + " eligible=" + (ELIGIBLE_CALLS[0] + ELIGIBLE_CALLS[1]
-                        + ELIGIBLE_CALLS[2])), false);
+                        + " loads=" + (LOAD_CALLS[0] + LOAD_CALLS[1]
+                        + LOAD_CALLS[2])), false);
         return 1;
     }
 }
