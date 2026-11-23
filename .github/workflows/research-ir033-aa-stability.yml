@@ -1,0 +1,53 @@
+name: COMPILER-IR-033 no-treatment A/A CPU measurement stability
+
+# Bounded expensive native study, manual-only by design.
+# Not a compilation or speedup benchmark. A and B are placebo labels.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir033-aa-stability
+  cancel-in-progress: false
+
+jobs:
+  compiler-cpu-aa-stability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 125
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Check IR-033 no-treatment preregistration and invariants
+        run: |
+          python3 -m py_compile scripts/ci_ir032_gate_c.py scripts/ci_ir033_aa_stability.py scripts/run_dynamic_lights_profile.py
+          python3 -m unittest discover -s tests -p 'test_ir032_gate_c.py' -v
+          python3 -m unittest discover -s tests -p 'test_ir033_aa_stability.py' -v
+          test -s docs/research/compiler-ir033-aa-stability.md
+      - name: Fetch original publisher source and confirm exact SHA and overlay
+        run: python3 scripts/ci_ir032_dynamic_lights_source.py
+      - name: Build Java 25 Minecraft 26.3 Fabric compiler wrapper
+        run: ./gradlew --no-daemon build
+      - name: Six fresh identical uninstrumented 60-second native A/A arms
+        run: python3 -u scripts/ci_ir033_aa_stability.py
+      - name: Archive all original CPU manifests and failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir033-aa-stability-six-jvm
+          path: |
+            build/reports/COMPILER-IR-033-AA-STABILITY/
+            build/reports/COMPILER-IR-032-DYNAMIC-LIGHTS-SOURCE/
+            build/benchmarks/PERF-010/dynamic-lights-fabric-pack-on-on-idle-*/
+            references/real-world/dynamic-lights-creepermeyt/
+          retention-days: 21
+          if-no-files-found: warn
+          include-hidden-files: true
