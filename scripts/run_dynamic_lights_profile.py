@@ -759,14 +759,15 @@ def main() -> int:
                 )
 
             if args.scenario == "stationary":
-                response = rcon.command(
-                    "execute as @e[type=minecraft:item,tag=fc_dl] run "
-                    "data modify entity @s Motion set value [0.0d,0.0d,0.0d]"
-                )
-                if "modified" not in response.casefold() or "24 entities" not in response.casefold():
-                    raise RuntimeError(
-                        f"Could not reset all 24 stationary source velocities: {response!r}"
+                for index in range(ITEM_COUNT):
+                    selector = f"@e[type=minecraft:item,tag=fc_dl_{index},limit=1]"
+                    response = rcon.command(
+                        f"data modify entity {selector} Motion set value [0.0d,0.0d,0.0d]"
                     )
+                    if "modified" not in response.casefold():
+                        raise RuntimeError(
+                            f"Could not reset stationary source velocity for item {index}: {response!r}"
+                        )
             else:
                 for index in range(ITEM_COUNT):
                     vx, vz = item_motion(index)
