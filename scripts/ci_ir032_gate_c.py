@@ -283,10 +283,15 @@ def main() -> None:
         "cpu_screen": screen,
         "runs": records,
         "promotion_decision": "not applicable: no compiler optimization implemented",
-        "source_workflow_is_manual_only": True,
+        "workflow_trigger": os.environ.get("GITHUB_EVENT_NAME", "local"),
+        "source_workflow_is_manual_only": os.environ.get("GITHUB_EVENT_NAME") != "push",
     }
     (OUT / "results.json").write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    # The CPU noise and JFR coverage screens are independent hard failures.
+    # Do not silently accept a noisy CPU arm if JFR sampling was fixed.
+    if not screen["noise_screen_pass"]:
+        raise RuntimeError("CPU within-scenario noise above preregistered 8% maximum")
     if not all(x.get("coverage_sufficient") for x in
                (records[-2]["jfr"], records[-1]["jfr"])):
         raise RuntimeError("JFR sample coverage below preregistered minimum")
