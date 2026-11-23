@@ -92,6 +92,7 @@ The overall project policy continues to require a material real-workload improve
 - [IR025–029 completed fork, restoration, CPU and JFR follow-ups](compiler-typed-ir-025.md)
 - [IR029 descriptive JFR](compiler-typed-ir-029.md)
 - [Bellows 1.1.3 native data-accessor comparison](bellows-audit.md)
+- [IR-031 second hypothesis: Marker entity result-store writeback feasibility](compiler-typed-ir-031.md)
 
 
 ## 6. Gate A verification — native command contracts (2026-11-21)
