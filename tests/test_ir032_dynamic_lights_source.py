@@ -63,13 +63,13 @@ class IR032DynamicLightsSourceTests(unittest.TestCase):
     def test_hidden_dotfile_functions_are_parsed_and_reachable(self):
         files = {
             "data/test/function/load.mcfunction": (
-                0, b"schedule function test:tickcheck 1t\\n",
+                0, b"schedule function test:tickcheck 1t\n",
                 "data/test/function/load.mcfunction"),
             "data/test/function/tickcheck.mcfunction": (
-                0, b"schedule function test:tickcheck 1t\\nfunction test:.toggle\\n",
+                0, b"schedule function test:tickcheck 1t\nfunction test:.toggle\n",
                 "data/test/function/tickcheck.mcfunction"),
             "data/test/function/.toggle.mcfunction": (
-                0, b"scoreboard players add #x obj 1\\n",
+                0, b"scoreboard players add #x obj 1\n",
                 "data/test/function/.toggle.mcfunction"),
             "data/minecraft/tags/function/load.json": (
                 0, json.dumps({"values": ["test:load"]}).encode(),
