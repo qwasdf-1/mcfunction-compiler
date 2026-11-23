@@ -209,10 +209,22 @@ def build_reachable(functions: dict, tags: dict) -> dict:
 
     edges: dict[str, set[str]] = {name: set() for name in functions}
     schedule_edges: dict[str, set[str]] = {name: set() for name in functions}
+    missing_function_references = []
     for name, item in functions.items():
-        for target in item["function_calls"] + item["scheduled_calls"]:
+        for target in item["function_calls"]:
             if target in functions:
                 edges[name].add(target)
+            else:
+                missing_function_references.append({
+                    "source": name, "target": target, "kind": "function",
+                })
+        for target in item["scheduled_calls"]:
+            if target in functions:
+                edges[name].add(target)
+            else:
+                missing_function_references.append({
+                    "source": name, "target": target, "kind": "schedule",
+                })
         for tag in item["function_tag_calls"]:
             tag_id = tag[1:]
             values = tags.get(tag_id)
@@ -284,6 +296,14 @@ def build_reachable(functions: dict, tags: dict) -> dict:
         "recurring_roots": recurring_roots,
         "unresolved_function_tags": sorted(unresolved_tags),
         "recurring_schedule_edges": recurring_schedule_edges,
+        "missing_function_references": sorted(
+            missing_function_references,
+            key=lambda item: (item["source"], item["target"], item["kind"]),
+        ),
+        "missing_reachable_function_references": sorted(
+            (item for item in missing_function_references if item["source"] in reachable),
+            key=lambda item: (item["source"], item["target"], item["kind"]),
+        ),
         "edges": {name: sorted(targets) for name, targets in edges.items()
                   if name in reachable},
         "scheduled_edges": {name: sorted(targets) for name, targets in schedule_edges.items()
@@ -358,6 +378,9 @@ def census(pack_path: Path = PACK) -> dict:
         "recurring_roots": graph["recurring_roots"],
         "tick_reachable_functions": graph["tick_reachable_functions"],
         "load_only_functions": graph["load_only_functions"],
+        "all_function_ids": sorted(functions),
+        "missing_function_references": graph["missing_function_references"],
+        "missing_reachable_function_references": graph["missing_reachable_function_references"],
         "unresolved_function_tags": graph["unresolved_function_tags"],
         "recurring_schedule_edges": graph["recurring_schedule_edges"],
         "reachable_call_graph": graph["edges"],
@@ -384,6 +407,17 @@ def census(pack_path: Path = PACK) -> dict:
         f"- Entry points: {', '.join(graph['entrypoints'])}",
         f"- Recurring roots: {', '.join(graph['recurring_roots'])}",
         f"- Recurring scheduled edges: {json.dumps(graph['recurring_schedule_edges'])}",
+        f"- Missing literal function references: {len(graph['missing_function_references'])}",
+        f"- Missing references from tick-reachable functions: {len(graph['missing_reachable_function_references'])}",
+        "",
+        "## Missing literal function references",
+        "",
+        "| Source function | Missing target | Kind |",
+        "|---|---|---|",
+        *[
+            f"| {item['source']} | {item['target']} | {item['kind']} |"
+            for item in graph["missing_function_references"]
+        ],
         "",
         "## Highest static command counts in the tick-reachable call closure",
         "",
