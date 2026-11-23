@@ -348,6 +348,10 @@ def census(pack_path: Path = PACK) -> dict:
         "reachable_function_count": len(reachable),
         "reachable_functions": reachable,
         "tick_reachable_static_command_count": tick_static_command_count,
+        "tick_reachable_graph_semantics": (
+            "Static function-call closure from the recurring scheduled root; "
+            "execute predicates, score gates, player triggers, and runtime branches are not evaluated."
+        ),
         "tick_reachable_function_count": len(graph["tick_reachable_functions"]),
         "load_only_function_count": len(graph["load_only_functions"]),
         "entrypoints": graph["entrypoints"],
@@ -381,7 +385,7 @@ def census(pack_path: Path = PACK) -> dict:
         f"- Recurring roots: {', '.join(graph['recurring_roots'])}",
         f"- Recurring scheduled edges: {json.dumps(graph['recurring_schedule_edges'])}",
         "",
-        "## Highest static command counts in recurring tick closure",
+        "## Highest static command counts in the tick-reachable call closure",
         "",
         "| Function | Commands | Execute | Scoreboard | Data | Selector tokens | Function calls |",
         "|---|---:|---:|---:|---:|---:|---:|",
@@ -394,8 +398,11 @@ def census(pack_path: Path = PACK) -> dict:
         )
     lines.extend([
         "",
-        "**Interpretation:** these are static source counts and call-graph reachability only. "
-        "They do not establish dynamic invocation frequency, CPU cost, or an optimization opportunity.",
+        "**Interpretation:** this closure follows every syntactic function call from the recurring root "
+        "without evaluating execute predicates, score gates, player triggers, or runtime branches. "
+        "It therefore includes conditional menu/configuration and preset-specific paths; it is not a list "
+        "of functions executed on every tick. Static counts do not establish dynamic frequency, CPU cost, "
+        "or an optimization opportunity. The separate runtime census resolves which paths execute.",
         "",
     ])
     (OUT / "source-census.md").write_text("\n".join(lines), encoding="utf-8")
