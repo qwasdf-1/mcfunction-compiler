@@ -8,8 +8,11 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests" / "runtime"))
 
 from run_dynamic_lights_profile import (
+    ADVANCE_TIME_GAMERULE,
+    SPAWN_MOBS_GAMERULE,
     assert_compiler_research_features_disabled,
     configure_gradle_cache_environment,
+    disable_and_verify_gamerule,
     parse_exec_census_lines,
 )
 
@@ -25,6 +28,55 @@ VALID_LOG = [
 
 
 class IR032DynamicLightsProfileTests(unittest.TestCase):
+    def test_minecraft_26_3_game_rules_are_namespaced_and_read_back_false(self):
+        self.assertEqual(ADVANCE_TIME_GAMERULE, "minecraft:advance_time")
+        self.assertEqual(SPAWN_MOBS_GAMERULE, "minecraft:spawn_mobs")
+
+        class Rcon:
+            def __init__(self):
+                self.commands = []
+
+            def command(self, cmd):
+                self.commands.append(cmd)
+                if cmd.endswith(" false"):
+                    return "Gamerule changed"
+                return f"Gamerule {cmd.split(' ')[1]} is currently set to false"
+
+        server = Rcon()
+        for rule in (ADVANCE_TIME_GAMERULE, SPAWN_MOBS_GAMERULE):
+            result = disable_and_verify_gamerule(server, rule)
+            self.assertEqual(result["rule"], rule)
+            self.assertIn("false", result["query_response"])
+        self.assertEqual(server.commands, [
+            "gamerule minecraft:advance_time false",
+            "gamerule minecraft:advance_time",
+            "gamerule minecraft:spawn_mobs false",
+            "gamerule minecraft:spawn_mobs",
+        ])
+
+    def test_minecraft_26_3_game_rule_rejects_legacy_name(self):
+        with self.assertRaisesRegex(ValueError, "Unexpected Minecraft 26.3 gamerule"):
+            disable_and_verify_gamerule(object(), "doMobSpawning")
+
+    def test_minecraft_26_3_game_rule_rejects_failed_or_true_readback(self):
+        class Rcon:
+            def __init__(self, final):
+                self.final = final
+
+            def command(self, cmd):
+                if cmd.endswith(" false"):
+                    return "Incorrect argument for command"
+                return self.final
+
+        for response in (
+            "Incorrect argument for command",
+            "Gamerule minecraft:spawn_mobs is currently set to true",
+            "false positives are not an exact false readback",
+        ):
+            with self.subTest(response=response):
+                with self.assertRaisesRegex(RuntimeError, "did not read back as false"):
+                    disable_and_verify_gamerule(Rcon(response), SPAWN_MOBS_GAMERULE)
+
     def test_parses_and_reconciles_exact_census(self):
         report = parse_exec_census_lines(VALID_LOG, "test")
         self.assertEqual(report["summary"]["sites"], 2)
