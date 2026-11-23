@@ -201,6 +201,8 @@ def main() -> int:
         raise ValueError("--wrapper on is available only for Fabric server stacks")
     if args.datapack == "off" and args.wrapper == "on":
         raise ValueError("--wrapper on is not part of the datapack on/off workload control")
+    if args.scenario == "moving" and not args.exec_census:
+        raise ValueError("--scenario moving currently requires --exec-census")
     if args.exec_census:
         if args.stack == "vanilla" or args.wrapper != "on" or args.datapack != "on" or args.mode != "idle":
             raise ValueError("--exec-census requires --stack fabric --wrapper on --datapack on --mode idle")
@@ -422,10 +424,11 @@ def main() -> int:
                 player = player_names[index % len(player_names)]
                 local_index = index // len(player_names)
                 dx, dz = 2 + (local_index % 3) * 20, 2 + (local_index // 3) * 20
+                item_tags = f'"fc_dl","fc_dl_{index}"' if args.exec_census else '"fc_dl"'
                 response = rcon.command(
                     f'execute at {player} run summon minecraft:item ~{dx} ~1 ~{dz} '
                     f'{{NoGravity:1b,Motion:[0.0d,0.0d,0.0d],PickupDelay:32767,'
-                    f'Item:{{id:"minecraft:torch",count:1}},Tags:["fc_dl","fc_dl_{index}"]}}'
+                    f'Item:{{id:"minecraft:torch",count:1}},Tags:[{item_tags}]}}'
                 )
                 if "summoned" not in response.casefold():
                     raise RuntimeError(f"Could not create Dynamic Lights item actor: {response!r}")
@@ -475,19 +478,21 @@ def main() -> int:
                 "dynbc.torch",
             )
 
-            if args.scenario == "moving":
-                for index in range(ITEM_COUNT):
-                    vx, vz = item_motion(index)
-                    selector = f"@e[type=minecraft:item,tag=fc_dl_{index},limit=1]"
-                    response = rcon.command(
-                        f"data modify entity {selector} Motion set value [{vx:.2f}d,0.0d,{vz:.2f}d]"
-                    )
-                    if "modified" not in response.casefold():
-                        raise RuntimeError(
-                            f"Could not set moving source velocity for item {index}: {response!r}")
-            item_positions_before = {
-                index: entity_position(rcon, index) for index in range(ITEM_COUNT)
-            }
+            item_positions_before = None
+            if args.exec_census:
+                if args.scenario == "moving":
+                    for index in range(ITEM_COUNT):
+                        vx, vz = item_motion(index)
+                        selector = f"@e[type=minecraft:item,tag=fc_dl_{index},limit=1]"
+                        response = rcon.command(
+                            f"data modify entity {selector} Motion set value [{vx:.2f}d,0.0d,{vz:.2f}d]"
+                        )
+                        if "modified" not in response.casefold():
+                            raise RuntimeError(
+                                f"Could not set moving source velocity for item {index}: {response!r}")
+                item_positions_before = {
+                    index: entity_position(rcon, index) for index in range(ITEM_COUNT)
+                }
             if args.exec_census:
                 exec_census_start_status = rcon.command("function_compiler_probe exec-census-start")
                 if "FC_EXEC started" not in exec_census_start_status:
@@ -556,24 +561,26 @@ def main() -> int:
             else:
                 spark_thread_nodes = 0
 
-            item_positions_after = {
-                index: entity_position(rcon, index) for index in range(ITEM_COUNT)
-            }
-            item_displacements = {
-                index: math.dist(item_positions_before[index], item_positions_after[index])
-                for index in range(ITEM_COUNT)
-            }
-            item_motion_summary = {
-                "scenario": args.scenario,
-                "moved_item_count": sum(distance >= 1.0 for distance in item_displacements.values()),
-                "minimum_displacement_blocks": min(item_displacements.values()),
-                "mean_displacement_blocks": statistics.mean(item_displacements.values()),
-                "maximum_displacement_blocks": max(item_displacements.values()),
-            }
-            if args.scenario == "moving" and item_motion_summary["moved_item_count"] != ITEM_COUNT:
-                raise RuntimeError(f"Moving source fixture did not move every item: {item_motion_summary!r}")
-            if args.scenario == "stationary" and item_motion_summary["maximum_displacement_blocks"] > 0.05:
-                raise RuntimeError(f"Stationary source control unexpectedly moved: {item_motion_summary!r}")
+            item_motion_summary = None
+            if args.exec_census:
+                item_positions_after = {
+                    index: entity_position(rcon, index) for index in range(ITEM_COUNT)
+                }
+                item_displacements = {
+                    index: math.dist(item_positions_before[index], item_positions_after[index])
+                    for index in range(ITEM_COUNT)
+                }
+                item_motion_summary = {
+                    "scenario": args.scenario,
+                    "moved_item_count": sum(distance >= 1.0 for distance in item_displacements.values()),
+                    "minimum_displacement_blocks": min(item_displacements.values()),
+                    "mean_displacement_blocks": statistics.mean(item_displacements.values()),
+                    "maximum_displacement_blocks": max(item_displacements.values()),
+                }
+                if args.scenario == "moving" and item_motion_summary["moved_item_count"] != ITEM_COUNT:
+                    raise RuntimeError(f"Moving source fixture did not move every item: {item_motion_summary!r}")
+                if args.scenario == "stationary" and item_motion_summary["maximum_displacement_blocks"] > 0.05:
+                    raise RuntimeError(f"Stationary source control unexpectedly moved: {item_motion_summary!r}")
 
             if args.exec_census:
                 log_handle.flush()
