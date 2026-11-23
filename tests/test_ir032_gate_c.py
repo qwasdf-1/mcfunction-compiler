@@ -39,6 +39,7 @@ def clean_case(scenario="stationary", jfr=False):
         "item_motion": {"scenario": scenario},
         "gate_c_cpu_capture_enabled": True,
         "gate_c_jfr_capture_enabled": jfr,
+        "gate_c_jfr_execution_sample_period_ms": 2 if jfr else None,
         "compiler_exec_census_enabled": False,
         "spark": None, "spark_sampling": None,
         "mob_spawning_gamerule_status": rules("minecraft:spawn_mobs"),
@@ -107,6 +108,16 @@ class IR032GateCTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "capture modes"):
             check_result(clean_case(jfr=True), "stationary", False)
         self.assertTrue(check_result(clean_case(jfr=True), "stationary", True)["jfr"])
+
+    def test_rejects_low_frequency_jfr_and_jfr_settings_in_cpu_arm(self):
+        case = clean_case(jfr=True)
+        case["gate_c_jfr_execution_sample_period_ms"] = None
+        with self.assertRaisesRegex(AssertionError, "2ms sampling"):
+            check_result(case, "stationary", True)
+        cpu = clean_case()
+        cpu["gate_c_jfr_execution_sample_period_ms"] = 2
+        with self.assertRaisesRegex(AssertionError, "JFR setting"):
+            check_result(cpu, "stationary", False)
 
     def test_cpu_screen_is_descriptive_and_reports_noise(self):
         def row(label, scenario, cpu):
