@@ -367,6 +367,13 @@ def census(pack_path: Path = PACK) -> dict:
         files = logical_pack_files(archive, overlays)
         functions, tags = parse_functions(files)
     graph = build_reachable(functions, tags)
+    classified_missing, unclassified_missing = classify_missing_function_references(
+        graph["missing_function_references"]
+    )
+    classified_missing_reachable = [
+        item for item in classified_missing
+        if item["source"] in set(graph["reachable_functions"])
+    ]
     reachable = graph["reachable_functions"]
     namespaces = {
         name.split(":", 1)[0]
@@ -399,7 +406,11 @@ def census(pack_path: Path = PACK) -> dict:
         destination.write_text(function["source_text"], encoding="utf-8")
     report = {
         "milestone": "COMPILER-IR-032-GATE-A",
-        "status": "accepted_exact_publisher_static_tick_census",
+        "status": (
+            "accepted_exact_publisher_static_tick_census_with_known_missing_refs"
+            if not unclassified_missing else
+            "blocked_unclassified_missing_function_references"
+        ),
         "publisher_sha256": PACK_SHA256,
         "version_id": VERSION_ID,
         "filename": FILENAME,
@@ -424,8 +435,16 @@ def census(pack_path: Path = PACK) -> dict:
         "tick_reachable_functions": graph["tick_reachable_functions"],
         "load_only_functions": graph["load_only_functions"],
         "all_function_ids": sorted(functions),
-        "missing_function_references": graph["missing_function_references"],
-        "missing_reachable_function_references": graph["missing_reachable_function_references"],
+        "missing_function_references": classified_missing,
+        "missing_reachable_function_references": classified_missing_reachable,
+        "unclassified_missing_function_references": unclassified_missing,
+        "required_runtime_hotfixes": (
+            ["ir032-remove-obsolete-overloadcheck-call"]
+            if any(
+                item["classification"] == "stale_unconditional_overloadcheck_call"
+                for item in classified_missing_reachable
+            ) else []
+        ),
         "unresolved_function_tags": graph["unresolved_function_tags"],
         "recurring_schedule_edges": graph["recurring_schedule_edges"],
         "reachable_call_graph": graph["edges"],
@@ -452,16 +471,17 @@ def census(pack_path: Path = PACK) -> dict:
         f"- Entry points: {', '.join(graph['entrypoints'])}",
         f"- Recurring roots: {', '.join(graph['recurring_roots'])}",
         f"- Recurring scheduled edges: {json.dumps(graph['recurring_schedule_edges'])}",
-        f"- Missing literal function references: {len(graph['missing_function_references'])}",
-        f"- Missing references from tick-reachable functions: {len(graph['missing_reachable_function_references'])}",
+        f"- Missing literal function references: {len(classified_missing)}",
+        f"- Missing references from tick-reachable functions: {len(classified_missing_reachable)}",
+        f"- Unclassified missing references: {len(unclassified_missing)}",
         "",
         "## Missing literal function references",
         "",
-        "| Source function | Missing target | Kind |",
-        "|---|---|---|",
+        "| Source function | Missing target | Kind | Classification |",
+        "|---|---|---|---|",
         *[
-            f"| {item['source']} | {item['target']} | {item['kind']} |"
-            for item in graph["missing_function_references"]
+            f"| {item['source']} | {item['target']} | {item['kind']} | {item['classification']} |"
+            for item in classified_missing
         ],
         "",
         "## Highest static command counts in the tick-reachable call closure",
@@ -574,6 +594,20 @@ def execution_census_allowlist(report: dict) -> dict:
     callees = sorted(set(report.get("reachable_functions", [])))
     if not namespace or not functions or not callees:
         raise AssertionError("Runtime census requires a namespace and non-empty function/callee allowlists")
+    if report.get("unclassified_missing_function_references"):
+        raise AssertionError(
+            "Runtime census blocked by unclassified missing function references: "
+            f"{report['unclassified_missing_function_references']}"
+        )
+    stale_overload_calls = [
+        item for item in report.get("missing_reachable_function_references", [])
+        if item.get("classification") == "stale_unconditional_overloadcheck_call"
+    ]
+    if len(stale_overload_calls) != 1:
+        raise AssertionError(
+            "Expected exactly one known stale overloadcheck call in the tick path; "
+            f"found {len(stale_overload_calls)}"
+        )
     if len(callees) > 96:
         raise AssertionError(f"Runtime census callee allowlist exceeds 96 IDs: {len(callees)}")
     if any(not name.startswith(namespace + ":") for name in functions + callees):
@@ -587,6 +621,8 @@ def execution_census_allowlist(report: dict) -> dict:
         "functions": functions,
         "callees": callees,
         "static_site_upper_bound": int(report["tick_reachable_static_command_count"]),
+        "known_missing_references": report.get("missing_function_references", []),
+        "required_runtime_hotfixes": report.get("required_runtime_hotfixes", []),
     }
 
 
