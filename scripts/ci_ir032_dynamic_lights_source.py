@@ -187,6 +187,7 @@ def parse_functions(files: dict[str, tuple[int, bytes, str]]) -> tuple[dict, dic
             "function_tag_calls": tag_calls,
             "scheduled_calls": scheduled_calls,
             "command_preview": commands[:8],
+            "source_text": text,
         }
 
     tags = {}
@@ -265,9 +266,22 @@ def build_reachable(functions: dict, tags: dict) -> dict:
             if source in reachable and target in reachable and can_reach(target, source):
                 recurring_schedule_edges.append({"from": source, "to": target})
 
+    recurring_roots = sorted({edge["to"] for edge in recurring_schedule_edges})
+    tick_reachable = set()
+    pending = list(recurring_roots)
+    while pending:
+        current = pending.pop()
+        if current in tick_reachable or current not in functions:
+            continue
+        tick_reachable.add(current)
+        pending.extend(edges[current] - tick_reachable)
+
     return {
         "entrypoints": sorted(set(entrypoints)),
         "reachable_functions": sorted(reachable),
+        "tick_reachable_functions": sorted(tick_reachable),
+        "load_only_functions": sorted(reachable - tick_reachable),
+        "recurring_roots": recurring_roots,
         "unresolved_function_tags": sorted(unresolved_tags),
         "recurring_schedule_edges": recurring_schedule_edges,
         "edges": {name: sorted(targets) for name, targets in edges.items()
@@ -289,11 +303,24 @@ def census(pack_path: Path = PACK) -> dict:
         functions, tags = parse_functions(files)
     graph = build_reachable(functions, tags)
     reachable = graph["reachable_functions"]
+    def metric_row(name: str) -> dict:
+        return {
+            "function": name,
+            **{key: value for key, value in functions[name].items()
+               if key != "source_text"},
+        }
+
     ranked = sorted(
-        ({"function": name, **functions[name]} for name in reachable),
+        (metric_row(name) for name in graph["tick_reachable_functions"]),
         key=lambda row: (row["commands"], row["execute"], row["selectors"]),
         reverse=True,
     )
+    source_root = OUT / "hot-path-sources"
+    for name in graph["tick_reachable_functions"]:
+        function = functions[name]
+        destination = source_root / (name.replace(":", "/") + ".mcfunction")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(function["source_text"], encoding="utf-8")
     report = {
         "milestone": "COMPILER-IR-032-GATE-A",
         "status": "accepted_exact_publisher_static_tick_census",
@@ -307,12 +334,18 @@ def census(pack_path: Path = PACK) -> dict:
         "function_count": len(functions),
         "function_tag_count": len(tags),
         "reachable_function_count": len(reachable),
+        "tick_reachable_function_count": len(graph["tick_reachable_functions"]),
+        "load_only_function_count": len(graph["load_only_functions"]),
         "entrypoints": graph["entrypoints"],
+        "recurring_roots": graph["recurring_roots"],
+        "tick_reachable_functions": graph["tick_reachable_functions"],
+        "load_only_functions": graph["load_only_functions"],
         "unresolved_function_tags": graph["unresolved_function_tags"],
         "recurring_schedule_edges": graph["recurring_schedule_edges"],
         "reachable_call_graph": graph["edges"],
         "reachable_schedule_graph": graph["scheduled_edges"],
-        "top_reachable_functions_by_static_command_count": ranked[:30],
+        "top_tick_functions_by_static_command_count": ranked[:30],
+        "tick_source_archive": "hot-path-sources/",
         "static_not_dynamic": True,
         "cpu_hot_path_proven": False,
         "optimizer_implemented": False,
@@ -327,8 +360,11 @@ def census(pack_path: Path = PACK) -> dict:
         f"- Version ID: {VERSION_ID}",
         f"- Applied 26.3 overlays in order: {', '.join(overlays)}",
         f"- Function files: {len(functions)}",
-        f"- Reachable functions: {len(reachable)}",
+        f"- Reachable functions from load: {len(reachable)}",
+        f"- Tick-reachable functions: {len(graph['tick_reachable_functions'])}",
+        f"- Load-only functions: {len(graph['load_only_functions'])}",
         f"- Entry points: {', '.join(graph['entrypoints'])}",
+        f"- Recurring roots: {', '.join(graph['recurring_roots'])}",
         f"- Recurring scheduled edges: {json.dumps(graph['recurring_schedule_edges'])}",
         "",
         "## Highest static command counts among reachable functions",
@@ -357,7 +393,7 @@ def census(pack_path: Path = PACK) -> dict:
         "reachable": len(reachable),
         "entrypoints": graph["entrypoints"],
         "recurring_schedule_edges": graph["recurring_schedule_edges"],
-        "top_functions": [row["function"] for row in ranked[:8]],
+        "top_tick_functions": [row["function"] for row in ranked[:8]],
     }, sort_keys=True), flush=True)
     return report
 
