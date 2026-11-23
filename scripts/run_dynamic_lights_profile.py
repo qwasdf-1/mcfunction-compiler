@@ -1001,6 +1001,9 @@ def main() -> int:
                     output = jcmd_jfr(
                         cpu_thread[0], "JFR.start", "name=IR032GateC",
                         "settings=profile", "disk=true", "dumponexit=false",
+                        "jdk.ExecutionSample#enabled=true",
+                        "jdk.ExecutionSample#period=2ms",
+                        "jdk.CPUTimeSample#enabled=false",
                         "maxage=3m", "maxsize=128m",
                     )
                     if "Started recording" not in output:
@@ -1328,6 +1331,7 @@ def main() -> int:
                 "profile_seconds": args.seconds,
                 "gate_c_cpu_capture_enabled": args.capture_server_thread_cpu,
                 "gate_c_jfr_capture_enabled": args.jfr_server_thread,
+                "gate_c_jfr_execution_sample_period_ms": 2 if args.jfr_server_thread else None,
                 "pre_window_host_stability": pre_window_stability,
                 "game_time_before_window": game_time_before_window,
                 "game_time_after_window": game_time_after_window,
