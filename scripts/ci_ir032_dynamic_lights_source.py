@@ -367,7 +367,7 @@ def census(pack_path: Path = PACK) -> dict:
         f"- Recurring roots: {', '.join(graph['recurring_roots'])}",
         f"- Recurring scheduled edges: {json.dumps(graph['recurring_schedule_edges'])}",
         "",
-        "## Highest static command counts among reachable functions",
+        "## Highest static command counts in recurring tick closure",
         "",
         "| Function | Commands | Execute | Scoreboard | Data | Selector tokens | Function calls |",
         "|---|---:|---:|---:|---:|---:|---:|",
