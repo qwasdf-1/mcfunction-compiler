@@ -39,12 +39,12 @@ jobs:
         run: |
           python3 scripts/run_dynamic_lights_profile.py \
             --stack fabric --wrapper on --datapack on --mode idle \
-            --scenario stationary --exec-census --seconds 18
+            --scenario stationary --exec-census --apply-ir032-upstream-hotfix --seconds 18
       - name: Fresh moving-source runtime execution census
         run: |
           python3 scripts/run_dynamic_lights_profile.py \
             --stack fabric --wrapper on --datapack on --mode idle \
-            --scenario moving --exec-census --seconds 18
+            --scenario moving --exec-census --apply-ir032-upstream-hotfix --seconds 18
       - name: Archive source closure, complete census rows, and both workload manifests
         if: always()
         uses: actions/upload-artifact@v4
