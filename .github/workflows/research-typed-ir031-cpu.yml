@@ -1,0 +1,60 @@
+name: COMPILER-IR-031 original Marker Entity.load CPU attribution
+
+on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - 'src/main/java/dev/functioncompiler/CompilerEntityWritebackProbe.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerEntityWritebackCpuMixin.java'
+      - 'src/main/java/dev/functioncompiler/mixin/CompilerEntityDataLoadCpuMixin.java'
+      - 'src/main/java/dev/functioncompiler/ProbeCommands.java'
+      - 'src/main/resources/function_compiler.mixins.json'
+      - 'scripts/run_veinminer_profile.py'
+      - 'scripts/analyze_ir031_writeback_cpu.py'
+      - 'scripts/ci_typed_ir031_writeback_cpu.py'
+      - 'tests/test_ir031_writeback_cpu.py'
+      - '.github/workflows/research-typed-ir031-cpu.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir031-writeback-cpu-\${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  exact-original-publisher-entity-load-attribution:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 72
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify exact-source clock analyzer and runner syntax
+        run: |
+          python3 -m py_compile scripts/run_veinminer_profile.py scripts/analyze_ir031_writeback_cpu.py scripts/ci_typed_ir031_writeback_cpu.py
+          python3 -m unittest discover -s tests -p 'test_ir031_writeback_cpu.py' -v
+      - name: Build research jar with observation-only IR031 mixins
+        run: ./gradlew --no-daemon build
+      - name: Fetch and verify unchanged Vein Miner 5.3.0+26.3 publisher archive
+        run: python3 -c "import sys; sys.path.insert(0, 'scripts'); from ci_typed_ir015_fetch import fetch; print(fetch('veinminer'))"
+      - name: Attribute exact Marker Entity.load body across PLAIN EMPTY TIMED original events
+        run: python3 scripts/ci_typed_ir031_writeback_cpu.py
+        timeout-minutes: 64
+      - name: Archive all original-event manifests and exact Entity.load clock streams
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir031-original-marker-entity-load-attribution
+          path: |
+            build/reports/COMPILER-IR-031-WRITEBACK-CPU/
+            build/benchmarks/PERF-011-veinminer/vein-*/
+          if-no-files-found: warn
+          retention-days: 21
