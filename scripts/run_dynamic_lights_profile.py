@@ -168,7 +168,7 @@ def disable_and_verify_gamerule(rcon: RconClient, rule: str) -> dict[str, str]:
         raise ValueError(f"Unexpected Minecraft 26.3 gamerule requested: {rule!r}")
     set_response = rcon.command(f"gamerule {rule} false")
     query_response = rcon.command(f"gamerule {rule}")
-    if not re.search(r"\\bfalse\\b\\s*$", query_response.casefold()):
+    if not re.search(r"\bfalse\b\s*$", query_response.casefold()):
         raise RuntimeError(
             f"Minecraft 26.3 gamerule {rule} did not read back as false: "
             f"set={set_response!r}, query={query_response!r}"
