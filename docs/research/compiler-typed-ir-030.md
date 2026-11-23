@@ -1,6 +1,6 @@
 # COMPILER-IR-030 — Vein Miner coordinate-result-store specialization feasibility
 
-**Status (2026-11-22): GATES A/B ACCEPTED; GATE C1 SOURCE COUNTS, GATE C2 DIFFERENTIAL FIXTURES AND GATE C3 REAL PUBLISHER READ VERIFICATION ACCEPTED. GATE D UNINSTRUMENTED CPU PILOT IN PROGRESS; NO CPU GAIN ESTABLISHED.** Work remains on `work/compiler-coverage`, draft unmerged PR #10. Every new research specialization is disabled by default. No production promotion is authorized.
+**Status (2026-11-22): IR-030 COMPLETE AS A RESEARCH PILOT; GATES A/B/C1/C2/C3 ACCEPTED, GATE D FOUR-ARM CPU PILOT VALID.** Original-publisher treatment median Server-thread CPU was **11.52% lower**, against **5.03%** control A/A variation, but this does **not** meet the preregistered **15%** promotion threshold and has not been independently replicated. **STOP / NO PROMOTION.** Work remains on `work/compiler-coverage`, draft unmerged PR #10. The candidate is disabled by default.
 
 ## 1. Why change targets after IR-029?
 
@@ -170,3 +170,20 @@ In the accepted treatment, `vm:queue/append_here` admitted exactly one terminal 
 The [dedicated CPU workflow](../../.github/workflows/research-typed-ir030-cpu.yml) runs four fresh Java25/Minecraft26.3 JVMs in fixed **A1–B1–B2–A2** order, each with the identical original publisher ZIP, 6×6×6 mined fixture, 215 affected blocks and 1,952 queue steps. All arms use the same research mod JAR and Fabric **wrapper** mode. The only A/B experimental factor is `FC_IR030_POS_GET=false/true` for `vm:queue/append_here`; `FC_IR030_POS_GET_VERIFY=false` and per-callback research counters are off in **both** arms. No JFR, Spark or CPU005 timers enter the event.
 
 Every arm must pass original-world and CPU-host-quality gates (including zero cgroup throttling); the control's A1/A2 relative CPU spread must be at most **8%**. The threshold for even considering promotion is a **15%** real-event CPU improvement, with independent replication still necessary. The study reports the observed treatment median change and A/A noise even when the result is negative or inconclusive. The four-arm pilot alone **never** proves a generalized causal speedup or authorizes merging PR #10.
+
+## 10. Gate D result — complete original-publisher ABBA pilot (2026-11-22)
+
+The [accepted uninstrumented original-world CPU pilot #45085869922](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45085869922) preserved [all four arm manifests and the aggregate analysis](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45085869922/artifacts/14779705835). It used the same installed research mod JAR, the unchanged SHA-pinned Vein Miner publisher datapack, fresh Java25/Minecraft26.3 Fabric JVMs, the original 215-work-unit/1,952-queue-step mine event, and the **pre-registered A1–B1–B2–A2 order**. Treatment was exactly \`FC_IR030_POS_GET=false\` (A, native) versus \`true\` (B, conditional Marker position getter). The exact function allowlist was unchanged. \`FC_IR030_POS_GET_VERIFY=false\` in **all four** arms; the source callback counters, JFR, Spark and other research instrumentation were not active. Every arm passed original-world completion, host quality and zero-cgroup-throttling gates.
+
+| Original-publisher fresh JVM | Treatment | Server-thread running CPU | CPU per 215 affected blocks |
+| --- | --- | ---: | ---: |
+| A1 | Native getter | 19.632520078 s | 91.3140 ms/block |
+| B1 | Exact opt-in Marker getter | 16.966018189 s | 78.9117 ms/block |
+| B2 | Exact opt-in Marker getter | 16.922302873 s | 78.7084 ms/block |
+| A2 | Native getter | 18.669037308 s | 86.8327 ms/block |
+
+The two original control CPU samples' median is **19.150778693 s**; the treatment median is **16.944160531 s**. The **observed treatment median CPU reduction was 11.5223%**, and A1/A2 spread relative to their median was **5.0310%**, within the preregistered **8% A/A host-noise gate**. B1/B2 relative spread was approximately **0.258%**. Each treatment contains only **two** independent JVM events: the A/A gate makes the data interpretable as a *pilot*, not statistically precise, replicated or general causal evidence.
+
+**Interpretation:** this is a substantially larger descriptive improvement than IR-028's 0.137% candidate shift, and the candidate mechanism plausibly removes repeated entity NBT snapshot cost. But the result remains **below the preregistered 15% real-event promotion bar**, and a 5.03% native A/A spread still cautions against overinterpreting a four-arm sample. Because the promotion bar was not met, an independent replication has **not** been authorized or counted as completed. This evidence cannot justify a production-default change, general NBT accessor rewrite, tag index, or merging draft PR #10.
+
+**IR-030 decision: STOP tuning and retain the bounded candidate as disabled-by-default research code.** The C1 source-site census, C2 mounted/non-Marker/missing-path fixtures and C3 authentic all-5,820-read native parity tests remain accepted. A later optimization hypothesis must establish a *different* sufficiently large and safely removable cost, with its own source contract, semantic oracle and noise-aware CPU gate. Do not retroactively relax the 15% threshold to promote this 11.52% pilot.
