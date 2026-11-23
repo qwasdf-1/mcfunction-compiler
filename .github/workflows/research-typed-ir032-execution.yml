@@ -1,6 +1,14 @@
 name: COMPILER-IR-032 Dynamic Lights stationary vs moving execution census
 
 on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - 'scripts/run_dynamic_lights_profile.py'
+      - 'scripts/ci_ir032_dynamic_lights_source.py'
+      - 'scripts/ci_ir032_dynamic_lights_census.py'
+      - 'tests/test_ir032_dynamic_lights_census.py'
+      - 'tests/test_ir032_dynamic_lights_profile.py'
   workflow_dispatch:
 
 permissions:
@@ -31,6 +39,7 @@ jobs:
             scripts/run_dynamic_lights_profile.py
           python3 -m unittest discover -s tests -p 'test_ir032_dynamic_lights_source.py' -v
           python3 -m unittest discover -s tests -p 'test_ir032_dynamic_lights_profile.py' -v
+          python3 -m unittest discover -s tests -p 'test_ir032_dynamic_lights_census.py' -v
       - name: Fetch and verify exact Dynamic Lights 1.4.6 publisher archive
         run: python3 scripts/ci_ir032_dynamic_lights_source.py
       - name: Build Minecraft 26.3 Fabric research server
