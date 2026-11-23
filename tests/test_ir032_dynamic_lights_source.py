@@ -114,6 +114,28 @@ class IR032DynamicLightsSourceTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "MAX_SITES"):
             execution_census_allowlist(report)
 
+    def test_missing_literal_function_reference_is_reported_from_tick_closure(self):
+        files = {
+            "data/test/function/load.mcfunction": (
+                0, b"schedule function test:tickcheck 1t\n",
+                "data/test/function/load.mcfunction"),
+            "data/test/function/tickcheck.mcfunction": (
+                0, b"schedule function test:tickcheck 1t\nfunction test:missing\n",
+                "data/test/function/tickcheck.mcfunction"),
+            "data/minecraft/tags/function/load.json": (
+                0, json.dumps({"values": ["test:load"]}).encode(),
+                "data/minecraft/tags/function/load.json"),
+        }
+        functions, tags = parse_functions(files)
+        graph = build_reachable(functions, tags)
+        missing = {
+            "source": "test:tickcheck",
+            "target": "test:missing",
+            "kind": "function",
+        }
+        self.assertIn(missing, graph["missing_function_references"])
+        self.assertIn(missing, graph["missing_reachable_function_references"])
+
     def test_schedule_inside_execute_is_not_a_direct_function_call(self):
         files = {
             "data/test/function/tick.mcfunction": (
