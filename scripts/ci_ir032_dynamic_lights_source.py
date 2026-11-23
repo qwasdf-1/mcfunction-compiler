@@ -325,7 +325,7 @@ def census(pack_path: Path = PACK) -> dict:
         "",
         f"- Publisher SHA-256: {PACK_SHA256}",
         f"- Version ID: {VERSION_ID}",
-        f"- Applied 26.3 overlays in order: {", ".join(overlays)}",
+        f"- Applied 26.3 overlays in order: {', '.join(overlays)}",
         f"- Function files: {len(functions)}",
         f"- Reachable functions: {len(reachable)}",
         f"- Entry points: {', '.join(graph['entrypoints'])}",
