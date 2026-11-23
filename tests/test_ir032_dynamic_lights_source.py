@@ -15,6 +15,7 @@ import ci_ir032_dynamic_lights_source as source_audit
 from ci_ir032_dynamic_lights_source import (
     apply_ir032_runtime_hotfix,
     build_reachable,
+    classify_missing_function_references,
     logical_pack_files,
     parse_functions,
     selected_overlays,
@@ -85,6 +86,27 @@ class IR032DynamicLightsSourceTests(unittest.TestCase):
         graph = build_reachable(functions, tags)
         self.assertIn("test:.toggle", graph["tick_reachable_functions"])
         self.assertEqual(functions["test:.toggle"]["commands"], 1)
+
+    def test_known_missing_function_references_are_classified_and_unknowns_remain_visible(self):
+        references = [
+            {
+                "source": "dynamic_lights_by_creepermeyt:internal/tick",
+                "target": "dynamic_lights_by_creepermeyt:internal/util/overloadcheck",
+                "kind": "function",
+            },
+            {
+                "source": "test:tick",
+                "target": "test:surprise",
+                "kind": "function",
+            },
+        ]
+        classified, unclassified = classify_missing_function_references(references)
+        self.assertEqual(
+            classified[0]["classification"],
+            "stale_unconditional_overloadcheck_call",
+        )
+        self.assertEqual(unclassified, [classified[1]])
+        self.assertEqual(classified[1]["classification"], "unclassified")
 
     def test_runtime_hotfix_removes_only_deleted_overloadcheck_call(self):
         target_paths = (
