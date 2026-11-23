@@ -6,7 +6,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from ci_ir032_dynamic_lights_census import NAMESPACE, TARGETS, parse_exec_census
-from run_dynamic_lights_profile import entity_position, item_motion
+from run_dynamic_lights_profile import (
+    MOVING_MIN_DISPLACEMENT_BLOCKS,
+    STATIONARY_MAX_DISPLACEMENT_BLOCKS,
+    assert_item_motion_scenario,
+    entity_position,
+    item_motion,
+    summarize_item_displacements,
+)
 
 
 class FakeRcon:
@@ -35,6 +42,45 @@ class IR032DynamicLightsRunnerTests(unittest.TestCase):
         self.assertEqual(vectors[8], (-0.35, 0.12))
         self.assertEqual(vectors[12], (0.35, -0.12))
         self.assertEqual(vectors[20], (-0.35, -0.12))
+
+    def test_stationary_control_accepts_observed_subquarter_block_drift(self):
+        summary = summarize_item_displacements({
+            index: (0.0692449 if index == 7 else 0.0198)
+            for index in range(24)
+        })
+        self.assertEqual(summary["moved_item_count"], 0)
+        self.assertAlmostEqual(summary["maximum_displacement_blocks"], 0.0692449)
+        self.assertEqual(summary["stationary_max_displacement_blocks"], 0.25)
+        assert_item_motion_scenario(summary, "stationary")
+
+    def test_stationary_control_rejects_quarter_block_or_greater_drift(self):
+        summary = summarize_item_displacements({
+            index: (0.250001 if index == 7 else 0.0198)
+            for index in range(24)
+        })
+        with self.assertRaisesRegex(RuntimeError, "quarter-block drift bound"):
+            assert_item_motion_scenario(summary, "stationary")
+
+    def test_moving_control_requires_every_source_to_move_at_least_one_block(self):
+        summary = summarize_item_displacements({index: 1.0 for index in range(24)})
+        self.assertEqual(summary["moved_item_count"], 24)
+        self.assertEqual(summary["moving_min_displacement_blocks"], 1.0)
+        assert_item_motion_scenario(summary, "moving")
+
+    def test_moving_control_rejects_any_source_below_one_block(self):
+        distances = {index: 1.01 for index in range(24)}
+        distances[9] = 0.999
+        summary = summarize_item_displacements(distances)
+        with self.assertRaisesRegex(RuntimeError, "did not move every item"):
+            assert_item_motion_scenario(summary, "moving")
+
+    def test_displacement_summary_rejects_empty_or_invalid_samples(self):
+        with self.assertRaisesRegex(ValueError, "No Dynamic Lights"):
+            summarize_item_displacements({})
+        with self.assertRaisesRegex(ValueError, "Invalid Dynamic Lights"):
+            summarize_item_displacements({0: float("nan")})
+        with self.assertRaisesRegex(ValueError, "Invalid Dynamic Lights"):
+            summarize_item_displacements({0: -0.01})
 
 
 class IR032ExecutionCensusParserTests(unittest.TestCase):
