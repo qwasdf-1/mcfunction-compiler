@@ -30,6 +30,51 @@ SCHEDULE_CALL = re.compile(
     r"(?<![A-Za-z0-9_])schedule\s+function\s+([a-z0-9_.-]+:[a-z0-9_./-]+)\s+\S+"
 )
 
+KNOWN_MISSING_FUNCTION_REFERENCES = {
+    (
+        "dynamic_lights_by_creepermeyt:compatibility/compatibility",
+        "anotherdatapack:generatedynamiclights",
+    ): "optional_external_compatibility_example",
+    (
+        "dynamic_lights_by_creepermeyt:config/.toggle_preset",
+        "dynamic_lights_by_creepermeyt:internal/common/versioncheck",
+    ): "menu_only_missing_versioncheck",
+    (
+        "dynamic_lights_by_creepermeyt:internal/common/dynamiclight",
+        "dynamic_lights_by_creepermeyt:internal/test/dynamiclight",
+    ): "test_preset_only_missing_function",
+    (
+        "dynamic_lights_by_creepermeyt:internal/common/tickupdate",
+        "dynamic_lights_by_creepermeyt:internal/test/tickupdate",
+    ): "test_preset_only_missing_function",
+    (
+        "dynamic_lights_by_creepermeyt:internal/tick",
+        "dynamic_lights_by_creepermeyt:internal/util/overloadcheck",
+    ): "stale_unconditional_overloadcheck_call",
+}
+
+
+def classify_missing_function_references(references: list[dict]) -> tuple[list[dict], list[dict]]:
+    classified = []
+    unclassified = []
+    for reference in references:
+        classification = KNOWN_MISSING_FUNCTION_REFERENCES.get(
+            (reference["source"], reference["target"])
+        )
+        row = {**reference, "classification": classification or "unclassified"}
+        classified.append(row)
+        if classification is None:
+            unclassified.append(row)
+    return classified, unclassified
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
 
 def fetch_bytes(url: str, maximum: int = MAX_DOWNLOAD) -> bytes:
     request = urllib.request.Request(
