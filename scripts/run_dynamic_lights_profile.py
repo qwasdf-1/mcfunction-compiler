@@ -411,6 +411,9 @@ def main() -> int:
     if args.apply_ir032_upstream_hotfix:
         runtime_pack = output_dir / "dynamic-lights-ir032-runtime-patched.zip"
         runtime_pack_patch = apply_ir032_runtime_hotfix(PACK, runtime_pack)
+        (output_dir / "runtime-pack-patch.json").write_text(
+            json.dumps(runtime_pack_patch, indent=2) + "\n", encoding="utf-8"
+        )
     server_port, rcon_port, spark_port = reserve_free_ports(3)
     password = secrets.token_urlsafe(24)
     player_names = [f"DLight{i:02d}" for i in range(1, PLAYER_COUNT + 1)]
@@ -940,6 +943,10 @@ def main() -> int:
                     runtime_pack_patch is None if args.datapack == "on" else None
                 ),
                 "runtime_pack_patch": runtime_pack_patch,
+                "runtime_pack_file": (
+                    str(runtime_pack.relative_to(ROOT))
+                    if runtime_pack_patch else None
+                ),
                 "spark": None if args.exec_census else "1.10.194 standalone-agent",
                 "spark_sha256": None if args.exec_census else SPARK_SHA256,
                 "mods": {
