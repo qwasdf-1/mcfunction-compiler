@@ -78,33 +78,41 @@ def supports_format(formats, target: int = 121) -> bool:
     return False
 
 
-def selected_overlay(pack_meta: dict, target_format: int = 121) -> str:
+def selected_overlays(pack_meta: dict, target_format: int = 121) -> list[str]:
+    # Multiple overlays may apply simultaneously. Preserve declared order:
+    # the broad 1.21.6 overlay is applied first, then the exact 26.3 overlay.
     entries = pack_meta.get("overlays", {}).get("entries", [])
     selected = [
         item["directory"] for item in entries
         if supports_format(item.get("formats"), target_format)
     ]
-    if len(selected) != 1:
+    if not selected:
         raise AssertionError(
-            f"Expected exactly one Minecraft {target_format} overlay, found {selected}")
-    return selected[0]
+            f"No Minecraft {target_format} overlay found in publisher pack")
+    return selected
 
 
-def logical_pack_files(archive: zipfile.ZipFile, overlay: str) -> dict[str, tuple[int, bytes, str]]:
-    """Map logical paths to (priority, bytes, archive path); selected overlay wins."""
+def logical_pack_files(
+    archive: zipfile.ZipFile, overlays: list[str]
+) -> dict[str, tuple[int, bytes, str]]:
+    """Map logical paths to (overlay priority, bytes, archive path)."""
     result: dict[str, tuple[int, bytes, str]] = {}
+    priorities = {directory.rstrip("/") + "/": index + 1
+                  for index, directory in enumerate(overlays)}
     for info in archive.infolist():
         name = info.filename
         if info.is_dir():
             continue
         priority = 0
         logical = name
-        prefix = overlay.rstrip("/") + "/"
-        if name.startswith(prefix):
-            priority = 1
-            logical = name[len(prefix):]
-        elif re.match(r"^pack_[^/]+/", name):
-            continue
+        for prefix, value in priorities.items():
+            if name.startswith(prefix):
+                priority = value
+                logical = name[len(prefix):]
+                break
+        else:
+            if re.match(r"^pack_[^/]+/", name):
+                continue
         if not (logical.startswith("data/") or logical == "pack.mcmeta"):
             continue
         blob = archive.read(info)
@@ -116,7 +124,6 @@ def logical_pack_files(archive: zipfile.ZipFile, overlay: str) -> dict[str, tupl
                 f"Conflicting same-priority overlay/base file for {logical}: "
                 f"{previous[2]} vs {name}")
     return result
-
 
 def parse_functions(files: dict[str, tuple[int, bytes, str]]) -> tuple[dict, dict]:
     function_candidates = {}
@@ -277,8 +284,8 @@ def census(pack_path: Path = PACK) -> dict:
         if "pack.mcmeta" not in names:
             raise AssertionError("Publisher archive lacks pack.mcmeta")
         meta = json.loads(archive.read("pack.mcmeta"))
-        overlay = selected_overlay(meta)
-        files = logical_pack_files(archive, overlay)
+        overlays = selected_overlays(meta)
+        files = logical_pack_files(archive, overlays)
         functions, tags = parse_functions(files)
     graph = build_reachable(functions, tags)
     reachable = graph["reachable_functions"]
@@ -294,7 +301,7 @@ def census(pack_path: Path = PACK) -> dict:
         "version_id": VERSION_ID,
         "filename": FILENAME,
         "target_minecraft_data_pack_format": 121,
-        "selected_overlay": overlay,
+        "selected_overlays": overlays,
         "root_pack_format": meta.get("pack", {}).get("pack_format"),
         "total_archive_entries": len(names),
         "function_count": len(functions),
@@ -318,7 +325,7 @@ def census(pack_path: Path = PACK) -> dict:
         "",
         f"- Publisher SHA-256: {PACK_SHA256}",
         f"- Version ID: {VERSION_ID}",
-        f"- Selected 26.3 overlay: {overlay}",
+        f"- Applied 26.3 overlays in order: {", ".join(overlays)}",
         f"- Function files: {len(functions)}",
         f"- Reachable functions: {len(reachable)}",
         f"- Entry points: {', '.join(graph['entrypoints'])}",
@@ -345,7 +352,7 @@ def census(pack_path: Path = PACK) -> dict:
     print("IR032_SOURCE_CENSUS " + json.dumps({
         "status": report["status"],
         "sha256": PACK_SHA256,
-        "overlay": overlay,
+        "overlays": overlays,
         "functions": len(functions),
         "reachable": len(reachable),
         "entrypoints": graph["entrypoints"],
