@@ -119,57 +119,78 @@ def logical_pack_files(archive: zipfile.ZipFile, overlay: str) -> dict[str, tupl
 
 
 def parse_functions(files: dict[str, tuple[int, bytes, str]]) -> tuple[dict, dict]:
-    functions: dict[str, dict] = {}
-    tags: dict[str, list[str]] = {}
-    for logical, (_, blob, archive_path) in files.items():
+    function_candidates = {}
+    tag_candidates = {}
+    for logical, (overlay_priority, blob, archive_path) in files.items():
         function_match = FUNCTION_PATH.match(logical)
+        tag_match = TAG_PATH.match(logical)
+        if not function_match and not tag_match:
+            continue
+        # Minecraft 26.3 uses singular function/functions-tag directories.
+        # Prefer the singular 26.3 path unless the selected overlay overrides it.
+        singular_priority = 1 if "/function/" in logical or "/tags/function/" in logical else 0
+        candidate_priority = (overlay_priority, singular_priority)
         if function_match:
             namespace, path = function_match.groups()
             function_id = f"{namespace}:{path}"
-            text = blob.decode("utf-8-sig")
-            lines = text.splitlines()
-            commands = [line.strip() for line in lines
-                        if line.strip() and not line.lstrip().startswith("#")]
-            direct_calls = []
-            tag_calls = []
-            scheduled_calls = []
-            for line in commands:
-                for match in FUNCTION_CALL.finditer(line):
-                    target = match.group(1)
-                    (tag_calls if target.startswith("#") else direct_calls).append(target)
-                scheduled_calls.extend(SCHEDULE_CALL.findall(line))
-            functions[function_id] = {
-                "source": archive_path,
-                "line_count": len(lines),
-                "commands": len(commands),
-                "execute": sum(line.startswith("execute ") for line in commands),
-                "scoreboard": sum(line.startswith("scoreboard ") for line in commands),
-                "data": sum(line.startswith("data ") for line in commands),
-                "selectors": sum(len(re.findall(r"@[easpn]\b", line)) for line in commands),
-                "summon": sum(line.startswith("summon ") for line in commands),
-                "kill": sum(line.startswith("kill ") for line in commands),
-                "tp": sum(line.startswith("tp ") for line in commands),
-                "tag": sum(line.startswith("tag ") for line in commands),
-                "function_calls": direct_calls,
-                "function_tag_calls": tag_calls,
-                "scheduled_calls": scheduled_calls,
-                "command_preview": commands[:8],
-            }
-            continue
-
-        tag_match = TAG_PATH.match(logical)
-        if tag_match:
+            previous = function_candidates.get(function_id)
+            if previous and candidate_priority == previous[0] and blob != previous[1]:
+                raise AssertionError(f"Conflicting function definitions for {function_id}")
+            if previous is None or candidate_priority > previous[0]:
+                function_candidates[function_id] = (candidate_priority, blob, archive_path)
+        else:
             namespace, path = tag_match.groups()
             tag_id = f"{namespace}:{path}"
-            payload = json.loads(blob)
-            values = []
-            for item in payload.get("values", []):
-                value = item if isinstance(item, str) else item.get("id")
-                if value:
-                    values.append(value)
-            tags[tag_id] = values
-    return functions, tags
+            previous = tag_candidates.get(tag_id)
+            if previous and candidate_priority == previous[0] and blob != previous[1]:
+                raise AssertionError(f"Conflicting function-tag definitions for {tag_id}")
+            if previous is None or candidate_priority > previous[0]:
+                tag_candidates[tag_id] = (candidate_priority, blob, archive_path)
 
+    functions = {}
+    for function_id, (_, blob, archive_path) in function_candidates.items():
+        text = blob.decode("utf-8-sig")
+        lines = text.splitlines()
+        commands = [line.strip() for line in lines
+                    if line.strip() and not line.lstrip().startswith("#")]
+        direct_calls = []
+        tag_calls = []
+        scheduled_calls = []
+        for line in commands:
+            if line.startswith("schedule function "):
+                scheduled_calls.extend(SCHEDULE_CALL.findall(line))
+                continue
+            for match in FUNCTION_CALL.finditer(line):
+                target = match.group(1)
+                (tag_calls if target.startswith("#") else direct_calls).append(target)
+        functions[function_id] = {
+            "source": archive_path,
+            "line_count": len(lines),
+            "commands": len(commands),
+            "execute": sum(line.startswith("execute ") for line in commands),
+            "scoreboard": sum(line.startswith("scoreboard ") for line in commands),
+            "data": sum(line.startswith("data ") for line in commands),
+            "selectors": sum(len(re.findall(r"@[easpn]\b", line)) for line in commands),
+            "summon": sum(line.startswith("summon ") for line in commands),
+            "kill": sum(line.startswith("kill ") for line in commands),
+            "tp": sum(line.startswith("tp ") for line in commands),
+            "tag": sum(line.startswith("tag ") for line in commands),
+            "function_calls": direct_calls,
+            "function_tag_calls": tag_calls,
+            "scheduled_calls": scheduled_calls,
+            "command_preview": commands[:8],
+        }
+
+    tags = {}
+    for tag_id, (_, blob, _) in tag_candidates.items():
+        payload = json.loads(blob)
+        values = []
+        for item in payload.get("values", []):
+            value = item if isinstance(item, str) else item.get("id")
+            if value:
+                values.append(value)
+        tags[tag_id] = values
+    return functions, tags
 
 def build_reachable(functions: dict, tags: dict) -> dict:
     entrypoints = []
