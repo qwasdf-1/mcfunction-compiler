@@ -215,6 +215,31 @@ def dynamic_lights_source_population(rcon: RconClient, objective: str) -> dict:
     }
 
 
+def purge_post_warmup_non_fixture_items(rcon: RconClient, objective: str) -> dict:
+    """Remove delayed non-fixture drops exactly once before measuring.
+
+    An early kill of preexisting mobs can leave drops appearing on subsequent
+    ticks. The cleanup must never target our 24 individually tagged torch
+    actors. The strict before/after population gate remains authoritative.
+    """
+    selector = "@e[type=minecraft:item,tag=!fc_dl]"
+    before = count_entities(rcon, "#fc_untracked_items", objective, selector)
+    removal = rcon.command(f"kill {selector}") if before else None
+    after = count_entities(rcon, "#fc_untracked_items", objective, selector)
+    if after != 0:
+        raise RuntimeError(
+            f"Untracked dropped items remain after single pre-measurement cleanup: "
+            f"before={before}, after={after}, response={removal!r}"
+        )
+    return {
+        "selector": selector,
+        "untracked_items_removed_before_measurement": before,
+        "untracked_items_remaining": after,
+        "kill_response": removal,
+        "cleanup_only_before_measurement": True,
+    }
+
+
 def assert_clean_dynamic_lights_population(population: dict) -> None:
     expected_holders = {
         "players": PLAYER_COUNT,
@@ -871,6 +896,9 @@ def main() -> int:
                     "Dynamic Lights did not recognize every torch source before profiling: "
                     f"direct={torch_sources}, predicate={torch_sources_by_predicate}"
                 )
+            source_cleanup_responses["post_warmup_non_fixture_item_cleanup"] = (
+                purge_post_warmup_non_fixture_items(rcon, tracking_objective)
+            )
             source_population_before_profile = dynamic_lights_source_population(
                 rcon, tracking_objective
             )
@@ -1177,9 +1205,10 @@ def main() -> int:
                 "daylight_gamerule_status": daylight_gamerule_status,
                 "source_cleanup_responses": source_cleanup_responses,
                 "source_population_cleanup_policy": (
-                    "Before player login, remove all non-player/non-item/non-marker entities, "
-                    "all preexisting dropped items, and all preexisting Dynamic Lights markers; "
-                    "then require exactly four player holders and 24 torch items."
+                    "Before player login, clear preexisting mobs/items/dynamic-light markers; "
+                    "after stable warmup, remove any delayed non-fixture dropped items exactly once; "
+                    "require four player holders, 24 tagged torch items, zero other light "
+                    "sources before and after the measurement. No cleanup occurs during timing."
                 ),
                 "source_population_before_profile": source_population_before_profile,
                 "source_population_after_profile": source_population_after_profile,
