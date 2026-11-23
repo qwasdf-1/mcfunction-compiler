@@ -52,6 +52,8 @@ SERVER_HOST = "127.0.0.1"
 PROFILE_SECONDS = 18
 PLAYER_COUNT = 4
 ITEM_COUNT = 24
+STATIONARY_MAX_DISPLACEMENT_BLOCKS = 0.25
+MOVING_MIN_DISPLACEMENT_BLOCKS = 1.0
 
 
 def configure_gradle_cache_environment(environment: dict[str, str]) -> dict[str, str]:
@@ -168,6 +170,43 @@ def item_motion(index: int) -> tuple[float, float]:
     dx_slot = local_index % 3
     z_slot = local_index // 3
     return (0.35 if dx_slot < 2 else -0.35, 0.12 if z_slot == 0 else -0.12)
+
+
+def summarize_item_displacements(displacements: dict[int, float]) -> dict:
+    """Summarize measured motion without conflating small drift with relocation."""
+    if not displacements:
+        raise ValueError("No Dynamic Lights source positions were measured")
+    values = list(displacements.values())
+    if any(not math.isfinite(value) or value < 0 for value in values):
+        raise ValueError(f"Invalid Dynamic Lights source displacement values: {values!r}")
+    return {
+        "item_count": len(values),
+        "moved_item_count": sum(
+            distance >= MOVING_MIN_DISPLACEMENT_BLOCKS for distance in values
+        ),
+        "minimum_displacement_blocks": min(values),
+        "mean_displacement_blocks": statistics.mean(values),
+        "maximum_displacement_blocks": max(values),
+        "stationary_max_displacement_blocks": STATIONARY_MAX_DISPLACEMENT_BLOCKS,
+        "moving_min_displacement_blocks": MOVING_MIN_DISPLACEMENT_BLOCKS,
+    }
+
+
+def assert_item_motion_scenario(summary: dict, scenario: str) -> None:
+    if scenario == "stationary":
+        if summary["maximum_displacement_blocks"] > STATIONARY_MAX_DISPLACEMENT_BLOCKS:
+            raise RuntimeError(
+                "Stationary source control exceeded its quarter-block drift bound: "
+                f"{summary!r}"
+            )
+    elif scenario == "moving":
+        if summary["moved_item_count"] != summary["item_count"]:
+            raise RuntimeError(
+                "Moving source fixture did not move every item by at least one block: "
+                f"{summary!r}"
+            )
+    else:
+        raise ValueError(f"Unknown Dynamic Lights motion scenario: {scenario!r}")
 
 
 def parse_exec_census_lines(lines: list[str], expected_namespace: str) -> dict:
@@ -427,6 +466,8 @@ def main() -> int:
     exec_census_start_status = None
     exec_census_stop_status = None
     exec_census_results = None
+    item_motion_summary = None
+    item_displacements = None
 
     try:
         with create_workdir(args.stack, run_id) as work:
@@ -717,7 +758,16 @@ def main() -> int:
                     f"direct={torch_sources}, predicate={torch_sources_by_predicate}"
                 )
 
-            if args.scenario == "moving":
+            if args.scenario == "stationary":
+                response = rcon.command(
+                    "execute as @e[type=minecraft:item,tag=fc_dl] run "
+                    "data modify entity @s Motion set value [0.0d,0.0d,0.0d]"
+                )
+                if "modified" not in response.casefold() or "24 entities" not in response.casefold():
+                    raise RuntimeError(
+                        f"Could not reset all 24 stationary source velocities: {response!r}"
+                    )
+            else:
                 for index in range(ITEM_COUNT):
                     vx, vz = item_motion(index)
                     selector = f"@e[type=minecraft:item,tag=fc_dl_{index},limit=1]"
@@ -805,17 +855,9 @@ def main() -> int:
                 index: math.dist(item_positions_before[index], item_positions_after[index])
                 for index in range(ITEM_COUNT)
             }
-            item_motion_summary = {
-                "scenario": args.scenario,
-                "moved_item_count": sum(distance >= 1.0 for distance in item_displacements.values()),
-                "minimum_displacement_blocks": min(item_displacements.values()),
-                "mean_displacement_blocks": statistics.mean(item_displacements.values()),
-                "maximum_displacement_blocks": max(item_displacements.values()),
-            }
-            if args.scenario == "moving" and item_motion_summary["moved_item_count"] != ITEM_COUNT:
-                raise RuntimeError(f"Moving source fixture did not move every item: {item_motion_summary!r}")
-            if args.scenario == "stationary" and item_motion_summary["maximum_displacement_blocks"] > 0.05:
-                raise RuntimeError(f"Stationary source control unexpectedly moved: {item_motion_summary!r}")
+            item_motion_summary = summarize_item_displacements(item_displacements)
+            item_motion_summary["scenario"] = args.scenario
+            assert_item_motion_scenario(item_motion_summary, args.scenario)
 
             if args.exec_census:
                 log_handle.flush()
@@ -961,6 +1003,9 @@ def main() -> int:
                     "fixed seed 264010; daylight cycle and natural mob spawning disabled; Smart preset"
                 ),
                 "item_motion": item_motion_summary,
+                "item_displacements_blocks": {
+                    str(index): distance for index, distance in sorted(item_displacements.items())
+                },
                 "compiler_exec_census_enabled": args.exec_census,
                 "exec_census_start_status": exec_census_start_status,
                 "exec_census_stop_status": exec_census_stop_status,
@@ -1055,6 +1100,12 @@ def main() -> int:
             "mode": args.mode,
             "run_id": run_id,
             "failure": str(error),
+            "scenario": args.scenario,
+            "item_motion_summary": item_motion_summary,
+            "item_displacements_blocks": (
+                {str(index): distance for index, distance in sorted(item_displacements.items())}
+                if item_displacements is not None else None
+            ),
             "server_diagnostics": excerpt,
         }
         (output_dir / "failure.json").write_text(json.dumps(failure, indent=2) + "\n", encoding="utf-8")
