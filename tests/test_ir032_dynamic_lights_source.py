@@ -47,7 +47,7 @@ class IR032DynamicLightsSourceTests(unittest.TestCase):
         with zipfile.ZipFile(stream) as archive:
             files = logical_pack_files(archive, ["pack_1_21_6", "pack_26_3"])
         self.assertEqual(files["data/test/function/a.mcfunction"][1], b"say overlay\n")
-        self.assertEqual(files["data/test/function/a.mcfunction"][0], 1)
+        self.assertEqual(files["data/test/function/a.mcfunction"][0], 2)
 
     def test_prefers_singular_26_3_paths_over_legacy_plural(self):
         files = {
