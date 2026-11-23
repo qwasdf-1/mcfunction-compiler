@@ -633,7 +633,9 @@ def main() -> int:
             tracked_items = 0
             marker_count = 0
             stable_actor_reads = 0
+            stable_marker_reads = 0
             previous_tracked_items: int | None = None
+            previous_marker_count: int | None = None
             workload_ready_at = time.monotonic() + 90
             workload_started_at = time.monotonic()
             while time.monotonic() < workload_ready_at:
@@ -650,15 +652,30 @@ def main() -> int:
                     stable_actor_reads += 1
                 else:
                     stable_actor_reads = 0
-                if tracked_items == ITEM_COUNT and stable_actor_reads >= 10:
+                if marker_count == previous_marker_count:
+                    stable_marker_reads += 1
+                else:
+                    stable_marker_reads = 0
+                if (
+                    tracked_items == ITEM_COUNT
+                    and stable_actor_reads >= 10
+                    and stable_marker_reads >= 10
+                ):
                     break
                 previous_tracked_items = tracked_items
+                previous_marker_count = marker_count
                 time.sleep(1)
             workload_warmup_seconds = round(time.monotonic() - workload_started_at, 2)
-            if tracked_items != ITEM_COUNT or stable_actor_reads < 10:
+            if (
+                tracked_items != ITEM_COUNT
+                or stable_actor_reads < 10
+                or stable_marker_reads < 10
+                or marker_count <= 0
+            ):
                 raise RuntimeError(
-                    "Dynamic Lights item tracking did not stabilize: "
-                    f"tracked items={tracked_items}, markers={marker_count}, stable actor reads={stable_actor_reads}"
+                    "Dynamic Lights source/marker workload did not stabilize: "
+                    f"tracked items={tracked_items}, markers={marker_count}, "
+                    f"stable actor reads={stable_actor_reads}, stable marker reads={stable_marker_reads}"
                 )
             torch_sources = count_entities(
                 rcon, "#fc_torches", tracking_objective, "@e[type=item,tag=fc_dl,tag=dynbc.torch]"
@@ -670,6 +687,13 @@ def main() -> int:
                 "@e[type=item,tag=fc_dl]",
                 "dynbc.torch",
             )
+            if args.datapack == "on" and (
+                torch_sources != ITEM_COUNT or torch_sources_by_predicate != ITEM_COUNT
+            ):
+                raise RuntimeError(
+                    "Dynamic Lights did not recognize every torch source before profiling: "
+                    f"direct={torch_sources}, predicate={torch_sources_by_predicate}"
+                )
 
             if args.scenario == "moving":
                 for index in range(ITEM_COUNT):
@@ -848,6 +872,15 @@ def main() -> int:
                 if args.datapack == "on"
                 else None
             )
+            if args.datapack == "on":
+                final_tick_state = {
+                    "k": count_score(rcon, "k", "dynbclevel"),
+                    "preset": count_score(rcon, "p", "dynbclevel"),
+                }
+                if final_tick_state["k"] != -2 or final_tick_state["preset"] != 2:
+                    raise RuntimeError(
+                        f"Dynamic Lights did not remain on the Smart preset with completed ticks: {final_tick_state!r}"
+                    )
             first_source_score = (
                 rcon.command("scoreboard players get @e[type=item,tag=fc_dl,limit=1] dynbclevel")
                 if args.datapack == "on"
@@ -918,6 +951,8 @@ def main() -> int:
                 "tagged_torch_sources_by_predicate_before_profile": torch_sources_by_predicate,
                 "tagged_torch_sources_by_predicate_after_profile": torch_sources_after_by_predicate,
                 "workload_warmup_seconds": workload_warmup_seconds,
+                "stable_actor_reads_before_profile": stable_actor_reads,
+                "stable_marker_reads_before_profile": stable_marker_reads,
                 "dynamic_light_markers_before_profile": marker_count,
                 "dynamic_light_markers_after_profile": markers_after,
                 "dynamic_light_marker_delta": markers_after - marker_count,
