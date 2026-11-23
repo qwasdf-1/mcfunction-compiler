@@ -1,6 +1,14 @@
 name: COMPILER-IR-032 Dynamic Lights stationary vs moving execution census
 
 on:
+  push:
+    branches: [work/compiler-coverage]
+    paths:
+      - 'scripts/run_dynamic_lights_profile.py'
+      - 'scripts/ci_ir032_dynamic_lights_source.py'
+      - 'scripts/ci_ir032_dynamic_lights_census.py'
+      - 'tests/test_ir032_dynamic_lights_census.py'
+      - 'tests/test_ir032_dynamic_lights_profile.py'
   workflow_dispatch:
 
 permissions:
