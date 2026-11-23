@@ -121,14 +121,16 @@ def summarize_jfr(path: Path, server_tid: int) -> dict:
     }
 
 
-def check_result(data: dict, scenario: str, jfr: bool) -> dict:
+def check_result(data: dict, scenario: str, jfr: bool, *,
+                 seconds: int = SECONDS, min_ticks: int = MIN_TICKS,
+                 max_ticks: int = MAX_TICKS) -> dict:
     if data.get("datapack_sha256") != PUBLISHER_PIN:
         raise AssertionError("Wrong original publisher SHA")
     if (data.get("runtime_pack_sha256") != PATCHED_PIN
             or data.get("runtime_pack_is_publisher_byte_exact") is not False):
         raise AssertionError("Benchmark-only upstream patch drift or byte-exact mislabel")
     if (data.get("stack") != "fabric" or data.get("function_compiler_wrapper") != "on"
-            or data.get("mode") != "idle" or data.get("profile_seconds") != SECONDS):
+            or data.get("mode") != "idle" or data.get("profile_seconds") != seconds):
         raise AssertionError("Dynamic Lights original scenario/config drift")
     if scenario not in data.get("scenario", "") or data["item_motion"]["scenario"] != scenario:
         raise AssertionError("Stationary/moving scenario mismatch")
@@ -147,7 +149,7 @@ def check_result(data: dict, scenario: str, jfr: bool) -> dict:
         raise AssertionError("Pre-window host tick gate failed")
     cpu = data.get("server_thread_cpu") or {}
     ticks = data.get("game_ticks_during_window")
-    if (not isinstance(ticks, int) or not MIN_TICKS <= ticks <= MAX_TICKS
+    if (not isinstance(ticks, int) or not min_ticks <= ticks <= max_ticks
             or not cpu.get("cpu_measurement_valid")
             or not cpu.get("host_quality_pass")
             or cpu.get("cgroup_nr_throttled_delta") != 0
