@@ -66,6 +66,10 @@ def parse_exec_census(path: Path, expected_callees: list[str]) -> dict:
     if len(callees) != len(expected_callees):
         raise AssertionError(
             f"Expected {len(expected_callees)} callee counters, got {len(callees)}")
+    if int(begin.get("targets", "-1")) != len(TARGETS):
+        raise AssertionError(f"Target function count mismatch: {begin!r}")
+    if int(begin.get("callees", "-1")) != len(expected_callees):
+        raise AssertionError(f"Callee function count mismatch: {begin!r}")
     if set(callees) != set(expected_callees):
         raise AssertionError("Native callee counter set differs from exact source graph")
     if len(rows) != int(begin.get("sites", "-1")):
@@ -88,6 +92,10 @@ def parse_exec_census(path: Path, expected_callees: list[str]) -> dict:
         target_entries[name] = target_entries.get(name, 0) + int(row["entries"])
         target_callbacks[name] = target_callbacks.get(name, 0) + int(row["callbacks"])
     target_functions = sorted(target_entries)
+    expected_targets = {f"{NAMESPACE}:{name}" for name in TARGETS}
+    if set(target_functions) != expected_targets:
+        raise AssertionError(
+            f"Target function site rows differ from allowlist: {sorted(set(target_functions) ^ expected_targets)}")
     top_callees = sorted(
         ({"function": name, "native_call_tasks": count}
          for name, count in callees.items()),
@@ -183,7 +191,7 @@ def run_scenario(scenario: str, callees: list[str]) -> dict:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         if manifest.get("datapack_sha256") != PACK_SHA256:
             raise AssertionError("Dynamic Lights publisher SHA changed in runtime manifest")
-        if manifest.get("datapack") != "on" or manifest.get("stack") != "fabric":
+        if manifest.get("dynamic_lights_datapack_enabled") is not True or manifest.get("stack") != "fabric":
             raise AssertionError("Dynamic Lights runtime stack/datapack mismatch")
         if not manifest.get("compiler_exec_census_enabled"):
             raise AssertionError("Runtime manifest did not attest execution census mode")
