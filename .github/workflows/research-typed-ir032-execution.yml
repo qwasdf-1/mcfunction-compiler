@@ -1,0 +1,58 @@
+name: COMPILER-IR-032 Dynamic Lights stationary vs moving execution census
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir032-dynamic-lights-execution-census-\${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  matched-fresh-fabric-census:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify exact-source census and runtime parser contracts
+        run: |
+          python3 -m py_compile \
+            scripts/ci_ir032_dynamic_lights_source.py \
+            scripts/run_dynamic_lights_profile.py
+          python3 -m unittest discover -s tests -p 'test_ir032_dynamic_lights_source.py' -v
+          python3 -m unittest discover -s tests -p 'test_ir032_dynamic_lights_profile.py' -v
+      - name: Fetch and verify exact Dynamic Lights 1.4.6 publisher archive
+        run: python3 scripts/ci_ir032_dynamic_lights_source.py
+      - name: Build Minecraft 26.3 Fabric research server
+        run: ./gradlew --no-daemon build
+      - name: Fresh stationary-source runtime execution census
+        run: |
+          python3 scripts/run_dynamic_lights_profile.py \
+            --stack fabric --wrapper on --datapack on --mode idle \
+            --scenario stationary --exec-census --seconds 18
+      - name: Fresh moving-source runtime execution census
+        run: |
+          python3 scripts/run_dynamic_lights_profile.py \
+            --stack fabric --wrapper on --datapack on --mode idle \
+            --scenario moving --exec-census --seconds 18
+      - name: Archive source closure, complete census rows, and both workload manifests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir032-dynamic-lights-stationary-moving-census
+          path: |
+            build/reports/COMPILER-IR-032-DYNAMIC-LIGHTS-SOURCE/
+            build/benchmarks/PERF-010/dynamic-lights-fabric-pack-on-on-idle-*/
+          if-no-files-found: warn
+          retention-days: 21
+          include-hidden-files: true
