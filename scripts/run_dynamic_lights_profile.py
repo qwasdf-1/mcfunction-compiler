@@ -53,6 +53,23 @@ PLAYER_COUNT = 4
 ITEM_COUNT = 24
 
 
+def configure_gradle_cache_environment(environment: dict[str, str]) -> dict[str, str]:
+    """Avoid aliasing Gradle's writable cache as its read-only dependency cache."""
+    environment = environment.copy()
+    project_cache = ROOT / ".gradle-user-home"
+    if "GRADLE_USER_HOME" not in environment and project_cache.is_dir():
+        environment["GRADLE_USER_HOME"] = str(project_cache)
+    writable_home = Path(
+        environment.get("GRADLE_USER_HOME", str(Path.home() / ".gradle"))
+    ).expanduser().resolve()
+    readonly = environment.get("GRADLE_RO_DEP_CACHE")
+    if readonly and Path(readonly).expanduser().resolve() == writable_home / "caches":
+        environment.pop("GRADLE_RO_DEP_CACHE")
+    # Do not synthesize GRADLE_RO_DEP_CACHE from ~/.gradle/caches. It must be
+    # an explicitly separate, read-only cache or omitted entirely.
+    return environment
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -477,13 +494,7 @@ def main() -> int:
                 server_cwd = work
                 server_environment = None
             else:
-                server_environment = os.environ.copy()
-                project_cache = ROOT / ".gradle-user-home"
-                if "GRADLE_USER_HOME" not in server_environment and project_cache.is_dir():
-                    server_environment["GRADLE_USER_HOME"] = str(project_cache)
-                shared_cache = Path.home() / ".gradle" / "caches"
-                if "GRADLE_RO_DEP_CACHE" not in server_environment and shared_cache.is_dir():
-                    server_environment["GRADLE_RO_DEP_CACHE"] = str(shared_cache)
+                server_environment = configure_gradle_cache_environment(os.environ.copy())
                 server_environment.update(
                     {
                         "FC_WRAPPER_PROBE": "true" if args.wrapper == "on" else "false",
