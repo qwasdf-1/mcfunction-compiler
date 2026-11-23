@@ -53,6 +53,7 @@ jobs:
           path: |
             build/reports/COMPILER-IR-032-DYNAMIC-LIGHTS-SOURCE/
             build/benchmarks/PERF-010/dynamic-lights-fabric-pack-on-on-idle-*/
+            references/real-world/dynamic-lights-creepermeyt/
           if-no-files-found: warn
           retention-days: 21
           include-hidden-files: true
