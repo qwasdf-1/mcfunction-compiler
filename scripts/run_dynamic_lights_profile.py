@@ -482,7 +482,7 @@ def assert_compiler_research_features_disabled(status: str) -> None:
 
 def parse_game_time_query(message: str) -> int:
     """Require the single integer returned by Minecraft 26.3 time query gametime."""
-    values = re.findall(r"(?<![\\d.])\\d+(?![\\d.])", message)
+    values = re.findall(r"(?<!\d)\d+(?!\d)", message)
     if len(values) != 1:
         raise ValueError(f"Ambiguous gametime query response: {message!r}")
     return int(values[0])
