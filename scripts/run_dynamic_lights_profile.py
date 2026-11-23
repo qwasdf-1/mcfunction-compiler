@@ -26,6 +26,10 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from player_bot import PacketIds, PlayerBot  # noqa: E402
 from mod_artifacts import MODS, MODS_DIR, STACK_MODS  # noqa: E402
+from ci_ir032_dynamic_lights_source import (  # noqa: E402
+    census as census_dynamic_lights_source,
+    execution_census_allowlist,
+)
 from run_runtime_probe import RconClient, locate_official_server_jar  # noqa: E402
 from run_spawn_animations_profile import (  # noqa: E402
     count_entities,
@@ -148,6 +152,106 @@ def item_motion(index: int) -> tuple[float, float]:
     return (0.35 if dx_slot < 2 else -0.35, 0.12 if z_slot == 0 else -0.12)
 
 
+def parse_exec_census_lines(lines: list[str], expected_namespace: str) -> dict:
+    """Parse and reconcile the research-only execution census log."""
+    def fields_for(prefix: str, line: str) -> dict:
+        marker = prefix + " "
+        position = line.find(marker)
+        if position < 0:
+            raise ValueError(f"Missing {prefix} marker")
+        body = line[position + len(marker):]
+        return dict(re.findall(r"([a-z_]+)=([^\s]+)", body))
+
+    begin_lines = [line for line in lines if "FC_EXEC_BEGIN " in line]
+    end_lines = [line for line in lines if "FC_EXEC_END " in line]
+    if len(begin_lines) != 1 or len(end_lines) != 1:
+        raise ValueError(
+            f"Expected one FC_EXEC_BEGIN and FC_EXEC_END, found {len(begin_lines)} and {len(end_lines)}"
+        )
+    begin = fields_for("FC_EXEC_BEGIN", begin_lines[0])
+    end = fields_for("FC_EXEC_END", end_lines[0])
+
+    integer_keys = (
+        "sites", "entries", "callbacks", "overflow", "targets", "callees",
+        "native_calls", "single_dispatch_entries", "complex_dispatch_entries",
+    )
+    summary = {"namespace": begin.get("namespace")}
+    for key in integer_keys:
+        if key not in begin:
+            raise ValueError(f"FC_EXEC_BEGIN missing {key}")
+        summary[key] = int(begin[key])
+        if key in end and int(end[key]) != summary[key]:
+            raise ValueError(f"FC_EXEC_BEGIN/END mismatch for {key}")
+    if summary["namespace"] != expected_namespace or end.get("namespace") != expected_namespace:
+        raise ValueError(
+            f"Execution census namespace mismatch: {summary['namespace']!r}, {end.get('namespace')!r}"
+        )
+
+    site_rows = []
+    for line in lines:
+        if "FC_EXEC_ROW " not in line:
+            continue
+        row = fields_for("FC_EXEC_ROW", line)
+        input_match = re.search(r"\binput=(.*)$", line)
+        site_rows.append({
+            "function": row["function"],
+            "index": int(row["index"]),
+            "entries": int(row["entries"]),
+            "callbacks": int(row["callbacks"]),
+            "kind": row["kind"],
+            "dispatch_shape": row["dispatch_shape"],
+            "input": input_match.group(1) if input_match else "",
+        })
+
+    callee_rows = []
+    for line in lines:
+        if "FC_EXEC_CALLEE " not in line:
+            continue
+        row = fields_for("FC_EXEC_CALLEE", line)
+        callee_rows.append({
+            "function": row["function"],
+            "native_call_tasks": int(row["native_call_tasks"]),
+        })
+
+    if summary["overflow"] != 0:
+        raise ValueError(f"Execution census registration overflow: {summary['overflow']}")
+    if summary["sites"] != len(site_rows):
+        raise ValueError(
+            f"Execution census site conservation failed: summary={summary['sites']} rows={len(site_rows)}"
+        )
+    if summary["entries"] != sum(row["entries"] for row in site_rows):
+        raise ValueError("Execution census entry conservation failed")
+    if summary["callbacks"] != sum(row["callbacks"] for row in site_rows):
+        raise ValueError("Execution census callback conservation failed")
+    if summary["callees"] != len(callee_rows):
+        raise ValueError(
+            f"Execution census callee conservation failed: summary={summary['callees']} rows={len(callee_rows)}"
+        )
+    if summary["native_calls"] != sum(row["native_call_tasks"] for row in callee_rows):
+        raise ValueError("Execution census native-call conservation failed")
+    if summary["sites"] == 0 or summary["entries"] == 0:
+        raise ValueError("Execution census produced no registered or reached datapack entries")
+
+    per_function = {}
+    for row in site_rows:
+        aggregate = per_function.setdefault(row["function"], {
+            "sites": 0, "active_sites": 0, "entries": 0,
+            "callbacks": 0, "active_callback_sites": 0,
+        })
+        aggregate["sites"] += 1
+        aggregate["active_sites"] += row["entries"] > 0
+        aggregate["entries"] += row["entries"]
+        aggregate["callbacks"] += row["callbacks"]
+        aggregate["active_callback_sites"] += row["callbacks"] > 0
+    return {
+        "namespace": summary["namespace"],
+        "summary": summary,
+        "per_function": dict(sorted(per_function.items())),
+        "site_rows": sorted(site_rows, key=lambda row: (row["function"], row["index"])),
+        "callee_rows": sorted(callee_rows, key=lambda row: row["function"]),
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stack", choices=("vanilla", *STACK_MODS), default="vanilla")
@@ -201,15 +305,9 @@ def main() -> int:
         raise ValueError("--wrapper on is available only for Fabric server stacks")
     if args.datapack == "off" and args.wrapper == "on":
         raise ValueError("--wrapper on is not part of the datapack on/off workload control")
-    if args.scenario == "moving" and not args.exec_census:
-        raise ValueError("--scenario moving currently requires --exec-census")
     if args.exec_census:
         if args.stack == "vanilla" or args.wrapper != "on" or args.datapack != "on" or args.mode != "idle":
             raise ValueError("--exec-census requires --stack fabric --wrapper on --datapack on --mode idle")
-        if os.environ.get("FC_COMPILER_EXEC_CENSUS", "").casefold() not in {"1", "true", "yes"}:
-            raise ValueError("--exec-census requires FC_COMPILER_EXEC_CENSUS=true")
-        if not os.environ.get("FC_COMPILER_EXEC_CENSUS_FUNCTIONS") or not os.environ.get("FC_COMPILER_EXEC_CENSUS_CALLEES"):
-            raise ValueError("--exec-census requires explicit function and callee allowlists")
     artifacts = [(PACK, PACK_SHA256, "Dynamic Lights datapack")]
     if not args.exec_census:
         artifacts.append((SPARK_AGENT, SPARK_SHA256, "Spark standalone agent"))
@@ -220,6 +318,11 @@ def main() -> int:
     for path, expected, label in artifacts:
         if not path.is_file() or sha256(path) != expected:
             raise FileNotFoundError(f"Missing or mismatched pinned {label}: {path}")
+
+    census_allowlist = None
+    if args.exec_census:
+        source_report = census_dynamic_lights_source(PACK)
+        census_allowlist = execution_census_allowlist(source_report)
 
     server_jar = locate_official_server_jar()
     if sha256(server_jar) != SERVER_SHA256:
@@ -241,6 +344,7 @@ def main() -> int:
     exec_census_started = False
     exec_census_start_status = None
     exec_census_stop_status = None
+    exec_census_results = None
 
     try:
         with create_workdir(args.stack, run_id) as work:
@@ -341,6 +445,17 @@ def main() -> int:
                     {
                         "FC_WRAPPER_PROBE": "true" if args.wrapper == "on" else "false",
                         "FC_RUNTIME_TRACE": "false",
+                        # Never inherit an ambient census toggle into a non-census run.
+                        "FC_COMPILER_EXEC_CENSUS": "true" if args.exec_census else "false",
+                        "FC_COMPILER_EXEC_CENSUS_NAMESPACE": (
+                            census_allowlist["namespace"] if census_allowlist else ""
+                        ),
+                        "FC_COMPILER_EXEC_CENSUS_FUNCTIONS": (
+                            ",".join(census_allowlist["functions"]) if census_allowlist else ""
+                        ),
+                        "FC_COMPILER_EXEC_CENSUS_CALLEES": (
+                            ",".join(census_allowlist["callees"]) if census_allowlist else ""
+                        ),
                     }
                 )
                 gradle_arguments = [
@@ -424,11 +539,10 @@ def main() -> int:
                 player = player_names[index % len(player_names)]
                 local_index = index // len(player_names)
                 dx, dz = 2 + (local_index % 3) * 20, 2 + (local_index // 3) * 20
-                item_tags = f'"fc_dl","fc_dl_{index}"' if args.exec_census else '"fc_dl"'
                 response = rcon.command(
                     f'execute at {player} run summon minecraft:item ~{dx} ~1 ~{dz} '
                     f'{{NoGravity:1b,Motion:[0.0d,0.0d,0.0d],PickupDelay:32767,'
-                    f'Item:{{id:"minecraft:torch",count:1}},Tags:[{item_tags}]}}'
+                    f'Item:{{id:"minecraft:torch",count:1}},Tags:["fc_dl","fc_dl_{index}"]}}'
                 )
                 if "summoned" not in response.casefold():
                     raise RuntimeError(f"Could not create Dynamic Lights item actor: {response!r}")
@@ -478,21 +592,19 @@ def main() -> int:
                 "dynbc.torch",
             )
 
-            item_positions_before = None
-            if args.exec_census:
-                if args.scenario == "moving":
-                    for index in range(ITEM_COUNT):
-                        vx, vz = item_motion(index)
-                        selector = f"@e[type=minecraft:item,tag=fc_dl_{index},limit=1]"
-                        response = rcon.command(
-                            f"data modify entity {selector} Motion set value [{vx:.2f}d,0.0d,{vz:.2f}d]"
-                        )
-                        if "modified" not in response.casefold():
-                            raise RuntimeError(
-                                f"Could not set moving source velocity for item {index}: {response!r}")
-                item_positions_before = {
-                    index: entity_position(rcon, index) for index in range(ITEM_COUNT)
-                }
+            if args.scenario == "moving":
+                for index in range(ITEM_COUNT):
+                    vx, vz = item_motion(index)
+                    selector = f"@e[type=minecraft:item,tag=fc_dl_{index},limit=1]"
+                    response = rcon.command(
+                        f"data modify entity {selector} Motion set value [{vx:.2f}d,0.0d,{vz:.2f}d]"
+                    )
+                    if "modified" not in response.casefold():
+                        raise RuntimeError(
+                            f"Could not set moving source velocity for item {index}: {response!r}")
+            item_positions_before = {
+                index: entity_position(rcon, index) for index in range(ITEM_COUNT)
+            }
             if args.exec_census:
                 exec_census_start_status = rcon.command("function_compiler_probe exec-census-start")
                 if "FC_EXEC started" not in exec_census_start_status:
@@ -561,26 +673,24 @@ def main() -> int:
             else:
                 spark_thread_nodes = 0
 
-            item_motion_summary = None
-            if args.exec_census:
-                item_positions_after = {
-                    index: entity_position(rcon, index) for index in range(ITEM_COUNT)
-                }
-                item_displacements = {
-                    index: math.dist(item_positions_before[index], item_positions_after[index])
-                    for index in range(ITEM_COUNT)
-                }
-                item_motion_summary = {
-                    "scenario": args.scenario,
-                    "moved_item_count": sum(distance >= 1.0 for distance in item_displacements.values()),
-                    "minimum_displacement_blocks": min(item_displacements.values()),
-                    "mean_displacement_blocks": statistics.mean(item_displacements.values()),
-                    "maximum_displacement_blocks": max(item_displacements.values()),
-                }
-                if args.scenario == "moving" and item_motion_summary["moved_item_count"] != ITEM_COUNT:
-                    raise RuntimeError(f"Moving source fixture did not move every item: {item_motion_summary!r}")
-                if args.scenario == "stationary" and item_motion_summary["maximum_displacement_blocks"] > 0.05:
-                    raise RuntimeError(f"Stationary source control unexpectedly moved: {item_motion_summary!r}")
+            item_positions_after = {
+                index: entity_position(rcon, index) for index in range(ITEM_COUNT)
+            }
+            item_displacements = {
+                index: math.dist(item_positions_before[index], item_positions_after[index])
+                for index in range(ITEM_COUNT)
+            }
+            item_motion_summary = {
+                "scenario": args.scenario,
+                "moved_item_count": sum(distance >= 1.0 for distance in item_displacements.values()),
+                "minimum_displacement_blocks": min(item_displacements.values()),
+                "mean_displacement_blocks": statistics.mean(item_displacements.values()),
+                "maximum_displacement_blocks": max(item_displacements.values()),
+            }
+            if args.scenario == "moving" and item_motion_summary["moved_item_count"] != ITEM_COUNT:
+                raise RuntimeError(f"Moving source fixture did not move every item: {item_motion_summary!r}")
+            if args.scenario == "stationary" and item_motion_summary["maximum_displacement_blocks"] > 0.05:
+                raise RuntimeError(f"Stationary source control unexpectedly moved: {item_motion_summary!r}")
 
             if args.exec_census:
                 log_handle.flush()
@@ -599,6 +709,11 @@ def main() -> int:
                     raise RuntimeError("Function execution census log boundaries are missing")
                 (output_dir / "exec-census.log").write_text(
                     "\n".join(census_lines) + "\n", encoding="utf-8")
+                exec_census_results = parse_exec_census_lines(
+                    census_lines, census_allowlist["namespace"]
+                )
+                (output_dir / "exec-census.json").write_text(
+                    json.dumps(exec_census_results, indent=2) + "\n", encoding="utf-8")
 
             tracked_selector = (
                 "@e[type=item,tag=fc_dl,tag=dynbc.haslvl]"
@@ -634,6 +749,15 @@ def main() -> int:
             )
             tick_query = rcon.command("tick query")
             players_online = rcon.command("list")
+            if tracked_after != ITEM_COUNT:
+                raise RuntimeError(f"Tracked item count changed during profile: {tracked_items} -> {tracked_after}")
+            if args.datapack == "on" and (
+                torch_sources_after != ITEM_COUNT or torch_sources_after_by_predicate != ITEM_COUNT
+            ):
+                raise RuntimeError(
+                    "Dynamic Lights torch-source tags changed during profile: "
+                    f"direct={torch_sources_after}, predicate={torch_sources_after_by_predicate}"
+                )
             for bot in bots:
                 bot.assert_connected()
 
@@ -666,7 +790,17 @@ def main() -> int:
                 "compiler_exec_census_enabled": args.exec_census,
                 "exec_census_start_status": exec_census_start_status,
                 "exec_census_stop_status": exec_census_stop_status,
+                "exec_census_allowlist": (
+                    {
+                        "namespace": census_allowlist["namespace"],
+                        "function_count": len(census_allowlist["functions"]),
+                        "callee_count": len(census_allowlist["callees"]),
+                        "static_site_upper_bound": census_allowlist["static_site_upper_bound"],
+                    } if census_allowlist else None
+                ),
                 "exec_census_log": str((output_dir / "exec-census.log").relative_to(ROOT))
+                    if args.exec_census else None,
+                "exec_census_results": str((output_dir / "exec-census.json").relative_to(ROOT))
                     if args.exec_census else None,
                 "players": player_names,
                 "preset_score": 2,
