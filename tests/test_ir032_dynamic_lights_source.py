@@ -97,6 +97,10 @@ class IR032DynamicLightsSourceTests(unittest.TestCase):
         self.assertEqual(set(graph["reachable_functions"]), {
             "test:load", "test:tickcheck", "test:tick", "test:work",
         })
+        self.assertEqual(set(graph["tick_reachable_functions"]), {
+            "test:tickcheck", "test:tick", "test:work",
+        })
+        self.assertEqual(graph["load_only_functions"], ["test:load"])
         self.assertIn(
             {"from": "test:tickcheck", "to": "test:tickcheck"},
             graph["recurring_schedule_edges"],
