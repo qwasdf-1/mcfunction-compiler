@@ -288,7 +288,7 @@ DISABLED_COMPILER_STATUS_FLAGS = (
 
 def assert_compiler_research_features_disabled(status: str) -> None:
     for name in DISABLED_COMPILER_STATUS_FLAGS:
-        match = re.search(rf"\\b{name}=(true|false)\\b", status)
+        match = re.search(rf"\b{name}=(true|false)\b", status)
         if match is None or match.group(1) != "false":
             raise RuntimeError(
                 f"Dynamic Lights census requires {name}=false; status={status!r}"
