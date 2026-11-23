@@ -1,6 +1,6 @@
 # COMPILER-IR-032 — Dynamic Lights: controlled execution census
 
-**Status (2026-11-23): Gates A/B accepted; first Gate C native run completed but REJECTED (moving-arm CPU noise, insufficient JFR sample coverage). NO CPU HOTSPOT OR SPEEDUP ESTABLISHED. NO OPTIMIZER IMPLEMENTED.** Branch: work/compiler-coverage; PR #10 remains draft and unmerged.
+**Status (2026-11-23): Gates A/B ACCEPTED. Gate C CLOSED / REJECTED after two bounded native attempts: CPU noise exceeds the preregistered limit even when JFR coverage passes. Movement-specific optimizer hypothesis STOP. No compiler-owned removable 5% CPU hotspot or speedup established. NO OPTIMIZER IMPLEMENTED.** Branch: work/compiler-coverage; PR #10 remains draft and unmerged.
 
 This begins a separate, recurring tick-workload investigation after IR-030's below-threshold coordinate getter and IR-031's rejected entity writeback hypothesis.
 
@@ -73,9 +73,9 @@ The now-controlled workload justifies a narrow uninstrumented CPU/method-attribu
 
 **Decision:** Gate A and Gate B accepted as static and dynamic COUNT evidence. CPU attribution and semantic optimization feasibility remain open. No tag index, fill shortcut, selector cache, production-default behavior change, or compiler implementation was authorized by the census.
 
-## 5. Gate C prepared experiment — not yet executed or accepted
+## 5. Gate C preregistration (protocol retained unchanged)
 
-The opt-in Gate C runner and [manual-only CPU/JFR workflow](../../.github/workflows/research-typed-ir032-gate-c.yml) are committed to the same research branch. **There is no Gate C native dataset yet.** Passing Python tests or regular build CI does not establish CPU cost or a hotspot.
+The opt-in Gate C runner and [normally manual-only CPU/JFR workflow](../../.github/workflows/research-typed-ir032-gate-c.yml) were committed to the research branch before the native measurements. The two attempted Gate C datasets and their failure dispositions are documented in sections 6–7. Passing Python tests or regular build CI does not establish CPU cost or a hotspot.
 
 ### Precommitted run separation
 
@@ -85,7 +85,7 @@ The opt-in Gate C runner and [manual-only CPU/JFR workflow](../../.github/workfl
 - **JFR method attribution:** two further fresh JVMs, one stationary and one moving, with the same environment and population checks, no Spark/census/callback counters. Only these arms attach JFR. Filter runnable ExecutionSample stacks to the exact Linux Server-thread OS TID; require at least 150 samples per profile. Report inclusive overlapping categories for block/fill, execute/selector, score/tag, function scheduling, entity data/NBT, and entity iteration. Retain full recordings and top leaf frames. The JFR sampling arms must never be compared as uninstrumented CPU arms.
 - **Failure policy:** retain raw logs and partial manifests on rejection; no silent retries, no selection of only the cleanest arms, and no threshold changes after observing results.
 
-The coordinator is scripts/ci_ir032_gate_c.py; it reuses scripts/run_dynamic_lights_profile.py. Tests are in tests/test_ir032_gate_c.py. The workflow is **manual-only**; ordinary PR CI runs only lightweight Python validation.
+The coordinator is scripts/ci_ir032_gate_c.py; it reuses scripts/run_dynamic_lights_profile.py. Tests are in tests/test_ir032_gate_c.py. The workflow is **manual-only in its final branch state**; each native run was launched with a temporary bounded push trigger that was removed after startup. Ordinary PR CI runs only lightweight Python validation.
 
 ### Interpretive stopping rules
 
@@ -93,7 +93,7 @@ The coordinator is scripts/ci_ir032_gate_c.py; it reuses scripts/run_dynamic_lig
 2. If JFR finds a hot native method, audit the exact original commands and separate necessary side effects from genuinely removable compiler overhead. Inclusive categories cannot be added or treated as exclusive CPU costs.
 3. Any later opt-in exact-shape compiler action needs separate semantic tests (errors, feedback, quotas, side effects, restoration) and a new uninstrumented causal A/B plus A/A noise controls. The **15% whole-event promotion threshold remains unchanged**.
 
-**Disposition:** Gate C protocol and manual workflow prepared; no Gate C native observations, optimizer implementation or production-default change. Draft PR #10 remains unmerged.
+**Preregistration disposition:** The protocol was implemented and exercised in two native campaigns; both are rejected against the original CPU-noise limit. Subsequent recovery does not revise this section's preregistered thresholds.
 
 ---
 
@@ -120,6 +120,38 @@ Both JFR recordings exist and the stacks were parsed, but **neither meets the pr
 **Recovery implementation:** the runner now requests `jdk.ExecutionSample#period=2ms` explicitly, rather than relying on the default profile period, and the evidence validator requires that setting in JFR arms only. The separate JFR quality requirement remains **150**, the CPU two-run noise threshold remains **8%**, the materiality screen remains **5%**, and the eventual promotion bar remains **15%**. These changes do not constitute an accepted profile; the new sampling configuration has not yet been validated in a native Gate C run. Another bounded independent native run, if performed, must retain the complete data, the same gameplay and provenance checks, and record all failures without post-hoc exclusion.
 
 **Disposition:** Gate C is still open. No optimization is warranted from the rejected pilot. The research branch remains draft and unmerged with production runtime defaults untouched.
+
+---
+
+## 7. Gate C recovery rerun: independent JFR sample coverage passed; CPU stability rejected again — STOP
+
+The [one bounded Gate C recovery run #45263049873](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45263049873), archive [14862156186](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45263049873/artifacts/14862156186), completed six independent real Minecraft 26.3 / Java 25 Fabric JVMs. The source SHA, documented two-call benchmark-only patched runtime pack SHA, four inert stone-holding players, exactly 24 individually tagged torch item entities, no other light sources, Smart preset, and 360 measured game ticks each passed the same per-run provenance and population checks. All six host-quality checks passed with zero cgroup throttle events. No candidate compiler optimization, execution census, callback timing, or Spark was enabled in any timed arm. The CPU arms had **no JFR**. Both separate JFR arms explicitly requested **2 ms ExecutionSample** and were never included in CPU comparisons.
+
+| Uninstrumented arm | Scenario | Running Server-thread CPU per game tick |
+| --- | --- | ---: |
+| S1 | Stationary | 1.5550 ms |
+| M1 | Moving | 2.5124 ms |
+| M2 | Moving | 1.7419 ms |
+| S2 | Stationary | 2.0421 ms |
+
+The two-stationary-arm spread was **27.09%** and two-moving-arm spread was **36.22%**, both far above the same preregistered **8%** limit. Moving and stationary medians were 2.1272 and 1.7986 ms/tick, giving an *unaccepted descriptive* +18.27% moving-versus-stationary difference. With the uninstrumented CPU screen rejected, the median contrast is not a reliable repeatable movement cost, cannot establish a 5% compiler-owned opportunity, and is unrelated to the independent 15% optimizer promotion bar. **The coordinator exited with failure specifically on the CPU-noise hard gate.** The previous independent Gate C attempt (section 6) also failed CPU noise (its moving pair had 12.47% spread); the repeated violation cannot be waived by selecting a favorable pair or modifying the threshold.
+
+The corrected JFR capture *did* meet its independent minimum in both profiler-only arms:
+
+| Inclusive JFR stack-presence group | Stationary (362 runnable samples) | Moving (454 runnable samples) |
+| --- | ---: | ---: |
+| Function/queue execution | 109 (30.1%) | 184 (40.5%) |
+| Execute modifiers/selectors | 98 (27.1%) | 167 (36.8%) |
+| Scoreboard/tag | 14 (3.9%) | 28 (6.2%) |
+| Block/fill | 4 (1.1%) | 6 (1.3%) |
+| Entity/world iteration | 28 (7.7%) | 37 (8.1%) |
+| Entity NBT/data | 0 (0.0%) | 3 (0.7%) |
+
+These are *inclusive overlapping stack-presence fractions* on separate profiling JVMs; they are **not exclusive CPU durations**, do not add up to 100%, and are not a stationary–moving causality test. The dominant *leaf* in both was vanilla `FluidState.isRandomlyTicking` (60/362 stationary, 56/454 moving); that work is not an identified compiler-removable cost. On moving, `BuildContexts.execute` appeared as a leaf in 11/454 samples (2.4%), although `BuildContexts.execute` occurred in 123/454 inclusive stacks (27.1%), encompassing command behavior still required by the datapack. Neither an individual replaceable compiler-owned method nor an exact-shape equivalent was shown to remove at least 5% of the full event's CPU. The execution-heavy JFR category is useful for choosing a *separate* future research hypothesis, not justification to compile through selectors, cache entity queries, or shortcut block placement now.
+
+**Run provenance detail:** the recovery run was triggered by a temporary, one-shot `push` branch event because the connector did not expose a manual workflow dispatch. That push trigger was removed in branch commit `dbccac975d159e5b31c7bc8b06dcbf171ad42738`; the final workflow is once again manual-only. Accordingly, the archived recovery summary truthfully records `workflow_trigger=push` and `source_workflow_is_manual_only=false` for this run.
+
+**Disposition / stopping rule:** **IR-032 Gate C rejected and movement-specific compiler optimization hypothesis STOPPED.** No third post-hoc replacement run and no optimizer implementation are warranted on the current evidence. Gates A and B remain accepted as static coverage and dynamic COUNT evidence, and both Gate C artifacts remain valid as *rejected experimental records*. A new, independently named investigation may first design and preregister a more stable fixture/host A/A protocol and then test one specific command-dispatch/selector cost, but must not treat the two noisy contrasts as a demonstrated gain. PR #10 remains draft and unmerged; production compiler defaults stay off.
 
 ---
 
