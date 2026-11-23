@@ -498,6 +498,75 @@ def census(pack_path: Path = PACK) -> dict:
     return report
 
 
+def apply_ir032_runtime_hotfix(source_pack: Path, output_pack: Path) -> dict:
+    """Remove the one stale overloadcheck call deleted by upstream commit b3ea1239."""
+    source_digest = sha256_file(source_pack)
+    if source_digest != PACK_SHA256:
+        raise AssertionError(
+            f"IR-032 hotfix requires exact publisher SHA {PACK_SHA256}, found {source_digest}"
+        )
+    if source_pack.resolve() == output_pack.resolve():
+        raise ValueError("Runtime hotfix output must not overwrite the publisher archive")
+
+    target_paths = (
+        "data/dynamic_lights_by_creepermeyt/function/internal/tick.mcfunction",
+        "data/dynamic_lights_by_creepermeyt/functions/internal/tick.mcfunction",
+    )
+    patched_contents = {}
+    with zipfile.ZipFile(source_pack) as source:
+        names = set(source.namelist())
+        missing_paths = [name for name in target_paths if name not in names]
+        if missing_paths:
+            raise AssertionError(f"Publisher archive is missing expected tick copies: {missing_paths}")
+        for name in target_paths:
+            original = source.read(name).decode("utf-8-sig")
+            lines = original.splitlines(keepends=True)
+            matching = [
+                index for index, line in enumerate(lines)
+                if line.strip()
+                == "function dynamic_lights_by_creepermeyt:internal/util/overloadcheck"
+            ]
+            if len(matching) != 1:
+                raise AssertionError(
+                    f"Expected exactly one stale overloadcheck call in {name}, found {len(matching)}"
+                )
+            del lines[matching[0]]
+            patched_contents[name] = "".join(lines).encode("utf-8")
+
+        output_pack.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(output_pack, "w") as destination:
+            destination.comment = source.comment
+            for info in source.infolist():
+                data = patched_contents.get(info.filename)
+                if data is None:
+                    data = source.read(info.filename)
+                destination.writestr(info, data)
+
+    with zipfile.ZipFile(output_pack) as patched:
+        for name in target_paths:
+            text = patched.read(name).decode("utf-8")
+            if "internal/util/overloadcheck" in text:
+                raise AssertionError(f"Stale overloadcheck reference remains in patched {name}")
+
+    patched_digest = sha256_file(output_pack)
+    return {
+        "patch_id": "ir032-remove-obsolete-overloadcheck-call",
+        "upstream_commit": "b3ea123959",
+        "publisher_sha256": source_digest,
+        "runtime_pack_sha256": patched_digest,
+        "patched_paths": list(target_paths),
+        "removed_call": (
+            "function dynamic_lights_by_creepermeyt:internal/util/overloadcheck"
+        ),
+        "removed_call_count": len(target_paths),
+        "semantic_basis": (
+            "Upstream b3ea1239 deleted internal/util/overloadcheck.mcfunction and moved "
+            "incomplete-tick detection to internal/tick via internal/util/overloaded; "
+            "the unconditional call remained stale in both singular and plural tick copies."
+        ),
+    }
+
+
 def execution_census_allowlist(report: dict) -> dict:
     """Build the bounded exact namespace/function allowlists for the runtime census."""
     namespace = report.get("namespace")
