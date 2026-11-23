@@ -1004,6 +1004,17 @@ def main() -> int:
                     "fixed seed 264010; daylight cycle and natural mob spawning disabled; Smart preset"
                 ),
                 "item_motion": item_motion_summary,
+                "item_motion_setup": {
+                    "no_gravity": True,
+                    "stationary": (
+                        "After workload warmup, reset each tagged torch item's Motion to zero "
+                        "immediately before the measurement window."
+                    ),
+                    "moving": (
+                        "After workload warmup, assign each tagged torch a deterministic "
+                        "horizontal Motion vector; no per-tick teleport or motion reset is used."
+                    ),
+                },
                 "item_displacements_blocks": {
                     str(index): distance for index, distance in sorted(item_displacements.items())
                 },
