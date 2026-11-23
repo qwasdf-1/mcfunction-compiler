@@ -120,6 +120,52 @@ def parse_exec_census(path: Path, expected_callees: list[str]) -> dict:
     }
 
 
+def verify_clean_minecraft_26_3_environment(manifest: dict) -> dict:
+    """Independently attest both live 26.3 rules and exact source populations."""
+    expected_rules = {
+        "mob_spawning_gamerule_status": "minecraft:spawn_mobs",
+        "daylight_gamerule_status": "minecraft:advance_time",
+    }
+    for key, rule in expected_rules.items():
+        result = manifest.get(key)
+        if (not isinstance(result, dict) or result.get("rule") != rule
+                or not isinstance(result.get("query_response"), str)
+                or not re.search(r"\bfalse\b\s*$", result["query_response"].casefold())):
+            raise AssertionError(
+                f"Unverified Minecraft 26.3 rule {rule}: {result!r}")
+
+    required_light_keys = {
+        "on_fire", "tnt", "glowing", "glow_squids", "allays",
+        "enchanted_armor",
+    }
+    expected_holders = {
+        "players": 4, "zombies": 0, "husks": 0, "foxes": 0,
+        "zombie_villagers": 0, "allays": 0,
+    }
+    for label in ("source_population_before_profile", "source_population_after_profile"):
+        pop = manifest.get(label)
+        if not isinstance(pop, dict):
+            raise AssertionError(f"Missing clean fixture {label} attestation")
+        if pop.get("item_entities") != 24 or pop.get("holder_entities") != 4:
+            raise AssertionError(f"Uncontrolled source/holder count in {label}: {pop!r}")
+        if pop.get("holder_entities_by_type") != expected_holders:
+            raise AssertionError(f"Uncontrolled holder type in {label}: {pop!r}")
+        lights = pop.get("other_light_sources")
+        if not isinstance(lights, dict) or set(lights) != required_light_keys:
+            raise AssertionError(f"Incomplete other-light-source census in {label}")
+        if any(value != 0 for value in lights.values()):
+            raise AssertionError(f"Unexpected other light source in {label}: {lights!r}")
+
+    return {
+        "minecraft_26_3_spawn_mobs_disabled": True,
+        "minecraft_26_3_daylight_time_advance_disabled": True,
+        "exact_player_holders": 4,
+        "exact_dropped_torches": 24,
+        "other_light_source_count": 0,
+        "pre_and_post_source_population_verified": True,
+    }
+
+
 def run_scenario(scenario: str, callees: list[str]) -> dict:
     output_root = ROOT / "build/benchmarks/PERF-010"
     previous = set(output_root.glob("dynamic-lights-*/results.json"))
@@ -202,6 +248,7 @@ def run_scenario(scenario: str, callees: list[str]) -> dict:
             raise AssertionError("Runtime manifest did not attest execution census mode")
         if manifest.get("spark_sampling") is not None:
             raise AssertionError("Spark sampling unexpectedly active during execution census")
+        result["environment"] = verify_clean_minecraft_26_3_environment(manifest)
         motion = manifest.get("item_motion")
         if not motion or motion.get("scenario") != scenario:
             raise AssertionError("Runtime manifest lacks matched item-motion validation")
