@@ -303,6 +303,17 @@ def census(pack_path: Path = PACK) -> dict:
         functions, tags = parse_functions(files)
     graph = build_reachable(functions, tags)
     reachable = graph["reachable_functions"]
+    namespaces = {
+        name.split(":", 1)[0]
+        for name in graph["tick_reachable_functions"]
+    }
+    if len(namespaces) != 1:
+        raise AssertionError(f"Expected one tick-reachable namespace, found {sorted(namespaces)}")
+    namespace = next(iter(namespaces))
+    tick_static_command_count = sum(
+        functions[name]["commands"] for name in graph["tick_reachable_functions"]
+    )
+
     def metric_row(name: str) -> dict:
         return {
             "function": name,
@@ -333,7 +344,10 @@ def census(pack_path: Path = PACK) -> dict:
         "total_archive_entries": len(names),
         "function_count": len(functions),
         "function_tag_count": len(tags),
+        "namespace": namespace,
         "reachable_function_count": len(reachable),
+        "reachable_functions": reachable,
+        "tick_reachable_static_command_count": tick_static_command_count,
         "tick_reachable_function_count": len(graph["tick_reachable_functions"]),
         "load_only_function_count": len(graph["load_only_functions"]),
         "entrypoints": graph["entrypoints"],
@@ -396,6 +410,29 @@ def census(pack_path: Path = PACK) -> dict:
         "top_tick_functions": [row["function"] for row in ranked[:8]],
     }, sort_keys=True), flush=True)
     return report
+
+
+def execution_census_allowlist(report: dict) -> dict:
+    """Build the bounded exact namespace/function allowlists for the runtime census."""
+    namespace = report.get("namespace")
+    functions = sorted(set(report.get("tick_reachable_functions", [])))
+    callees = sorted(set(report.get("reachable_functions", [])))
+    if not namespace or not functions or not callees:
+        raise AssertionError("Runtime census requires a namespace and non-empty function/callee allowlists")
+    if len(callees) > 96:
+        raise AssertionError(f"Runtime census callee allowlist exceeds 96 IDs: {len(callees)}")
+    if any(not name.startswith(namespace + ":") for name in functions + callees):
+        raise AssertionError("Runtime census allowlists contain an out-of-namespace function")
+    if int(report.get("tick_reachable_static_command_count", 0)) > 1024:
+        raise AssertionError(
+            "Runtime census static site upper bound exceeds CompilerExecutionCensus.MAX_SITES=1024"
+        )
+    return {
+        "namespace": namespace,
+        "functions": functions,
+        "callees": callees,
+        "static_site_upper_bound": int(report["tick_reachable_static_command_count"]),
+    }
 
 
 def main() -> None:
