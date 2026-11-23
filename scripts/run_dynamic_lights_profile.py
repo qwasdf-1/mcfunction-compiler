@@ -223,6 +223,18 @@ def parse_exec_census_lines(lines: list[str], expected_namespace: str) -> dict:
         raise ValueError("Execution census entry conservation failed")
     if summary["callbacks"] != sum(row["callbacks"] for row in site_rows):
         raise ValueError("Execution census callback conservation failed")
+    single_dispatch_entries = sum(
+        row["entries"] for row in site_rows
+        if row["dispatch_shape"] == "single_score_static_call"
+    )
+    complex_dispatch_entries = sum(
+        row["entries"] for row in site_rows
+        if row["dispatch_shape"] == "complex_or_return_call"
+    )
+    if summary["single_dispatch_entries"] != single_dispatch_entries:
+        raise ValueError("Execution census single-dispatch conservation failed")
+    if summary["complex_dispatch_entries"] != complex_dispatch_entries:
+        raise ValueError("Execution census complex-dispatch conservation failed")
     if summary["callees"] != len(callee_rows):
         raise ValueError(
             f"Execution census callee conservation failed: summary={summary['callees']} rows={len(callee_rows)}"
