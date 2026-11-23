@@ -157,6 +157,25 @@ def data_modify_succeeded(response: str) -> bool:
     return "modified" in normalized or "nothing changed" in normalized
 
 
+# Minecraft 26.3 renamed Java game rules to namespaced snake_case IDs in 1.21.11.
+# Never accept the legacy names merely because a command returned an RCON string.
+ADVANCE_TIME_GAMERULE = "minecraft:advance_time"
+SPAWN_MOBS_GAMERULE = "minecraft:spawn_mobs"
+
+
+def disable_and_verify_gamerule(rcon: RconClient, rule: str) -> dict[str, str]:
+    if rule not in (ADVANCE_TIME_GAMERULE, SPAWN_MOBS_GAMERULE):
+        raise ValueError(f"Unexpected Minecraft 26.3 gamerule requested: {rule!r}")
+    set_response = rcon.command(f"gamerule {rule} false")
+    query_response = rcon.command(f"gamerule {rule}")
+    if not re.search(r"\\bfalse\\b\\s*$", query_response.casefold()):
+        raise RuntimeError(
+            f"Minecraft 26.3 gamerule {rule} did not read back as false: "
+            f"set={set_response!r}, query={query_response!r}"
+        )
+    return {"rule": rule, "set_response": set_response, "query_response": query_response}
+
+
 def dynamic_lights_source_population(rcon: RconClient, objective: str) -> dict:
     """Count every entity category that can add work to the Smart preset."""
     def count(selector: str) -> int:
@@ -548,6 +567,7 @@ def main() -> int:
     source_population_after_profile = None
     source_cleanup_responses = {}
     mob_spawning_gamerule_status = None
+    daylight_gamerule_status = None
 
     try:
         with create_workdir(args.stack, run_id) as work:
@@ -737,13 +757,12 @@ def main() -> int:
                 assert_compiler_research_features_disabled(compiler_probe_status)
             if args.datapack == "on":
                 rcon.command("scoreboard players set p dynbclevel 2")
-            rcon.command("gamerule doDaylightCycle false")
-            rcon.command("gamerule doMobSpawning false")
-            mob_spawning_gamerule_status = rcon.command("gamerule doMobSpawning")
-            if "false" not in mob_spawning_gamerule_status.casefold():
-                raise RuntimeError(
-                    f"Natural mob spawning was not disabled: {mob_spawning_gamerule_status!r}"
-                )
+            daylight_gamerule_status = disable_and_verify_gamerule(
+                rcon, ADVANCE_TIME_GAMERULE
+            )
+            mob_spawning_gamerule_status = disable_and_verify_gamerule(
+                rcon, SPAWN_MOBS_GAMERULE
+            )
             rcon.command("time set midnight")
             forced_chunks = rcon.command("forceload add -16 -16 256 32")
             if not any(word in forced_chunks.casefold() for word in ("added", "marked")):
@@ -1155,6 +1174,7 @@ def main() -> int:
                 "dynamic_light_marker_delta": markers_after - marker_count,
                 "dynamic_lights_tick_state_after_profile": dynamic_lights_tick_state,
                 "mob_spawning_gamerule_status": mob_spawning_gamerule_status,
+                "daylight_gamerule_status": daylight_gamerule_status,
                 "source_cleanup_responses": source_cleanup_responses,
                 "source_population_cleanup_policy": (
                     "Before player login, remove all non-player/non-item/non-marker entities, "
