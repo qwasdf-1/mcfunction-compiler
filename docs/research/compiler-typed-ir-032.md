@@ -1,6 +1,6 @@
 # COMPILER-IR-032 — Dynamic Lights: controlled execution census
 
-**Status (2026-11-23): Gate A source inventory accepted; Gate B controlled stationary-versus-moving execution census accepted. NO CPU HOTSPOT OR SPEEDUP ESTABLISHED. NO OPTIMIZER IMPLEMENTED.** Branch: work/compiler-coverage; PR #10 remains draft and unmerged.
+**Status (2026-11-23): Gates A/B accepted; first Gate C native run completed but REJECTED (moving-arm CPU noise, insufficient JFR sample coverage). NO CPU HOTSPOT OR SPEEDUP ESTABLISHED. NO OPTIMIZER IMPLEMENTED.** Branch: work/compiler-coverage; PR #10 remains draft and unmerged.
 
 This begins a separate, recurring tick-workload investigation after IR-030's below-threshold coordinate getter and IR-031's rejected entity writeback hypothesis.
 
@@ -94,6 +94,32 @@ The coordinator is scripts/ci_ir032_gate_c.py; it reuses scripts/run_dynamic_lig
 3. Any later opt-in exact-shape compiler action needs separate semantic tests (errors, feedback, quotas, side effects, restoration) and a new uninstrumented causal A/B plus A/A noise controls. The **15% whole-event promotion threshold remains unchanged**.
 
 **Disposition:** Gate C protocol and manual workflow prepared; no Gate C native observations, optimizer implementation or production-default change. Draft PR #10 remains unmerged.
+
+---
+
+## 6. First Gate C execution: rejected, retained as diagnostic evidence
+
+The [first actual six-JVM Gate C native run #45257891270](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45257891270) completed all four uninstrumented S–M–M–S CPU arms and both separate JFR arms. All six maintained the exact corrected runtime ZIP (`c649d206...`), 24 torch actors, four players, source-population checks, 360 observed game ticks, and passing host-quality/cgroup checks. The build and lightweight parser tests passed. This **does not make the Gate C acceptance pass**: the coordinator correctly exited with failure.
+
+| Uninstrumented arm | Scenario | Server-thread running CPU per observed game tick |
+| --- | --- | ---: |
+| S1 | Stationary | 2.1545 ms |
+| M1 | Moving | 2.5472 ms |
+| M2 | Moving | 2.2481 ms |
+| S2 | Stationary | 2.0142 ms |
+
+Stationary relative two-run spread: **6.73%** (within the preregistered 8% threshold). Moving relative spread: **12.47%** (above 8%; failure). Raw moving and stationary medians were 2.3976 and 2.0843 ms/game tick (+15.03%), respectively. They run **different native gameplay paths** and have excessive moving-arm noise; the +15.03% difference is not an established repeatable workload cost or a compiled-optimizer gain. It has no relationship to the independent 15% optimization-promotion bar.
+
+| Separate JFR arm | Runnable Server-thread ExecutionSample count | Required |
+| --- | ---: | ---: |
+| S_JFR | 45 | 150 |
+| M_JFR | 69 | 150 |
+
+Both JFR recordings exist and the stacks were parsed, but **neither meets the preregistered minimum**. Overlapping broad stack categories and top leaves must not be interpreted as reliable hotspot rankings from this rejected sample. The archive contains all six source manifests, both JFR recordings, sample summaries, logs, and the CPU screen: [raw artifact 14858014018](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45257891270/artifacts/14858014018).
+
+**Recovery implementation:** the runner now requests `jdk.ExecutionSample#period=2ms` explicitly, rather than relying on the default profile period, and the evidence validator requires that setting in JFR arms only. The separate JFR quality requirement remains **150**, the CPU two-run noise threshold remains **8%**, the materiality screen remains **5%**, and the eventual promotion bar remains **15%**. These changes do not constitute an accepted profile; the new sampling configuration has not yet been validated in a native Gate C run. Another bounded independent native run, if performed, must retain the complete data, the same gameplay and provenance checks, and record all failures without post-hoc exclusion.
+
+**Disposition:** Gate C is still open. No optimization is warranted from the rejected pilot. The research branch remains draft and unmerged with production runtime defaults untouched.
 
 ---
 
