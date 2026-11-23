@@ -73,6 +73,30 @@ The now-controlled workload justifies a narrow uninstrumented CPU/method-attribu
 
 **Decision:** Gate A and Gate B accepted as static and dynamic COUNT evidence. CPU attribution and semantic optimization feasibility remain open. No tag index, fill shortcut, selector cache, production-default behavior change, or compiler implementation was authorized by the census.
 
+## 5. Gate C prepared experiment — not yet executed or accepted
+
+The opt-in Gate C runner and [manual-only CPU/JFR workflow](../../.github/workflows/research-typed-ir032-gate-c.yml) are committed to the same research branch. **There is no Gate C native dataset yet.** Passing Python tests or regular build CI does not establish CPU cost or a hotspot.
+
+### Precommitted run separation
+
+- **CPU baseline:** four fresh Fabric JVMs in stationary–moving–moving–stationary order, each with the same patched runtime ZIP, Smart preset, four stone-holding players, 24 tagged torches, fixed seed and 18-second measurement. Wrapper remains active for configuration equivalence; all compiler optimizers, execution census, Spark and JFR are off. The two-call upstream hotfix and c649d206... SHA remain mandatory; this is not a publisher-byte-exact run.
+- **CPU clock:** identify the real Minecraft Server-thread PID/TID beneath Gradle, read Linux schedstat running CPU before and after the window, and require zero cgroup throttling and no more than 25% runqueue-wait share. Pre-window tick-query stability is an environmental admission check, not a treatment-outcome filter. Record game-time queries as a tick-work proxy with 300–380 ticks per nominal 18 seconds. RCON read boundaries are not an atomic exact function-call count; those come from the separate Gate B census.
+- **Descriptive CPU comparison:** normalize observed Server-thread CPU by observed game-time tick delta; report per-arm values, within-scenario two-run spread and a predeclared 8% noise screen. Report stationary and moving data even when noisy. Moving executes different native code, so its CPU difference is **not an optimization effect** and is not a 15% promotion test.
+- **JFR method attribution:** two further fresh JVMs, one stationary and one moving, with the same environment and population checks, no Spark/census/callback counters. Only these arms attach JFR. Filter runnable ExecutionSample stacks to the exact Linux Server-thread OS TID; require at least 150 samples per profile. Report inclusive overlapping categories for block/fill, execute/selector, score/tag, function scheduling, entity data/NBT, and entity iteration. Retain full recordings and top leaf frames. The JFR sampling arms must never be compared as uninstrumented CPU arms.
+- **Failure policy:** retain raw logs and partial manifests on rejection; no silent retries, no selection of only the cleanest arms, and no threshold changes after observing results.
+
+The coordinator is scripts/ci_ir032_gate_c.py; it reuses scripts/run_dynamic_lights_profile.py. Tests are in tests/test_ir032_gate_c.py. The workflow is **manual-only**; ordinary PR CI runs only lightweight Python validation.
+
+### Interpretive stopping rules
+
+1. If controlled CPU arms do not establish a reproducible movement-related difference above noise, stop the movement-specific compiler hypothesis. Do not promote count differences into CPU savings.
+2. If JFR finds a hot native method, audit the exact original commands and separate necessary side effects from genuinely removable compiler overhead. Inclusive categories cannot be added or treated as exclusive CPU costs.
+3. Any later opt-in exact-shape compiler action needs separate semantic tests (errors, feedback, quotas, side effects, restoration) and a new uninstrumented causal A/B plus A/A noise controls. The **15% whole-event promotion threshold remains unchanged**.
+
+**Disposition:** Gate C protocol and manual workflow prepared; no Gate C native observations, optimizer implementation or production-default change. Draft PR #10 remains unmerged.
+
+---
+
 ## Evidence links
 
 - [Static source and overlay census #45132719718](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45132719718)
