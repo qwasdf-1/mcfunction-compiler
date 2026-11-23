@@ -151,6 +151,11 @@ def count_entities_with_tag_predicate(
     return count_score(rcon, holder, objective)
 
 
+def data_modify_succeeded(response: str) -> bool:
+    normalized = response.casefold()
+    return "modified" in normalized or "nothing changed" in normalized
+
+
 def entity_position(rcon: RconClient, index: int) -> tuple[float, float, float]:
     selector = f"@e[type=minecraft:item,tag=fc_dl_{index},limit=1]"
     response = rcon.command(f"data get entity {selector} Pos")
@@ -764,7 +769,7 @@ def main() -> int:
                     response = rcon.command(
                         f"data modify entity {selector} Motion set value [0.0d,0.0d,0.0d]"
                     )
-                    if "modified" not in response.casefold():
+                    if not data_modify_succeeded(response):
                         raise RuntimeError(
                             f"Could not reset stationary source velocity for item {index}: {response!r}"
                         )
@@ -775,7 +780,7 @@ def main() -> int:
                     response = rcon.command(
                         f"data modify entity {selector} Motion set value [{vx:.2f}d,0.0d,{vz:.2f}d]"
                     )
-                    if "modified" not in response.casefold():
+                    if not data_modify_succeeded(response):
                         raise RuntimeError(
                             f"Could not set moving source velocity for item {index}: {response!r}")
             item_positions_before = {
