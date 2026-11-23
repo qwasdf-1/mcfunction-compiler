@@ -10,6 +10,11 @@ import shutil
 import subprocess
 import sys
 
+from run_dynamic_lights_profile import (  # noqa: E402
+    MOVING_MIN_DISPLACEMENT_BLOCKS,
+    STATIONARY_MAX_DISPLACEMENT_BLOCKS,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "build/reports/COMPILER-IR-032-DYNAMIC-LIGHTS-CENSUS"
 INVENTORY = ROOT / "build/reports/COMPILER-IR-032-DYNAMIC-LIGHTS-SOURCE/inventory.json"
@@ -201,9 +206,19 @@ def run_scenario(scenario: str, callees: list[str]) -> dict:
         if not motion or motion.get("scenario") != scenario:
             raise AssertionError("Runtime manifest lacks matched item-motion validation")
         if scenario == "moving" and motion.get("moved_item_count") != 24:
-            raise AssertionError(f"Moving fixture failed to move all 24 items: {motion!r}")
-        if scenario == "stationary" and motion.get("maximum_displacement_blocks", 1) > 0.05:
-            raise AssertionError(f"Stationary fixture unexpectedly moved: {motion!r}")
+            raise AssertionError(
+                "Moving fixture must move all 24 items by at least "
+                f"{MOVING_MIN_DISPLACEMENT_BLOCKS} block: {motion!r}"
+            )
+        if (
+            scenario == "stationary"
+            and motion.get("maximum_displacement_blocks", float("inf"))
+            > STATIONARY_MAX_DISPLACEMENT_BLOCKS
+        ):
+            raise AssertionError(
+                "Stationary fixture exceeded its quarter-block drift bound: "
+                f"{motion!r}"
+            )
 
         census_path = manifest_path.parent / "exec-census.log"
         if not census_path.is_file():
