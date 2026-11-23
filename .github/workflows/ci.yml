@@ -46,3 +46,8 @@ jobs:
         run: |
           python3 -m py_compile scripts/run_dynamic_lights_profile.py scripts/ci_ir032_gate_c.py
           python3 -m unittest discover -s tests -p 'test_ir032_gate_c.py' -v
+
+      - name: Validate IR-033 identical-workload placebo A/A contracts (no Minecraft boot)
+        run: |
+          python3 -m py_compile scripts/ci_ir033_aa_stability.py
+          python3 -m unittest discover -s tests -p 'test_ir033_aa_stability.py' -v
