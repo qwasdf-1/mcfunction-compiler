@@ -468,6 +468,22 @@ def main() -> int:
     ):
         raise ValueError("Macro006 needs shipped selective-macro mode, vm namespace, --no-spark, "
                          "--capture-server-thread-cpu, and no other CPU diagnostics")
+    ir031_mode = os.environ.get("FC_IR031_MODE", "")
+    ir031_enabled = ir031_mode in ("plain", "empty", "timed")
+    if ir031_mode and (
+        not ir031_enabled
+        or os.environ.get("FC_IR031_NAMESPACE") != "vm"
+        or args.stack == "vanilla"
+        or args.compiler_mode != "wrapper"
+        or args.count_command_callbacks
+        or args.capture_jfr_cpu
+        or args.capture_jfr_execution
+        or not args.no_spark
+        or not args.capture_server_thread_cpu
+        or cpu004_enabled or cpu005_enabled or macro006_enabled
+    ):
+        raise ValueError("IR031 requires vm namespace, Fabric wrapper mode, --no-spark, "
+                         "--capture-server-thread-cpu and no other command/JFR diagnostics")
     exec_census_enabled = os.environ.get(
         "FC_COMPILER_EXEC_CENSUS", "").lower() in {"true", "1"}
     if exec_census_enabled and (
@@ -504,6 +520,10 @@ def main() -> int:
         if exec_census_enabled or acceptance_audit_enabled or callback_metrics_enabled:
             raise ValueError("Macro006 needs a standalone boot without any parser/callback census")
         diagnostics.append("sparse CPU006 exact load_next macro instantiation clocks (" + macro006_mode + ")")
+    if ir031_enabled:
+        if exec_census_enabled or acceptance_audit_enabled or callback_metrics_enabled:
+            raise ValueError("IR031 requires a standalone boot without parser/callback census")
+        diagnostics.append("sparse IR031 exact Marker entity result-store setter clocks (" + ir031_mode + ")")
     if callback_metrics_enabled:
         diagnostics.append("command callback counters")
     if selective_macro_metrics_enabled:
@@ -592,6 +612,9 @@ def main() -> int:
     macro006_started = False
     macro006_start_status = None
     macro006_stop_status = None
+    ir031_started = False
+    ir031_start_status = None
+    ir031_stop_status = None
 
     try:
         datapacks = work / "world/datapacks"
@@ -920,6 +943,11 @@ def main() -> int:
             if "FC_CPU005 started mode=" + cpu005_mode not in cpu005_start_status:
                 raise RuntimeError(f"CPU005 failed to start: {cpu005_start_status!r}")
             cpu005_started = True
+        if ir031_enabled:
+            ir031_start_status = rcon.command("function_compiler_probe ir031-start")
+            if "IR031 started mode=" + ir031_mode not in ir031_start_status:
+                raise RuntimeError(f"IR031 failed to start: {ir031_start_status!r}")
+            ir031_started = True
         if cpu004_enabled:
             cpu004_start_status = rcon.command("function_compiler_probe cpu004-start")
             if "FC_CPU004 started mode=" + cpu004_mode not in cpu004_start_status:
@@ -1006,6 +1034,11 @@ def main() -> int:
             if "FC_CPU005 ended mode=" + cpu005_mode not in cpu005_stop_status:
                 raise RuntimeError(f"CPU005 failed to stop: {cpu005_stop_status!r}")
             cpu005_started = False
+        if ir031_started:
+            ir031_stop_status = rcon.command("function_compiler_probe ir031-stop")
+            if "IR031 ended mode=" + ir031_mode not in ir031_stop_status:
+                raise RuntimeError(f"IR031 failed to stop: {ir031_stop_status!r}")
+            ir031_started = False
         if cpu004_started:
             cpu004_stop_status = rcon.command("function_compiler_probe cpu004-stop")
             if "FC_CPU004 ended mode=" + cpu004_mode not in cpu004_stop_status:
@@ -1269,6 +1302,9 @@ def main() -> int:
             "compiler_exec_census_enabled": exec_census_enabled,
             "cpu004_mode": cpu004_mode if cpu004_enabled else None,
             "cpu005_mode": cpu005_mode if cpu005_enabled else None,
+            "ir031_mode": ir031_mode if ir031_enabled else None,
+            "ir031_start_status": ir031_start_status,
+            "ir031_stop_status": ir031_stop_status,
             "macro006_mode": macro006_mode if macro006_enabled else None,
             "macro006_start_status": macro006_start_status,
             "macro006_stop_status": macro006_stop_status,
@@ -1531,6 +1567,11 @@ def main() -> int:
                 rcon.command("function_compiler_probe cpu005-stop")
             except Exception:
                 pass
+        if ir031_started and rcon is not None:
+            try:
+                rcon.command("function_compiler_probe ir031-stop")
+            except Exception:
+                pass
         if cpu004_started and rcon is not None:
             try:
                 rcon.command("function_compiler_probe cpu004-stop")
@@ -1579,6 +1620,15 @@ def main() -> int:
             ]
             (output / "cpu005.log").write_text(
                 "\n".join(cpu_rows) + "\n", encoding="utf-8"
+            )
+        if ir031_enabled and (work / "server.log").is_file():
+            ir031_rows = [
+                line for line in (work / "server.log").read_text(
+                    errors="replace").splitlines()
+                if "FC_IR031_" in line
+            ]
+            (output / "ir031.log").write_text(
+                "\n".join(ir031_rows) + "\n", encoding="utf-8"
             )
         if cpu004_enabled and (work / "server.log").is_file():
             audit_rows = [
