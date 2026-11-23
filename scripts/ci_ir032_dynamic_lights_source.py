@@ -157,8 +157,9 @@ def parse_functions(files: dict[str, tuple[int, bytes, str]]) -> tuple[dict, dic
         tag_calls = []
         scheduled_calls = []
         for line in commands:
-            if line.startswith("schedule function "):
-                scheduled_calls.extend(SCHEDULE_CALL.findall(line))
+            scheduled = SCHEDULE_CALL.findall(line)
+            if scheduled:
+                scheduled_calls.extend(scheduled)
                 continue
             for match in FUNCTION_CALL.finditer(line):
                 target = match.group(1)
