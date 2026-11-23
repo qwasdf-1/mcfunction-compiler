@@ -157,8 +157,11 @@ def check_result(data: dict, scenario: str, jfr: bool) -> dict:
     if jfr:
         if not data.get("jfr_path") or not data.get("jfr_sha256"):
             raise AssertionError("JFR arm produced no profile")
-    elif data.get("jfr_path") is not None:
-        raise AssertionError("Uninstrumented CPU arm has a JFR recording")
+        if data.get("gate_c_jfr_execution_sample_period_ms") != 2:
+            raise AssertionError("JFR retry did not request the preregistered 2ms sampling")
+    elif (data.get("jfr_path") is not None
+          or data.get("gate_c_jfr_execution_sample_period_ms") is not None):
+        raise AssertionError("Uninstrumented CPU arm has a JFR recording or JFR setting")
     return {
         "scenario": scenario, "jfr": jfr, "game_ticks": ticks,
         "server_thread_pid": cpu["server_thread_pid"],
