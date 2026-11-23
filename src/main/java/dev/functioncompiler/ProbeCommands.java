@@ -175,6 +175,10 @@ final class ProbeCommands {
                         CompilerQueueCpuProbe.start(context.getSource())))
                 .then(Commands.literal("cpu005-stop").executes(context ->
                         CompilerQueueCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("ir031-start").executes(context ->
+                        CompilerEntityWritebackProbe.start(context.getSource())))
+                .then(Commands.literal("ir031-stop").executes(context ->
+                        CompilerEntityWritebackProbe.stop(context.getSource())))
                 .then(Commands.literal("cpu020-start").executes(context ->
                         CompilerRestoreCpuProbe.start(context.getSource())))
                 .then(Commands.literal("cpu020-stop").executes(context ->
@@ -237,6 +241,10 @@ final class ProbeCommands {
                         CompilerQueueCpuProbe.start(context.getSource())))
                 .then(Commands.literal("cpu005-stop").executes(context ->
                         CompilerQueueCpuProbe.stop(context.getSource())))
+                .then(Commands.literal("ir031-start").executes(context ->
+                        CompilerEntityWritebackProbe.start(context.getSource())))
+                .then(Commands.literal("ir031-stop").executes(context ->
+                        CompilerEntityWritebackProbe.stop(context.getSource())))
                 .then(Commands.literal("cpu020-start").executes(context ->
                         CompilerRestoreCpuProbe.start(context.getSource())))
                 .then(Commands.literal("cpu020-stop").executes(context ->
