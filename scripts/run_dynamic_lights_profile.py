@@ -31,6 +31,14 @@ from ci_ir032_dynamic_lights_source import (  # noqa: E402
     census as census_dynamic_lights_source,
     execution_census_allowlist,
 )
+from ci_server_event_cpu import (  # noqa: E402
+    cgroup_throttle_count,
+    event_cpu_delta,
+    find_server_thread,
+    parse_tick_query,
+    pre_event_stability,
+    read_thread_schedstat,
+)
 from run_runtime_probe import RconClient, locate_official_server_jar  # noqa: E402
 from run_spawn_animations_profile import (  # noqa: E402
     count_entities,
@@ -472,6 +480,25 @@ def assert_compiler_research_features_disabled(status: str) -> None:
             )
 
 
+def parse_game_time_query(message: str) -> int:
+    """Require the single integer returned by Minecraft 26.3 time query gametime."""
+    values = re.findall(r"(?<![\\d.])\\d+(?![\\d.])", message)
+    if len(values) != 1:
+        raise ValueError(f"Ambiguous gametime query response: {message!r}")
+    return int(values[0])
+
+
+def jcmd_jfr(pid: int, *arguments: str) -> str:
+    result = subprocess.run(
+        ["jcmd", str(pid), *arguments],
+        capture_output=True, text=True, timeout=40, check=False,
+    )
+    message = (result.stdout or "") + (result.stderr or "")
+    if result.returncode != 0:
+        raise RuntimeError(f"JFR {arguments[0]} failed: {message[-2000:]}")
+    return message
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stack", choices=("vanilla", *STACK_MODS), default="vanilla")
@@ -500,6 +527,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--apply-ir032-upstream-hotfix", action="store_true",
         help="Remove the two stale overloadcheck calls deleted by upstream commit b3ea1239.",
+    )
+    parser.add_argument(
+        "--no-spark", action="store_true",
+        help="Do not attach or load Spark; required for IR-032 Gate C CPU and JFR arms.",
+    )
+    parser.add_argument(
+        "--capture-server-thread-cpu", action="store_true",
+        help="Read Linux Server-thread schedstat and cgroup throttling across the measurement.",
+    )
+    parser.add_argument(
+        "--jfr-server-thread", action="store_true",
+        help="Separate descriptive JFR ExecutionSample arm (never a CPU comparison arm).",
     )
     return parser.parse_args()
 
@@ -536,13 +575,26 @@ def main() -> int:
         )
     if args.apply_ir032_upstream_hotfix and args.datapack != "on":
         raise ValueError("--apply-ir032-upstream-hotfix requires --datapack on")
+    if args.no_spark and args.mode != "idle":
+        raise ValueError("--no-spark requires --mode idle")
+    if args.capture_server_thread_cpu or args.jfr_server_thread:
+        if (args.stack != "fabric" or args.wrapper != "on"
+                or args.datapack != "on" or args.mode != "idle"
+                or not args.no_spark or not args.apply_ir032_upstream_hotfix
+                or args.exec_census):
+            raise ValueError("IR-032 Gate C requires Fabric wrapper, patched pack, idle mode, "
+                             "--no-spark and no execution census")
+        if args.jfr_server_thread and not args.capture_server_thread_cpu:
+            raise ValueError("JFR arm requires Server-thread identification via CPU capture")
     if args.exec_census:
+        if args.no_spark:
+            raise ValueError("--exec-census cannot be combined with --no-spark")
         if args.stack == "vanilla" or args.wrapper != "on" or args.datapack != "on" or args.mode != "idle":
             raise ValueError("--exec-census requires --stack fabric --wrapper on --datapack on --mode idle")
         if not args.apply_ir032_upstream_hotfix:
             raise ValueError("--exec-census requires the explicit IR-032 upstream hotfix")
     artifacts = [(PACK, PACK_SHA256, "Dynamic Lights datapack")]
-    if not args.exec_census:
+    if not (args.exec_census or args.no_spark):
         artifacts.append((SPARK_AGENT, SPARK_SHA256, "Spark standalone agent"))
     artifacts.extend(
         (MODS_DIR / MODS[key][0], MODS[key][1], f"{key} mod")
@@ -591,6 +643,14 @@ def main() -> int:
     source_population_before_profile = None
     source_population_after_profile = None
     source_cleanup_responses = {}
+    cpu_measurement = None
+    pre_window_stability = None
+    game_time_before_window = None
+    game_time_after_window = None
+    game_ticks_during_window = None
+    cpu_thread = None
+    jfr_started = False
+    jfr_path = None
     mob_spawning_gamerule_status = None
     daylight_gamerule_status = None
 
@@ -670,15 +730,10 @@ def main() -> int:
             log_path = work / "server.log"
             log_handle = log_path.open("wb")
             if args.stack == "vanilla":
-                server_command = [
-                    "java",
-                    "-Xms1G",
-                    "-Xmx3G",
-                    f"-javaagent:{SPARK_AGENT}=port={spark_port}",
-                    "-jar",
-                    str(server_jar),
-                    "nogui",
-                ]
+                server_command = ["java", "-Xms1G", "-Xmx3G"]
+                if not args.no_spark:
+                    server_command.append(f"-javaagent:{SPARK_AGENT}=port={spark_port}")
+                server_command.extend(["-jar", str(server_jar), "nogui"])
                 server_cwd = work
                 server_environment = None
             else:
@@ -713,6 +768,13 @@ def main() -> int:
                         "FC_TYPED_IR_SINGLETON_FEEDBACK": "false",
                         # Never inherit an ambient census toggle into a non-census run.
                         "FC_COMPILER_EXEC_CENSUS": "true" if args.exec_census else "false",
+                        "FC_COMPILER_ACCEPTANCE_NAMESPACE": "",
+                        "FC_CPU004_MODE": "",
+                        "FC_CPU005_MODE": "",
+                        "FC_MACRO006_MODE": "",
+                        "FC_IR031_MODE": "",
+                        "FC_JFR_CPU_CAPTURE": "false",
+                        "FC_JFR_EXECUTION_CAPTURE": "false",
                         "FC_COMPILER_EXEC_CENSUS_NAMESPACE": (
                             census_allowlist["namespace"] if census_allowlist else ""
                         ),
@@ -728,7 +790,7 @@ def main() -> int:
                     "--no-daemon",
                     f"-PfcRunDirectory={work.relative_to(ROOT).as_posix()}",
                 ]
-                if not args.exec_census:
+                if not (args.exec_census or args.no_spark):
                     gradle_arguments.extend([
                         f"-PfcSparkAgentPath={SPARK_AGENT}",
                         f"-PfcSparkPort={spark_port}",
@@ -927,6 +989,27 @@ def main() -> int:
             item_positions_before = {
                 index: entity_position(rcon, index) for index in range(ITEM_COUNT)
             }
+            if args.capture_server_thread_cpu:
+                # Pre-intervention host gate; no outcome-based retry or exclusion.
+                baseline_raw = rcon.command("tick query")
+                pre_window_stability = pre_event_stability(parse_tick_query(baseline_raw))
+                if not pre_window_stability["stable"]:
+                    raise RuntimeError(f"IR-032 pre-window host instability: {pre_window_stability!r}")
+                cpu_thread = find_server_thread(server.pid)
+                if args.jfr_server_thread:
+                    jfr_path = output_dir / "dynamic-lights-ir032-gate-c.jfr"
+                    output = jcmd_jfr(
+                        cpu_thread[0], "JFR.start", "name=IR032GateC",
+                        "settings=profile", "disk=true", "dumponexit=false",
+                        "maxage=3m", "maxsize=128m",
+                    )
+                    if "Started recording" not in output:
+                        raise RuntimeError(f"JFR did not confirm start: {output!r}")
+                    jfr_started = True
+                game_time_before_window = parse_game_time_query(
+                    rcon.command("time query gametime"))
+                cpu_before = read_thread_schedstat(*cpu_thread)
+                throttle_before = cgroup_throttle_count()
             if args.exec_census:
                 exec_census_start_status = rcon.command("function_compiler_probe exec-census-start")
                 if "FC_EXEC started" not in exec_census_start_status:
@@ -939,6 +1022,9 @@ def main() -> int:
                     raise RuntimeError(
                         f"Function execution census did not stop: {exec_census_stop_status!r}")
                 exec_census_started = False
+                spark_output = ""
+            elif args.no_spark:
+                time.sleep(args.seconds)
                 spark_output = ""
             else:
                 spark_password = wait_for_spark_password(log_path, server)
@@ -967,6 +1053,32 @@ def main() -> int:
                 else:
                     spark_output = stop_spark_shell(ssh)
                     ssh = None
+            if args.capture_server_thread_cpu:
+                assert cpu_thread is not None
+                cpu_after = read_thread_schedstat(*cpu_thread)
+                throttle_after = cgroup_throttle_count()
+                game_time_after_window = parse_game_time_query(
+                    rcon.command("time query gametime"))
+                game_ticks_during_window = game_time_after_window - game_time_before_window
+                if game_ticks_during_window < 1:
+                    raise RuntimeError("GameTime did not advance during Dynamic Lights measurement")
+                cpu_measurement = event_cpu_delta(
+                    cpu_before, cpu_after, throttle_before, throttle_after)
+                cpu_measurement["game_ticks_during_window"] = game_ticks_during_window
+                cpu_measurement["server_thread_cpu_ns_per_game_tick"] = (
+                    cpu_measurement["server_thread_cpu_running_ns"] / game_ticks_during_window)
+                if not cpu_measurement["host_quality_pass"]:
+                    raise RuntimeError(f"IR-032 Gate C host-quality screen failed: {cpu_measurement!r}")
+            if jfr_started:
+                assert cpu_thread is not None and jfr_path is not None
+                stop_output = jcmd_jfr(
+                    cpu_thread[0], "JFR.stop", "name=IR032GateC",
+                    f"filename={jfr_path.resolve()}")
+                jfr_started = False
+                if "Stopped recording" not in stop_output:
+                    raise RuntimeError(f"JFR did not confirm stop: {stop_output!r}")
+                if not jfr_path.is_file() or jfr_path.stat().st_size <= 0:
+                    raise RuntimeError("IR-032 JFR artifact missing or empty")
             profile_path: Path | None = None
             if args.mode != "idle":
                 profile_files = list(work.rglob("*.sparkprofile"))
@@ -1140,8 +1252,8 @@ def main() -> int:
                     str(runtime_pack.relative_to(ROOT))
                     if runtime_pack_patch else None
                 ),
-                "spark": None if args.exec_census else "1.10.194 standalone-agent",
-                "spark_sha256": None if args.exec_census else SPARK_SHA256,
+                "spark": None if args.exec_census or args.no_spark else "1.10.194 standalone-agent",
+                "spark_sha256": None if args.exec_census or args.no_spark else SPARK_SHA256,
                 "mods": {
                     mod_key: {"file": MODS[mod_key][0], "sha256": MODS[mod_key][1]}
                     for mod_key in STACK_MODS.get(args.stack, ())
@@ -1214,7 +1326,17 @@ def main() -> int:
                 "source_population_after_profile": source_population_after_profile,
                 "first_source_light_level_score": first_source_score,
                 "profile_seconds": args.seconds,
-                "spark_sampling": None if args.exec_census else {
+                "gate_c_cpu_capture_enabled": args.capture_server_thread_cpu,
+                "gate_c_jfr_capture_enabled": args.jfr_server_thread,
+                "pre_window_host_stability": pre_window_stability,
+                "game_time_before_window": game_time_before_window,
+                "game_time_after_window": game_time_after_window,
+                "game_ticks_during_window": game_ticks_during_window,
+                "server_thread_cpu": cpu_measurement,
+                "jfr_path": str(jfr_path.relative_to(ROOT)) if jfr_path else None,
+                "jfr_sha256": sha256(jfr_path) if jfr_path else None,
+                "jfr_bytes": jfr_path.stat().st_size if jfr_path else None,
+                "spark_sampling": None if args.exec_census or args.no_spark else {
                     "cpu_interval_ms": 4,
                     "cpu_thread_scope": "all threads",
                     "allocation_interval_bytes": 524287,
@@ -1275,6 +1397,8 @@ def main() -> int:
             "failure": str(error),
             "scenario": args.scenario,
             "item_motion_summary": item_motion_summary,
+            "pre_window_host_stability": pre_window_stability,
+            "server_thread_cpu": cpu_measurement,
             "source_population_before_profile": source_population_before_profile,
             "source_population_after_profile": source_population_after_profile,
             "source_cleanup_responses": source_cleanup_responses,
@@ -1288,6 +1412,11 @@ def main() -> int:
         (output_dir / "failure.json").write_text(json.dumps(failure, indent=2) + "\n", encoding="utf-8")
         raise RuntimeError(f"{error}\nFiltered server diagnostics:\n{excerpt}") from error
     finally:
+        if jfr_started and cpu_thread is not None:
+            try:
+                jcmd_jfr(cpu_thread[0], "JFR.stop", "name=IR032GateC")
+            except Exception:
+                pass
         if ssh is not None and ssh.poll() is None:
             try:
                 if ssh.stdin is not None:
