@@ -763,17 +763,20 @@ def main() -> int:
             if args.exec_census:
                 log_handle.flush()
                 census_lines = []
-                for candidate_log in (log_path, work / "logs" / "latest.log"):
-                    if candidate_log.is_file():
-                        census_lines.extend(
-                            line for line in candidate_log.read_text(
-                                encoding="utf-8", errors="replace"
-                            ).splitlines() if "FC_EXEC_" in line
-                        )
-                census_lines = list(dict.fromkeys(census_lines))
-                if not any("FC_EXEC_BEGIN" in line for line in census_lines) or not any(
-                    "FC_EXEC_END" in line for line in census_lines
-                ):
+                for candidate_log in (work / "logs" / "latest.log", log_path):
+                    if not candidate_log.is_file():
+                        continue
+                    candidate_lines = [
+                        line for line in candidate_log.read_text(
+                            encoding="utf-8", errors="replace"
+                        ).splitlines() if "FC_EXEC_" in line
+                    ]
+                    if any("FC_EXEC_BEGIN" in line for line in candidate_lines) and any(
+                        "FC_EXEC_END" in line for line in candidate_lines
+                    ):
+                        census_lines = candidate_lines
+                        break
+                if not census_lines:
                     raise RuntimeError("Function execution census log boundaries are missing")
                 (output_dir / "exec-census.log").write_text(
                     "\n".join(census_lines) + "\n", encoding="utf-8")
@@ -791,6 +794,14 @@ def main() -> int:
                         "Runtime census callee allowlist drift: "
                         f"{census_summary['callees']} != {len(census_allowlist['callees'])}"
                     )
+                observed_callees = {
+                    row["function"] for row in exec_census_results["callee_rows"]
+                }
+                if observed_callees != set(census_allowlist["callees"]):
+                    raise RuntimeError("Runtime census callee IDs differ from the source-derived allowlist")
+                observed_targets = set(exec_census_results["per_function"])
+                if not observed_targets.issubset(set(census_allowlist["functions"])):
+                    raise RuntimeError("Runtime census emitted a function outside the source-derived target allowlist")
                 if census_summary["sites"] > census_allowlist["static_site_upper_bound"]:
                     raise RuntimeError(
                         "Runtime census sites exceed static source upper bound: "
