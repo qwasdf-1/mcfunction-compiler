@@ -41,3 +41,8 @@ jobs:
 
       - name: Run unit and doc hygiene tests
         run: PYTHONPATH=. uv run --with pytest pytest tests/test_doc_hygiene.py tests/test_config_flag_semantics.py
+
+      - name: Validate IR-032 Gate C Python contracts (no Minecraft boot)
+        run: |
+          python3 -m py_compile scripts/run_dynamic_lights_profile.py scripts/ci_ir032_gate_c.py
+          python3 -m unittest discover -s tests -p 'test_ir032_gate_c.py' -v
