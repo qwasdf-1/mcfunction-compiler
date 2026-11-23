@@ -724,6 +724,22 @@ def main() -> int:
                 exec_census_results = parse_exec_census_lines(
                     census_lines, census_allowlist["namespace"]
                 )
+                census_summary = exec_census_results["summary"]
+                if census_summary["targets"] != len(census_allowlist["functions"]):
+                    raise RuntimeError(
+                        "Runtime census target allowlist drift: "
+                        f"{census_summary['targets']} != {len(census_allowlist['functions'])}"
+                    )
+                if census_summary["callees"] != len(census_allowlist["callees"]):
+                    raise RuntimeError(
+                        "Runtime census callee allowlist drift: "
+                        f"{census_summary['callees']} != {len(census_allowlist['callees'])}"
+                    )
+                if census_summary["sites"] > census_allowlist["static_site_upper_bound"]:
+                    raise RuntimeError(
+                        "Runtime census sites exceed static source upper bound: "
+                        f"{census_summary['sites']} > {census_allowlist['static_site_upper_bound']}"
+                    )
                 (output_dir / "exec-census.json").write_text(
                     json.dumps(exec_census_results, indent=2) + "\n", encoding="utf-8")
 
