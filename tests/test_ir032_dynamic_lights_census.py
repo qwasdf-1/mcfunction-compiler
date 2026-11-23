@@ -2,6 +2,7 @@
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -17,6 +18,7 @@ from run_dynamic_lights_profile import (
     data_modify_succeeded,
     entity_position,
     item_motion,
+    purge_post_warmup_non_fixture_items,
     summarize_item_displacements,
 )
 
@@ -60,6 +62,30 @@ class IR032DynamicLightsRunnerTests(unittest.TestCase):
                 "glow_squids": 0, "allays": 0, "enchanted_armor": 0,
             },
         }
+
+    def test_post_warmup_cleanup_only_targets_untagged_drops(self):
+        rcon = FakeRcon("Killed 14 entities")
+        with patch("run_dynamic_lights_profile.count_entities", side_effect=[14, 0]) as counts:
+            result = purge_post_warmup_non_fixture_items(rcon, "fc_test")
+        self.assertEqual(result["untracked_items_removed_before_measurement"], 14)
+        self.assertEqual(result["untracked_items_remaining"], 0)
+        self.assertEqual(rcon.command_seen, "kill @e[type=minecraft:item,tag=!fc_dl]")
+        self.assertEqual(counts.call_count, 2)
+        self.assertTrue(result["cleanup_only_before_measurement"])
+
+    def test_post_warmup_cleanup_skips_kill_when_clean(self):
+        rcon = FakeRcon("No entity was found")
+        with patch("run_dynamic_lights_profile.count_entities", side_effect=[0, 0]):
+            result = purge_post_warmup_non_fixture_items(rcon, "fc_test")
+        self.assertIsNone(result["kill_response"])
+        self.assertEqual(result["untracked_items_removed_before_measurement"], 0)
+        self.assertFalse(hasattr(rcon, "command_seen"))
+
+    def test_post_warmup_cleanup_rejects_remaining_stray_items(self):
+        rcon = FakeRcon("Killed 14 entities")
+        with patch("run_dynamic_lights_profile.count_entities", side_effect=[14, 1]):
+            with self.assertRaisesRegex(RuntimeError, "Untracked dropped items remain"):
+                purge_post_warmup_non_fixture_items(rcon, "fc_test")
 
     def test_clean_source_population_accepts_only_fixture_players_and_torches(self):
         assert_clean_dynamic_lights_population(self.clean_source_population())
