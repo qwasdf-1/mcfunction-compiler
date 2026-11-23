@@ -157,6 +157,76 @@ def data_modify_succeeded(response: str) -> bool:
     return "modified" in normalized or "nothing changed" in normalized
 
 
+def dynamic_lights_source_population(rcon: RconClient, objective: str) -> dict:
+    """Count every entity category that can add work to the Smart preset."""
+    def count(selector: str) -> int:
+        return count_entities(rcon, "#fc_population", objective, selector)
+
+    holder_types = {
+        "players": count("@e[type=minecraft:player]"),
+        "zombies": count("@e[type=minecraft:zombie]"),
+        "husks": count("@e[type=minecraft:husk]"),
+        "foxes": count("@e[type=minecraft:fox]"),
+        "zombie_villagers": count("@e[type=minecraft:zombie_villager]"),
+        "allays": count("@e[type=minecraft:allay]"),
+    }
+    return {
+        "item_entities": count("@e[type=minecraft:item]"),
+        "holder_entities": count(
+            "@e[type=#dynamic_lights_by_creepermeyt:can_hold_dynbc]"
+        ),
+        "holder_entities_by_type": holder_types,
+        "other_light_sources": {
+            "on_fire": count(
+                "@e[type=!#dynamic_lights_by_creepermeyt:cannot_be_on_fire,"
+                "predicate=dynamic_lights_by_creepermeyt:on_fire]"
+            ),
+            "tnt": count("@e[type=minecraft:tnt]"),
+            "glowing": count(
+                "@e[type=!#dynamic_lights_by_creepermeyt:cannot_be_on_fire,"
+                "predicate=dynamic_lights_by_creepermeyt:is_glowing]"
+            ),
+            "glow_squids": count("@e[type=minecraft:glow_squid]"),
+            "allays": count("@e[type=#dynamic_lights_by_creepermeyt:allay]"),
+            "enchanted_armor": count(
+                "@e[type=#dynamic_lights_by_creepermeyt:can_wear_armor,"
+                "predicate=!dynamic_lights_by_creepermeyt:no_armor_enchantment]"
+            ),
+        },
+    }
+
+
+def assert_clean_dynamic_lights_population(population: dict) -> None:
+    expected_holders = {
+        "players": PLAYER_COUNT,
+        "zombies": 0,
+        "husks": 0,
+        "foxes": 0,
+        "zombie_villagers": 0,
+        "allays": 0,
+    }
+    if population["item_entities"] != ITEM_COUNT:
+        raise RuntimeError(
+            f"Dynamic Lights fixture expected exactly {ITEM_COUNT} dropped items: {population!r}"
+        )
+    if population["holder_entities_by_type"] != expected_holders:
+        raise RuntimeError(
+            f"Dynamic Lights fixture contains uncontrolled holder entities: {population!r}"
+        )
+    if population["holder_entities"] != PLAYER_COUNT:
+        raise RuntimeError(
+            f"Dynamic Lights holder selector expected exactly {PLAYER_COUNT} players: {population!r}"
+        )
+    unexpected_sources = {
+        name: count for name, count in population["other_light_sources"].items()
+        if count != 0
+    }
+    if unexpected_sources:
+        raise RuntimeError(
+            f"Dynamic Lights fixture contains non-torch light sources: {unexpected_sources!r}"
+        )
+
+
 def entity_position(rcon: RconClient, index: int) -> tuple[float, float, float]:
     selector = f"@e[type=minecraft:item,tag=fc_dl_{index},limit=1]"
     response = rcon.command(f"data get entity {selector} Pos")
@@ -474,6 +544,10 @@ def main() -> int:
     exec_census_results = None
     item_motion_summary = None
     item_displacements = None
+    source_population_before_profile = None
+    source_population_after_profile = None
+    source_cleanup_responses = {}
+    mob_spawning_gamerule_status = None
 
     try:
         with create_workdir(args.stack, run_id) as work:
@@ -665,6 +739,11 @@ def main() -> int:
                 rcon.command("scoreboard players set p dynbclevel 2")
             rcon.command("gamerule doDaylightCycle false")
             rcon.command("gamerule doMobSpawning false")
+            mob_spawning_gamerule_status = rcon.command("gamerule doMobSpawning")
+            if "false" not in mob_spawning_gamerule_status.casefold():
+                raise RuntimeError(
+                    f"Natural mob spawning was not disabled: {mob_spawning_gamerule_status!r}"
+                )
             rcon.command("time set midnight")
             forced_chunks = rcon.command("forceload add -16 -16 256 32")
             if not any(word in forced_chunks.casefold() for word in ("added", "marked")):
@@ -672,6 +751,16 @@ def main() -> int:
             floor = rcon.command("fill -16 63 -16 256 63 32 minecraft:stone")
             if not any(word in floor.casefold() for word in ("changed", "successfully filled")):
                 raise RuntimeError(f"Could not create the fixed test platform: {floor!r}")
+
+            source_cleanup_responses = {
+                "non_player_non_item_non_marker": rcon.command(
+                    "kill @e[type=!minecraft:player,type=!minecraft:item,type=!minecraft:marker]"
+                ),
+                "preexisting_item_entities": rcon.command("kill @e[type=minecraft:item]"),
+                "preexisting_dynamic_light_markers": rcon.command(
+                    "kill @e[type=minecraft:marker,tag=dynbc]"
+                ),
+            }
 
             for index, name in enumerate(player_names):
                 bots.append(PlayerBot(name, SERVER_HOST, server_port, packet_ids).connect())
@@ -763,6 +852,10 @@ def main() -> int:
                     "Dynamic Lights did not recognize every torch source before profiling: "
                     f"direct={torch_sources}, predicate={torch_sources_by_predicate}"
                 )
+            source_population_before_profile = dynamic_lights_source_population(
+                rcon, tracking_objective
+            )
+            assert_clean_dynamic_lights_population(source_population_before_profile)
 
             if args.scenario == "stationary":
                 for index in range(ITEM_COUNT):
@@ -932,13 +1025,17 @@ def main() -> int:
                 "@e[type=item,tag=fc_dl]",
                 "dynbc.torch",
             )
+            source_population_after_profile = dynamic_lights_source_population(
+                rcon, tracking_objective
+            )
+            assert_clean_dynamic_lights_population(source_population_after_profile)
             markers_after = count_entities(
                 rcon, "#fc_markers", tracking_objective, "@e[type=marker,tag=dynbc]"
             )
             dynamic_lights_tick_state = (
                 {
                     holder: rcon.command(f"scoreboard players get {holder} dynbclevel")
-                    for holder in ("k", "-", "p")
+                    for holder in ("k", "-", "p", "f", "t", "g", "s", "a", "e")
                 }
                 if args.datapack == "on"
                 else None
@@ -1057,6 +1154,10 @@ def main() -> int:
                 "dynamic_light_markers_after_profile": markers_after,
                 "dynamic_light_marker_delta": markers_after - marker_count,
                 "dynamic_lights_tick_state_after_profile": dynamic_lights_tick_state,
+                "mob_spawning_gamerule_status": mob_spawning_gamerule_status,
+                "source_cleanup_responses": source_cleanup_responses,
+                "source_population_before_profile": source_population_before_profile,
+                "source_population_after_profile": source_population_after_profile,
                 "first_source_light_level_score": first_source_score,
                 "profile_seconds": args.seconds,
                 "spark_sampling": None if args.exec_census else {
@@ -1120,6 +1221,10 @@ def main() -> int:
             "failure": str(error),
             "scenario": args.scenario,
             "item_motion_summary": item_motion_summary,
+            "source_population_before_profile": source_population_before_profile,
+            "source_population_after_profile": source_population_after_profile,
+            "source_cleanup_responses": source_cleanup_responses,
+            "mob_spawning_gamerule_status": mob_spawning_gamerule_status,
             "item_displacements_blocks": (
                 {str(index): distance for index, distance in sorted(item_displacements.items())}
                 if item_displacements is not None else None
