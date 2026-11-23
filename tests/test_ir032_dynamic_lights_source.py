@@ -11,29 +11,32 @@ from ci_ir032_dynamic_lights_source import (
     build_reachable,
     logical_pack_files,
     parse_functions,
-    selected_overlay,
+    selected_overlays,
 )
 
 
 class IR032DynamicLightsSourceTests(unittest.TestCase):
-    def test_selects_exact_26_3_overlay(self):
+    def test_selects_all_applicable_26_3_overlays_in_declared_order(self):
         meta = {
             "overlays": {"entries": [
+                {"directory": "pack_1_21_6", "formats": {
+                    "min_inclusive": 80, "max_inclusive": 121}},
                 {"directory": "pack_26_2", "formats": {
                     "min_inclusive": 105, "max_inclusive": 120}},
                 {"directory": "pack_26_3", "formats": {
                     "min_inclusive": 121, "max_inclusive": 121}},
             ]}
         }
-        self.assertEqual(selected_overlay(meta), "pack_26_3")
+        self.assertEqual(
+            selected_overlays(meta), ["pack_1_21_6", "pack_26_3"])
 
-    def test_rejects_ambiguous_26_3_overlay(self):
+    def test_rejects_missing_26_3_overlay(self):
         meta = {"overlays": {"entries": [
-            {"directory": "a", "formats": 121},
-            {"directory": "b", "formats": 121},
+            {"directory": "pack_26_2", "formats": {
+                "min_inclusive": 105, "max_inclusive": 120}},
         ]}}
-        with self.assertRaisesRegex(AssertionError, "exactly one"):
-            selected_overlay(meta)
+        with self.assertRaisesRegex(AssertionError, "No Minecraft"):
+            selected_overlays(meta)
 
     def test_selected_overlay_replaces_base_function(self):
         stream = io.BytesIO()
@@ -42,7 +45,7 @@ class IR032DynamicLightsSourceTests(unittest.TestCase):
             archive.writestr("pack_26_3/data/test/function/a.mcfunction", "say overlay\n")
         stream.seek(0)
         with zipfile.ZipFile(stream) as archive:
-            files = logical_pack_files(archive, "pack_26_3")
+            files = logical_pack_files(archive, ["pack_1_21_6", "pack_26_3"])
         self.assertEqual(files["data/test/function/a.mcfunction"][1], b"say overlay\n")
         self.assertEqual(files["data/test/function/a.mcfunction"][0], 1)
 
