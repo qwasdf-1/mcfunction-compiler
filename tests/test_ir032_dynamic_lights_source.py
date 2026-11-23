@@ -1,13 +1,19 @@
 """IR-032 exact pack overlay, singular 26.3 paths, and recurring tick graph tests."""
+import hashlib
 import io
 import json
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import ci_ir032_dynamic_lights_source as source_audit
+
 from ci_ir032_dynamic_lights_source import (
+    apply_ir032_runtime_hotfix,
     build_reachable,
     logical_pack_files,
     parse_functions,
@@ -79,6 +85,38 @@ class IR032DynamicLightsSourceTests(unittest.TestCase):
         graph = build_reachable(functions, tags)
         self.assertIn("test:.toggle", graph["tick_reachable_functions"])
         self.assertEqual(functions["test:.toggle"]["commands"], 1)
+
+    def test_runtime_hotfix_removes_only_deleted_overloadcheck_call(self):
+        target_paths = (
+            "data/dynamic_lights_by_creepermeyt/function/internal/tick.mcfunction",
+            "data/dynamic_lights_by_creepermeyt/functions/internal/tick.mcfunction",
+        )
+        original = (
+            b"scoreboard players set k dynbclevel -1\n"
+            b"function dynamic_lights_by_creepermeyt:internal/util/overloadcheck\n"
+            b"scoreboard players set k dynbclevel -2\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "publisher.zip"
+            output = Path(temporary) / "runtime-patched.zip"
+            with zipfile.ZipFile(source, "w") as archive:
+                for name in target_paths:
+                    archive.writestr(name, original)
+                archive.writestr("unrelated.txt", b"unchanged\n")
+            source_digest = source_audit.sha256_file(source)
+            with patch.object(source_audit, "PACK_SHA256", source_digest):
+                manifest = apply_ir032_runtime_hotfix(source, output)
+
+            self.assertEqual(manifest["patch_id"], "ir032-remove-obsolete-overloadcheck-call")
+            self.assertEqual(manifest["removed_call_count"], 2)
+            self.assertEqual(source_audit.sha256_file(source), source_digest)
+            with zipfile.ZipFile(output) as archive:
+                for name in target_paths:
+                    content = archive.read(name)
+                    self.assertNotIn(b"overloadcheck", content)
+                    self.assertIn(b"scoreboard players set k dynbclevel -1", content)
+                    self.assertIn(b"scoreboard players set k dynbclevel -2", content)
+                self.assertEqual(archive.read("unrelated.txt"), b"unchanged\n")
 
     def test_runtime_census_allowlist_is_namespace_and_capacity_bounded(self):
         stale_call = {
