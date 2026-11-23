@@ -7,8 +7,11 @@ import argparse
 from contextlib import contextmanager
 import hashlib
 import json
+import math
 import os
+import re
 import secrets
+import statistics
 import shutil
 import socket
 import subprocess
@@ -221,7 +224,8 @@ def main() -> int:
         raise RuntimeError(f"Minecraft 26.3 server jar hash mismatch: {server_jar}")
 
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + secrets.token_hex(3)
-    output_dir = OUTPUT_ROOT / f"dynamic-lights-{args.stack}-pack-{args.datapack}-{args.wrapper}-{args.mode}-{args.scenario}-{run_id}"
+    census_suffix = "-exec-census" if args.exec_census else ""
+    output_dir = OUTPUT_ROOT / f"dynamic-lights-{args.stack}-pack-{args.datapack}-{args.wrapper}-{args.mode}-{args.scenario}{census_suffix}-{run_id}"
     output_dir.mkdir(parents=True, exist_ok=False)
     server_port, rcon_port, spark_port = reserve_free_ports(3)
     password = secrets.token_urlsafe(24)
@@ -573,8 +577,15 @@ def main() -> int:
 
             if args.exec_census:
                 log_handle.flush()
-                server_log_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
-                census_lines = [line for line in server_log_lines if "FC_EXEC_" in line]
+                census_lines = []
+                for candidate_log in (log_path, work / "logs" / "latest.log"):
+                    if candidate_log.is_file():
+                        census_lines.extend(
+                            line for line in candidate_log.read_text(
+                                encoding="utf-8", errors="replace"
+                            ).splitlines() if "FC_EXEC_" in line
+                        )
+                census_lines = list(dict.fromkeys(census_lines))
                 if not any("FC_EXEC_BEGIN" in line for line in census_lines) or not any(
                     "FC_EXEC_END" in line for line in census_lines
                 ):
@@ -680,8 +691,13 @@ def main() -> int:
                 "connected_players": players_online,
                 "spark_shell_output": spark_output,
                 "limitations": [
-                    "One run only; repeat distribution is not established.",
-                    "No Function Compiler optimization or exact per-function timer is active.",
+                    "One run per scenario; repeat distribution is not established.",
+                    (
+                        "Function Compiler execution census is diagnostic counts only; "
+                        "no optimization or CPU timing is active."
+                        if args.exec_census else
+                        "No Function Compiler optimization or exact per-function timer is active."
+                    ),
                 ],
             }
             (output_dir / "results.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
