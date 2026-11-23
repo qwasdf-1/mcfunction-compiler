@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from player_bot import PacketIds, PlayerBot  # noqa: E402
 from mod_artifacts import MODS, MODS_DIR, STACK_MODS  # noqa: E402
 from ci_ir032_dynamic_lights_source import (  # noqa: E402
+    apply_ir032_runtime_hotfix,
     census as census_dynamic_lights_source,
     execution_census_allowlist,
 )
@@ -337,6 +338,10 @@ def parse_args() -> argparse.Namespace:
         "--exec-census", action="store_true",
         help="Run the explicit Function Compiler execution census with Spark sampling disabled.",
     )
+    parser.add_argument(
+        "--apply-ir032-upstream-hotfix", action="store_true",
+        help="Remove the two stale overloadcheck calls deleted by upstream commit b3ea1239.",
+    )
     return parser.parse_args()
 
 
@@ -365,9 +370,18 @@ def main() -> int:
         raise ValueError("--wrapper on is available only for Fabric server stacks")
     if args.datapack == "off" and args.wrapper == "on":
         raise ValueError("--wrapper on is not part of the datapack on/off workload control")
+    if args.datapack == "on" and not args.apply_ir032_upstream_hotfix:
+        raise ValueError(
+            "Pinned Dynamic Lights v1.4.6 contains a stale unconditional overloadcheck call; "
+            "pass --apply-ir032-upstream-hotfix for the documented benchmark-only correction"
+        )
+    if args.apply_ir032_upstream_hotfix and args.datapack != "on":
+        raise ValueError("--apply-ir032-upstream-hotfix requires --datapack on")
     if args.exec_census:
         if args.stack == "vanilla" or args.wrapper != "on" or args.datapack != "on" or args.mode != "idle":
             raise ValueError("--exec-census requires --stack fabric --wrapper on --datapack on --mode idle")
+        if not args.apply_ir032_upstream_hotfix:
+            raise ValueError("--exec-census requires the explicit IR-032 upstream hotfix")
     artifacts = [(PACK, PACK_SHA256, "Dynamic Lights datapack")]
     if not args.exec_census:
         artifacts.append((SPARK_AGENT, SPARK_SHA256, "Spark standalone agent"))
@@ -392,6 +406,11 @@ def main() -> int:
     census_suffix = "-exec-census" if args.exec_census else ""
     output_dir = OUTPUT_ROOT / f"dynamic-lights-{args.stack}-pack-{args.datapack}-{args.wrapper}-{args.mode}-{args.scenario}{census_suffix}-{run_id}"
     output_dir.mkdir(parents=True, exist_ok=False)
+    runtime_pack = PACK
+    runtime_pack_patch = None
+    if args.apply_ir032_upstream_hotfix:
+        runtime_pack = output_dir / "dynamic-lights-ir032-runtime-patched.zip"
+        runtime_pack_patch = apply_ir032_runtime_hotfix(PACK, runtime_pack)
     server_port, rcon_port, spark_port = reserve_free_ports(3)
     password = secrets.token_urlsafe(24)
     player_names = [f"DLight{i:02d}" for i in range(1, PLAYER_COUNT + 1)]
@@ -434,7 +453,7 @@ def main() -> int:
             datapacks = work / "world" / "datapacks"
             datapacks.mkdir(parents=True)
             if args.datapack == "on":
-                shutil.copy2(PACK, datapacks / "dynamic-lights.zip")
+                shutil.copy2(runtime_pack, datapacks / "dynamic-lights.zip")
             probe_pack = datapacks / "function_compiler_probe"
             shutil.copytree(ROOT / "src" / "main" / "resources" / "data", probe_pack / "data")
             (probe_pack / "pack.mcmeta").write_text(
@@ -912,6 +931,15 @@ def main() -> int:
                 "function_compiler_probe_status": compiler_probe_status,
                 "minecraft": "26.3 official server" if args.stack == "vanilla" else "26.3 Fabric Loom development server",
                 "server_jar_sha256": sha256(server_jar),
+                "publisher_archive_sha256": PACK_SHA256 if args.datapack == "on" else None,
+                "runtime_pack_sha256": (
+                    runtime_pack_patch["runtime_pack_sha256"]
+                    if runtime_pack_patch else None
+                ),
+                "runtime_pack_is_publisher_byte_exact": (
+                    runtime_pack_patch is None if args.datapack == "on" else None
+                ),
+                "runtime_pack_patch": runtime_pack_patch,
                 "spark": None if args.exec_census else "1.10.194 standalone-agent",
                 "spark_sha256": None if args.exec_census else SPARK_SHA256,
                 "mods": {
@@ -935,6 +963,8 @@ def main() -> int:
                         "function_count": len(census_allowlist["functions"]),
                         "callee_count": len(census_allowlist["callees"]),
                         "static_site_upper_bound": census_allowlist["static_site_upper_bound"],
+                        "required_runtime_hotfixes": census_allowlist["required_runtime_hotfixes"],
+                        "known_missing_references": census_allowlist["known_missing_references"],
                     } if census_allowlist else None
                 ),
                 "exec_census_log": str((output_dir / "exec-census.log").relative_to(ROOT))
