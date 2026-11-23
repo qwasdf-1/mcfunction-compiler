@@ -1,9 +1,13 @@
 name: COMPILER-IR-033 no-treatment A/A CPU measurement stability
 
-# Bounded expensive native study, manual-only by design.
+# One-shot controlled IR-033 A/A research trigger.
+# Restore manual-only configuration immediately after run is created.
 # Not a compilation or speedup benchmark. A and B are placebo labels.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - work/compiler-coverage
 
 permissions:
   contents: read
