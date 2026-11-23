@@ -32,6 +32,33 @@ Treat IR-033 as an infrastructure capstone, not a continuing optimization series
 
 The milestone is implemented in `scripts/ci_ir033_aa_stability.py`, tested by `tests/test_ir033_aa_stability.py`, and launched through `.github/workflows/research-ir033-aa-stability.yml`. The final workflow is manual-only. No production defaults are changed and draft PR #10 stays unmerged.
 
-## Results
+## Results — first bounded native campaign rejected (2026-11-23)
 
-**PENDING native measurement.** This section is deliberately blank of observations at the time of preregistration; the exact result and artifact link must be appended after the bounded run, whether accepted or rejected.
+[GitHub Actions run #45283502793](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45283502793); [complete source/manifests/logs artifact #14869279942](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45283502793/artifacts/14869279942). Six real Fabric JVMs finished and produced all data. IR-033 precommitted schema tests, pinned source preflight, and Java 25 build succeeded. The runner exited with failure on the independent **no-treatment CPU stability screen** after writing and archiving the full JSON report.
+
+| Exact same uninstrumented stationary workload | CPU ns / observed tick | Tick count |
+| --- | ---: | ---: |
+| A1 | 2,064,177 | 1,200 |
+| B1 | 1,798,211 | 1,200 |
+| B2 | 1,954,088 | 1,200 |
+| A2 | 2,094,982 | 1,200 |
+| A3 | 2,535,003 | 1,200 |
+| B3 | 2,270,142 | 1,201 |
+
+A/B labels were entirely placebo; **neither label enabled compiler optimizations**. There is no causal treatment.
+
+| Predeclared screen | Result | Admission threshold | Status |
+| --- | ---: | ---: | --- |
+| Pseudo-B median / pseudo-A median - 1 | **-6.7253%** | Absolute <= 5% | FAIL |
+| Adjacent-pair relative spread A1/B1 | 13.7721% | <= 8% | FAIL |
+| Adjacent-pair relative spread B2/A2 | 6.9593% | <= 8% | Pass individually |
+| Adjacent-pair relative spread A3/B3 | 11.0241% | <= 8% | FAIL |
+| Full six-run CPU range relative to mean | **34.7636%** | <= 10% | FAIL |
+
+All original benchmark-correction hashes and exact entities/holders passed the IR-032 inherited validation; all host-quality gates passed. The observed game-time window was within the predeclared 1120–1260 ticks in every arm. The original logs/JSON record `cgroup_nr_throttled_delta = 0` for every arm, with Server-thread runqueue wait fractions 0.053%–0.234% (not a host-throttle explanation). The pre-window idle 100-tick snapshots varied (mean MSPT 2.0–3.2 ms) but were all below the accepted stability admission limits; such baseline variation cannot retroactively be used to select subsets. Warmup elapsed times also varied (14–21 seconds) and JIT/GC lifecycle were not independently controlled. These differences are **possible investigation leads**, not established causes.
+
+**Conclusion: IR-033 A/A STABILITY REJECTED / CLOSED.** Longer 60-second identical workload windows did not qualify the host/fixture for measuring small effect sizes. A wholly fictitious placebo difference of -6.73% was observed despite no compiler-mode change. This is not a compiler speedup and it is not evidence the compiler is ineffective. Do not use this setup to promote new 5–15% CPU effects.
+
+**Decision:** No post-hoc extra A/A attempts, no tightened or loosened thresholds, and no third IR-032 movement-specific optimization investigation. This closes the bounded stability study. A future separately scoped study may isolate per-JVM warmup/JIT/GC or host differences, or adopt a more internally paired design, but should not become the default workstream. Prioritize building reusable typed-IR optimizer infrastructure and identify a concrete compiler transform with a hard correctness oracle before further expensive CPU campaigns.
+
+**Audit note:** the repository's older `docs/architecture.md` still states that fused regions are default-enabled, whereas the present `CompilerConfig.java` and `README.md` default fused regions off. That is stale documentation, not a basis for changing production configuration in this research milestone.
