@@ -54,8 +54,10 @@ final class TypedIREffectAnalysis {
             TypedScoreIR.Instruction original = steps.get(i).original();
             TypedScoreIR.Instruction terminal =
                     original instanceof TypedScoreIR.Conditional condition
-                            ? condition.terminal() : original;
-            if (original instanceof TypedScoreIR.Conditional) guards++;
+                            ? condition.terminal() : original instanceof TypedScoreIR.Compound compound
+                                    ? compound.terminal() : original;
+            if (original instanceof TypedScoreIR.Conditional
+                    || original instanceof TypedScoreIR.Compound) guards++;
             if (terminal instanceof TypedScoreIR.Binary) binaries++;
             if (dynamic(original)) dynamics++;
             if (i == 0) continue;
@@ -88,9 +90,13 @@ final class TypedIREffectAnalysis {
     private static boolean dynamic(TypedScoreIR.Instruction original) {
         TypedScoreIR.Instruction terminal =
                 original instanceof TypedScoreIR.Conditional guard
-                        ? guard.terminal() : original;
+                        ? guard.terminal() : original instanceof TypedScoreIR.Compound compound
+                                ? compound.terminal() : original;
         if (original instanceof TypedScoreIR.Conditional guard
                 && (guard.conditionSelf() || guard.comparisonSelf())) return true;
+        if (original instanceof TypedScoreIR.Compound compound
+                && compound.predicates().stream().anyMatch(p -> p.left().self()
+                        || (p.right() != null && p.right().self()))) return true;
         if (terminal.holderSelf()) return true;
         return terminal instanceof TypedScoreIR.Binary binary && binary.sourceSelf();
     }
