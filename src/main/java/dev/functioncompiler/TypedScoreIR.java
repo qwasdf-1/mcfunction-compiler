@@ -86,6 +86,10 @@ public final class TypedScoreIR {
     private static final LongAdder COMPARISON_EVALUATIONS = new LongAdder();
     private static final LongAdder COMPARISON_READS_REUSED = new LongAdder();
     private static final LongAdder MINMAX_STEPS = new LongAdder();
+    private static final LongAdder COMPOUND_STAGES = new LongAdder();
+    private static final LongAdder COMPOUND_REUSED = new LongAdder();
+    private static final LongAdder COMPOUND_SHORT_CIRCUITS = new LongAdder();
+    private static final LongAdder COMPOUND_FALLBACKS = new LongAdder();
     private static final LongAdder COST_NATIVE = new LongAdder();
     private static final LongAdder COST_INTERPRETED = new LongAdder();
     private static final LongAdder COST_BYTECODE = new LongAdder();
@@ -130,7 +134,7 @@ public final class TypedScoreIR {
         }
     }
 
-    sealed interface Instruction permits Mutation, Binary, Conditional {
+    sealed interface Instruction permits Mutation, Binary, Conditional, Compound {
         FusedRegionPrototype.FusedCommand vanilla();
         ScoreHolder holder();
         default boolean holderSelf() { return false; }
@@ -264,6 +268,32 @@ public final class TypedScoreIR {
             if (comparison != null) {
                 reads.add(new Slot(slotName(comparisonHolder, comparisonSelf), comparisonObjective));
             }
+            return new Effects(reads, inner.writes(), true);
+        }
+    }
+
+    /** Ordered AND of individually observable quota/short-circuit stages.
+     * The parent source command remains one queue/feedback boundary. */
+    record Compound(FusedRegionPrototype.FusedCommand vanilla,
+                    Instruction terminal,
+                    List<CompoundScoreIR.Predicate> predicates) implements Instruction {
+        Compound {
+            Objects.requireNonNull(vanilla);
+            Objects.requireNonNull(terminal);
+            predicates = List.copyOf(predicates);
+            if (!(terminal instanceof Mutation || terminal instanceof Binary)
+                    || terminal.vanilla() != vanilla || predicates.size() < 2
+                    || predicates.size() > CompoundScoreIR.MAX_PREDICATES) {
+                throw new IllegalArgumentException("invalid compound source command");
+            }
+        }
+        @Override public ScoreHolder holder() { return terminal.holder(); }
+        @Override public boolean holderSelf() { return terminal.holderSelf(); }
+        @Override public String objective() { return terminal.objective(); }
+        @Override public Effects effects() {
+            Effects inner = terminal.effects();
+            Set<Slot> reads = new HashSet<>(inner.reads());
+            reads.addAll(CompoundScoreIR.reads(predicates));
             return new Effects(reads, inner.writes(), true);
         }
     }
@@ -507,6 +537,17 @@ public final class TypedScoreIR {
         if (DIAGNOSTICS) COMPARISON_READS_REUSED.increment();
     }
 
+    static void compoundStage(boolean reused, boolean pass) {
+        if (!DIAGNOSTICS) return;
+        COMPOUND_STAGES.increment();
+        if (reused) COMPOUND_REUSED.increment();
+        if (!pass) COMPOUND_SHORT_CIRCUITS.increment();
+    }
+
+    static void compoundFallback() {
+        if (DIAGNOSTICS) COMPOUND_FALLBACKS.increment();
+    }
+
     static void cacheHit() { if (DIAGNOSTICS) CACHE_HITS.increment(); }
     static void cacheMiss() { if (DIAGNOSTICS) CACHE_MISSES.increment(); }
     static void cacheInvalidated() {
@@ -545,6 +586,11 @@ public final class TypedScoreIR {
                 + " ir038_comparisons=" + COMPARISON_EVALUATIONS.sum()
                 + " ir038_comparison_reads_reused=" + COMPARISON_READS_REUSED.sum()
                 + " ir038_minmax_steps=" + MINMAX_STEPS.sum()
+                + " ir039_compound=" + CompoundScoreIR.enabled()
+                + " ir039_stages=" + COMPOUND_STAGES.sum()
+                + " ir039_reused=" + COMPOUND_REUSED.sum()
+                + " ir039_short_circuits=" + COMPOUND_SHORT_CIRCUITS.sum()
+                + " ir039_native_fallbacks=" + COMPOUND_FALLBACKS.sum()
                 + " ir036_cost_policy=" + COST_SELECT
                 + " ir036_cost_native=" + COST_NATIVE.sum()
                 + " ir036_cost_interpreted=" + COST_INTERPRETED.sum()
@@ -578,7 +624,8 @@ public final class TypedScoreIR {
         ScoreAccess score = state.access();
         int updated;
         Instruction terminal = instruction instanceof Conditional conditional
-                ? conditional.terminal() : instruction;
+                ? conditional.terminal() : instruction instanceof Compound compound
+                        ? compound.terminal() : instruction;
         if (terminal instanceof Binary binary) {
             int operand = SCORE_CACHE
                     ? state.sourceOperand() : state.sourceAccess().get();
