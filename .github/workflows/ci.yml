@@ -82,3 +82,8 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_typed_ir038.py' -v
           python3 -m py_compile scripts/ci_typed_ir038.py
+
+      - name: Validate IR-039 compound predicates, dominance CSE and native fallback contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir039.py' -v
+          python3 -m py_compile scripts/ci_typed_ir039.py
