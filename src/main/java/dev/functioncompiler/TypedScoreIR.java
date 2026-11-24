@@ -277,7 +277,8 @@ public final class TypedScoreIR {
      * The parent source command remains one queue/feedback boundary. */
     record Compound(FusedRegionPrototype.FusedCommand vanilla,
                     Instruction terminal,
-                    List<CompoundScoreIR.Predicate> predicates) implements Instruction {
+                    List<CompoundScoreIR.Predicate> predicates,
+                    boolean dataflow) implements Instruction {
         Compound {
             Objects.requireNonNull(vanilla);
             Objects.requireNonNull(terminal);
