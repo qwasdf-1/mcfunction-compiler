@@ -38,7 +38,10 @@ class IR034LoopInvariantHoist(unittest.TestCase):
         self.assertEqual(body.count('method.visitFieldInsn(GETFIELD, internal, "steps", STEPS)'), 1)
         self.assertNotIn('method.visitFieldInsn(GETFIELD, internal, "steps", STEPS)', begin_loop)
         self.assertIn("method.visitVarInsn(ASTORE, 9);", body)
-        self.assertGreaterEqual(body.count("method.visitVarInsn(ALOAD, 9);"), 2)
+        # IR-037 needs the original vector only for State/reentrant tail,
+        # while each command's begin() uses the separately hoisted descriptor.
+        self.assertEqual(body.count("method.visitVarInsn(ALOAD, 9);"), 1)
+        self.assertGreaterEqual(body.count("method.visitVarInsn(ALOAD, 10);"), 1)
         self.assertIn("method.visitMethodInsn(INVOKEVIRTUAL, STATE, \"begin\"", body)
         self.assertIn("method.visitMethodInsn(INVOKEVIRTUAL, STATE, \"finish\"", body)
         self.assertIn("method.visitJumpInsn(IFEQ, done);", body)
