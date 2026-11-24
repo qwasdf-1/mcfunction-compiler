@@ -1,8 +1,11 @@
 name: COMPILER-IR-038 extended score IR and predicate CSE
 
-# Native acceptance, not a CPU benchmark. Manual-only after initial launch.
+# One-shot IR-038 native acceptance launch; restore manual-only immediately.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - work/compiler-coverage
 
 permissions:
   contents: read
