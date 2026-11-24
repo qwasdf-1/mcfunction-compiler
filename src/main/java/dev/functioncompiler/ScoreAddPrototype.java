@@ -300,7 +300,8 @@ public final class ScoreAddPrototype {
             terminal = mutation.toMutation(original, halves[1]);
         else if (copy.getCommand() instanceof ScoreOperationCommand binary)
             terminal = binary.toBinary(original, halves[1]);
-        return terminal == null ? null : new TypedScoreIR.Compound(original, terminal, predicates);
+        return terminal == null ? null : new TypedScoreIR.Compound(original, terminal, predicates,
+                CompoundScoreIR.dataflowEnabledFor(functionId));
     }
 
     @FunctionalInterface
