@@ -30,6 +30,8 @@ final class TypedScoreIRBytecode implements Opcodes {
     private static final String INSTRUCTION = "dev/functioncompiler/TypedScoreIR$Instruction";
     private static final String STATE = "dev/functioncompiler/TypedScoreIRRuntime$State";
     private static final String STEPS = "[L" + INSTRUCTION + ";";
+    private static final String PREPARED = "dev/functioncompiler/TypedIRPreparedSteps$Prepared";
+    private static final String PREPARED_STEPS = "[L" + PREPARED + ";";
     private static final String EXECUTE = "(Ljava/lang/Object;L" + CONTEXT + ";L" + FRAME + ";)V";
 
     private TypedScoreIRBytecode() {}
@@ -43,9 +45,11 @@ final class TypedScoreIRBytecode implements Opcodes {
                     bytes, true, MethodHandles.Lookup.ClassOption.NESTMATE);
             var constructor = lookup.findConstructor(
                     lookup.lookupClass(),
-                    MethodType.methodType(void.class, TypedScoreIR.Instruction[].class));
+                    MethodType.methodType(void.class, TypedScoreIR.Instruction[].class,
+                            TypedIRPreparedSteps.Prepared[].class));
             return (UnboundEntryAction<CommandSourceStack>) constructor.invoke(
-                    (Object) optimized.source().instructions().toArray(TypedScoreIR.Instruction[]::new));
+                    (Object) optimized.source().instructions().toArray(TypedScoreIR.Instruction[]::new),
+                    (Object) TypedIRPreparedSteps.prepare(optimized));
         } catch (Throwable failure) {
             if (failure instanceof Error error) throw error;
             if (failure instanceof RuntimeException runtime) throw runtime;
@@ -58,8 +62,10 @@ final class TypedScoreIRBytecode implements Opcodes {
         writer.visit(V17, ACC_FINAL | ACC_SUPER, internal, null, "java/lang/Object",
                 new String[]{ACTION});
         writer.visitField(ACC_PRIVATE | ACC_FINAL, "steps", STEPS, null, null).visitEnd();
+        writer.visitField(ACC_PRIVATE | ACC_FINAL, "prepared", PREPARED_STEPS, null, null).visitEnd();
 
-        MethodVisitor ctor = writer.visitMethod(ACC_PUBLIC, "<init>", "(" + STEPS + ")V",
+        MethodVisitor ctor = writer.visitMethod(ACC_PUBLIC, "<init>",
+                "(" + STEPS + PREPARED_STEPS + ")V",
                 null, null);
         ctor.visitCode();
         ctor.visitVarInsn(ALOAD, 0);
@@ -67,6 +73,9 @@ final class TypedScoreIRBytecode implements Opcodes {
         ctor.visitVarInsn(ALOAD, 0);
         ctor.visitVarInsn(ALOAD, 1);
         ctor.visitFieldInsn(PUTFIELD, internal, "steps", STEPS);
+        ctor.visitVarInsn(ALOAD, 0);
+        ctor.visitVarInsn(ALOAD, 2);
+        ctor.visitFieldInsn(PUTFIELD, internal, "prepared", PREPARED_STEPS);
         ctor.visitInsn(RETURN);
         ctor.visitMaxs(0, 0);
         ctor.visitEnd();
@@ -75,7 +84,8 @@ final class TypedScoreIRBytecode implements Opcodes {
         method.visitCode();
         // Local 4: source; 5: invocation state; 6: begin decision;
         // 7: new target score; 8: source score operand;
-        // 9: immutable instruction vector, loaded once per execution.
+        // 9: immutable original-instruction vector, loaded once per execution.
+        // 10: IR-037 immutable prepared metadata, loaded once per execution.
         //
         // IR-034: the same vector is used by State for reentrant continuation
         // and by every emitted instruction's begin() call. Its final field
@@ -83,6 +93,9 @@ final class TypedScoreIRBytecode implements Opcodes {
         method.visitVarInsn(ALOAD, 0);
         method.visitFieldInsn(GETFIELD, internal, "steps", STEPS);
         method.visitVarInsn(ASTORE, 9);
+        method.visitVarInsn(ALOAD, 0);
+        method.visitFieldInsn(GETFIELD, internal, "prepared", PREPARED_STEPS);
+        method.visitVarInsn(ASTORE, 10);
         method.visitVarInsn(ALOAD, 1);
         method.visitTypeInsn(CHECKCAST, SOURCE);
         method.visitVarInsn(ASTORE, 4);
@@ -104,11 +117,13 @@ final class TypedScoreIRBytecode implements Opcodes {
             Label next = new Label();
 
             method.visitVarInsn(ALOAD, 5);
-            method.visitVarInsn(ALOAD, 9);
+            // IR-037: no repeated type/terminal/feedback decoding; original
+            // command vectors remain separately available for queue fallback.
+            method.visitVarInsn(ALOAD, 10);
             pushInt(method, index);
             method.visitInsn(AALOAD);
             method.visitMethodInsn(INVOKEVIRTUAL, STATE, "begin",
-                    "(L" + INSTRUCTION + ";)I", false);
+                    "(L" + PREPARED + ";)I", false);
             method.visitVarInsn(ISTORE, 6);
 
             method.visitVarInsn(ILOAD, 6);
