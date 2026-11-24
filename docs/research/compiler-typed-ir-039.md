@@ -1,6 +1,6 @@
 # IR-039 — Compound score predicates, ordered control flow and dominance CSE
 
-**Status: first native matrix failed one quota-boundary observation; corrective implementation committed, expanded native gate pending.** Work remains on draft PR #10, `work/compiler-coverage`. No production default changes.
+**Status: ACCEPTED — corrected compound predicate implementation passed expanded native semantic acceptance (2026-11-24).** Work remains on draft PR #10, `work/compiler-coverage`. No production default changes.
 
 ## Scope
 
@@ -34,4 +34,29 @@ The original mapped Minecraft 26.3 [IR-025 bytecode archive](https://github.com/
 
 The correction charges the remaining empty-source suffix without performing predicate reads, removes the premature intra-modifier quota gates, retains the terminal quota gate, and makes the known-stage bytecode pass its original index. The native fork-limit test is also relevant even with one source: when forkLimit <=1, conservatively defer the untouched chain before any debit. The `ir039_empty_stage_debits` diagnostic counts actual suffix debits restored, not optimized reads. The expanded oracle pins the failed quota-12 boundary, adds first/middle/last failure at eight stages, sweeps all nearby cutoffs, and collects cross-arm state differences for the complete matrix rather than stopping on the first such mismatch. No acceptance criterion was relaxed.
 
-Corrective native acceptance pending.
+### Corrective native matrix — accepted
+
+[Run 45459761063](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45459761063) passed all three jobs (15 independent Minecraft JVMs). [Ordinary CI on the restored manual-only workflow](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45459835152) passed as well.
+
+| Gate | Result |
+| --- | --- |
+| IR-039 five-mode differential | 672 state observations per mode; 3,360 total, zero native differences; original quota-12 assertion passed in every mode |
+| IR-008 four-mode regression | 62 cases; exact native parity |
+| IR-013 six-mode regression | 85 cases per mode; zero guarded differences; 46 differences in each unsafe negative control as expected |
+| Java 25 build and source contracts | Passed |
+
+The [IR-039 evidence archive](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45459761063/artifacts/14951148974) contains the complete state snapshots, layouts and server logs. The [IR-008 archive](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45459761063/artifacts/14950444276) and [IR-013 archive](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45459761063/artifacts/14951093987) preserve the inherited regression evidence.
+
+Across the ten new fixtures the feature-off bytecode configuration lowered 9/59 source commands; all three enabled configurations lowered 58/59. The remaining command is the intentional mixed context-modifier barrier. These are targeted fixture coverage counts, not representative datapack coverage. Both controls enable the same pre-existing extended score, range and self-holder flags.
+
+| Diagnostic | Feature-off bytecode | Interpreter | Bytecode | Direct |
+| --- | ---: | ---: | ---: | ---: |
+| Compound stages reached with a source | 0 | 1892 | 1892 | 1892 |
+| Proven predicate computations avoided | 0 | 935 | 935 | 935 |
+| Failed predicate branches | 0 | 265 | 265 | 265 |
+| Empty-source suffix stage debits | 0 | 535 | 535 | 535 |
+| Compound native fallbacks | 0 | 291 | 291 | 291 |
+| Reentrant yields (including inherited paths) | 113 | 152 | 152 | 152 |
+| Direct function executions (whole corpus) | 0 | 0 | 0 | 763 |
+
+The expanded oracle establishes parity of the observed state and quota cutoffs in all enabled modes, including dynamic entity-bound and absent-entity invocation, short-circuit suffix costs, missing rows/objectives and tested callback ordering. The 935 avoided predicate evaluations are actual reached-stage computations eliminated, not a CPU measurement. The 535 empty-source debits are required vanilla accounting, not performance savings. No dedicated restrictive fork-limit fixture, arbitrary third-party side-effect compatibility proof, timing claim, or production promotion. Scope remains opt-in, and PR #10 remains draft/unmerged. The failed original matrix is retained as evidence.
