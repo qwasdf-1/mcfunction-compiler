@@ -40,6 +40,7 @@ final class MixedFunctionIR {
     private static final LongAdder OPAQUE_NODES = new LongAdder();
     private static final LongAdder SINGLETON_NODES = new LongAdder();
     private static final LongAdder DISPATCH_BARRIERS = new LongAdder();
+    private static final LongAdder COST_VANILLA_ENTRIES = new LongAdder();
     // IR-018 audit classification only. Conditional function calls retain
     // their original EntryAction; no child-frame semantics are synthesized.
     private static final java.util.regex.Pattern DISPATCH_SOURCE =
@@ -70,7 +71,10 @@ final class MixedFunctionIR {
         public int sourceCount() { return typed.instructions().size(); }
     }
 
-    enum BarrierKind { UNSUPPORTED_OR_CONTROL, FUNCTION_DISPATCH, TYPED_SINGLETON }
+    enum BarrierKind {
+        UNSUPPORTED_OR_CONTROL, FUNCTION_DISPATCH, TYPED_SINGLETON,
+        COST_MODEL_VANILLA
+    }
 
     record OpaqueBarrier(
             int firstSourceIndex,
@@ -175,6 +179,11 @@ final class MixedFunctionIR {
                     && b.kind() == BarrierKind.FUNCTION_DISPATCH).count();
         }
 
+        int costVanillaCount() {
+            return (int) nodes.stream().filter(n -> n instanceof OpaqueBarrier b
+                    && b.kind() == BarrierKind.COST_MODEL_VANILLA).count();
+        }
+
         int nativeForkPlanCount() {
             return (int) nodes.stream().filter(NativeForkPlanBarrier.class::isInstance).count();
         }
@@ -229,6 +238,7 @@ final class MixedFunctionIR {
                     + " opaque_barriers=" + opaqueCount()
                     + " singleton_barriers=" + singletonCount()
                     + " dispatch_barriers=" + dispatchBarrierCount()
+                    + " cost_vanilla_entries=" + costVanillaCount()
                     + " native_fork_plans=" + nativeForkPlanCount()
                     + " compiled_forks=" + compiledForkCount()
                     + " direct_candidate=" + (directBytecodeChunks() != null)
@@ -286,6 +296,7 @@ final class MixedFunctionIR {
             OPAQUE_NODES.add(program.opaqueCount());
             SINGLETON_NODES.add(program.singletonCount());
             DISPATCH_BARRIERS.add(program.dispatchBarrierCount());
+            COST_VANILLA_ENTRIES.add(program.costVanillaCount());
             if (LEDGER.size() < MAX_LEDGER_FUNCTIONS) {
                 LEDGER.put(program.id().toString(), program.summary());
             }
@@ -321,7 +332,18 @@ final class MixedFunctionIR {
         } else {
             TypedScoreIR.Program typed = new TypedScoreIR.Program(pending);
             TypedScoreIR.EmittedRegion emitted = TypedScoreIR.emitRegion(typed);
-            nodes.add(new TypedRegion(first, typed, emitted.action(), emitted.bytecode()));
+            if (emitted.vanilla()) {
+                // IR-036: NEVER collapse a cost-rejected region into one
+                // synthetic action. Preserve every original Minecraft queue
+                // entry, source position, command quota and reentrant boundary.
+                for (int offset = 0; offset < pending.size(); offset++) {
+                    nodes.add(new OpaqueBarrier(first + offset,
+                            pending.get(offset).vanilla().original(),
+                            BarrierKind.COST_MODEL_VANILLA));
+                }
+            } else {
+                nodes.add(new TypedRegion(first, typed, emitted.action(), emitted.bytecode()));
+            }
         }
         pending.clear();
     }
@@ -333,7 +355,8 @@ final class MixedFunctionIR {
                 + " ir016_typed_lines=" + TYPED_LINES.sum()
                 + " ir016_opaque_barriers=" + OPAQUE_NODES.sum()
                 + " ir016_singletons=" + SINGLETON_NODES.sum()
-                + " ir018_dispatch_barriers=" + DISPATCH_BARRIERS.sum();
+                + " ir018_dispatch_barriers=" + DISPATCH_BARRIERS.sum()
+                + " ir036_cost_vanilla_entries=" + COST_VANILLA_ENTRIES.sum();
     }
 
     static int report(CommandSourceStack source, String id) {
