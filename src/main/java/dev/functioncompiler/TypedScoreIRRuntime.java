@@ -83,6 +83,9 @@ final class TypedScoreIRRuntime {
         private final long initialQueueEpoch;
         private int nextIndex;
         private TypedScoreIR.Instruction current;
+        // IR-037: the original command's immutable shape/feedback metadata,
+        // computed once per compiled region (only queued tails build it on demand).
+        private TypedIRPreparedSteps.Prepared currentPrepared;
         private Objective objective;
         private ScoreAccess access;
         private ScoreAccess sourceAccess;
@@ -123,6 +126,20 @@ final class TypedScoreIRRuntime {
          * validated command with its original vanilla/error behavior once.
          */
         int begin(TypedScoreIR.Instruction instruction) {
+            // Exceptional reentrant queue tails contain original source
+            // instructions, not the compiled Plan. They are never the hot path.
+            return begin(TypedIRPreparedSteps.prepare(instruction));
+        }
+
+        /**
+         * IR-037: runtime work uses predecoded compiler metadata instead of
+         * repeatedly inspecting Conditional/Binary/Mutation instruction
+         * classes, recovering terminal commands and rediscovering holder/
+         * objective metadata. Every OBJECTIVE/score lookup is still fresh,
+         * and every listener, quota, trace, feedback and queue boundary remains.
+         */
+        int begin(TypedIRPreparedSteps.Prepared prepared) {
+            TypedScoreIR.Instruction instruction = prepared.original();
             // Every new instruction is a possible vanilla interleaving point.
             // Once a callback has queued an entry during this compiled
             // action, return to the original queue before the NEXT command.
@@ -140,31 +157,30 @@ final class TypedScoreIRRuntime {
             }
             nextIndex++;
             if (quota() <= 0) return STOP;
-            ScoreHolder target = instruction.holderSelf()
-                    ? source.getEntity() : instruction.holder();
+            ScoreHolder target = prepared.targetSelf()
+                    ? source.getEntity() : prepared.targetHolder();
             if (target == null) return original(instruction);
-            Objective selected = scoreboard.getObjective(instruction.objective());
+            Objective selected = scoreboard.getObjective(prepared.targetObjective());
             if (selected == null || selected.getCriteria().isReadOnly()) {
                 return original(instruction);
             }
 
-            // A guarded binary has three potentially distinct objectives:
-            // target, score-condition read, and binary source read. Validate
-            // all of them BEFORE debiting any quota or creating score rows.
-            TypedScoreIR.Instruction terminal = instruction instanceof TypedScoreIR.Conditional guard
-                    ? guard.terminal() : instruction;
-            Objective guardObjective = instruction instanceof TypedScoreIR.Conditional guard
-                    ? scoreboard.getObjective(guard.conditionObjective()) : null;
-            ScoreHolder guardHolder = instruction instanceof TypedScoreIR.Conditional guard
-                    ? (guard.conditionSelf() ? source.getEntity() : guard.conditionHolder()) : null;
-            Objective operandObjective = terminal instanceof TypedScoreIR.Binary binary
-                    ? scoreboard.getObjective(binary.sourceObjective()) : null;
-            ScoreHolder operandHolder = terminal instanceof TypedScoreIR.Binary binary
-                    ? (binary.sourceSelf() ? source.getEntity() : binary.sourceHolder()) : null;
-            if ((instruction instanceof TypedScoreIR.Conditional
-                    && (guardObjective == null || guardHolder == null))
-                    || (terminal instanceof TypedScoreIR.Binary
-                    && (operandObjective == null || operandHolder == null))) {
+            // Preserve original lookup ORDER and all three potentially
+            // distinct objectives: target, guard and binary operand.
+            TypedScoreIR.Conditional condition = prepared.condition();
+            boolean hasBinary = prepared.binary() != null;
+            Objective guardObjective = condition != null
+                    ? scoreboard.getObjective(prepared.conditionObjective()) : null;
+            ScoreHolder guardHolder = condition != null
+                    ? (prepared.conditionSelf() ? source.getEntity()
+                            : prepared.conditionHolder()) : null;
+            Objective operandObjective = hasBinary
+                    ? scoreboard.getObjective(prepared.operandObjective()) : null;
+            ScoreHolder operandHolder = hasBinary
+                    ? (prepared.operandSelf() ? source.getEntity()
+                            : prepared.operandHolder()) : null;
+            if ((condition != null && (guardObjective == null || guardHolder == null))
+                    || (hasBinary && (operandObjective == null || operandHolder == null))) {
                 return original(instruction);
             }
 
@@ -174,10 +190,9 @@ final class TypedScoreIRRuntime {
             }
             context.incrementCost();
 
-            // Vanilla charges the score condition stage even when false. A
-            // true condition generates an additional terminal-command debit;
-            // the existing compiled ScoreConditionCommand does the same.
-            if (instruction instanceof TypedScoreIR.Conditional condition) {
+            // Vanilla charges the condition stage on a false predicate and a
+            // second debit on its true branch; these are unchanged.
+            if (condition != null) {
                 ReadOnlyScoreInfo info = scoreboard.getPlayerScoreInfo(
                         guardHolder, guardObjective);
                 boolean matched = info != null && condition.range().matches(info.value());
@@ -195,12 +210,13 @@ final class TypedScoreIRRuntime {
             }
 
             current = instruction;
+            currentPrepared = prepared;
             objective = selected;
             targetResolved = target;
-            // Every lookup is deliberately fresh. Even a disjoint preceding
-            // command can run externally observable feedback/listener logic.
+            // ScoreAccess is obtained per source command. Never cache it
+            // across synchronous scoreboard callbacks or outside observers.
             access = scoreboard.getOrCreatePlayerScore(target, selected);
-            if (terminal instanceof TypedScoreIR.Binary binary) {
+            if (hasBinary) {
                 sourceObjective = operandObjective;
                 sourceResolved = operandHolder;
                 sourceAccess = scoreboard.getOrCreatePlayerScore(operandHolder, operandObjective);
@@ -232,16 +248,17 @@ final class TypedScoreIRRuntime {
          * optimization; never defer or coalesce writes.
          */
         int sourceOperand() {
-            TypedScoreIR.Instruction terminal = current instanceof TypedScoreIR.Conditional guard
-                    ? guard.terminal() : current;
+            // IR-037: binary shape and operand name were validated and
+            // predecoded at compilation; the revision and score remain live.
+            TypedIRPreparedSteps.Prepared prepared = currentPrepared;
             if (!TypedScoreIR.scoreCacheEnabled()
-                    || !(terminal instanceof TypedScoreIR.Binary binary)
+                    || prepared.binary() == null
                     || !(scoreboard instanceof ScoreValueRevisionAccess versions)) {
                 return sourceAccess.get();
             }
             var key = new ScoreValueRevisionAccess.Key(
                     sourceResolved.getScoreboardName(),
-                    binary.sourceObjective());
+                    prepared.operandObjective());
             long revision = versions.functionCompiler$watch(key);
             if (revision < 0) return sourceAccess.get();  // fail closed
             if (cachedSources == null) cachedSources = new HashMap<>();
@@ -269,34 +286,31 @@ final class TypedScoreIRRuntime {
 
         void finish(int newScore) {
             TypedScoreIR.Instruction instruction = current;
-            TypedScoreIR.Instruction terminal = instruction instanceof TypedScoreIR.Conditional guard
-                    ? guard.terminal() : instruction;
+            TypedIRPreparedSteps.Prepared prepared = currentPrepared;
             TraceCallbacks tracer = context.tracer();
             try {
                 int result;
                 if (TypedScoreIR.singletonFeedbackEnabled()) {
-                    // Vanilla CommandResponseTracker gets exactly ONE tracked
-                    // holder and ElementType.ANY: elementCount=1 even when
-                    // newScore is zero. Its throwIfZero(1) is a no-op; its
-                    // totalValue is newScore and dispatch selects onSingle.
-                    // Preserve sendSuccess/broadcast, deferred message
-                    // formatting and subsequent trace callback verbatim.
+                    // Preserve original single tracked-holder feedback,
+                    // including distinct REMOVE/ADD/SET messages and
+                    // the original (un-signed) source literal amount.
                     var holder = targetResolved;
                     var resolvedObjective = objective;
-                    if (terminal instanceof TypedScoreIR.Binary) {
+                    if (prepared.feedback() == TypedIRPreparedSteps.Feedback.OPERATION) {
                         var message = ScoreboardCommandAccessor
                                 .functionCompiler$getScoreOperationResponse();
                         source.sendSuccess(() -> message.onSuccess().onSingle()
                                 .create(holder, newScore, resolvedObjective), true);
                     } else {
-                        TypedScoreIR.Mutation mutation = (TypedScoreIR.Mutation) terminal;
-                        var message = switch (mutation.operation()) {
+                        var message = switch (prepared.feedback()) {
                             case ADD -> ScoreboardCommandAccessor.functionCompiler$getScoreAddResponse();
                             case REMOVE -> ScoreboardCommandAccessor.functionCompiler$getScoreRemoveResponse();
                             case SET -> ScoreboardCommandAccessor.functionCompiler$getScoreSetResponse();
+                            case OPERATION -> throw new AssertionError("binary feedback in mutation");
                         };
                         source.sendSuccess(() -> message.onSuccess().onSingle()
-                                .create(holder, newScore, resolvedObjective, mutation.amount()), true);
+                                .create(holder, newScore, resolvedObjective,
+                                        prepared.feedbackAmount()), true);
                     }
                     result = newScore;
                     TypedScoreIR.singletonFeedbackUsed();
@@ -304,21 +318,22 @@ final class TypedScoreIRRuntime {
                     CommandResponseTracker<net.minecraft.world.scores.ScoreHolder> response =
                             CommandResponseTracker.create();
                     response.track(targetResolved, newScore);
-                    if (terminal instanceof TypedScoreIR.Binary) {
+                    if (prepared.feedback() == TypedIRPreparedSteps.Feedback.OPERATION) {
                         result = response.sendFeedback(
                                 source, true, ElementType.ANY,
                                 ScoreboardCommandAccessor.functionCompiler$getScoreOperationResponse(),
                                 objective
                         );
                     } else {
-                        TypedScoreIR.Mutation mutation = (TypedScoreIR.Mutation) terminal;
-                        var message = switch (mutation.operation()) {
+                        var message = switch (prepared.feedback()) {
                             case ADD -> ScoreboardCommandAccessor.functionCompiler$getScoreAddResponse();
                             case REMOVE -> ScoreboardCommandAccessor.functionCompiler$getScoreRemoveResponse();
                             case SET -> ScoreboardCommandAccessor.functionCompiler$getScoreSetResponse();
+                            case OPERATION -> throw new AssertionError("binary feedback in mutation");
                         };
                         result = response.sendFeedback(
-                                source, true, ElementType.ANY, message, objective, mutation.amount()
+                                source, true, ElementType.ANY, message, objective,
+                                prepared.feedbackAmount()
                         );
                     }
                     TypedScoreIR.trackerFeedbackUsed();
@@ -330,6 +345,7 @@ final class TypedScoreIRRuntime {
                 source.handleError(error, false, tracer);
             } finally {
                 current = null;
+                currentPrepared = null;
                 objective = null;
                 access = null;
                 sourceAccess = null;
