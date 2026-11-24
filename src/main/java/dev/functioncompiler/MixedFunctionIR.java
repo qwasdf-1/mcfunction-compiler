@@ -253,7 +253,8 @@ final class MixedFunctionIR {
         int first = 0;
         for (int index = 0; index < entries.size(); index++) {
             UnboundEntryAction<CommandSourceStack> entry = entries.get(index);
-            TypedScoreIR.Instruction instruction = TypedScoreIR.lower(entry);
+            TypedScoreIR.Instruction instruction = ScoreAddPrototype.lowerCompound(entry, original.id());
+            if (instruction == null) instruction = TypedScoreIR.lower(entry);
             if (instruction == null) {
                 flush(nodes, pending, first);
                 CompilerForkPlan024.Plan plan = CompilerForkPlan024.classify(entry);
