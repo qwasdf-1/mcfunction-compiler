@@ -56,14 +56,20 @@ class TypedIROptimizer035(unittest.TestCase):
         # The original command still controls feedback, guard and fallback.
         for token in (
             "TypedScoreIR.Instruction instruction = current",
-            "mutation.operation()",
-            "mutation.amount()",
+            "prepared.feedback()",
+            "prepared.feedbackAmount()",
             "FusedRegionPrototype.executeCommand(",
             "context.incrementCost()",
             "tracer.onCommand(",
             "tracer.onReturn(",
         ):
             self.assertIn(token, runtime)
+        # IR-037 hoists original feedback kind and original unsigned literal
+        # out of execution while leaving the semantic messages unchanged.
+        metadata = java("TypedIRPreparedSteps.java")
+        self.assertIn("mutation.operation()", metadata)
+        self.assertIn("amount = mutation.amount()", metadata)
+        self.assertIn("case REMOVE -> Feedback.REMOVE", metadata)
 
     def test_binary_opcode_classification_and_both_codegen_paths(self):
         optimizer = java("TypedIROptimizer.java")
