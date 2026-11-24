@@ -83,6 +83,9 @@ public final class TypedScoreIR {
     private static final LongAdder REENTRANT_QUEUED_STEPS = new LongAdder();
     // IR-037: counts actual same-command map lookups removed (DIAGNOSTICS only).
     private static final LongAdder OBJECTIVE_LOOKUPS_REUSED = new LongAdder();
+    private static final LongAdder COMPARISON_EVALUATIONS = new LongAdder();
+    private static final LongAdder COMPARISON_READS_REUSED = new LongAdder();
+    private static final LongAdder MINMAX_STEPS = new LongAdder();
     private static final LongAdder COST_NATIVE = new LongAdder();
     private static final LongAdder COST_INTERPRETED = new LongAdder();
     private static final LongAdder COST_BYTECODE = new LongAdder();
@@ -433,6 +436,11 @@ public final class TypedScoreIR {
         if (instruction instanceof Conditional) CONDITIONAL_STEPS.increment();
         if (instruction instanceof Conditional condition
                 && condition.terminal() instanceof Binary) GUARDED_BINARY_STEPS.increment();
+        Instruction terminal = instruction instanceof Conditional condition
+                ? condition.terminal() : instruction;
+        if (terminal instanceof Binary binary
+                && (binary.operation() == BinaryOperator.MINIMUM
+                    || binary.operation() == BinaryOperator.MAXIMUM)) MINMAX_STEPS.increment();
     }
 
     static void skippedConditional() {
@@ -491,6 +499,14 @@ public final class TypedScoreIR {
         if (DIAGNOSTICS) OBJECTIVE_LOOKUPS_REUSED.increment();
     }
 
+    static void comparisonEvaluated() {
+        if (DIAGNOSTICS) COMPARISON_EVALUATIONS.increment();
+    }
+
+    static void comparisonReadReused() {
+        if (DIAGNOSTICS) COMPARISON_READS_REUSED.increment();
+    }
+
     static void cacheHit() { if (DIAGNOSTICS) CACHE_HITS.increment(); }
     static void cacheMiss() { if (DIAGNOSTICS) CACHE_MISSES.increment(); }
     static void cacheInvalidated() {
@@ -525,6 +541,10 @@ public final class TypedScoreIR {
                 + " reentrant_yields=" + REENTRANT_YIELDS.sum()
                 + " reentrant_queued_steps=" + REENTRANT_QUEUED_STEPS.sum()
                 + " ir037_objective_lookups_reused=" + OBJECTIVE_LOOKUPS_REUSED.sum()
+                + " ir038_extended_score=" + EXTENDED_SCORE
+                + " ir038_comparisons=" + COMPARISON_EVALUATIONS.sum()
+                + " ir038_comparison_reads_reused=" + COMPARISON_READS_REUSED.sum()
+                + " ir038_minmax_steps=" + MINMAX_STEPS.sum()
                 + " ir036_cost_policy=" + COST_SELECT
                 + " ir036_cost_native=" + COST_NATIVE.sum()
                 + " ir036_cost_interpreted=" + COST_INTERPRETED.sum()
