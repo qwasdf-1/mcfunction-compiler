@@ -95,3 +95,8 @@ jobs:
           mkdir -p build/ir040-facts-tests
           javac --release 25 -d build/ir040-facts-tests src/main/java/dev/functioncompiler/PredicateFacts.java tests/java/dev/functioncompiler/PredicateFactsTest.java
           java -cp build/ir040-facts-tests dev.functioncompiler.PredicateFactsTest
+
+      - name: Validate IR-041 steady-state protocol and publisher screen
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir041.py' -v
+          python3 -m py_compile scripts/ci_typed_ir041.py scripts/ci_typed_ir041_source.py
