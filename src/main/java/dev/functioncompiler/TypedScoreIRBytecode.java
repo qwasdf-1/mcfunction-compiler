@@ -35,9 +35,9 @@ final class TypedScoreIRBytecode implements Opcodes {
     private TypedScoreIRBytecode() {}
 
     @SuppressWarnings("unchecked")
-    static UnboundEntryAction<CommandSourceStack> emit(TypedScoreIR.Program program) {
+    static UnboundEntryAction<CommandSourceStack> emit(TypedIROptimizer.Plan optimized) {
         String internal = "dev/functioncompiler/TypedScoreIR$Generated$" + CLASSES.incrementAndGet();
-        byte[] bytes = generate(internal, program);
+        byte[] bytes = generate(internal, optimized);
         try {
             MethodHandles.Lookup lookup = MethodHandles.lookup().defineHiddenClass(
                     bytes, true, MethodHandles.Lookup.ClassOption.NESTMATE);
@@ -45,7 +45,7 @@ final class TypedScoreIRBytecode implements Opcodes {
                     lookup.lookupClass(),
                     MethodType.methodType(void.class, TypedScoreIR.Instruction[].class));
             return (UnboundEntryAction<CommandSourceStack>) constructor.invoke(
-                    (Object) program.instructions().toArray(TypedScoreIR.Instruction[]::new));
+                    (Object) optimized.source().instructions().toArray(TypedScoreIR.Instruction[]::new));
         } catch (Throwable failure) {
             if (failure instanceof Error error) throw error;
             if (failure instanceof RuntimeException runtime) throw runtime;
@@ -53,7 +53,7 @@ final class TypedScoreIRBytecode implements Opcodes {
         }
     }
 
-    private static byte[] generate(String internal, TypedScoreIR.Program program) {
+    private static byte[] generate(String internal, TypedIROptimizer.Plan optimized) {
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         writer.visit(V17, ACC_FINAL | ACC_SUPER, internal, null, "java/lang/Object",
                 new String[]{ACTION});
@@ -99,8 +99,8 @@ final class TypedScoreIRBytecode implements Opcodes {
                 "executed", "()V", false);
 
         Label done = new Label();
-        for (int index = 0; index < program.instructions().size(); index++) {
-            TypedScoreIR.Instruction instruction = program.instructions().get(index);
+        for (int index = 0; index < optimized.steps().size(); index++) {
+            TypedIROptimizer.Step step = optimized.steps().get(index);
             Label next = new Label();
 
             method.visitVarInsn(ALOAD, 5);
@@ -120,13 +120,12 @@ final class TypedScoreIRBytecode implements Opcodes {
             method.visitInsn(ICONST_3);
             method.visitJumpInsn(IF_ICMPEQ, next);  // conditional branch not taken
 
-            TypedScoreIR.Instruction terminal =
-                    instruction instanceof TypedScoreIR.Conditional guard
-                            ? guard.terminal() : instruction;
-            if (terminal instanceof TypedScoreIR.Binary binary) {
-                emitBinary(method, binary);
+            // IR-035: no per-command lowering/type inspection in the backend.
+            // These preclassified opcodes never merge original source entries.
+            if (step.opcode().readsSourceScore()) {
+                emitBinary(method, step);
             } else {
-                emitMutation(method, (TypedScoreIR.Mutation) terminal);
+                emitMutation(method, step);
             }
 
             method.visitVarInsn(ALOAD, 5);
@@ -148,30 +147,30 @@ final class TypedScoreIRBytecode implements Opcodes {
                 "()L" + SCORE + ";", false);
     }
 
-    private static void emitMutation(MethodVisitor method, TypedScoreIR.Mutation instruction) {
+    private static void emitMutation(MethodVisitor method, TypedIROptimizer.Step step) {
         target(method);
-        switch (instruction.operation()) {
-            case ADD, REMOVE -> {
-                pushInt(method, instruction.operation() == ScoreAddCommand.Operation.REMOVE
-                        ? -instruction.amount() : instruction.amount());
+        switch (step.opcode()) {
+            case ADD_LITERAL -> {
+                // IR-035 canonicalizes original ADD and REMOVE to a signed
+                // 32-bit delta. The original action still determines feedback.
+                pushInt(method, step.literal());
                 method.visitMethodInsn(INVOKEINTERFACE, SCORE, "add", "(I)I", true);
                 method.visitVarInsn(ISTORE, 7);
             }
-            case SET -> {
-                pushInt(method, instruction.amount());
+            case SET_LITERAL -> {
+                pushInt(method, step.literal());
                 method.visitMethodInsn(INVOKEINTERFACE, SCORE, "set", "(I)V", true);
-                pushInt(method, instruction.amount());
+                pushInt(method, step.literal());
                 method.visitVarInsn(ISTORE, 7);
             }
+            default -> throw new IllegalArgumentException("binary opcode in literal emitter");
         }
     }
 
-    private static void emitBinary(MethodVisitor method, TypedScoreIR.Binary binary) {
+    private static void emitBinary(MethodVisitor method, TypedIROptimizer.Step step) {
         method.visitVarInsn(ALOAD, 5);
         if (TypedScoreIR.scoreCacheCompiled()) {
-            // One guarded pure-value read from the same invocation's source
-            // cache. The binary arithmetic, target write and per-command
-            // quota/feedback remain native JVM operations.
+            // Preserve runtime-guarded exact source-score revisions, if opted in.
             method.visitMethodInsn(INVOKEVIRTUAL, STATE, "sourceOperand",
                     "()I", false);
         } else {
@@ -183,23 +182,21 @@ final class TypedScoreIRBytecode implements Opcodes {
 
         target(method);
         method.visitVarInsn(ILOAD, 8);
-        switch (binary.operation()) {
-            case ASSIGN -> {
+        switch (step.opcode()) {
+            case ASSIGN_SCORE -> {
                 method.visitMethodInsn(INVOKEINTERFACE, SCORE, "set", "(I)V", true);
                 method.visitVarInsn(ILOAD, 8);
                 method.visitVarInsn(ISTORE, 7);
             }
-            case ADD, SUBTRACT -> {
-                if (binary.operation() == TypedScoreIR.BinaryOperator.SUBTRACT) {
+            case ADD_SCORE, SUBTRACT_SCORE -> {
+                if (step.opcode() == TypedIROptimizer.Op.SUBTRACT_SCORE) {
                     method.visitInsn(INEG);
                 }
                 method.visitMethodInsn(INVOKEINTERFACE, SCORE, "add", "(I)I", true);
                 method.visitVarInsn(ISTORE, 7);
             }
-            case MULTIPLY -> {
-                // Stack currently: targetScore, operand. Move operand into
-                // local before calling target.get so the receiver remains
-                // available to set the new score once.
+            case MULTIPLY_SCORE -> {
+                // Retain original source-before-target read sequencing.
                 method.visitInsn(POP);
                 method.visitInsn(DUP);
                 method.visitMethodInsn(INVOKEINTERFACE, SCORE, "get", "()I", true);
@@ -209,6 +206,7 @@ final class TypedScoreIRBytecode implements Opcodes {
                 method.visitVarInsn(ISTORE, 7);
                 method.visitMethodInsn(INVOKEINTERFACE, SCORE, "set", "(I)V", true);
             }
+            default -> throw new IllegalArgumentException("literal opcode in score emitter");
         }
     }
 
