@@ -463,11 +463,12 @@ public final class TypedScoreIR {
         if (!DIAGNOSTICS) return;
         EXECUTED_STEPS.increment();
         if (instruction instanceof Binary) BINARY_STEPS.increment();
-        if (instruction instanceof Conditional) CONDITIONAL_STEPS.increment();
+        if (instruction instanceof Conditional || instruction instanceof Compound) CONDITIONAL_STEPS.increment();
         if (instruction instanceof Conditional condition
                 && condition.terminal() instanceof Binary) GUARDED_BINARY_STEPS.increment();
         Instruction terminal = instruction instanceof Conditional condition
-                ? condition.terminal() : instruction;
+                ? condition.terminal() : instruction instanceof Compound compound
+                        ? compound.terminal() : instruction;
         if (terminal instanceof Binary binary
                 && (binary.operation() == BinaryOperator.MINIMUM
                     || binary.operation() == BinaryOperator.MAXIMUM)) MINMAX_STEPS.increment();
@@ -621,6 +622,7 @@ public final class TypedScoreIR {
     ) {
         int decision = state.begin(instruction);
         if (decision != TypedScoreIRRuntime.DIRECT) return decision;
+        if (instruction instanceof Compound && !state.completeCompound()) return TypedScoreIRRuntime.SKIP;
         ScoreAccess score = state.access();
         int updated;
         Instruction terminal = instruction instanceof Conditional conditional
@@ -674,6 +676,7 @@ public final class TypedScoreIR {
     ) {
         int decision = state.begin(prepared);
         if (decision != TypedScoreIRRuntime.DIRECT) return decision;
+        if (prepared.compound() != null && !state.completeCompound()) return TypedScoreIRRuntime.SKIP;
         ScoreAccess score = state.access();
         int updated;
         switch (step.opcode()) {
