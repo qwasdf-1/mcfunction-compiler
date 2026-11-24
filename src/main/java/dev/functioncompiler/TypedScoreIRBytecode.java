@@ -74,7 +74,15 @@ final class TypedScoreIRBytecode implements Opcodes {
         MethodVisitor method = writer.visitMethod(ACC_PUBLIC, "execute", EXECUTE, null, null);
         method.visitCode();
         // Local 4: source; 5: invocation state; 6: begin decision;
-        // 7: new target score; 8: source score operand.
+        // 7: new target score; 8: source score operand;
+        // 9: immutable instruction vector, loaded once per execution.
+        //
+        // IR-034: the same vector is used by State for reentrant continuation
+        // and by every emitted instruction's begin() call. Its final field
+        // cannot change during this generated action.
+        method.visitVarInsn(ALOAD, 0);
+        method.visitFieldInsn(GETFIELD, internal, "steps", STEPS);
+        method.visitVarInsn(ASTORE, 9);
         method.visitVarInsn(ALOAD, 1);
         method.visitTypeInsn(CHECKCAST, SOURCE);
         method.visitVarInsn(ASTORE, 4);
@@ -83,8 +91,7 @@ final class TypedScoreIRBytecode implements Opcodes {
         method.visitVarInsn(ALOAD, 4);
         method.visitVarInsn(ALOAD, 2);
         method.visitVarInsn(ALOAD, 3);
-        method.visitVarInsn(ALOAD, 0);
-        method.visitFieldInsn(GETFIELD, internal, "steps", STEPS);
+        method.visitVarInsn(ALOAD, 9);
         method.visitMethodInsn(INVOKESPECIAL, STATE, "<init>",
                 "(L" + SOURCE + ";L" + CONTEXT + ";L" + FRAME + ";" + STEPS + ")V", false);
         method.visitVarInsn(ASTORE, 5);
@@ -97,8 +104,7 @@ final class TypedScoreIRBytecode implements Opcodes {
             Label next = new Label();
 
             method.visitVarInsn(ALOAD, 5);
-            method.visitVarInsn(ALOAD, 0);
-            method.visitFieldInsn(GETFIELD, internal, "steps", STEPS);
+            method.visitVarInsn(ALOAD, 9);
             pushInt(method, index);
             method.visitInsn(AALOAD);
             method.visitMethodInsn(INVOKEVIRTUAL, STATE, "begin",
