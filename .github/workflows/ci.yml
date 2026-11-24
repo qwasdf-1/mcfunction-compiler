@@ -77,3 +77,8 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_typed_ir037.py' -v
           python3 -m unittest discover -s tests -p 'test_typed_ir017.py' -v
           python3 -m py_compile scripts/ci_typed_ir017.py
+
+      - name: Validate IR-038 extended score coverage and optimizer contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir038.py' -v
+          python3 -m py_compile scripts/ci_typed_ir038.py
