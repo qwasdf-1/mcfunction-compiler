@@ -229,6 +229,18 @@ def options(mode: str) -> dict[str, str]:
     }
 
 
+def diagnostic_counter(status: str, name: str) -> int:
+    """Read a WHOLE diagnostic key, not a suffix of another metric.
+
+    For example: binary_steps=34 and guarded_binary_steps=0 must not
+    be confused by an unanchored regex.
+    """
+    match = re.search(rf"(?:^|\\s){re.escape(name)}=(\\d+)(?=\\s|$)", status)
+    if match is None:
+        raise AssertionError(f"Missing complete diagnostic {name!r}: {status!r}")
+    return int(match.group(1))
+
+
 def run(mode: str) -> dict:
     RUNS.mkdir(parents=True, exist_ok=True)
     OUT.mkdir(parents=True, exist_ok=True)
@@ -368,15 +380,15 @@ def run(mode: str) -> dict:
                 expected = "IR008 mode=" + mode
                 if expected not in report["compiler_status"]:
                     raise AssertionError(f"IR mode wasn't activated: {report['compiler_status']!r}")
-                if re.search(r"executed_steps=0(?:\s|$)", report["compiler_status"]):
+                if diagnostic_counter(report["compiler_status"], "executed_steps") <= 0:
                     raise AssertionError("No direct IR instructions executed")
-                if mode == "bytecode" and re.search(
-                        r"bytecode_regions=0(?:\s|$)", report["compiler_status"]):
+                if (mode == "bytecode"
+                        and diagnostic_counter(report["compiler_status"], "bytecode_regions") <= 0):
                     raise AssertionError("ASM backend not generated")
-                if re.search(r"fallback_steps=0(?:\s|$)", report["compiler_status"]):
+                if diagnostic_counter(report["compiler_status"], "fallback_steps") <= 0:
                     raise AssertionError("Original-missing-objective fallback not exercised")
                 for counter in ("binary_steps", "conditional_steps", "conditional_skips"):
-                    if re.search(rf"{counter}=0(?:\s|$)", report["compiler_status"]):
+                    if diagnostic_counter(report["compiler_status"], counter) <= 0:
                         raise AssertionError(f"IR-009 {counter} not activated: "
                                              f"{report['compiler_status']!r}")
             report["semantic_verified"] = True
