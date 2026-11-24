@@ -147,9 +147,10 @@ final class TypedScoreIRBytecode implements Opcodes {
                         pushInt(method, stageIndex);
                         method.visitMethodInsn(INVOKEVIRTUAL, STATE, "compoundReadStage", "(I)Z", false);
                     } else {
+                        pushInt(method, stageIndex);
                         method.visitInsn(stage.evaluation() == CompoundScoreIR.Evaluation.KNOWN_PASS
                                 ? ICONST_1 : ICONST_0);
-                        method.visitMethodInsn(INVOKEVIRTUAL, STATE, "compoundKnownStage", "(Z)Z", false);
+                        method.visitMethodInsn(INVOKEVIRTUAL, STATE, "compoundKnownStage", "(IZ)Z", false);
                     }
                     method.visitJumpInsn(IFEQ, next);
                 }
