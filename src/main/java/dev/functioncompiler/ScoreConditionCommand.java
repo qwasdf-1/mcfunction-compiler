@@ -85,7 +85,7 @@ final class ScoreConditionCommand implements FusableCommand {
                     + IR_HOLDER + " [A-Za-z0-9_.+\\-]+ -?\\d+";
     private static final String IR_BINARY =
             "scoreboard players operation " + IR_HOLDER + " "
-                    + "[A-Za-z0-9_.+\\-]+ (?:=|\\+=|-=|\\*=) "
+                    + "[A-Za-z0-9_.+\\-]+ (?:=|\\+=|-=|\\*=|<|>) "
                     + IR_HOLDER + " [A-Za-z0-9_.+\\-]+";
     private static final java.util.regex.Pattern IR_GUARD =
             java.util.regex.Pattern.compile(
@@ -93,14 +93,29 @@ final class ScoreConditionCommand implements FusableCommand {
                             + "([A-Za-z0-9_.+\\-]+) matches (" + IR_RANGE + ") "
                             + "run (" + IR_MUTATION + "|" + IR_BINARY + ")$");
 
+    private static final java.util.regex.Pattern IR_COMPARISON =
+            java.util.regex.Pattern.compile(
+                    "^execute (if|unless) score (" + IR_HOLDER + ") "
+                            + "([A-Za-z0-9_.+\\-]+) (=|<|<=|>|>=) (" + IR_HOLDER + ") "
+                            + "([A-Za-z0-9_.+\\-]+) run (" + IR_MUTATION + "|" + IR_BINARY + ")$");
+
+    private static boolean terminalAllowed(String input) {
+        return !input.startsWith("scoreboard players operation ")
+                || ScoreOperationCommand.typedIrLiteralSourceShape(input);
+    }
+
     static boolean typedIrLiteralGuardShape(String input) {
         if (input == null) return false;
         var matcher = IR_GUARD.matcher(input);
-        if (!matcher.matches()
-                || (!TypedScoreIR.selfHolderEnabled() && input.contains("@s"))) return false;
-        return RANGE_GUARDS_ENABLED
+        if (!TypedScoreIR.selfHolderEnabled() && input.contains("@s")) return false;
+        if (!matcher.matches()) {
+            var comparison = IR_COMPARISON.matcher(input);
+            return TypedScoreIR.extendedScoreEnabled() && comparison.matches()
+                    && terminalAllowed(comparison.group(7));
+        }
+        return terminalAllowed(matcher.group(5)) && (RANGE_GUARDS_ENABLED
                 || (!matcher.group(4).contains("..")
-                        && !matcher.group(5).startsWith("scoreboard players operation "));
+                        && !matcher.group(5).startsWith("scoreboard players operation ")));
     }
 
     /**
@@ -137,6 +152,7 @@ final class ScoreConditionCommand implements FusableCommand {
     }
 
     TypedScoreIR.Conditional toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
+        if (operator != null) return toComparisonIR(parsed);
         if ((isTargetSelf && !TypedScoreIR.selfHolderEnabled())
                 || (!isTargetSelf && targetHolder == null) || range == null
                 || operator != null || sourceHolder != null
@@ -163,6 +179,41 @@ final class ScoreConditionCommand implements FusableCommand {
         }
         return terminal == null ? null : new TypedScoreIR.Conditional(
                 parsed, terminal, targetHolder, isTargetSelf, targetObjective, range, unless);
+    }
+
+    /** IR-038: exact Brigadier-validated comparison and terminal, no reparsing at runtime. */
+    private TypedScoreIR.Conditional toComparisonIR(FusedRegionPrototype.FusedCommand parsed) {
+        if (!TypedScoreIR.extendedScoreEnabled() || range != null
+                || (!TypedScoreIR.selfHolderEnabled() && (isTargetSelf || isSourceSelf))
+                || (!isTargetSelf && targetHolder == null)
+                || (!isSourceSelf && sourceHolder == null)
+                || targetObjective == null || sourceObjective == null) return null;
+        var matcher = IR_COMPARISON.matcher(parsed.commandInput());
+        if (!matcher.matches()
+                || !matcher.group(2).equals(isTargetSelf ? "@s" : targetHolder.getScoreboardName())
+                || !matcher.group(3).equals(targetObjective)
+                || !matcher.group(5).equals(isSourceSelf ? "@s" : sourceHolder.getScoreboardName())
+                || !matcher.group(6).equals(sourceObjective)
+                || ("unless".equals(matcher.group(1)) != unless)
+                || !terminalAllowed(matcher.group(7))) return null;
+        Operator expected = switch (matcher.group(4)) {
+            case "=" -> Operator.EQUALS;
+            case "<" -> Operator.LESS_THAN;
+            case "<=" -> Operator.LESS_THAN_OR_EQUAL;
+            case ">" -> Operator.GREATER_THAN;
+            case ">=" -> Operator.GREATER_THAN_OR_EQUAL;
+            default -> null;
+        };
+        if (operator != expected) return null;
+        TypedScoreIR.Instruction terminal = null;
+        if (innerCommand instanceof ScoreAddCommand score) {
+            terminal = score.toMutation(parsed, matcher.group(7));
+        } else if (innerCommand instanceof ScoreOperationCommand binary) {
+            terminal = binary.toBinary(parsed, matcher.group(7));
+        }
+        return terminal == null ? null : new TypedScoreIR.Conditional(
+                parsed, terminal, targetHolder, isTargetSelf, targetObjective, null, unless,
+                operator, sourceHolder, isSourceSelf, sourceObjective);
     }
 
     @Override
@@ -269,7 +320,7 @@ final class ScoreConditionCommand implements FusableCommand {
         return staticHolder;
     }
 
-    private static boolean compareScores(int target, int source, Operator op) {
+    static boolean compareScores(int target, int source, Operator op) {
         return switch (op) {
             case EQUALS -> target == source;
             case LESS_THAN -> target < source;
