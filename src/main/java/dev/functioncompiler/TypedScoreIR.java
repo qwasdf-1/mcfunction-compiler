@@ -495,9 +495,20 @@ public final class TypedScoreIR {
     }
 
     static final class Interpreted implements UnboundEntryAction<CommandSourceStack> {
-        private final Program program;
+        /**
+         * IR-034: materialize the already immutable typed region ONCE at
+         * compilation. A function may execute thousands of times per tick:
+         * never allocate another instruction array for each invocation.
+         *
+         * State only reads the instruction vector, including when it has to
+         * enqueue a fresh continuation on a reentrant callback. No source
+         * instruction, per-command effect boundary, or fallback is removed.
+         */
+        private final Instruction[] steps;
 
-        Interpreted(Program program) { this.program = program; }
+        Interpreted(Program program) {
+            this.steps = program.instructions().toArray(Instruction[]::new);
+        }
 
         @Override
         public void execute(
@@ -506,11 +517,9 @@ public final class TypedScoreIR {
                 Frame frame
         ) {
             TypedScoreIRRuntime.State state =
-                    new TypedScoreIRRuntime.State(
-                            source, context, frame,
-                            program.instructions().toArray(TypedScoreIR.Instruction[]::new));
+                    new TypedScoreIRRuntime.State(source, context, frame, steps);
             executed();
-            for (Instruction instruction : program.instructions()) {
+            for (Instruction instruction : steps) {
                 if (executeTypedStep(instruction, state) == TypedScoreIRRuntime.STOP) return;
             }
         }
