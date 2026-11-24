@@ -71,3 +71,7 @@ jobs:
             src/main/java/dev/functioncompiler/IR036CostModel.java \
             tests/java/dev/functioncompiler/IR036CostModelTest.java
           java -cp build/ir036-model-tests dev.functioncompiler.IR036CostModelTest
+
+      - name: Validate IR-037 prepared runtime specialization and original semantics
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir037.py' -v
