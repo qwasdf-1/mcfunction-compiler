@@ -186,6 +186,25 @@ final class TypedScoreIRRuntime {
             ScoreHolder guardHolder = condition != null
                     ? (prepared.conditionSelf() ? source.getEntity()
                             : prepared.conditionHolder()) : null;
+            // IR-038: a comparison has a second read-only predicate operand.
+            // Its objective is resolved before quota or score effects, with
+            // same-command name aliases only (never across source commands).
+            boolean compares = condition != null && condition.comparison() != null;
+            Objective comparisonObjective = null;
+            ScoreHolder comparisonHolder = null;
+            if (compares) {
+                if (prepared.comparisonSharesTargetObjective()) {
+                    comparisonObjective = selected;
+                    TypedScoreIR.objectiveLookupReused();
+                } else if (prepared.comparisonSharesGuardObjective()) {
+                    comparisonObjective = guardObjective;
+                    TypedScoreIR.objectiveLookupReused();
+                } else {
+                    comparisonObjective = scoreboard.getObjective(condition.comparisonObjective());
+                }
+                comparisonHolder = condition.comparisonSelf()
+                        ? source.getEntity() : condition.comparisonHolder();
+            }
             Objective operandObjective = null;
             if (hasBinary) {
                 if (prepared.operandSharesTargetObjective()) {
@@ -193,6 +212,9 @@ final class TypedScoreIRRuntime {
                     TypedScoreIR.objectiveLookupReused();
                 } else if (prepared.operandSharesGuardObjective()) {
                     operandObjective = guardObjective;
+                    TypedScoreIR.objectiveLookupReused();
+                } else if (prepared.operandSharesComparisonObjective()) {
+                    operandObjective = comparisonObjective;
                     TypedScoreIR.objectiveLookupReused();
                 } else {
                     operandObjective = scoreboard.getObjective(prepared.operandObjective());
@@ -202,6 +224,7 @@ final class TypedScoreIRRuntime {
                     ? (prepared.operandSelf() ? source.getEntity()
                             : prepared.operandHolder()) : null;
             if ((condition != null && (guardObjective == null || guardHolder == null))
+                    || (compares && (comparisonObjective == null || comparisonHolder == null))
                     || (hasBinary && (operandObjective == null || operandHolder == null))) {
                 return original(instruction);
             }
@@ -217,7 +240,29 @@ final class TypedScoreIRRuntime {
             if (condition != null) {
                 ReadOnlyScoreInfo info = scoreboard.getPlayerScoreInfo(
                         guardHolder, guardObjective);
-                boolean matched = info != null && condition.range().matches(info.value());
+                boolean matched;
+                if (!compares) {
+                    matched = info != null && condition.range().matches(info.value());
+                } else {
+                    TypedScoreIR.comparisonEvaluated();
+                    // Missing rows remain false (including X = X); do not
+                    // create a row or turn a same-slot predicate into a
+                    // compile-time unconditional command. Score reads are
+                    // pure within this one predicate evaluation.
+                    if (info == null) {
+                        matched = false;
+                    } else {
+                        ReadOnlyScoreInfo right;
+                        if (prepared.comparisonSameSlot()) {
+                            right = info;
+                            TypedScoreIR.comparisonReadReused();
+                        } else {
+                            right = scoreboard.getPlayerScoreInfo(comparisonHolder, comparisonObjective);
+                        }
+                        matched = right != null && ScoreConditionCommand.compareScores(
+                                info.value(), right.value(), condition.comparison());
+                    }
+                }
                 if (matched == condition.unless()) {
                     TypedScoreIR.skippedConditional();
                     traceReturn(instruction, 0);
