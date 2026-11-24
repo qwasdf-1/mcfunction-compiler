@@ -159,8 +159,13 @@ public final class TypedScoreIR {
         }
     }
 
-    /** Only =, +=, -=, *=; no divide-by-zero, swap or multi-write operations. */
-    enum BinaryOperator { ASSIGN, ADD, SUBTRACT, MULTIPLY }
+    // IR-038: extended non-throwing, single-write score operations and comparisons.
+    private static final boolean EXTENDED_SCORE =
+            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_EXTENDED_SCORE"));
+    static boolean extendedScoreEnabled() { return EXTENDED_SCORE; }
+
+    /** Single-write operators; division, modulo and swap remain native. */
+    enum BinaryOperator { ASSIGN, ADD, SUBTRACT, MULTIPLY, MINIMUM, MAXIMUM }
 
     record Binary(
             FusedRegionPrototype.FusedCommand vanilla,
@@ -206,8 +211,19 @@ public final class TypedScoreIR {
             boolean conditionSelf,
             String conditionObjective,
             MinMaxBounds.Ints range,
-            boolean unless
+            boolean unless,
+            ScoreConditionCommand.Operator comparison,
+            ScoreHolder comparisonHolder,
+            boolean comparisonSelf,
+            String comparisonObjective
     ) implements Instruction {
+        Conditional(FusedRegionPrototype.FusedCommand vanilla, Instruction terminal,
+                    ScoreHolder conditionHolder, boolean conditionSelf,
+                    String conditionObjective, MinMaxBounds.Ints range, boolean unless) {
+            this(vanilla, terminal, conditionHolder, conditionSelf, conditionObjective,
+                    range, unless, null, null, false, null);
+        }
+
         Conditional {
             Objects.requireNonNull(vanilla);
             Objects.requireNonNull(terminal);
@@ -217,7 +233,19 @@ public final class TypedScoreIR {
             if (!conditionSelf) Objects.requireNonNull(conditionHolder);
             if (conditionSelf && conditionHolder != null) throw new IllegalArgumentException("ambiguous guard");
             Objects.requireNonNull(conditionObjective);
-            Objects.requireNonNull(range);
+            if ((range == null) == (comparison == null)) {
+                throw new IllegalArgumentException("exactly one predicate kind required");
+            }
+            if (comparison == null) {
+                if (comparisonHolder != null || comparisonSelf || comparisonObjective != null) {
+                    throw new IllegalArgumentException("range with comparison fields");
+                }
+            } else {
+                if (comparisonSelf == (comparisonHolder != null)) {
+                    throw new IllegalArgumentException("ambiguous comparison holder");
+                }
+                Objects.requireNonNull(comparisonObjective);
+            }
         }
         @Override
         public ScoreHolder holder() { return terminal.holder(); }
@@ -230,6 +258,9 @@ public final class TypedScoreIR {
             Effects inner = terminal.effects();
             HashSet<Slot> reads = new HashSet<>(inner.reads());
             reads.add(new Slot(slotName(conditionHolder, conditionSelf), conditionObjective));
+            if (comparison != null) {
+                reads.add(new Slot(slotName(comparisonHolder, comparisonSelf), comparisonObjective));
+            }
             return new Effects(reads, inner.writes(), true);
         }
     }
@@ -540,6 +571,12 @@ public final class TypedScoreIR {
                     score.set(value);
                     yield value;
                 }
+                case MINIMUM, MAXIMUM -> {
+                    int value = binary.operation() == BinaryOperator.MINIMUM
+                            ? Math.min(score.get(), operand) : Math.max(score.get(), operand);
+                    score.set(value);
+                    yield value;
+                }
             };
         } else {
             Mutation mutation = (Mutation) terminal;
@@ -578,7 +615,7 @@ public final class TypedScoreIR {
                 score.set(step.literal());
                 updated = step.literal();
             }
-            case ASSIGN_SCORE, ADD_SCORE, SUBTRACT_SCORE, MULTIPLY_SCORE -> {
+            case ASSIGN_SCORE, ADD_SCORE, SUBTRACT_SCORE, MULTIPLY_SCORE, MIN_SCORE, MAX_SCORE -> {
                 int operand = SCORE_CACHE
                         ? state.sourceOperand() : state.sourceAccess().get();
                 updated = switch (step.opcode()) {
@@ -592,6 +629,12 @@ public final class TypedScoreIR {
                         int product = score.get() * operand;
                         score.set(product);
                         yield product;
+                    }
+                    case MIN_SCORE, MAX_SCORE -> {
+                        int value = step.opcode() == TypedIROptimizer.Op.MIN_SCORE
+                                ? Math.min(score.get(), operand) : Math.max(score.get(), operand);
+                        score.set(value);
+                        yield value;
                     }
                     default -> throw new AssertionError("unreachable canonical opcode");
                 };
