@@ -135,6 +135,29 @@ final class TypedScoreIRBytecode implements Opcodes {
             method.visitInsn(ICONST_3);
             method.visitJumpInsn(IF_ICMPEQ, next);  // conditional branch not taken
 
+            // IR-039: the generated method contains one explicit branch per
+            // reached predicate. Known outcomes use a literal, not a score read
+            // or a runtime predicate-kind dispatch. Quota is still charged.
+            if (step.original() instanceof TypedScoreIR.Compound compound) {
+                var stages = CompoundScoreIR.prepare(compound).stages();
+                for (int stageIndex = 0; stageIndex < stages.size(); stageIndex++) {
+                    var stage = stages.get(stageIndex);
+                    method.visitVarInsn(ALOAD, 5);
+                    if (stage.evaluation() == CompoundScoreIR.Evaluation.READ) {
+                        pushInt(method, stageIndex);
+                        method.visitMethodInsn(INVOKEVIRTUAL, STATE, "compoundReadStage", "(I)Z", false);
+                    } else {
+                        method.visitInsn(stage.evaluation() == CompoundScoreIR.Evaluation.KNOWN_PASS
+                                ? ICONST_1 : ICONST_0);
+                        method.visitMethodInsn(INVOKEVIRTUAL, STATE, "compoundKnownStage", "(Z)Z", false);
+                    }
+                    method.visitJumpInsn(IFEQ, next);
+                }
+                method.visitVarInsn(ALOAD, 5);
+                method.visitMethodInsn(INVOKEVIRTUAL, STATE, "compoundTerminal", "()Z", false);
+                method.visitJumpInsn(IFEQ, next);
+            }
+
             // IR-035: no per-command lowering/type inspection in the backend.
             // These preclassified opcodes never merge original source entries.
             if (step.opcode().readsSourceScore()) {
