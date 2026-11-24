@@ -32,7 +32,7 @@ QUOTAS = (1, 2, 4, 8, 32, 64, 65, 130)
 
 
 def counter(status: str, key: str) -> int:
-    match = re.search(rf"(?:^|\\s){re.escape(key)}=(\\d+)(?=\\s|$)", status)
+    match = re.search(rf"(?:^|\s){re.escape(key)}=(\d+)(?=\s|$)", status)
     if not match:
         raise AssertionError(f"IR-036 missing counter {key}: {status!r}")
     return int(match.group(1))
