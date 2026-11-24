@@ -1,6 +1,6 @@
 # IR-038 — Extended scoreboard IR and same-command predicate CSE
 
-**Status: implemented; native acceptance pending (2026-11-24).** This is a larger, cohesive compiler milestone rather than a new research campaign for each local transformation. Work is on draft PR #10, `work/compiler-coverage`.
+**Status: implemented; native semantic acceptance passed (2026-11-24).** This is a larger, cohesive compiler milestone rather than a new research campaign for each local transformation. Work is on draft PR #10, `work/compiler-coverage`.
 
 ## Scope and rationale
 
@@ -26,6 +26,28 @@ Run the existing four-mode IR-008 and six-mode IR-013 suites as regression gates
 
 New feature flag, choice of non-throwing single-write operators, and the larger bundled scope are milestone design decisions. The proof assumes vanilla pure same-thread score/objective lookup behavior; arbitrary third-party side effects on reads are not covered. Tests use literal holders; dynamic-holder coverage remains separately opt-in and needs its own targeted extension evidence. Added IR metadata has a memory/compile-time tradeoff. Keep draft PR unmerged, and expensive native workflow manual-only after launch.
 
-## Results
+## Results — accepted
 
-Pending.
+[Native run 45448263135](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45448263135) completed successfully, with [archived evidence 14948730165](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45448263135/artifacts/14948730165). The implementation and restored manual-only workflow also passed [ordinary CI](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45448321439).
+
+| Gate | Observed result |
+| --- | --- |
+| IR-038 focused five-JVM suite | 117 state/quota observations per mode; all matched vanilla |
+| IR-008 four-JVM regression | 62 cases; native parity |
+| IR-013 six-JVM regression | 85 cases per mode; zero differences for all three guarded modes |
+| Unsafe negative controls | 46 differences each in unsafe bytecode and direct modes, as expected |
+| Java 25 build and source contracts | Passed |
+
+Across the eight new fixture functions, the old bytecode configuration lowered 12 of 56 source lines into typed regions; the extended configurations lowered 53 of 56. The remaining three lines are the deliberately unsupported division, modulo and swap operations. Across the complete loaded test corpus the typed-line counter increased from 38 to 127. These are fixture-specific coverage results, not estimates of typical datapack coverage. The old-bytecode control also disables the preexisting ranged-guard flag, so this comparison is not a single-flag ablation.
+
+| Diagnostic | Old bytecode | Extended interpreter | Extended bytecode | Extended direct |
+| --- | ---: | ---: | ---: | ---: |
+| Typed min/max steps | 0 | 42 | 42 | 42 |
+| Comparison evaluations | 0 | 74 | 74 | 74 |
+| Duplicate predicate row lookups avoided | 0 | 16 | 16 | 16 |
+| Objective-name lookups avoided (IR-037 counter, including inherited paths) | 6 | 244 | 244 | 244 |
+| Reentrant yields | 8 | 20 | 20 | 20 |
+
+All extended modes exercised the new lowering and local read elimination. The matching observations include absent rows, missing objectives, comparison branches, quota truncation, and callback ordering. The 244 objective-lookup count includes inherited IR-037 optimizations; it is not an incremental IR-038 savings estimate. The same-slot counter counts avoided row lookups, not elimination of every subsequent value accessor. No CPU timing or production promotion follows from these counts.
+
+**Disposition:** accepted for tested literal-holder configurations. Dynamic-holder comparison extension and arbitrary third-party read-side effects remain outside the demonstrated parity scope. The extended score flag remains off by default; PR #10 remains draft/unmerged. The native workflow is restored to manual-only.
