@@ -68,6 +68,16 @@ class TypedIr008(unittest.TestCase):
         self.assertFalse(result["causal_speedup_established"])
         self.assertFalse(result["compiler_production_promotion"])
 
+    def test_native_counter_parser_rejects_suffix_collision(self):
+        status = ("IR008 mode=interpreted executed_steps=197 "
+                  "binary_steps=34 guarded_binary_steps=0 "
+                  "conditional_steps=18 conditional_skips=16")
+        self.assertEqual(ir.diagnostic_counter(status, "binary_steps"), 34)
+        self.assertEqual(ir.diagnostic_counter(status, "guarded_binary_steps"), 0)
+        self.assertEqual(ir.diagnostic_counter(status, "conditional_steps"), 18)
+        with self.assertRaisesRegex(AssertionError, "Missing complete diagnostic"):
+            ir.diagnostic_counter(status, "unknown_steps")
+
     def test_generated_backend_must_not_delegate_each_step(self):
         source = (ROOT / "src/main/java/dev/functioncompiler/TypedScoreIRBytecode.java"
                   ).read_text(encoding="utf-8")
