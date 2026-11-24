@@ -36,12 +36,15 @@ final class TypedIRPreparedSteps {
             boolean comparisonSharesTargetObjective,
             boolean comparisonSharesGuardObjective,
             boolean operandSharesComparisonObjective,
-            boolean comparisonSameSlot
+            boolean comparisonSameSlot,
+            CompoundScoreIR.Plan compound
     ) {
         Prepared {
             Objects.requireNonNull(original);
             Objects.requireNonNull(targetObjective);
             Objects.requireNonNull(feedback);
+            if ((original instanceof TypedScoreIR.Compound) != (compound != null))
+                throw new IllegalArgumentException("invalid compound plan");
             if (!original.effects().observableBoundary()) {
                 throw new IllegalArgumentException("lost original command effect boundary");
             }
@@ -111,7 +114,8 @@ final class TypedIRPreparedSteps {
         Objects.requireNonNull(original);
         TypedScoreIR.Conditional guard =
                 original instanceof TypedScoreIR.Conditional condition ? condition : null;
-        TypedScoreIR.Instruction terminal = guard == null ? original : guard.terminal();
+        TypedScoreIR.Instruction terminal = guard != null ? guard.terminal()
+                : original instanceof TypedScoreIR.Compound compound ? compound.terminal() : original;
         TypedScoreIR.Binary binary =
                 terminal instanceof TypedScoreIR.Binary operation ? operation : null;
         TypedScoreIR.Mutation mutation =
@@ -152,7 +156,8 @@ final class TypedIRPreparedSteps {
                         && guard.conditionObjective().equals(guard.comparisonObjective()),
                 guard != null && guard.comparison() != null && binary != null
                         && binary.sourceObjective().equals(guard.comparisonObjective()),
-                guard != null && guard.comparison() != null && samePredicateSlot(guard));
+                guard != null && guard.comparison() != null && samePredicateSlot(guard),
+                original instanceof TypedScoreIR.Compound compound ? CompoundScoreIR.prepare(compound) : null);
     }
     /** Exact alias only: never assume an entity @s aliases a literal fake holder. */
     private static boolean samePredicateSlot(TypedScoreIR.Conditional guard) {
