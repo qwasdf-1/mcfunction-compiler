@@ -223,6 +223,86 @@ public final class ScoreAddPrototype {
                 chain.getTopContext().getInput());
     }
 
+    /**
+     * IR-039: inspect the ORIGINAL Brigadier chain without rewriting it.
+     * Only a detached terminal context is wrapped for the existing typed
+     * terminal validator. Declined candidates and fallback retain the native
+     * BuildContexts action and all of its original redirect callbacks.
+     */
+    @SuppressWarnings("unchecked")
+    static TypedScoreIR.Compound lowerCompound(
+            UnboundEntryAction<CommandSourceStack> entry, Identifier functionId) {
+        if (!CompoundScoreIR.enabled() || !(entry instanceof BuildContexts.Unbound<?> unbound)) return null;
+        // Do not compose with a legacy callback-rewriting prototype.
+        if (ProbeConfiguration.scoreAddPrototypeEnabled()
+                || ProbeConfiguration.scoreAddTimingEnabled()
+                || ProbeConfiguration.fusedRegionPrototypeEnabled()
+                || ProbeConfiguration.bytecodeRegionPrototypeEnabled()) return null;
+        var accessor = (BuildContextsAccessor<CommandSourceStack>) unbound;
+        String input = accessor.functionCompiler$getCommandInput();
+        if (input == null || !input.startsWith("execute ")) return null;
+        String[] halves = input.substring(8).split(" run ", -1);
+        if (halves.length != 2) return null;
+        String[] parts = halves[0].split(" (?=(?:if|unless) score )", -1);
+        if (parts.length < 2 || parts.length > CompoundScoreIR.MAX_PREDICATES) return null;
+        for (String part : parts) {
+            if (!ScoreConditionCommand.typedIrLiteralGuardShape(
+                    "execute " + part + " run " + halves[1])) return null;
+        }
+
+        ContextChain<CommandSourceStack> chain = accessor.functionCompiler$getCommand();
+        if (chain.getStage() == ContextChain.Stage.EXECUTE) return null;
+        var chainAccessor = (ContextChainAccessor<CommandSourceStack>) (Object) chain;
+        List<CompoundScoreIR.Predicate> predicates = new ArrayList<>();
+        for (CommandContext<CommandSourceStack> modifier : chainAccessor.functionCompiler$getModifiers()) {
+            if (nodeNames(modifier).equals(List.of("run"))) continue;
+            if (predicates.size() >= parts.length || modifier.getRedirectModifier() == null) return null;
+            // Source text is ONLY an eligibility and identity check. Actual
+            // holders, objectives, comparisons and ranges come from Brigadier.
+            ParsedCondition parsed = parseScoreCondition(modifier, true, true);
+            if (parsed == null) return null;
+            String[] words = parts[predicates.size()].split(" ");
+            if (parsed.unless() != "unless".equals(words[0])
+                    || !words[2].equals(TypedScoreIR.slotName(parsed.targetHolder(), parsed.isTargetSelf()))
+                    || !words[3].equals(parsed.targetObjective())) return null;
+            CompoundScoreIR.Operand left = new CompoundScoreIR.Operand(
+                    parsed.targetHolder(), parsed.isTargetSelf(), parsed.targetObjective());
+            if ("matches".equals(words[4])) {
+                if (words.length != 6 || parsed.operator() != null
+                        || !ScoreConditionCommand.sameParsedRange(parsed.range(), words[5])) return null;
+                predicates.add(new CompoundScoreIR.Predicate(
+                        left, parsed.range(), words[5], null, null, parsed.unless()));
+            } else {
+                if (words.length != 7 || parsed.range() != null
+                        || parsed.operator() != parseOperator(words[4])
+                        || !words[5].equals(TypedScoreIR.slotName(parsed.sourceHolder(), parsed.isSourceSelf()))
+                        || !words[6].equals(parsed.sourceObjective())) return null;
+                var right = new CompoundScoreIR.Operand(
+                        parsed.sourceHolder(), parsed.isSourceSelf(), parsed.sourceObjective());
+                predicates.add(new CompoundScoreIR.Predicate(
+                        left, null, null, parsed.operator(), right, parsed.unless()));
+            }
+        }
+        if (predicates.size() != parts.length) return null;
+        var executable = chainAccessor.functionCompiler$getExecutable();
+        if (executable == null || executable.isForked()) return null;
+        var copy = new CommandContext<>(executable.getSource(), executable.getInput(),
+                ((CommandContextAccessor<CommandSourceStack>) (Object) executable)
+                        .functionCompiler$getArguments(),
+                executable.getCommand(), executable.getRootNode(), executable.getNodes(),
+                executable.getRange(), executable.getChild(), executable.getRedirectModifier(),
+                executable.isForked());
+        if (!compileScoreAdd(copy, functionId) && !compileScoreOperation(copy, functionId)) return null;
+        var original = new FusedRegionPrototype.FusedCommand(
+                entry, new ContextChain<>(List.of(), copy), input);
+        TypedScoreIR.Instruction terminal = null;
+        if (copy.getCommand() instanceof ScoreAddCommand mutation)
+            terminal = mutation.toMutation(original, halves[1]);
+        else if (copy.getCommand() instanceof ScoreOperationCommand binary)
+            terminal = binary.toBinary(original, halves[1]);
+        return terminal == null ? null : new TypedScoreIR.Compound(original, terminal, predicates);
+    }
+
     @FunctionalInterface
     private interface ExecutableCompiler {
         boolean compile(CommandContext<CommandSourceStack> executable, Identifier functionId);
@@ -517,7 +597,23 @@ public final class ScoreAddPrototype {
     private static ParsedCondition parseScoreCondition(
             CommandContext<CommandSourceStack> context, boolean typedIrTargetFix
     ) {
+        return parseScoreCondition(context, typedIrTargetFix, false);
+    }
+
+    private static ParsedCondition parseScoreCondition(
+            CommandContext<CommandSourceStack> context, boolean typedIrTargetFix,
+            boolean compound
+    ) {
         List<String> names = nodeNames(context);
+        // A redirected execute context can begin directly with if/unless.
+        // Normalize only within the immutable IR-039 candidate parser.
+        if (compound && !names.isEmpty()
+                && ("if".equals(names.getFirst()) || "unless".equals(names.getFirst()))) {
+            List<String> normalized = new ArrayList<>();
+            normalized.add("execute");
+            normalized.addAll(names);
+            names = normalized;
+        }
         if (names.size() < 7
                 || !"execute".equals(names.get(0))
                 || (!"if".equals(names.get(1)) && !"unless".equals(names.get(1)))
