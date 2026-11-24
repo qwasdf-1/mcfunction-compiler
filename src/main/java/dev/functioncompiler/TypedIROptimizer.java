@@ -103,7 +103,8 @@ final class TypedIROptimizer {
     private static Step classify(TypedScoreIR.Instruction original) {
         TypedScoreIR.Instruction terminal =
                 original instanceof TypedScoreIR.Conditional guard
-                        ? guard.terminal() : original;
+                        ? guard.terminal() : original instanceof TypedScoreIR.Compound compound
+                                ? compound.terminal() : original;
         if (terminal instanceof TypedScoreIR.Mutation mutation) {
             return switch (mutation.operation()) {
                 case ADD -> new Step(original, Op.ADD_LITERAL, mutation.amount());
