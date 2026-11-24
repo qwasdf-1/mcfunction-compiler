@@ -169,13 +169,35 @@ final class TypedScoreIRRuntime {
             // distinct objectives: target, guard and binary operand.
             TypedScoreIR.Conditional condition = prepared.condition();
             boolean hasBinary = prepared.binary() != null;
-            Objective guardObjective = condition != null
-                    ? scoreboard.getObjective(prepared.conditionObjective()) : null;
+            // IR-037: within THIS one command, the vanilla scoreboard
+            // objective lookup is a pure name-map read. Nothing mutates the
+            // scoreboard between target, guard and operand resolution.
+            // Proven equal names can reuse the already resolved Objective.
+            // At the NEXT source instruction we do all fresh lookups again.
+            Objective guardObjective = null;
+            if (condition != null) {
+                if (prepared.guardSharesTargetObjective()) {
+                    guardObjective = selected;
+                    TypedScoreIR.objectiveLookupReused();
+                } else {
+                    guardObjective = scoreboard.getObjective(prepared.conditionObjective());
+                }
+            }
             ScoreHolder guardHolder = condition != null
                     ? (prepared.conditionSelf() ? source.getEntity()
                             : prepared.conditionHolder()) : null;
-            Objective operandObjective = hasBinary
-                    ? scoreboard.getObjective(prepared.operandObjective()) : null;
+            Objective operandObjective = null;
+            if (hasBinary) {
+                if (prepared.operandSharesTargetObjective()) {
+                    operandObjective = selected;
+                    TypedScoreIR.objectiveLookupReused();
+                } else if (prepared.operandSharesGuardObjective()) {
+                    operandObjective = guardObjective;
+                    TypedScoreIR.objectiveLookupReused();
+                } else {
+                    operandObjective = scoreboard.getObjective(prepared.operandObjective());
+                }
+            }
             ScoreHolder operandHolder = hasBinary
                     ? (prepared.operandSelf() ? source.getEntity()
                             : prepared.operandHolder()) : null;
