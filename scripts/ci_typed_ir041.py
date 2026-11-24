@@ -123,7 +123,9 @@ def preflight():
             if "no ledger entry" not in native: raise AssertionError("native compiled")
             layouts={arm:base.inspect(client,path+("_base" if arm=="base" else ""))
                      for arm in ("base","flow")}
-            expected=64 if workload=="compound" else 48
+            # Seven post-barrier guards join the following group's six
+            # typed commands. Only the final guard is an isolated singleton.
+            expected=64 if workload=="compound" else 55
             if any(x["typed_lines"]!=expected for x in layouts.values()):
                 raise AssertionError(f"{workload}: unexpected coverage {layouts}")
             if workload=="mixed" and any(x["opaque_barriers"]<8 for x in layouts.values()):

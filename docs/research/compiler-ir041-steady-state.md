@@ -19,7 +19,7 @@ This confirms time-varying costs, not a causal diagnosis of JIT warmup. IR041 ar
 Same JVM, identical source twins, original initial-function-call scheduling, direct scheduling off. Keep IR040 arithmetic extension off in all arms to isolate predicate dataflow and avoid a second treatment. Native twin uses an excluded namespace; base twin uses the IR039 plan, flow twin enables dataflow. Separate diagnostic preflight verifies actual typed layout, native exclusion, IR040-only proof counters, and exact state. Both timed boots disable diagnostics, callback-test observer and compile timing.
 
 - Compound: original IR040 64-command four-pattern stress workload. Exactly 48 increments per call.
-- Mixed: 64 top-level commands, eight changing-score groups, compound ranges/comparisons with pass/fail variation, arithmetic, native execute-store or shared native child calls, isolated native guards. Four nested native commands per call. Exactly x += 92 per call, final g=8, y=9, result=72, observed=72. Top-level denominators count 64 source visits; nested visits recorded separately. Expected compiler layout: 48/64 top-level typed, 16 opaque/singleton. Not a publisher datapack or representative performance estimate.
+- Mixed: 64 top-level commands, eight changing-score groups, compound ranges/comparisons with pass/fail variation, arithmetic, native execute-store or shared native child calls, isolated native guards. Four nested native commands per call. Exactly x += 92 per call, final g=8, y=9, result=72, observed=72. Top-level denominators count 64 source visits; nested visits recorded separately. Expected compiler layout: 55/64 top-level typed, 8 opaque barriers plus the final singleton. Seven post-barrier guards join the next group's six-command region. Not a publisher datapack or representative performance estimate.
 
 A separate static census reuses the pinned original Vein Miner and Blastback archives and the existing source region segmentation. It screens current literal score/compound shapes, recognizes arithmetic eligibility, reports candidates within tick-reachable functions and opaque roots. This is NOT parsed coverage, actual hotness, or publisher workload speed. A full publisher event is deferred until a stable synthetic protocol exists; do not claim actual datapack speedup from the mixed fixture or the census.
 
@@ -39,4 +39,13 @@ During the diagnostic boot only, a four-exact-ID probe records post-parse TypedS
 
 ## Results
 
-Pending.
+### Pinned publisher source screen — completed
+
+[Run 45467997415](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45467997415) fetched both unchanged SHA-pinned archives and completed the static census.
+
+| Pack | All source lines | Candidate lines | Candidate region lines | Tick-reachable region lines / source lines |
+| --- | ---: | ---: | ---: | ---: |
+| Vein Miner | 768 | 170 | 136 | 96 / 532 |
+| Blastback | 269141 | 15474 | 562 | 324 / 248609 |
+
+Vein Miner: two compound candidates, 70 single guards, 98 plain score commands. Largest tick-scope candidate vm:detection/acquire_target (61 region lines; 63 shaped), followed by vm:player/register (26 region lines). Blastback: 239 compound candidates, 14,824 single guards, 408 plain score commands, three additional arithmetic candidates. Most candidate lines are isolated, so only 562 are region-eligible. Largest tick-scope candidate erb_generated:restore/reset (163 contiguous eligible lines in three chunks, including 160 compound predicates), followed by erb:restore/job_tick (13 across four regions) and erb_generated:restore/wrap (10 compound lines). Static census cannot establish whether reset is frequently executed or even admitted by Brigadier. Prefer actual native ledger and frequency validation before selecting a full publisher event. CPU qualification pending.
