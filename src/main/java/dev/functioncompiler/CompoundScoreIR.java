@@ -21,6 +21,22 @@ final class CompoundScoreIR {
     private static final boolean ENABLED =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_COMPOUND_SCORE"));
     static boolean enabled() { return ENABLED && TypedScoreIR.extendedScoreEnabled(); }
+    private static final boolean DATAFLOW =
+            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DATAFLOW"));
+    static boolean dataflowEnabledFor(net.minecraft.resources.Identifier id) {
+        // Only the explicitly enabled benchmark has an identical IR-039 twin.
+        return DATAFLOW && !(Boolean.parseBoolean(System.getenv("FC_TYPED_IR040_BENCHMARK"))
+                && id.getNamespace().equals("fc_ir") && id.getPath().equals("ir017_ir040_perf_base"));
+    }
+    static int comparisonMask(ScoreConditionCommand.Operator operator) {
+        return switch (operator) {
+            case LESS_THAN -> PredicateFacts.LT;
+            case LESS_THAN_OR_EQUAL -> PredicateFacts.LT | PredicateFacts.EQ;
+            case EQUALS -> PredicateFacts.EQ;
+            case GREATER_THAN -> PredicateFacts.GT;
+            case GREATER_THAN_OR_EQUAL -> PredicateFacts.GT | PredicateFacts.EQ;
+        };
+    }
 
     record Operand(ScoreHolder holder, boolean self, String objective) {
         Operand {
@@ -51,7 +67,7 @@ final class CompoundScoreIR {
     enum Evaluation { READ, KNOWN_PASS, KNOWN_FAIL }
     record Stage(Predicate predicate, int leftIndex, int rightIndex, Evaluation evaluation) {}
     record Plan(List<String> objectives, List<Slot> slots, List<Stage> stages,
-                int targetIndex, int sourceIndex) {
+                int targetIndex, int sourceIndex, boolean dataflow) {
         Plan {
             objectives = List.copyOf(objectives);
             slots = List.copyOf(slots);
@@ -65,6 +81,7 @@ final class CompoundScoreIR {
         List<Slot> slots = new ArrayList<>();
         List<Stage> stages = new ArrayList<>();
         Map<RawKey, Boolean> passed = new LinkedHashMap<>();
+        PredicateFacts.Flow flow = instruction.dataflow() ? new PredicateFacts.Flow() : null;
         for (Predicate p : instruction.predicates()) {
             int left = add(p.left(), objectives, indices, slots);
             int right = p.right() == null ? -1 : add(p.right(), objectives, indices, slots);
@@ -74,6 +91,18 @@ final class CompoundScoreIR {
             Boolean priorUnless = passed.get(p.rawKey());
             Evaluation evaluation = priorUnless == null ? Evaluation.READ
                     : priorUnless == p.unless() ? Evaluation.KNOWN_PASS : Evaluation.KNOWN_FAIL;
+            if (flow != null) {
+                var inferred = p.range() != null
+                        ? flow.range(left, p.rangeText(), p.unless())
+                        : flow.comparison(left, right, comparisonMask(p.comparison()), p.unless());
+                if (evaluation == Evaluation.READ) {
+                    evaluation = switch (inferred) {
+                        case UNKNOWN -> Evaluation.READ;
+                        case PASS -> Evaluation.KNOWN_PASS;
+                        case FAIL -> Evaluation.KNOWN_FAIL;
+                    };
+                }
+            }
             stages.add(new Stage(p, left, right, evaluation));
             passed.putIfAbsent(p.rawKey(), p.unless());
         }
@@ -83,7 +112,8 @@ final class CompoundScoreIR {
         int source = terminal instanceof TypedScoreIR.Binary binary
                 ? add(new Operand(binary.sourceHolder(), binary.sourceSelf(), binary.sourceObjective()),
                         objectives, indices, slots) : -1;
-        return new Plan(new ArrayList<>(objectives.keySet()), slots, stages, target, source);
+        return new Plan(new ArrayList<>(objectives.keySet()), slots, stages, target, source,
+                instruction.dataflow());
     }
 
     private static int add(Operand operand, Map<String, Integer> objectives,
