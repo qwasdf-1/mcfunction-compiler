@@ -91,6 +91,8 @@ public final class TypedScoreIR {
     private static final LongAdder COMPOUND_SHORT_CIRCUITS = new LongAdder();
     private static final LongAdder COMPOUND_FALLBACKS = new LongAdder();
     private static final LongAdder COMPOUND_EMPTY_STAGES = new LongAdder();
+    private static final LongAdder DATAFLOW_PROOFS = new LongAdder();
+    private static final LongAdder DATAFLOW_READS_REUSED = new LongAdder();
     private static final LongAdder COST_NATIVE = new LongAdder();
     private static final LongAdder COST_INTERPRETED = new LongAdder();
     private static final LongAdder COST_BYTECODE = new LongAdder();
@@ -555,6 +557,14 @@ public final class TypedScoreIR {
         if (DIAGNOSTICS) COMPOUND_EMPTY_STAGES.increment();
     }
 
+    static void dataflowProofUsed() {
+        if (DIAGNOSTICS) DATAFLOW_PROOFS.increment();
+    }
+
+    static void dataflowReadReused() {
+        if (DIAGNOSTICS) DATAFLOW_READS_REUSED.increment();
+    }
+
     static void cacheHit() { if (DIAGNOSTICS) CACHE_HITS.increment(); }
     static void cacheMiss() { if (DIAGNOSTICS) CACHE_MISSES.increment(); }
     static void cacheInvalidated() {
@@ -599,6 +609,8 @@ public final class TypedScoreIR {
                 + " ir039_short_circuits=" + COMPOUND_SHORT_CIRCUITS.sum()
                 + " ir039_native_fallbacks=" + COMPOUND_FALLBACKS.sum()
                 + " ir039_empty_stage_debits=" + COMPOUND_EMPTY_STAGES.sum()
+                + " ir040_proofs=" + DATAFLOW_PROOFS.sum()
+                + " ir040_operand_reads_reused=" + DATAFLOW_READS_REUSED.sum()
                 + " ir036_cost_policy=" + COST_SELECT
                 + " ir036_cost_native=" + COST_NATIVE.sum()
                 + " ir036_cost_interpreted=" + COST_INTERPRETED.sum()
