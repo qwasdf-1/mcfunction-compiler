@@ -65,7 +65,8 @@ final class CompoundScoreIR {
                           ScoreConditionCommand.Operator comparison, TypedScoreIR.Slot right) {}
     record Slot(Operand operand, int objectiveIndex) {}
     enum Evaluation { READ, KNOWN_PASS, KNOWN_FAIL }
-    record Stage(Predicate predicate, int leftIndex, int rightIndex, Evaluation evaluation) {}
+    record Stage(Predicate predicate, int leftIndex, int rightIndex, Evaluation evaluation,
+                 boolean dataflowProven) {}
     record Plan(List<String> objectives, List<Slot> slots, List<Stage> stages,
                 int targetIndex, int sourceIndex, boolean dataflow) {
         Plan {
@@ -91,11 +92,13 @@ final class CompoundScoreIR {
             Boolean priorUnless = passed.get(p.rawKey());
             Evaluation evaluation = priorUnless == null ? Evaluation.READ
                     : priorUnless == p.unless() ? Evaluation.KNOWN_PASS : Evaluation.KNOWN_FAIL;
+            boolean dataflowProven = false;
             if (flow != null) {
                 var inferred = p.range() != null
                         ? flow.range(left, p.rangeText(), p.unless())
                         : flow.comparison(left, right, comparisonMask(p.comparison()), p.unless());
                 if (evaluation == Evaluation.READ) {
+                    dataflowProven = inferred != PredicateFacts.Outcome.UNKNOWN;
                     evaluation = switch (inferred) {
                         case UNKNOWN -> Evaluation.READ;
                         case PASS -> Evaluation.KNOWN_PASS;
@@ -103,7 +106,7 @@ final class CompoundScoreIR {
                     };
                 }
             }
-            stages.add(new Stage(p, left, right, evaluation));
+            stages.add(new Stage(p, left, right, evaluation, dataflowProven));
             passed.putIfAbsent(p.rawKey(), p.unless());
         }
         var terminal = instruction.terminal();
