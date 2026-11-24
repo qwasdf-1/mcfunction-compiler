@@ -61,3 +61,13 @@ jobs:
       - name: Validate IR-035 typed optimizer stage and semantic barrier contracts
         run: |
           python3 -m unittest discover -s tests -p 'test_typed_ir035.py' -v
+
+      - name: Validate IR-036 effect barriers and cost policy on Java 25
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir036.py' -v
+          python3 -m py_compile scripts/ci_typed_ir036.py
+          mkdir -p build/ir036-model-tests
+          javac --release 25 -d build/ir036-model-tests \
+            src/main/java/dev/functioncompiler/IR036CostModel.java \
+            tests/java/dev/functioncompiler/IR036CostModelTest.java
+          java -cp build/ir036-model-tests dev.functioncompiler.IR036CostModelTest
