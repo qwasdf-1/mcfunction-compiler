@@ -50,17 +50,28 @@ class IR039(unittest.TestCase):
         runtime = src("TypedScoreIRRuntime.java")
         asm = src("TypedScoreIRBytecode.java")
         ir = src("TypedScoreIR.java")
-        for method in ("compoundReadStage(int index)", "compoundKnownStage(boolean pass)",
-                       "compoundTerminal()"):
-            body = runtime.split("boolean " + method, 1)[1]
-            self.assertIn("if (quota() <= 0) return false;", body)
+        for method in ("compoundReadStage(int index)", "compoundKnownStage(int index, boolean pass)"):
+            body = runtime.split("boolean " + method, 1)[1].split("\n        }", 1)[0]
+            self.assertNotIn("quota() <= 0", body)
             self.assertIn("context.incrementCost();", body)
+        terminal = runtime.split("boolean compoundTerminal()", 1)[1].split("\n        }", 1)[0]
+        self.assertIn("if (quota() <= 0) return false;", terminal)
+        self.assertIn("context.incrementCost();", terminal)
+        # Native BuildContexts charges every subsequent redirect on an empty
+        # source list, without reading any more scores or admitting a terminal.
+        branch = runtime.split("private boolean compoundBranch(", 1)[1].split(
+            "// Called only after all original predicate stages", 1)[0]
+        self.assertIn("for (int i = index + 1; i < currentPrepared.compound().stages().size(); i++)", branch)
+        self.assertIn("context.incrementCost();", branch)
+        self.assertIn("TypedScoreIR.compoundEmptyStage();", branch)
+        self.assertNotIn("compoundRead(", branch)
+        self.assertNotIn("quota() <= 0", branch)
         self.assertIn("if (!compoundStage(i)) return false;", runtime)
         self.assertIn("prepared.compound() != null && !state.completeCompound()", ir)
         self.assertIn("instruction instanceof Compound && !state.completeCompound()", ir)
         self.assertIn("for (int stageIndex = 0; stageIndex < stages.size(); stageIndex++)", asm)
         self.assertIn('"compoundReadStage", "(I)Z"', asm)
-        self.assertIn('"compoundKnownStage", "(Z)Z"', asm)
+        self.assertIn('"compoundKnownStage", "(IZ)Z"', asm)
         self.assertIn('"compoundTerminal", "()Z"', asm)
         self.assertIn("method.visitJumpInsn(IFEQ, next)", asm)
 
@@ -69,7 +80,7 @@ class IR039(unittest.TestCase):
         preflight = runtime.split("private int startCompound(", 1)[1].split(
             "private int compoundNative(", 1)[0]
         self.assertNotIn("incrementCost()", preflight)
-        for text in ("context.tracer() != null", "source.callback()",
+        for text in ("context.tracer() != null", "context.forkLimit() <= 1", "source.callback()",
                      "scoreboard.getObjective(plan.objectives().get(i))",
                      "operand.self() ? source.getEntity() : operand.holder()",
                      "return compoundNative(prepared.original())"):
@@ -83,8 +94,12 @@ class IR039(unittest.TestCase):
         self.assertIn("stage.leftIndex() == stage.rightIndex()", runtime)
 
     def test_native_fixture_has_identical_flag_control_and_real_entity_calls(self):
-        self.assertEqual(len(native.CASES), 13)
-        self.assertEqual(len(native.QUOTAS), 9)
+        self.assertEqual(len(native.CASES), 14)
+        self.assertEqual(native.QUOTAS, (*range(1, 41), 48))
+        self.assertIn("ir017_ir039_empty_suffix", native.NEW)
+        self.assertEqual(native.EXPECTED["ir017_ir039_empty_suffix"], 31)
+        for line in native.NEW["ir017_ir039_empty_suffix"][1::2]:
+            self.assertEqual(line.count(" score "), 8)
         self.assertEqual(len(native.SELF), 2)
         old = native.options("old_bytecode")
         new = native.options("bytecode")
