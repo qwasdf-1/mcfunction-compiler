@@ -95,6 +95,9 @@ final class TypedScoreIRRuntime {
         private ScoreHolder targetResolved;
         private ScoreHolder sourceResolved;
         private Map<ScoreValueRevisionAccess.Key, CachedSourceValue> cachedSources;
+        // Per-invocation scratch, overwritten for every compound command.
+        private Objective[] compoundObjectives;
+        private ScoreHolder[] compoundHolders;
 
         // Immutable snapshot; only valid while the exact objective identity
         // and the watched slot's scoreboard mutation revision still match.
@@ -157,6 +160,7 @@ final class TypedScoreIRRuntime {
             }
             nextIndex++;
             if (quota() <= 0) return STOP;
+            if (prepared.compound() != null) return startCompound(prepared);
             ScoreHolder target = prepared.targetSelf()
                     ? source.getEntity() : prepared.targetHolder();
             if (target == null) return original(instruction);
@@ -290,6 +294,121 @@ final class TypedScoreIRRuntime {
             }
             TypedScoreIR.step(instruction);
             return DIRECT;
+        }
+
+        // Before ANY debit or observable effect, prove all references resolve.
+        // On failure stage the untouched native action, followed by our cursor.
+        // This includes unvisited later references: native still short-circuits.
+        private int startCompound(TypedIRPreparedSteps.Prepared prepared) {
+            var plan = prepared.compound();
+            if (context.tracer() != null
+                    || source.callback() != net.minecraft.commands.CommandResultCallback.EMPTY)
+                return compoundNative(prepared.original());
+            int capacity = CompoundScoreIR.MAX_PREDICATES * 2 + 2;
+            if (compoundObjectives == null) {
+                compoundObjectives = new Objective[capacity];
+                compoundHolders = new ScoreHolder[capacity];
+            }
+            for (int i = 0; i < plan.objectives().size(); i++) {
+                Objective value = scoreboard.getObjective(plan.objectives().get(i));
+                if (value == null) return compoundNative(prepared.original());
+                compoundObjectives[i] = value;
+            }
+            for (int i = 0; i < plan.slots().size(); i++) {
+                var operand = plan.slots().get(i).operand();
+                ScoreHolder holder = operand.self() ? source.getEntity() : operand.holder();
+                if (holder == null) return compoundNative(prepared.original());
+                compoundHolders[i] = holder;
+            }
+            if (compoundObjective(plan, plan.targetIndex()).getCriteria().isReadOnly())
+                return compoundNative(prepared.original());
+            current = prepared.original();
+            currentPrepared = prepared;
+            return DIRECT;
+        }
+
+        private int compoundNative(TypedScoreIR.Instruction instruction) {
+            TypedScoreIR.compoundFallback();
+            TypedScoreIR.fallback();
+            // Unlike the old single-guard callback fallback, the original
+            // compound BuildContexts still owns its native redirect chain.
+            context.queueNext(new CommandQueueEntry<>(frame,
+                    (execution, commandFrame) ->
+                            instruction.vanilla().original().execute(source, execution, commandFrame)));
+            if (nextIndex < instructions.length) {
+                context.queueNext(new CommandQueueEntry<>(frame,
+                        new QueuedTail(source, instructions, nextIndex)));
+            }
+            return STOP;
+        }
+
+        private Objective compoundObjective(CompoundScoreIR.Plan plan, int index) {
+            return compoundObjectives[plan.slots().get(index).objectiveIndex()];
+        }
+
+        private ReadOnlyScoreInfo compoundRead(CompoundScoreIR.Plan plan, int index) {
+            return scoreboard.getPlayerScoreInfo(compoundHolders[index], compoundObjective(plan, index));
+        }
+
+        // Each reached predicate has its own original modifier-stage debit.
+        // No feedback, mutation, result callback or trace occurs between these
+        // pure reads. The shared primitive is used by both backends.
+        boolean compoundStage(int index) {
+            if (quota() <= 0) return false;
+            context.incrementCost();
+            var plan = currentPrepared.compound();
+            var stage = plan.stages().get(index);
+            boolean pass;
+            if (stage.evaluation() != CompoundScoreIR.Evaluation.READ) {
+                pass = stage.evaluation() == CompoundScoreIR.Evaluation.KNOWN_PASS;
+            } else {
+                var predicate = stage.predicate();
+                var left = compoundRead(plan, stage.leftIndex());
+                boolean matched = false;
+                if (left != null) {
+                    if (predicate.range() != null) {
+                        matched = predicate.range().matches(left.value());
+                    } else {
+                        int value = left.value();
+                        if (stage.leftIndex() == stage.rightIndex()) {
+                            TypedScoreIR.comparisonReadReused();
+                            matched = ScoreConditionCommand.compareScores(value, value, predicate.comparison());
+                        } else {
+                            var right = compoundRead(plan, stage.rightIndex());
+                            matched = right != null && ScoreConditionCommand.compareScores(
+                                    value, right.value(), predicate.comparison());
+                        }
+                    }
+                }
+                pass = matched != predicate.unless();
+            }
+            TypedScoreIR.compoundStage(stage.evaluation() != CompoundScoreIR.Evaluation.READ, pass);
+            if (!pass) TypedScoreIR.skippedConditional();
+            return pass;
+        }
+
+        // Called only after all original predicate stages have passed.
+        boolean compoundTerminal() {
+            if (quota() <= 0) return false;
+            context.incrementCost();
+            var plan = currentPrepared.compound();
+            objective = compoundObjective(plan, plan.targetIndex());
+            targetResolved = compoundHolders[plan.targetIndex()];
+            access = scoreboard.getOrCreatePlayerScore(targetResolved, objective);
+            if (plan.sourceIndex() >= 0) {
+                sourceObjective = compoundObjective(plan, plan.sourceIndex());
+                sourceResolved = compoundHolders[plan.sourceIndex()];
+                sourceAccess = scoreboard.getOrCreatePlayerScore(sourceResolved, sourceObjective);
+            }
+            TypedScoreIR.step(current);
+            return true;
+        }
+
+        boolean completeCompound() {
+            for (int i = 0; i < currentPrepared.compound().stages().size(); i++) {
+                if (!compoundStage(i)) return false;
+            }
+            return compoundTerminal();
         }
 
         private int original(TypedScoreIR.Instruction instruction) {
