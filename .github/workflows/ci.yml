@@ -57,3 +57,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_typed_ir034.py' -v
           python3 -m unittest discover -s tests -p 'test_typed_ir008.py' -v
           python3 -m unittest discover -s tests -p 'test_typed_ir013.py' -v
+
+      - name: Validate IR-035 typed optimizer stage and semantic barrier contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir035.py' -v
