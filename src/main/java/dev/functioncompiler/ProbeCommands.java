@@ -22,6 +22,16 @@ final class ProbeCommands {
     }
 
     static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        // IR-040: explicitly gated benchmark only. All three arms use the
+        // identical native initial-call scheduler and empty result callbacks.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR040_BENCHMARK"))) {
+            dispatcher.register(Commands.literal("fc_ir040_batch")
+                    .then(Commands.argument("arm", StringArgumentType.word())
+                            .then(Commands.argument("calls", IntegerArgumentType.integer(1, 128))
+                                    .executes(context -> ir040Batch(context.getSource(),
+                                            StringArgumentType.getString(context, "arm"),
+                                            IntegerArgumentType.getInteger(context, "calls"))))));
+        }
         // IR-011: research-only same-JVM singleton response A/B control.
         // Both arms execute the exact same emitted instructions and
         // scoreboard writes; only one-result bookkeeping differs.
@@ -357,6 +367,32 @@ final class ProbeCommands {
      * through the same Minecraft ExecutionContext as the current command.
      * No default mod installation registers this command.
      */
+    private static int ir040Batch(CommandSourceStack source, String arm, int calls) {
+        String name = switch (arm) {
+            case "native" -> "fc_native:ir017_ir040_perf";
+            case "base" -> "fc_ir:ir017_ir040_perf_base";
+            case "flow" -> "fc_ir:ir017_ir040_perf";
+            default -> null;
+        };
+        ExecutionContext<CommandSourceStack> execution = ExecutionContextBridge.currentContext();
+        if (name == null || execution == null) return 0;
+        var candidate = source.getServer().getFunctions().get(Identifier.tryParse(name));
+        if (candidate.isEmpty()) return 0;
+        try {
+            InstantiatedFunction<CommandSourceStack> function =
+                    candidate.get().instantiate(null, source.dispatcher());
+            var quiet = source.withSuppressedOutput().withCallback(CommandResultCallback.EMPTY);
+            for (int i = 0; i < calls; i++)
+                ExecutionContext.queueInitialFunctionCall(execution, function, quiet,
+                        CommandResultCallback.EMPTY);
+            source.sendSuccess(() -> Component.literal("IR040_BATCH " + arm + " " + calls), false);
+            return calls;
+        } catch (Exception failure) {
+            source.sendFailure(Component.literal("IR040_BATCH failed " + failure));
+            return 0;
+        }
+    }
+
     private static int researchQueueFunction(CommandSourceStack source, String name) {
         Identifier id = Identifier.tryParse(name);
         boolean previousArchFixture = id != null

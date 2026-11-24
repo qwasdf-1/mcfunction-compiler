@@ -175,7 +175,7 @@ final class TypedScoreIRRuntime {
             // distinct objectives: target, guard and binary operand.
             TypedScoreIR.Conditional condition = prepared.condition();
             boolean hasBinary = prepared.binary() != null;
-            if (hasBinary && prepared.binary().operation().nativeArithmetic()
+            if (hasBinary && prepared.binary().nativeOperation() != null
                     && (context.tracer() != null
                         || source.callback() != net.minecraft.commands.CommandResultCallback.EMPTY))
                 return original(instruction);
