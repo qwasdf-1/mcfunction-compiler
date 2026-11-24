@@ -1,6 +1,6 @@
 # COMPILER-IR-035 — Explicit typed-IR optimizer stage and canonical opcodes
 
-**Status: implementation complete, native semantic acceptance pending.** Research branch `work/compiler-coverage`, draft PR #10. The typed-IR optimization pipeline is now explicitly
+**Status (2026-11-23/24): IMPLEMENTED; NATIVE SEMANTIC GATE ACCEPTED. Performance gain NOT established; no production promotion.** Research branch `work/compiler-coverage`, draft PR #10. The typed-IR optimization pipeline is now explicitly
 `validated Brigadier commands → TypedScoreIR.Program → TypedIROptimizer.Plan → interpreter/ASM code generation`.
 No engine-level Mixin or event-specific behavior was introduced, and no default compiler flag changed.
 
@@ -30,6 +30,23 @@ These transformations are deliberately modest; they establish a correct **analys
 
 **No CPU performance promotion** occurs in IR-035. IR-033's failed A/A qualification bars causal claims for small runtime differences from the existing noisy host/fixture. No optimizer or production-default promotion is authorized even if semantic tests pass. Keep PR #10 draft/unmerged.
 
-## Results
+## Results: native semantic parity accepted (2026-11-23/24)
 
-**Native tests pending.** Append acceptance or rejection with run/artifact identifiers and any limitations after the bounded execution.
+The bounded [native IR-035 run #45298944493](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45298944493) completed successfully against real Java 25 / Minecraft 26.3 Fabric. The original per-JVM state, command-quota and server logs are retained in [artifact 14878231005](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45298944493/artifacts/14878231005).
+
+| Gate | Actual result | Disposition |
+| --- | --- | --- |
+| Optimizer/source contracts | IR-035, IR-034, IR-008 and IR-013 tests passed, including order and effect-boundary assertions | ACCEPT |
+| Java / Minecraft build | Java 25 Fabric mod compiled and packaged | ACCEPT |
+| IR-008 | Four fresh native/fused/interpreted/bytecode JVMs; **62 original-state/quota cases**, complete equality to vanilla (`native_parity=true`) | ACCEPT |
+| IR-013 | Six fresh JVMs, **85 cases per mode**; guarded interpreter, guarded ASM and guarded direct scheduling all had **zero differences** from vanilla | ACCEPT |
+| IR-013 unsafe negative controls | Both unsafe bytecode and unsafe direct modes diverged from vanilla in **46 cases**, as expected | ACCEPT |
+| Causal CPU gain or promotion | Not measured; `causal_speedup_established=false`, `compiler_production_promotion=false` | NOT CLAIMED |
+
+The cases include score mutations, binary arithmetic and aliases, conditional branches, missing/read-only objectives, original-command fallback, limited quotas and reentrant scoreboard callbacks. These bounded fixtures do **not** prove arbitrary third-party mod compatibility or that every possible datapack command is optimized. The original source command remains the fallback and effect boundary.
+
+**Acceptance:** IR-035 complete as an explicit, working optimizing-compiler pipeline stage. The first pass performs narrow single-instruction canonicalization and predecoding. It is deliberately not constant propagation, dead-store removal, command elimination, selector caching or a general scheduler replacement. Further optimization passes will need separate proofs of their effect and interleaving boundaries.
+
+**No speedup claim:** IR-035 introduces a Plan object and compile-time classification that may affect compilation overhead and memory footprint; the new ASM output largely performs the same direct operations as IR-034. Whether these changes improve runtime throughput is not established, and no production default is changed. The prior failed IR-033 A/A infrastructure gate remains relevant.
+
+**Final state:** PR #10 stays draft and unmerged on `work/compiler-coverage`; the IR-035 native workflow was restored to manual-only after its single bounded run. A future compiler milestone should build reusable static analysis and cost-based decisions on this Plan representation rather than new Minecraft-engine-specific patches.
