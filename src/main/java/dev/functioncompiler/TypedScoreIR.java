@@ -288,14 +288,18 @@ public final class TypedScoreIR {
      * semantically eligible at the normal Minecraft queue position.
      */
     static EmittedRegion emitRegion(Program program) {
-        UnboundEntryAction<CommandSourceStack> action = new Interpreted(program);
+        // IR-035: explicit post-lowering optimizer boundary. The optimized plan
+        // retains each original Instruction and effect barrier in exact order.
+        // Interpreter and ASM consume the SAME immutable opcode/argument plan.
+        TypedIROptimizer.Plan optimized = TypedIROptimizer.optimize(program);
+        UnboundEntryAction<CommandSourceStack> action = new Interpreted(program, optimized);
         boolean bytecode = false;
         if ("bytecode".equals(MODE)) {
             try {
                 if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_FORCE_FAILURE"))) {
                     throw new IllegalStateException("IR injected compilation failure");
                 }
-                action = TypedScoreIRBytecode.emit(program);
+                action = TypedScoreIRBytecode.emit(optimized);
                 bytecode = true;
                 if (DIAGNOSTICS) BYTECODE_REGIONS.increment();
             } catch (RuntimeException | LinkageError compileError) {
@@ -494,6 +498,50 @@ public final class TypedScoreIR {
         return TypedScoreIRRuntime.DIRECT;
     }
 
+    /**
+     * IR-035: execute a compile-time canonicalized ONE-command opcode. The
+     * original Instruction still owns quota/tracing, objective guards, native
+     * fallback, feedback, and the reentrant queue boundary. Only the opcode
+     * dispatch and literal sign are precomputed; scoreboard values are NEVER
+     * propagated between instructions.
+     */
+    static int executeOptimizedStep(
+            TypedIROptimizer.Step step, TypedScoreIRRuntime.State state
+    ) {
+        int decision = state.begin(step.original());
+        if (decision != TypedScoreIRRuntime.DIRECT) return decision;
+        ScoreAccess score = state.access();
+        int updated;
+        switch (step.opcode()) {
+            case ADD_LITERAL -> updated = score.add(step.literal());
+            case SET_LITERAL -> {
+                score.set(step.literal());
+                updated = step.literal();
+            }
+            case ASSIGN_SCORE, ADD_SCORE, SUBTRACT_SCORE, MULTIPLY_SCORE -> {
+                int operand = SCORE_CACHE
+                        ? state.sourceOperand() : state.sourceAccess().get();
+                updated = switch (step.opcode()) {
+                    case ASSIGN_SCORE -> {
+                        score.set(operand);
+                        yield operand;
+                    }
+                    case ADD_SCORE -> score.add(operand);
+                    case SUBTRACT_SCORE -> score.add(-operand);
+                    case MULTIPLY_SCORE -> {
+                        int product = score.get() * operand;
+                        score.set(product);
+                        yield product;
+                    }
+                    default -> throw new AssertionError("unreachable canonical opcode");
+                };
+            }
+            default -> throw new AssertionError("unknown canonical opcode");
+        }
+        state.finish(updated);
+        return TypedScoreIRRuntime.DIRECT;
+    }
+
     static final class Interpreted implements UnboundEntryAction<CommandSourceStack> {
         /**
          * IR-034: materialize the already immutable typed region ONCE at
@@ -505,9 +553,14 @@ public final class TypedScoreIR {
          * instruction, per-command effect boundary, or fallback is removed.
          */
         private final Instruction[] steps;
+        private final TypedIROptimizer.Step[] opcodes;
 
-        Interpreted(Program program) {
+        Interpreted(Program program, TypedIROptimizer.Plan optimized) {
             this.steps = program.instructions().toArray(Instruction[]::new);
+            this.opcodes = optimized.steps().toArray(TypedIROptimizer.Step[]::new);
+            if (steps.length != opcodes.length) {
+                throw new IllegalArgumentException("IR-035 source/plan length mismatch");
+            }
         }
 
         @Override
@@ -519,8 +572,8 @@ public final class TypedScoreIR {
             TypedScoreIRRuntime.State state =
                     new TypedScoreIRRuntime.State(source, context, frame, steps);
             executed();
-            for (Instruction instruction : steps) {
-                if (executeTypedStep(instruction, state) == TypedScoreIRRuntime.STOP) return;
+            for (TypedIROptimizer.Step opcode : opcodes) {
+                if (executeOptimizedStep(opcode, state) == TypedScoreIRRuntime.STOP) return;
             }
         }
     }
