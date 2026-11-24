@@ -47,24 +47,29 @@ class IR017ConditionalRanges(unittest.TestCase):
         self.assertIn("condition.terminal() instanceof Binary", ir)
         self.assertIn('" guarded_binary_steps="', ir)
         self.assertIn("if (terminal instanceof Binary binary)", ir)
-        self.assertIn('if (terminal instanceof TypedScoreIR.Binary binary)', asm)
-        self.assertIn("emitBinary(method, binary)", asm)
-        self.assertIn("emitMutation(method, (TypedScoreIR.Mutation) terminal)", asm)
+        # IR-035/037 canonicalize the terminal once at compile time and
+        # pass immutable prepared metadata into State.begin in generated ASM.
+        self.assertIn("if (step.opcode().readsSourceScore())", asm)
+        self.assertIn("emitBinary(method, step)", asm)
+        self.assertIn("emitMutation(method, step)", asm)
+        self.assertIn('"prepared", PREPARED_STEPS', asm)
+        self.assertIn('"begin",', asm)
         self.assertNotIn('method.visitMethodInsn(INVOKESTATIC, STATE, "executeStep"', asm)
 
     def test_runtime_checks_all_objectives_before_writes_and_feedback(self):
         src=java("TypedScoreIRRuntime.java")
         for token in ("Objective guardObjective", "Objective operandObjective",
-                      "guard.conditionObjective()", "binary.sourceObjective()",
+                      "prepared.conditionObjective()", "prepared.operandObjective()",
                       "return original(instruction)", "condition.range().matches",
                       "condition.unless()", "context.incrementCost()",
                       "TypedScoreIR.skippedConditional()", "sourceAccess()",
-                      "TypedScoreIR.Instruction terminal", "ScoreboardCommandAccessor",
-                      "CommandResponseTracker.create()"):
+                      "TypedIRPreparedSteps.Prepared prepared",
+                      "ScoreboardCommandAccessor", "CommandResponseTracker.create()"):
             self.assertIn(token, src)
         self.assertLess(src.index("Objective guardObjective"),
                         src.index("context.incrementCost();"))
-        self.assertIn("terminal instanceof TypedScoreIR.Binary", src)
+        self.assertIn("prepared.binary() != null", src)
+        self.assertIn("prepared.operandSharesGuardObjective()", src)
 
     def test_native_fixture_real_functions_and_guarded_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -98,6 +103,7 @@ class IR017ConditionalRanges(unittest.TestCase):
         self.assertIn('"production_promotion": False', source)
         self.assertIn('if observed != reference[case]', source)
         self.assertIn("if stat(report[\"diagnostic\"], \"guarded_binary_steps\")", source)
+        self.assertIn("ir037_objective_lookups_reused", source)
 
 
 if __name__ == "__main__":
