@@ -23,8 +23,11 @@ class IR034LoopInvariantHoist(unittest.TestCase):
         self.assertNotIn("toArray(", execute)
         self.assertNotIn("program.instructions()", execute)
         self.assertIn("new TypedScoreIRRuntime.State(source, context, frame, steps)", execute)
-        self.assertIn("for (Instruction instruction : steps)", execute)
-        self.assertIn("executeTypedStep(instruction, state)", execute)
+        # IR-035 adds a compile-time canonical opcode vector while retaining
+        # IR-034's one-time immutable original-instruction array.
+        self.assertIn("for (TypedIROptimizer.Step opcode : opcodes)", execute)
+        self.assertIn("executeOptimizedStep(opcode, state)", execute)
+        self.assertIn("this.opcodes = optimized.steps().toArray(", constructor)
 
     def test_generated_bytecode_loads_final_steps_field_once_per_execution(self):
         source = (SOURCE / "TypedScoreIRBytecode.java").read_text(encoding="utf-8")
