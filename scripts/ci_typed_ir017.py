@@ -383,6 +383,12 @@ def run_arm(mode: str) -> dict:
                     raise AssertionError(f"{mode}: ranged conditional never executed")
                 if stat(report["diagnostic"], "guarded_binary_steps") <= 0:
                     raise AssertionError(f"{mode}: binary terminal never directly lowered")
+                # IR-037: this pre-existing real fixture includes guarded
+                # binary operations on equal and distinct objectives. The
+                # counter proves the runtime actually skipped redundant
+                # same-command name-map lookups, not merely compiled code.
+                if stat(report["diagnostic"], "ir037_objective_lookups_reused") <= 0:
+                    raise AssertionError(f"{mode}: prepared objective alias optimization never executed")
                 if stat(report["diagnostic"], "reentrant_yields") <= 0:
                     raise AssertionError(f"{mode}: failed to yield to native callback queue")
         report["status"] = "complete"
