@@ -52,6 +52,8 @@ jobs:
           python3 -m py_compile scripts/ci_ir033_aa_stability.py
           python3 -m unittest discover -s tests -p 'test_ir033_aa_stability.py' -v
 
-      - name: Validate IR-034 typed IR hoisting and semantic boundaries (no Minecraft boot)
+      - name: Validate IR-034 typed IR hoisting and older typed semantic contracts (no Minecraft boot)
         run: |
           python3 -m unittest discover -s tests -p 'test_typed_ir034.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir008.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir013.py' -v
