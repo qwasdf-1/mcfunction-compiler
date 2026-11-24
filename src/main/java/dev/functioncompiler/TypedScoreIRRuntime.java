@@ -354,35 +354,50 @@ final class TypedScoreIRRuntime {
         // No feedback, mutation, result callback or trace occurs between these
         // pure reads. The shared primitive is used by both backends.
         boolean compoundStage(int index) {
+            var stage = currentPrepared.compound().stages().get(index);
+            return switch (stage.evaluation()) {
+                case READ -> compoundReadStage(index);
+                case KNOWN_PASS -> compoundKnownStage(true);
+                case KNOWN_FAIL -> compoundKnownStage(false);
+            };
+        }
+
+        // Specialized ASM emits these two calls directly, without a runtime
+        // stage-kind switch or a repeated computation of a known predicate.
+        boolean compoundKnownStage(boolean pass) {
+            if (quota() <= 0) return false;
+            context.incrementCost();
+            return compoundBranch(true, pass);
+        }
+
+        boolean compoundReadStage(int index) {
             if (quota() <= 0) return false;
             context.incrementCost();
             var plan = currentPrepared.compound();
             var stage = plan.stages().get(index);
-            boolean pass;
-            if (stage.evaluation() != CompoundScoreIR.Evaluation.READ) {
-                pass = stage.evaluation() == CompoundScoreIR.Evaluation.KNOWN_PASS;
-            } else {
-                var predicate = stage.predicate();
-                var left = compoundRead(plan, stage.leftIndex());
-                boolean matched = false;
-                if (left != null) {
-                    if (predicate.range() != null) {
-                        matched = predicate.range().matches(left.value());
+            var predicate = stage.predicate();
+            var left = compoundRead(plan, stage.leftIndex());
+            boolean matched = false;
+            if (left != null) {
+                if (predicate.range() != null) {
+                    matched = predicate.range().matches(left.value());
+                } else {
+                    int value = left.value();
+                    if (stage.leftIndex() == stage.rightIndex()) {
+                        TypedScoreIR.comparisonReadReused();
+                        matched = ScoreConditionCommand.compareScores(value, value, predicate.comparison());
                     } else {
-                        int value = left.value();
-                        if (stage.leftIndex() == stage.rightIndex()) {
-                            TypedScoreIR.comparisonReadReused();
-                            matched = ScoreConditionCommand.compareScores(value, value, predicate.comparison());
-                        } else {
-                            var right = compoundRead(plan, stage.rightIndex());
-                            matched = right != null && ScoreConditionCommand.compareScores(
-                                    value, right.value(), predicate.comparison());
-                        }
+                        var right = compoundRead(plan, stage.rightIndex());
+                        matched = right != null && ScoreConditionCommand.compareScores(
+                                value, right.value(), predicate.comparison());
                     }
                 }
-                pass = matched != predicate.unless();
             }
-            TypedScoreIR.compoundStage(stage.evaluation() != CompoundScoreIR.Evaluation.READ, pass);
+            return compoundBranch(false, matched != predicate.unless());
+        }
+
+        private boolean compoundBranch(boolean reused, boolean pass) {
+            TypedScoreIR.compoundStage(reused, pass);
             if (!pass) TypedScoreIR.skippedConditional();
             return pass;
         }
