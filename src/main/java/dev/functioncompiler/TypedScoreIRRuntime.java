@@ -302,6 +302,7 @@ final class TypedScoreIRRuntime {
         private int startCompound(TypedIRPreparedSteps.Prepared prepared) {
             var plan = prepared.compound();
             if (context.tracer() != null
+                    || context.forkLimit() <= 1
                     || source.callback() != net.minecraft.commands.CommandResultCallback.EMPTY)
                 return compoundNative(prepared.original());
             int capacity = CompoundScoreIR.MAX_PREDICATES * 2 + 2;
@@ -357,21 +358,19 @@ final class TypedScoreIRRuntime {
             var stage = currentPrepared.compound().stages().get(index);
             return switch (stage.evaluation()) {
                 case READ -> compoundReadStage(index);
-                case KNOWN_PASS -> compoundKnownStage(true);
-                case KNOWN_FAIL -> compoundKnownStage(false);
+                case KNOWN_PASS -> compoundKnownStage(index, true);
+                case KNOWN_FAIL -> compoundKnownStage(index, false);
             };
         }
 
         // Specialized ASM emits these two calls directly, without a runtime
         // stage-kind switch or a repeated computation of a known predicate.
-        boolean compoundKnownStage(boolean pass) {
-            if (quota() <= 0) return false;
+        boolean compoundKnownStage(int index, boolean pass) {
             context.incrementCost();
-            return compoundBranch(true, pass);
+            return compoundBranch(index, true, pass);
         }
 
         boolean compoundReadStage(int index) {
-            if (quota() <= 0) return false;
             context.incrementCost();
             var plan = currentPrepared.compound();
             var stage = plan.stages().get(index);
@@ -393,12 +392,23 @@ final class TypedScoreIRRuntime {
                     }
                 }
             }
-            return compoundBranch(false, matched != predicate.unless());
+            return compoundBranch(index, false, matched != predicate.unless());
         }
 
-        private boolean compoundBranch(boolean reused, boolean pass) {
+        private boolean compoundBranch(int index, boolean reused, boolean pass) {
             TypedScoreIR.compoundStage(reused, pass);
-            if (!pass) TypedScoreIR.skippedConditional();
+            if (!pass) {
+                TypedScoreIR.skippedConditional();
+                // Native 26.3 BuildContexts still visits ALL remaining
+                // redirect stages with an empty source list. It debits each
+                // stage but performs no further predicate reads. Its modifier
+                // loop has no quota check; only the outer queue and separately
+                // scheduled terminal are gated by the remaining quota.
+                for (int i = index + 1; i < currentPrepared.compound().stages().size(); i++) {
+                    context.incrementCost();
+                    TypedScoreIR.compoundEmptyStage();
+                }
+            }
             return pass;
         }
 
