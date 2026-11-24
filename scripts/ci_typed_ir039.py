@@ -7,7 +7,7 @@ import ci_typed_ir038 as extended
 
 OUT = base.ROOT / "build/reports/COMPILER-IR-039"
 ARMS = ("native", "old_bytecode", "interpreted", "bytecode", "direct")
-QUOTAS = (1, 2, 3, 4, 5, 6, 8, 12, 24)
+QUOTAS = (*range(1, 41), 48)
 NEW = {
     "ir017_ir039_repeat": [
         "scoreboard players set #g fc_ir 3",
@@ -25,6 +25,24 @@ NEW = {
         "scoreboard players set #g fc_ir 1",
         "execute if score #g fc_ir matches 4 if score #g fc_ir matches 4 run scoreboard players add #x fc_ir 100",
         "scoreboard players add #x fc_ir 2",
+    ],
+    # Eight stages, failure at first, middle, last, and an all-pass chain.
+    # Exact marker progression distinguishes each terminal from the suffix.
+    "ir017_ir039_empty_suffix": [
+        "scoreboard players set #g fc_ir 1",
+        "execute " + " ".join(["if score #g fc_ir matches 0"] +
+            ["if score #g fc_ir matches 1"] * 7) + " run scoreboard players add #x fc_ir 100",
+        "scoreboard players add #x fc_ir 1",
+        "execute " + " ".join(["if score #g fc_ir matches 1"] * 3 +
+            ["unless score #g fc_ir matches 1"] + ["if score #g fc_ir matches 1"] * 4) +
+            " run scoreboard players add #x fc_ir 100",
+        "scoreboard players add #x fc_ir 2",
+        "execute " + " ".join(["if score #g fc_ir matches 1"] * 7 +
+            ["unless score #g fc_ir matches 1"]) + " run scoreboard players add #x fc_ir 100",
+        "scoreboard players add #x fc_ir 4",
+        "execute " + " ".join(["if score #g fc_ir matches 1"] * 8) +
+            " run scoreboard players add #x fc_ir 8",
+        "scoreboard players add #x fc_ir 16",
     ],
     "ir017_ir039_missing_rows": [
         "scoreboard players set #x fc_ir 0",
@@ -80,6 +98,7 @@ NEW = {
 }
 EXPECTED = {
     "ir017_ir039_repeat": 13, "ir017_ir039_order": 5,
+    "ir017_ir039_empty_suffix": 31,
     "ir017_ir039_missing_rows": 7, "ir017_ir039_missing_objective": 7,
     "ir017_ir039_binary": 9, "ir017_ir039_self": 11,
     "ir017_ir039_self_absent": 10, "ir017_ir039_reentrant": 14,
@@ -131,12 +150,16 @@ def run_arm(mode):
                         expected = EXPECTED.get(name, extended.EXPECTED.get(name, base.EXPECTED.get(name, {})).get("x"))
                         if expected is not None and state["x"] != expected:
                             raise AssertionError(f"{mode}/{name}: expected x={expected}; got {state}")
+                    # Archived failure: before the fix the interpreter spent
+                    # too little quota and reached the final +2 at quota 12.
+                    if name == "ir017_ir039_order" and quota == 12 and state["x"] != 3:
+                        raise AssertionError(f"{mode}: original IR039 quota regression: {state}")
                     if name == "ir017_ir039_missing_rows" and state["never_score"] is not None:
                         raise AssertionError("predicate reads created missing row")
         if mode != "native":
             for name in NEW:
                 report["layouts"][name] = base.inspect(client, name)
-            for name in ("ir017_ir039_repeat", "ir017_ir039_order", "ir017_ir039_binary",
+            for name in ("ir017_ir039_repeat", "ir017_ir039_order", "ir017_ir039_empty_suffix", "ir017_ir039_binary",
                          "ir017_ir039_self", "ir017_ir039_self_absent"):
                 actual = report["layouts"][name]["typed_lines"]
                 if mode in ARMS[2:] and actual != len(NEW[name]):
@@ -148,7 +171,7 @@ def run_arm(mode):
             status = client.command("functioncompiler ir008")
             report["diagnostic"] = status
             for key in ("ir039_stages", "ir039_reused", "ir039_short_circuits",
-                        "ir039_native_fallbacks"):
+                        "ir039_native_fallbacks", "ir039_empty_stage_debits"):
                 if (extended.stat(status, key) > 0) != (mode in ARMS[2:]):
                     raise AssertionError(f"{mode}: unexpected {key}: {status}")
             if mode in ("bytecode", "direct") and extended.stat(status, "bytecode_regions") <= 0:
@@ -181,8 +204,12 @@ def main():
             report["arms"].append(arm)
             baseline = report["arms"][0]["cases"]
             bad = [k for k in baseline if arm["cases"].get(k) != baseline[k]]
-            if bad:
-                raise AssertionError(f"{mode}: native parity differences: {bad[:8]}")
+            arm["differences"] = {k: {"native": baseline[k], "actual": arm["cases"].get(k)}
+                                  for k in bad}
+        failures = {arm["mode"]: len(arm["differences"]) for arm in report["arms"]
+                    if arm["differences"]}
+        if failures:
+            raise AssertionError(f"native parity differences: {failures}")
         report.update(status="accepted", native_semantic_parity=True,
                       cases_per_arm=len(report["arms"][0]["cases"]))
     except BaseException as error:
