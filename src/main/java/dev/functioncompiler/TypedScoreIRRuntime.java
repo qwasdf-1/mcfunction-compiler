@@ -98,6 +98,8 @@ final class TypedScoreIRRuntime {
         // Per-invocation scratch, overwritten for every compound command.
         private Objective[] compoundObjectives;
         private ScoreHolder[] compoundHolders;
+        private int[] compoundValues;
+        private int compoundVisited, compoundPresent;
 
         // Immutable snapshot; only valid while the exact objective identity
         // and the watched slot's scoreboard mutation revision still match.
@@ -323,6 +325,10 @@ final class TypedScoreIRRuntime {
             }
             if (compoundObjective(plan, plan.targetIndex()).getCriteria().isReadOnly())
                 return compoundNative(prepared.original());
+            if (plan.dataflow()) {
+                if (compoundValues == null) compoundValues = new int[capacity];
+                compoundVisited = compoundPresent = 0;
+            }
             current = prepared.original();
             currentPrepared = prepared;
             return DIRECT;
@@ -367,7 +373,39 @@ final class TypedScoreIRRuntime {
         // stage-kind switch or a repeated computation of a known predicate.
         boolean compoundKnownStage(int index, boolean pass) {
             context.incrementCost();
+            if (currentPrepared.compound().stages().get(index).dataflowProven())
+                TypedScoreIR.dataflowProofUsed();
             return compoundBranch(index, true, pass);
+        }
+
+        // Cache a value AND its existence, only between pure predicate stages
+        // in this original command. Never use these snapshots for the terminal.
+        private boolean compoundValuePresent(CompoundScoreIR.Plan plan, int index) {
+            int bit = 1 << index;
+            if ((compoundVisited & bit) != 0) {
+                TypedScoreIR.dataflowReadReused();
+                return (compoundPresent & bit) != 0;
+            }
+            var info = compoundRead(plan, index);
+            compoundVisited |= bit;
+            if (info == null) return false;
+            compoundValues[index] = info.value();
+            compoundPresent |= bit;
+            return true;
+        }
+
+        private boolean compoundCachedMatch(CompoundScoreIR.Plan plan, CompoundScoreIR.Stage stage) {
+            int left = stage.leftIndex(), right = stage.rightIndex();
+            if (!compoundValuePresent(plan, left)) return false;
+            var predicate = stage.predicate();
+            int value = compoundValues[left];
+            if (predicate.range() != null) return predicate.range().matches(value);
+            if (left == right) {
+                TypedScoreIR.comparisonReadReused();
+                return ScoreConditionCommand.compareScores(value, value, predicate.comparison());
+            }
+            return compoundValuePresent(plan, right)
+                    && ScoreConditionCommand.compareScores(value, compoundValues[right], predicate.comparison());
         }
 
         boolean compoundReadStage(int index) {
@@ -375,6 +413,8 @@ final class TypedScoreIRRuntime {
             var plan = currentPrepared.compound();
             var stage = plan.stages().get(index);
             var predicate = stage.predicate();
+            if (plan.dataflow())
+                return compoundBranch(index, false, compoundCachedMatch(plan, stage) != predicate.unless());
             var left = compoundRead(plan, stage.leftIndex());
             boolean matched = false;
             if (left != null) {
