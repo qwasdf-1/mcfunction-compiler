@@ -65,7 +65,11 @@ class ReentrantIR013(unittest.TestCase):
     def test_generated_asm_and_interpreter_pass_immutable_instruction_set(self):
         ir = source("TypedScoreIR.java")
         asm = source("TypedScoreIRBytecode.java")
-        self.assertIn("program.instructions().toArray(TypedScoreIR.Instruction[]::new)", ir)
+        # IR-034 materializes the same immutable vector at region construction,
+        # not on every interpreted execution. The queued reentrant tail still
+        # receives its exact original per-command instruction references.
+        self.assertIn("this.steps = program.instructions().toArray(Instruction[]::new);", ir)
+        self.assertIn("new TypedScoreIRRuntime.State(source, context, frame, steps)", ir)
         self.assertIn('method.visitFieldInsn(GETFIELD, internal, "steps", STEPS)', asm)
         self.assertIn(';" + STEPS + ")V"', asm)
         self.assertIn("reentrant_yields=", ir)
