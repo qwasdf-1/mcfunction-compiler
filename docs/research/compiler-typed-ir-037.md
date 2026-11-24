@@ -1,6 +1,6 @@
 # COMPILER-IR-037 — Prepared typed commands and same-command objective-lookup elimination
 
-**Status (preregistered 2026-11-23): implementation complete on `work/compiler-coverage`; Java build / native differential semantics pending.** This is a **real, reusable compiler transformation** over post-Brigadier typed commands, not a game-engine patch. The compiler is still opt-in; no production defaults or promotion policy change.
+**Status (2026-11-23/24): IMPLEMENTED, NATIVE SEMANTIC GATE ACCEPTED on 15 Minecraft JVMs. No CPU performance or production promotion claim.** This is a **real, reusable compiler transformation** over post-Brigadier typed commands, not a game-engine patch. The compiler is still opt-in; no production defaults or promotion policy change.
 
 ## Runtime waste identified
 
@@ -51,6 +51,33 @@ This is not dead-store elimination, value propagation, score-access caching, or 
 
 The follow-up compiler effort should target broadening legal transformations of commands and module-defined pure operands, not adding game-engine hooks or multiplying profiler studies.
 
-## Results
+## Results — native correctness gate accepted
 
-**PENDING native correctness gates.** Append the exact run/artefact IDs, lookup-elision counts and semantic disposition after the preregistered run.
+The bounded [native IR-037 run #45306171166](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45306171166) completed **successfully** on Java 25 / Minecraft 26.3 Fabric. It archived the individual vanilla and compiled state snapshots, original compiler diagnostics and server logs in [artifact #14881122679](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45306171166/artifacts/14881122679). All the new and inherited source-contract tests and the actual Fabric mod build also passed.
+
+| Preregistered gate | Actual native observation | Disposition |
+| --- | --- | --- |
+| IR-017 guarded binary/ranged guard/callback suite | **5 independent JVMs**, 168 state/quota cases per mode, all exact-match vanilla parity; native, old bytecode, interpreted, bytecode and direct scheduling compared | ACCEPT |
+| IR-008 scoreboard/fallback/overflow suite | **4 independent JVMs**, 62 state/quota cases, exact native/fused/interpreted/ASM parity | ACCEPT |
+| IR-013 callback/reentrancy suite | **6 independent JVMs**, 85 cases per mode; guarded bytecode, guarded interpreter and guarded direct scheduler each had **zero differences** from vanilla | ACCEPT |
+| IR-013 deliberately unsafe negative controls | Unsafe bytecode and direct scheduler each differed from vanilla in **46 cases**, as predeclared | ACCEPT |
+| Java 25 mod build and IR-037/IR-017/IR-034/035/036 static contracts | Passed | ACCEPT |
+| Causal CPU gain / default promotion | No admissible performance comparison | **NOT ESTABLISHED; NO PROMOTION** |
+
+The IR-017 corpus independently asserts `guarded_binary_steps > 0`, `reentrant_yields > 0`, and `ir037_objective_lookups_reused > 0` for both compiled backends and the direct scheduler. Its complete run yielded the following observable *lookup-elision diagnostics*:
+
+| Native suite mode | Command observations | IR-037 objective lookups avoided | Guarded binary direct steps | Reentrant queue yields |
+| --- | ---: | ---: | ---: | ---: |
+| Native vanilla reference | 168 | n/a | n/a | n/a |
+| Old bytecode control (range guard mode off) | 168 | 7 | 0 | 9 |
+| Prepared typed interpreter | 168 | **302** | 104 | 20 |
+| Prepared typed bytecode | 168 | **302** | 104 | 20 |
+| Prepared direct scheduler | 168 | **302** | 104 | 20 |
+
+These counts prove that the new code paths actually bypassed **302 repeated `scoreboard.getObjective(name)` calls** in each of the three relevant IR-017 typed execution modes. This is not 302 commands eliminated, not 302 scoreboard value reads eliminated, and not a CPU-speedup estimate. The old-bytecode control has less accepted IR coverage (its range/guarded-binary mode is off), so its count of 7 is **not** a controlled performance baseline for the 302 figure. The direct scheduler and interpreter both retain the same source command semantics; their counts happen to coincide for this fixed fixture.
+
+All 168 observations in the five-configuration IR-017 comparison matched vanilla, including false and true guarded branches, distinct target/guard/source objective names, callback-inserted work and command quota cutoffs. The 62-case IR-008 suite separately verified mutation arithmetic, feedback result storage, read-only/missing objective fallback and integer overflow; the IR-013 reentrancy suite verified command ordering and partial quota outcomes.
+
+**Disposition:** IR-037 ACCEPTED as a reusable, real runtime-work elimination within an opt-in typed-IR compiler backend: immutable command decoding moves to compilation and proven same-command duplicate objective lookups are removed. It does not eliminate a source command or cache an Objective across commands. Memory used for immutable descriptors is a tradeoff, and the resulting whole-event CPU impact is unknown. IR-033's rejected no-treatment stability gate still prevents a credible 5–15% performance or production promotion claim.
+
+The research workflow was restored to **manual-only** after the single native launch. Production defaults remain unchanged and draft PR #10 is still unmerged. Future optimization work should target further compiler-proven local redundancies or add broader supported command families, without treating an instruction-count improvement as a demonstrated gameplay CPU gain.
