@@ -87,3 +87,11 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_typed_ir039.py' -v
           python3 -m py_compile scripts/ci_typed_ir039.py
+
+      - name: Validate IR-040 predicate facts, arithmetic and crossover contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir040.py' -v
+          python3 -m py_compile scripts/ci_typed_ir040.py scripts/ci_typed_ir040_cpu.py
+          mkdir -p build/ir040-facts-tests
+          javac --release 25 -d build/ir040-facts-tests src/main/java/dev/functioncompiler/PredicateFacts.java tests/java/dev/functioncompiler/PredicateFactsTest.java
+          java -cp build/ir040-facts-tests dev.functioncompiler.PredicateFactsTest

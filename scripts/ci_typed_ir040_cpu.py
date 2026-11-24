@@ -31,6 +31,7 @@ COMPARISONS = (("native","flow"),("base","flow"),("native","native"),("base","ba
 MIN_REDUCTION = .05
 AA_LIMIT = .05
 original_fixture = base.fixture
+DIAGNOSTIC_PREFLIGHT = False
 
 def fixture(work):
     original_fixture(work)
@@ -41,7 +42,7 @@ def fixture(work):
 def options(mode):
     flags=ir040.options(mode)
     flags.update({"FC_TYPED_IR040_BENCHMARK":"true",
-                  "FC_TYPED_IR_DIAGNOSTICS":"false",
+                  "FC_TYPED_IR_DIAGNOSTICS":str(DIAGNOSTIC_PREFLIGHT).lower(),
                   "FC_TYPED_IR_REENTRANT_TEST_OBSERVER":"false",
                   "FC_TYPED_IR_ARITHMETIC":"false"})
     return flags
@@ -62,6 +63,45 @@ def validate(client,batches):
     expected={"x":48*CALLS*batches,"g":7,"y":9}
     if observed!=expected: raise AssertionError(f"exact work mismatch: {observed} != {expected}")
     return observed
+
+def preflight():
+    global DIAGNOSTIC_PREFLIGHT
+    DIAGNOSTIC_PREFLIGHT=True
+    process,client,log=base.start("bytecode")
+    try:
+        layouts={name:base.inspect(client,name) for name in
+                 ("ir017_ir040_perf","ir017_ir040_perf_base")}
+        if any(v["typed_lines"]!=64 for v in layouts.values()):
+            raise AssertionError(f"benchmark functions not fully compiled: {layouts}")
+        native=client.command("functioncompiler ir016 fc_native:ir017_ir040_perf")
+        if "no ledger entry" not in native:
+            raise AssertionError(f"native twin unexpectedly compiled: {native}")
+        from ci_typed_ir038 import stat
+        proof={}
+        for arm in ARMS:
+            prepare(client)
+            before=client.command("functioncompiler ir008")
+            batch(client,arm)
+            state=validate(client,1)
+            after=client.command("functioncompiler ir008")
+            delta={key:stat(after,key)-stat(before,key) for key in
+                   ("ir040_proofs","ir040_operand_reads_reused","executed_regions")}
+            if arm=="native" and any(delta.values()):
+                raise AssertionError(f"native twin executed compiled path: {delta}")
+            if arm=="base" and (delta["ir040_proofs"] or delta["ir040_operand_reads_reused"]
+                                or delta["executed_regions"]<=0):
+                raise AssertionError(f"IR039 twin did not isolate dataflow: {delta}")
+            if arm=="flow" and any(v<=0 for v in delta.values()):
+                raise AssertionError(f"IR040 twin not exercised: {delta}")
+            proof[arm]={"state":state,"counter_deltas":delta}
+        result={"layouts":layouts,"native_layout":native,"arms":proof}
+        (OUT/"diagnostic-preflight.json").write_text(json.dumps(result,indent=2)+"\n")
+        return result
+    finally:
+        base.stop(process,client,log)
+        DIAGNOSTIC_PREFLIGHT=False
+        p=OUT/"bytecode.server.log"
+        if p.exists(): p.rename(OUT/"diagnostic-preflight.server.log")
 
 def run_boot(boot):
     process,client,log=base.start("bytecode")
@@ -129,6 +169,7 @@ def main():
     base.options=options
     report={"status":"started","boots":[]}
     try:
+        report["preflight"]=preflight()
         for boot in range(BOOTS):
             report["boots"].append(run_boot(boot))
         report["summary"]=analyze(report["boots"])

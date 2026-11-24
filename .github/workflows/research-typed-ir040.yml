@@ -1,0 +1,73 @@
+name: COMPILER-IR-040 dataflow, arithmetic and CPU pilot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - work/compiler-coverage
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir040-native
+  cancel-in-progress: false
+
+jobs:
+  semantic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Validate pure dataflow oracle and compiler contracts
+        run: |
+          mkdir -p build/ir040-facts-tests
+          javac --release 25 -d build/ir040-facts-tests src/main/java/dev/functioncompiler/PredicateFacts.java tests/java/dev/functioncompiler/PredicateFactsTest.java
+          java -cp build/ir040-facts-tests dev.functioncompiler.PredicateFactsTest
+          for ir in 034 035 036 037 038 039 040; do python3 -m unittest discover -s tests -p "test_typed_ir${ir}.py" -v; done
+          python3 -m py_compile scripts/ci_typed_ir040.py scripts/ci_typed_ir040_cpu.py
+      - name: Build Java 25 Minecraft 26.3 Fabric
+        run: ./gradlew --no-daemon build
+      - name: Run five-mode expanded native semantic differential
+        run: python3 -u scripts/ci_typed_ir040.py
+      - name: Archive native state and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir040-native
+          path: build/reports/COMPILER-IR-040/
+          retention-days: 21
+          if-no-files-found: warn
+  cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build Java 25 Minecraft 26.3 Fabric
+        run: ./gradlew --no-daemon build
+      - name: Run exact-work preflight and two uninstrumented CPU crossover boots
+        run: python3 -u scripts/ci_typed_ir040_cpu.py
+      - name: Archive diagnostic preflight, raw CPU samples and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir040-cpu
+          path: build/reports/COMPILER-IR-040-CPU/
+          retention-days: 21
+          if-no-files-found: warn
