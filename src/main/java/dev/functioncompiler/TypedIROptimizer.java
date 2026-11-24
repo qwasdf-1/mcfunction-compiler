@@ -24,11 +24,11 @@ final class TypedIROptimizer {
 
     enum Op {
         ADD_LITERAL, SET_LITERAL,
-        ASSIGN_SCORE, ADD_SCORE, SUBTRACT_SCORE, MULTIPLY_SCORE, MIN_SCORE, MAX_SCORE;
+        ASSIGN_SCORE, ADD_SCORE, SUBTRACT_SCORE, MULTIPLY_SCORE, MIN_SCORE, MAX_SCORE, DIVIDE_SCORE, MODULO_SCORE, SWAP_SCORE;
 
         boolean readsSourceScore() {
             return switch (this) {
-                case ASSIGN_SCORE, ADD_SCORE, SUBTRACT_SCORE, MULTIPLY_SCORE, MIN_SCORE, MAX_SCORE -> true;
+                case ASSIGN_SCORE, ADD_SCORE, SUBTRACT_SCORE, MULTIPLY_SCORE, MIN_SCORE, MAX_SCORE, DIVIDE_SCORE, MODULO_SCORE, SWAP_SCORE -> true;
                 case ADD_LITERAL, SET_LITERAL -> false;
             };
         }
@@ -66,6 +66,9 @@ final class TypedIROptimizer {
                     case MULTIPLY -> Op.MULTIPLY_SCORE;
                     case MINIMUM -> Op.MIN_SCORE;
                     case MAXIMUM -> Op.MAX_SCORE;
+                    case DIVIDE -> Op.DIVIDE_SCORE;
+                    case MODULO -> Op.MODULO_SCORE;
+                    case SWAP -> Op.SWAP_SCORE;
                 };
                 if (opcode != expected || literal != 0) {
                     throw new IllegalArgumentException("binary opcode/argument drift");
@@ -120,6 +123,9 @@ final class TypedIROptimizer {
                 case MULTIPLY -> Op.MULTIPLY_SCORE;
                     case MINIMUM -> Op.MIN_SCORE;
                     case MAXIMUM -> Op.MAX_SCORE;
+                    case DIVIDE -> Op.DIVIDE_SCORE;
+                    case MODULO -> Op.MODULO_SCORE;
+                    case SWAP -> Op.SWAP_SCORE;
             };
             return new Step(original, opcode, 0);
         }

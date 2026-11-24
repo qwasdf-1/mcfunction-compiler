@@ -88,7 +88,8 @@ public final class ScoreAddPrototype {
             boolean acceptedShape = chain.getStage() == ContextChain.Stage.EXECUTE
                     ? ScoreAddCommand.typedIrLiteralSourceShape(input)
                             || ScoreOperationCommand.typedIrLiteralSourceShape(input)
-                    : ScoreConditionCommand.typedIrLiteralGuardShape(input);
+                    : ScoreConditionCommand.typedIrLiteralGuardShape(input)
+                        && !ScoreOperationCommand.exceptionalSourceShape(input);
             if (!acceptedShape) return;
         }
 

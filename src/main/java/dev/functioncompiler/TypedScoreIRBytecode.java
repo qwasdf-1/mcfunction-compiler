@@ -161,7 +161,13 @@ final class TypedScoreIRBytecode implements Opcodes {
 
             // IR-035: no per-command lowering/type inspection in the backend.
             // These preclassified opcodes never merge original source entries.
-            if (step.opcode().readsSourceScore()) {
+            if (step.opcode() == TypedIROptimizer.Op.DIVIDE_SCORE
+                    || step.opcode() == TypedIROptimizer.Op.MODULO_SCORE
+                    || step.opcode() == TypedIROptimizer.Op.SWAP_SCORE) {
+                method.visitVarInsn(ALOAD, 5);
+                method.visitMethodInsn(INVOKEVIRTUAL, STATE, "applyNativeArithmetic", "()V", false);
+                method.visitJumpInsn(GOTO, next);
+            } else if (step.opcode().readsSourceScore()) {
                 emitBinary(method, step);
             } else {
                 emitMutation(method, step);

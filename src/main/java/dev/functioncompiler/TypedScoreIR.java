@@ -93,6 +93,8 @@ public final class TypedScoreIR {
     private static final LongAdder COMPOUND_EMPTY_STAGES = new LongAdder();
     private static final LongAdder DATAFLOW_PROOFS = new LongAdder();
     private static final LongAdder DATAFLOW_READS_REUSED = new LongAdder();
+    private static final LongAdder NATIVE_ARITHMETIC_STEPS = new LongAdder();
+    private static final LongAdder NATIVE_ARITHMETIC_ERRORS = new LongAdder();
     private static final LongAdder COST_NATIVE = new LongAdder();
     private static final LongAdder COST_INTERPRETED = new LongAdder();
     private static final LongAdder COST_BYTECODE = new LongAdder();
@@ -175,7 +177,10 @@ public final class TypedScoreIR {
     static boolean extendedScoreEnabled() { return EXTENDED_SCORE; }
 
     /** Single-write operators; division, modulo and swap remain native. */
-    enum BinaryOperator { ASSIGN, ADD, SUBTRACT, MULTIPLY, MINIMUM, MAXIMUM }
+    enum BinaryOperator {
+        ASSIGN, ADD, SUBTRACT, MULTIPLY, MINIMUM, MAXIMUM, DIVIDE, MODULO, SWAP;
+        boolean nativeArithmetic() { return this == DIVIDE || this == MODULO || this == SWAP; }
+    }
 
     record Binary(
             FusedRegionPrototype.FusedCommand vanilla,
@@ -185,8 +190,15 @@ public final class TypedScoreIR {
             BinaryOperator operation,
             ScoreHolder sourceHolder,
             boolean sourceSelf,
-            String sourceObjective
+            String sourceObjective,
+            net.minecraft.commands.arguments.OperationArgument.Operation nativeOperation
     ) implements Instruction {
+        Binary(FusedRegionPrototype.FusedCommand vanilla, ScoreHolder holder, boolean holderSelf,
+               String objective, BinaryOperator operation, ScoreHolder sourceHolder,
+               boolean sourceSelf, String sourceObjective) {
+            this(vanilla, holder, holderSelf, objective, operation, sourceHolder, sourceSelf,
+                    sourceObjective, null);
+        }
         Binary {
             Objects.requireNonNull(vanilla);
             if (!holderSelf) Objects.requireNonNull(holder);
@@ -196,6 +208,8 @@ public final class TypedScoreIR {
             if (!sourceSelf) Objects.requireNonNull(sourceHolder);
             if (sourceSelf && sourceHolder != null) throw new IllegalArgumentException("ambiguous source");
             Objects.requireNonNull(sourceObjective);
+            if (operation.nativeArithmetic() != (nativeOperation != null))
+                throw new IllegalArgumentException("native arithmetic operand mismatch");
         }
         @Override
         public Effects effects() {
@@ -204,7 +218,10 @@ public final class TypedScoreIR {
             Set<Slot> reads = new HashSet<>();
             reads.add(source);
             if (operation != BinaryOperator.ASSIGN) reads.add(target);
-            return new Effects(reads, Set.of(target), true);
+            Set<Slot> writes = new HashSet<>();
+            writes.add(target);
+            if (operation == BinaryOperator.SWAP) writes.add(source);
+            return new Effects(reads, writes, true);
         }
     }
 
@@ -564,6 +581,12 @@ public final class TypedScoreIR {
     static void dataflowReadReused() {
         if (DIAGNOSTICS) DATAFLOW_READS_REUSED.increment();
     }
+    static void nativeArithmetic(boolean error) {
+        if (DIAGNOSTICS) {
+            NATIVE_ARITHMETIC_STEPS.increment();
+            if (error) NATIVE_ARITHMETIC_ERRORS.increment();
+        }
+    }
 
     static void cacheHit() { if (DIAGNOSTICS) CACHE_HITS.increment(); }
     static void cacheMiss() { if (DIAGNOSTICS) CACHE_MISSES.increment(); }
@@ -611,6 +634,8 @@ public final class TypedScoreIR {
                 + " ir039_empty_stage_debits=" + COMPOUND_EMPTY_STAGES.sum()
                 + " ir040_proofs=" + DATAFLOW_PROOFS.sum()
                 + " ir040_operand_reads_reused=" + DATAFLOW_READS_REUSED.sum()
+                + " ir040_arithmetic_steps=" + NATIVE_ARITHMETIC_STEPS.sum()
+                + " ir040_arithmetic_errors=" + NATIVE_ARITHMETIC_ERRORS.sum()
                 + " ir036_cost_policy=" + COST_SELECT
                 + " ir036_cost_native=" + COST_NATIVE.sum()
                 + " ir036_cost_interpreted=" + COST_INTERPRETED.sum()
@@ -648,6 +673,10 @@ public final class TypedScoreIR {
                 ? conditional.terminal() : instruction instanceof Compound compound
                         ? compound.terminal() : instruction;
         if (terminal instanceof Binary binary) {
+            if (binary.operation().nativeArithmetic()) {
+                state.applyNativeArithmetic();
+                return TypedScoreIRRuntime.DIRECT;
+            }
             int operand = SCORE_CACHE
                     ? state.sourceOperand() : state.sourceAccess().get();
             updated = switch (binary.operation()) {
@@ -659,6 +688,7 @@ public final class TypedScoreIR {
                     score.set(value);
                     yield value;
                 }
+                case DIVIDE, MODULO, SWAP -> throw new AssertionError("native arithmetic dispatched separately");
                 case MINIMUM, MAXIMUM -> {
                     int value = binary.operation() == BinaryOperator.MINIMUM
                             ? Math.min(score.get(), operand) : Math.max(score.get(), operand);
@@ -703,6 +733,10 @@ public final class TypedScoreIR {
             case SET_LITERAL -> {
                 score.set(step.literal());
                 updated = step.literal();
+            }
+            case DIVIDE_SCORE, MODULO_SCORE, SWAP_SCORE -> {
+                state.applyNativeArithmetic();
+                return TypedScoreIRRuntime.DIRECT;
             }
             case ASSIGN_SCORE, ADD_SCORE, SUBTRACT_SCORE, MULTIPLY_SCORE, MIN_SCORE, MAX_SCORE -> {
                 int operand = SCORE_CACHE

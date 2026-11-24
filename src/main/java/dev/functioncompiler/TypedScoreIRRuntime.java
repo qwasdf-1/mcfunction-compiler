@@ -175,6 +175,10 @@ final class TypedScoreIRRuntime {
             // distinct objectives: target, guard and binary operand.
             TypedScoreIR.Conditional condition = prepared.condition();
             boolean hasBinary = prepared.binary() != null;
+            if (hasBinary && prepared.binary().operation().nativeArithmetic()
+                    && (context.tracer() != null
+                        || source.callback() != net.minecraft.commands.CommandResultCallback.EMPTY))
+                return original(instruction);
             // IR-037: within THIS one command, the vanilla scoreboard
             // objective lookup is a pure name-map read. Nothing mutates the
             // scoreboard between target, guard and operand resolution.
@@ -535,6 +539,21 @@ final class TypedScoreIRRuntime {
             }
         }
 
+        // IR-040: the parsed vanilla Operation performs exactly the original
+        // floor division/modulo, zero-divisor exception and ordered swap writes.
+        // Row creation has already occurred; never replay a failing command.
+        void applyNativeArithmetic() {
+            try {
+                currentPrepared.binary().nativeOperation().apply(access, sourceAccess);
+                TypedScoreIR.nativeArithmetic(false);
+                finish(access.get());
+            } catch (CommandSyntaxException error) {
+                TypedScoreIR.nativeArithmetic(true);
+                source.handleError(error, current instanceof TypedScoreIR.Compound, context.tracer());
+                clearCurrent();
+            }
+        }
+
         void finish(int newScore) {
             TypedScoreIR.Instruction instruction = current;
             TypedIRPreparedSteps.Prepared prepared = currentPrepared;
@@ -595,15 +614,18 @@ final class TypedScoreIRRuntime {
             } catch (CommandSyntaxException error) {
                 source.handleError(error, false, tracer);
             } finally {
-                current = null;
-                currentPrepared = null;
-                objective = null;
-                access = null;
-                sourceAccess = null;
-                sourceObjective = null;
-                targetResolved = null;
-                sourceResolved = null;
+                clearCurrent();
             }
+        }
+        private void clearCurrent() {
+            current = null;
+            currentPrepared = null;
+            objective = null;
+            access = null;
+            sourceAccess = null;
+            sourceObjective = null;
+            targetResolved = null;
+            sourceResolved = null;
         }
     }
 }

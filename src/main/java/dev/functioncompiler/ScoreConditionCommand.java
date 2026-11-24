@@ -85,7 +85,7 @@ final class ScoreConditionCommand implements FusableCommand {
                     + IR_HOLDER + " [A-Za-z0-9_.+\\-]+ -?\\d+";
     private static final String IR_BINARY =
             "scoreboard players operation " + IR_HOLDER + " "
-                    + "[A-Za-z0-9_.+\\-]+ (?:=|\\+=|-=|\\*=|<|>) "
+                    + "[A-Za-z0-9_.+\\-]+ (?:=|\\+=|-=|\\*=|<|>|/=|%=|><) "
                     + IR_HOLDER + " [A-Za-z0-9_.+\\-]+";
     private static final java.util.regex.Pattern IR_GUARD =
             java.util.regex.Pattern.compile(

@@ -28,7 +28,7 @@ class IR038(unittest.TestCase):
         for symbol, name in (("<", "MINIMUM"), (">", "MAXIMUM")):
             self.assertIn(f'case "{symbol}" -> TypedScoreIR.extendedScoreEnabled()', op)
             self.assertIn(f"TypedScoreIR.BinaryOperator.{name} : null", op)
-        self.assertIn("default -> null; // Division, modulo and swap are vanilla.", op)
+        self.assertIn("ARITHMETIC || !exceptionalSourceShape(source)", op)
 
     def test_canonical_opcode_and_both_backends(self):
         optimizer = (JAVA / "TypedIROptimizer.java").read_text()

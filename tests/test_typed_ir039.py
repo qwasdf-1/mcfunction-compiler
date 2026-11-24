@@ -40,7 +40,7 @@ class IR039(unittest.TestCase):
                      "new CommandContext<>(executable.getSource()",
                      "compileScoreAdd(copy, functionId)", "compileScoreOperation(copy, functionId)",
                      "entry, new ContextChain<>(List.of(), copy), input",
-                     "new TypedScoreIR.Compound(original, terminal, predicates)"):
+                     "new TypedScoreIR.Compound(original, terminal, predicates,"):
             self.assertIn(text, lowering)
         self.assertNotIn("functionCompiler$setCommand(", lowering)
         self.assertIn("ScoreAddPrototype.lowerCompound(entry, original.id())",

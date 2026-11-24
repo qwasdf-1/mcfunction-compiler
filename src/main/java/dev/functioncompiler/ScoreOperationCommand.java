@@ -49,10 +49,16 @@ final class ScoreOperationCommand implements FusableCommand {
      * operation was already validated by Brigadier and ScoreAddPrototype;
      * this additional text/argument equality check is an eligibility gate.
      */
+    private static final boolean ARITHMETIC =
+            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_ARITHMETIC"));
+    static boolean exceptionalSourceShape(String input) {
+        return input != null && (input.contains(" /= ") || input.contains(" %= ") || input.contains(" >< "));
+    }
+
     private static final java.util.regex.Pattern IR_LITERAL_BINARY_SOURCE =
             java.util.regex.Pattern.compile(
                     "^scoreboard players operation (?:#[A-Za-z0-9_.+\\-]+|@s) "
-                            + "[A-Za-z0-9_.+\\-]+ (=|\\+=|-=|\\*=|<|>) "
+                            + "[A-Za-z0-9_.+\\-]+ (=|\\+=|-=|\\*=|<|>|/=|%=|><) "
                             + "(?:#[A-Za-z0-9_.+\\-]+|@s) [A-Za-z0-9_.+\\-]+$");
 
     // Preflight only: accepted commands still require their existing
@@ -60,6 +66,7 @@ final class ScoreOperationCommand implements FusableCommand {
     static boolean typedIrLiteralSourceShape(String source) {
         return source != null && IR_LITERAL_BINARY_SOURCE.matcher(source).matches()
                 && (TypedScoreIR.selfHolderEnabled() || !source.contains("@s"))
+                && (ARITHMETIC || !exceptionalSourceShape(source))
                 && (TypedScoreIR.extendedScoreEnabled()
                         || (!source.contains(" < ") && !source.contains(" > ")));
     }
@@ -102,7 +109,10 @@ final class ScoreOperationCommand implements FusableCommand {
                     ? TypedScoreIR.BinaryOperator.MINIMUM : null;
             case ">" -> TypedScoreIR.extendedScoreEnabled()
                     ? TypedScoreIR.BinaryOperator.MAXIMUM : null;
-            default -> null; // Division, modulo and swap are vanilla.
+            case "/=" -> ARITHMETIC ? TypedScoreIR.BinaryOperator.DIVIDE : null;
+            case "%=" -> ARITHMETIC ? TypedScoreIR.BinaryOperator.MODULO : null;
+            case "><" -> ARITHMETIC ? TypedScoreIR.BinaryOperator.SWAP : null;
+            default -> null; // Unsupported operation stays native.
         };
         if (op == null) return null;
         try {
@@ -116,7 +126,8 @@ final class ScoreOperationCommand implements FusableCommand {
         }
         return new TypedScoreIR.Binary(
                 parsed, targetHolder, isTargetSelf, words[4], op,
-                sourceHolder, isSourceSelf, words[7]
+                sourceHolder, isSourceSelf, words[7],
+                op.nativeArithmetic() ? operation : null
         );
     }
 
