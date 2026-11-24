@@ -90,7 +90,7 @@ final class TypedIREffectAnalysis {
                 original instanceof TypedScoreIR.Conditional guard
                         ? guard.terminal() : original;
         if (original instanceof TypedScoreIR.Conditional guard
-                && guard.conditionSelf()) return true;
+                && (guard.conditionSelf() || guard.comparisonSelf())) return true;
         if (terminal.holderSelf()) return true;
         return terminal instanceof TypedScoreIR.Binary binary && binary.sourceSelf();
     }
