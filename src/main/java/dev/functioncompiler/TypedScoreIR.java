@@ -42,6 +42,10 @@ public final class TypedScoreIR {
             && NAMESPACE != null && !NAMESPACE.isBlank();
     private static final boolean DIAGNOSTICS =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIAGNOSTICS"));
+    // IR-036: opt-in, UNCALIBRATED structural selection only.
+    // With no policy flag the original compiler backend decisions are kept.
+    private static final boolean COST_SELECT =
+            "select".equals(System.getenv("FC_TYPED_IR_COST_POLICY"));
     // IR-018: dynamic @s scoreboard holder lowering is research-only and
     // independently gated from IR-017 ranged-condition syntax.
     private static final boolean SELF_HOLDER =
@@ -77,6 +81,9 @@ public final class TypedScoreIR {
     private static final LongAdder TRACKER_FEEDBACK_STEPS = new LongAdder();
     private static final LongAdder REENTRANT_YIELDS = new LongAdder();
     private static final LongAdder REENTRANT_QUEUED_STEPS = new LongAdder();
+    private static final LongAdder COST_NATIVE = new LongAdder();
+    private static final LongAdder COST_INTERPRETED = new LongAdder();
+    private static final LongAdder COST_BYTECODE = new LongAdder();
 
     private TypedScoreIR() {}
 
@@ -278,8 +285,28 @@ public final class TypedScoreIR {
 
     record EmittedRegion(
             UnboundEntryAction<CommandSourceStack> action,
-            boolean bytecode
-    ) {}
+            boolean bytecode,
+            boolean vanilla
+    ) {
+        EmittedRegion {
+            // The mixed IR layer must expand vanilla to ORIGINAL per-command
+            // EntryActions. Never smuggle a null action into the queue.
+            if (vanilla ? (action != null || bytecode) : action == null) {
+                throw new IllegalArgumentException("invalid IR-036 emission choice");
+            }
+        }
+    }
+
+    private static long assumedCalls() {
+        String raw = System.getenv("FC_TYPED_IR_EXPECTED_CALLS");
+        if (raw == null || raw.isBlank()) return 16L;
+        try {
+            long calls = Long.parseLong(raw);
+            return calls >= 1 && calls <= 1_000_000 ? calls : 1L;
+        } catch (NumberFormatException invalid) {
+            return 1L; // invalid policy input fails toward vanilla
+        }
+    }
 
     /**
      * Emit one typed node. A JVM generation failure is an *interpreted typed
@@ -292,9 +319,29 @@ public final class TypedScoreIR {
         // retains each original Instruction and effect barrier in exact order.
         // Interpreter and ASM consume the SAME immutable opcode/argument plan.
         TypedIROptimizer.Plan optimized = TypedIROptimizer.optimize(program);
+        IR036CostModel.Backend backend = "bytecode".equals(MODE)
+                ? IR036CostModel.Backend.BYTECODE
+                : IR036CostModel.Backend.INTERPRETED;
+        if (COST_SELECT) {
+            // Always analyze the original effects and per-command boundaries
+            // before selecting an execution backend. No value propagation,
+            // command elimination or reordering is authorized by this model.
+            TypedIREffectAnalysis.Analysis effects = TypedIREffectAnalysis.analyze(optimized);
+            IR036CostModel.Decision decision = IR036CostModel.choose(
+                    effects.features(), assumedCalls(), "bytecode".equals(MODE));
+            backend = decision.backend();
+            if (backend == IR036CostModel.Backend.VANILLA) {
+                if (DIAGNOSTICS) COST_NATIVE.increment();
+                return new EmittedRegion(null, false, true);
+            }
+            if (DIAGNOSTICS) {
+                if (backend == IR036CostModel.Backend.BYTECODE) COST_BYTECODE.increment();
+                else COST_INTERPRETED.increment();
+            }
+        }
         UnboundEntryAction<CommandSourceStack> action = new Interpreted(program, optimized);
         boolean bytecode = false;
-        if ("bytecode".equals(MODE)) {
+        if (backend == IR036CostModel.Backend.BYTECODE) {
             try {
                 if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_FORCE_FAILURE"))) {
                     throw new IllegalStateException("IR injected compilation failure");
@@ -308,7 +355,7 @@ public final class TypedScoreIR {
             }
         }
         if (DIAGNOSTICS) COMPILED_REGIONS.increment();
-        return new EmittedRegion(action, bytecode);
+        return new EmittedRegion(action, bytecode, false);
     }
 
     static boolean retainsOriginal(
@@ -440,6 +487,10 @@ public final class TypedScoreIR {
                 + " tracker_feedback_steps=" + TRACKER_FEEDBACK_STEPS.sum()
                 + " reentrant_yields=" + REENTRANT_YIELDS.sum()
                 + " reentrant_queued_steps=" + REENTRANT_QUEUED_STEPS.sum()
+                + " ir036_cost_policy=" + COST_SELECT
+                + " ir036_cost_native=" + COST_NATIVE.sum()
+                + " ir036_cost_interpreted=" + COST_INTERPRETED.sum()
+                + " ir036_cost_bytecode=" + COST_BYTECODE.sum()
                 + ReentrantQueueProbe.diagnostics()
                 + TypedScoreIRDirectScheduler.diagnostics()
                 + MixedFunctionIR.diagnostics();
