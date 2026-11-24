@@ -121,6 +121,45 @@ class IR037PreparedRuntime(unittest.TestCase):
         self.assertIn('INVOKEINTERFACE, SCORE, "add"', asm)
         self.assertIn('INVOKEINTERFACE, SCORE, "set"', asm)
 
+    def test_duplicate_objective_lookup_elision_is_local_to_one_command(self):
+        prepared = source("TypedIRPreparedSteps.java")
+        runtime = source("TypedScoreIRRuntime.java")
+        ir = source("TypedScoreIR.java")
+        for token in (
+            "boolean guardSharesTargetObjective",
+            "boolean operandSharesTargetObjective",
+            "boolean operandSharesGuardObjective",
+            "targetObjective.equals(conditionObjective)",
+            "targetObjective.equals(operandObjective)",
+            "conditionObjective.equals(operandObjective)",
+            "unsound objective alias metadata",
+            "guard.conditionObjective().equals(binary.sourceObjective())",
+        ):
+            self.assertIn(token, prepared)
+        body = runtime.split("int begin(TypedIRPreparedSteps.Prepared prepared)", 1)[1]
+        body = body.split("private int original(", 1)[0]
+        for token in (
+            "scoreboard.getObjective(prepared.targetObjective())",
+            "if (prepared.guardSharesTargetObjective())",
+            "guardObjective = selected",
+            "if (prepared.operandSharesTargetObjective())",
+            "operandObjective = selected",
+            "else if (prepared.operandSharesGuardObjective())",
+            "operandObjective = guardObjective",
+            "scoreboard.getObjective(prepared.conditionObjective())",
+            "scoreboard.getObjective(prepared.operandObjective())",
+            "TypedScoreIR.objectiveLookupReused()",
+            "scoreboard.getOrCreatePlayerScore(target, selected)",
+            "scoreboard.getOrCreatePlayerScore(operandHolder, operandObjective)",
+        ):
+            self.assertIn(token, body)
+        # Reuse cannot escape begin(): per-command State begins again with a
+        # FRESH target lookup, even after synchronous scoreboard callbacks.
+        self.assertLess(body.index("scoreboard.getObjective(prepared.targetObjective())"),
+                        body.index("context.incrementCost();"))
+        self.assertIn("ir037_objective_lookups_reused", ir)
+        self.assertIn("if (DIAGNOSTICS) OBJECTIVE_LOOKUPS_REUSED.increment()", ir)
+
     def test_reentrant_tail_uses_original_actions_and_prepare_is_exceptional(self):
         runtime = source("TypedScoreIRRuntime.java")
         ir = source("TypedScoreIR.java")
