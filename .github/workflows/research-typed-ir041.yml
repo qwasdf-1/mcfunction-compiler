@@ -2,6 +2,9 @@ name: COMPILER-IR-041 steady-state CPU qualification
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - work/compiler-coverage
 
 permissions:
   contents: read
@@ -41,6 +44,7 @@ jobs:
           retention-days: 21
           if-no-files-found: warn
   publisher-census:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
