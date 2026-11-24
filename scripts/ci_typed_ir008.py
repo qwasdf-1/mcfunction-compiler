@@ -235,7 +235,7 @@ def diagnostic_counter(status: str, name: str) -> int:
     For example: binary_steps=34 and guarded_binary_steps=0 must not
     be confused by an unanchored regex.
     """
-    match = re.search(rf"(?:^|\\s){re.escape(name)}=(\\d+)(?=\\s|$)", status)
+    match = re.search(rf"(?:^|\s){re.escape(name)}=(\d+)(?=\s|$)", status)
     if match is None:
         raise AssertionError(f"Missing complete diagnostic {name!r}: {status!r}")
     return int(match.group(1))
