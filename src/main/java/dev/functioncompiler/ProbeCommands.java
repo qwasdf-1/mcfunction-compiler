@@ -372,6 +372,13 @@ final class ProbeCommands {
             case "native" -> "fc_native:ir017_ir040_perf";
             case "base" -> "fc_ir:ir017_ir040_perf_base";
             case "flow" -> "fc_ir:ir017_ir040_perf";
+            // Exact additional fixture IDs; no generic arbitrary-function batch API.
+            case "mixed_native" -> Boolean.parseBoolean(System.getenv("FC_TYPED_IR041_BENCHMARK"))
+                    ? "fc_native:ir017_ir041_mixed" : null;
+            case "mixed_base" -> Boolean.parseBoolean(System.getenv("FC_TYPED_IR041_BENCHMARK"))
+                    ? "fc_ir:ir017_ir041_mixed_base" : null;
+            case "mixed_flow" -> Boolean.parseBoolean(System.getenv("FC_TYPED_IR041_BENCHMARK"))
+                    ? "fc_ir:ir017_ir041_mixed" : null;
             default -> null;
         };
         ExecutionContext<CommandSourceStack> execution = ExecutionContextBridge.currentContext();

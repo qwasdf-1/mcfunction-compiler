@@ -26,7 +26,9 @@ final class CompoundScoreIR {
     static boolean dataflowEnabledFor(net.minecraft.resources.Identifier id) {
         // Only the explicitly enabled benchmark has an identical IR-039 twin.
         return DATAFLOW && !(Boolean.parseBoolean(System.getenv("FC_TYPED_IR040_BENCHMARK"))
-                && id.getNamespace().equals("fc_ir") && id.getPath().equals("ir017_ir040_perf_base"));
+                && id.getNamespace().equals("fc_ir") && (id.getPath().equals("ir017_ir040_perf_base")
+                        || (Boolean.parseBoolean(System.getenv("FC_TYPED_IR041_BENCHMARK"))
+                            && id.getPath().equals("ir017_ir041_mixed_base"))));
     }
     static int comparisonMask(ScoreConditionCommand.Operator operator) {
         return switch (operator) {

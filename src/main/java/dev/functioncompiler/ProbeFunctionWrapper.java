@@ -73,7 +73,11 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
                     (PlainTextFunction<CommandSourceStack>) plainTextFunction;
             InstantiatedFunction<CommandSourceStack> compiled;
             if (typedIrThisFunction) {
-                compiled = TypedScoreIR.compile(typedFunction);
+                if (IR041CompileProbe.enabledFor(delegate.id())) {
+                    compiled = IR041CompileProbe.compile(typedFunction);
+                } else {
+                    compiled = TypedScoreIR.compile(typedFunction);
+                }
             } else if (fuseThisFunction && !ProbeConfiguration.bytecodeRegionPrototypeEnabled()
                     && Boolean.parseBoolean(System.getenv("FC_BENCH_COMPILE_TIMING"))) {
                 long started = System.nanoTime();
