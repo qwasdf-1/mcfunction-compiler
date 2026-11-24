@@ -1,0 +1,51 @@
+name: COMPILER-IR-034 immutable typed region backend semantic regression
+
+# Manual only. This validates a compiler backend transformation, not a CPU gain.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir034-backend-semantics
+  cancel-in-progress: false
+
+jobs:
+  native-typed-ir-034-semantics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Check IR-034 vector hoisting and existing native contracts
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir034.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir008.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir013.py' -v
+          python3 -m py_compile scripts/ci_typed_ir008.py scripts/ci_typed_ir013.py
+      - name: Build actual Minecraft 26.3 Java 25 Fabric compiler
+        run: ./gradlew --no-daemon build
+      - name: Four JVM native/fused/interpreted/ASM differential semantic parity
+        timeout-minutes: 42
+        run: python3 -u scripts/ci_typed_ir008.py
+      - name: Six JVM reentrant queue, partial quota and negative-control parity
+        timeout-minutes: 44
+        run: python3 -u scripts/ci_typed_ir013.py
+      - name: Archive raw JVM observations and logs including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir034-native-typed-ir-semantics
+          path: |
+            build/reports/COMPILER-IR-008/
+            build/reports/COMPILER-IR-013/
+          retention-days: 21
+          if-no-files-found: warn
