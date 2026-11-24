@@ -11,8 +11,10 @@ import java.util.Objects;
  * each ORIGINAL validated source command. The descriptor predecodes its shape,
  * target, optional guard, optional binary operand and original feedback kind.
  *
- * Runtime objective/score lookups, @s resolution, scoreboard listeners,
- * quota/trace/feedback and vanilla fallback are NEVER hoisted or omitted.
+ * Runtime objective resolution remains fresh at EVERY source command boundary.
+ * Only duplicate objective-name reads within the SAME source command, before
+ * any scoreboard mutation/callback, may reuse the first result. Score accesses,
+ * @s resolution, listeners, quota/trace/feedback and fallback remain live.
  * A conditional's original command is retained for quota and reentrant tails.
  */
 final class TypedIRPreparedSteps {
@@ -27,7 +29,10 @@ final class TypedIRPreparedSteps {
             ScoreHolder targetHolder, boolean targetSelf, String targetObjective,
             ScoreHolder conditionHolder, boolean conditionSelf, String conditionObjective,
             ScoreHolder operandHolder, boolean operandSelf, String operandObjective,
-            Feedback feedback, int feedbackAmount
+            Feedback feedback, int feedbackAmount,
+            boolean guardSharesTargetObjective,
+            boolean operandSharesTargetObjective,
+            boolean operandSharesGuardObjective
     ) {
         Prepared {
             Objects.requireNonNull(original);
@@ -48,6 +53,14 @@ final class TypedIRPreparedSteps {
                         || conditionObjective == null || condition != original) {
                     throw new IllegalArgumentException("invalid condition specialization");
                 }
+            }
+            if (guardSharesTargetObjective != (condition != null
+                    && targetObjective.equals(conditionObjective))
+                    || operandSharesTargetObjective != (binary != null
+                    && targetObjective.equals(operandObjective))
+                    || operandSharesGuardObjective != (condition != null && binary != null
+                    && conditionObjective.equals(operandObjective))) {
+                throw new IllegalArgumentException("unsound objective alias metadata");
             }
             if (binary == null) {
                 if (operandHolder != null || operandSelf || operandObjective != null
@@ -114,6 +127,10 @@ final class TypedIRPreparedSteps {
                 binary == null ? null : binary.sourceHolder(),
                 binary != null && binary.sourceSelf(),
                 binary == null ? null : binary.sourceObjective(),
-                feedback, amount);
+                feedback, amount,
+                guard != null && original.objective().equals(guard.conditionObjective()),
+                binary != null && original.objective().equals(binary.sourceObjective()),
+                guard != null && binary != null
+                        && guard.conditionObjective().equals(binary.sourceObjective()));
     }
 }
