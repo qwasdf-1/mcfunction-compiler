@@ -52,14 +52,16 @@ final class ScoreOperationCommand implements FusableCommand {
     private static final java.util.regex.Pattern IR_LITERAL_BINARY_SOURCE =
             java.util.regex.Pattern.compile(
                     "^scoreboard players operation (?:#[A-Za-z0-9_.+\\-]+|@s) "
-                            + "[A-Za-z0-9_.+\\-]+ (=|\\+=|-=|\\*=) "
+                            + "[A-Za-z0-9_.+\\-]+ (=|\\+=|-=|\\*=|<|>) "
                             + "(?:#[A-Za-z0-9_.+\\-]+|@s) [A-Za-z0-9_.+\\-]+$");
 
     // Preflight only: accepted commands still require their existing
     // Brigadier-validated callback and the strict argument equality below.
     static boolean typedIrLiteralSourceShape(String source) {
         return source != null && IR_LITERAL_BINARY_SOURCE.matcher(source).matches()
-                && (TypedScoreIR.selfHolderEnabled() || !source.contains("@s"));
+                && (TypedScoreIR.selfHolderEnabled() || !source.contains("@s"))
+                && (TypedScoreIR.extendedScoreEnabled()
+                        || (!source.contains(" < ") && !source.contains(" > ")));
     }
 
     TypedScoreIR.Binary toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
@@ -96,7 +98,11 @@ final class ScoreOperationCommand implements FusableCommand {
             case "+=" -> TypedScoreIR.BinaryOperator.ADD;
             case "-=" -> TypedScoreIR.BinaryOperator.SUBTRACT;
             case "*=" -> TypedScoreIR.BinaryOperator.MULTIPLY;
-            default -> null; // Division, modulo, min/max and swap are vanilla.
+            case "<" -> TypedScoreIR.extendedScoreEnabled()
+                    ? TypedScoreIR.BinaryOperator.MINIMUM : null;
+            case ">" -> TypedScoreIR.extendedScoreEnabled()
+                    ? TypedScoreIR.BinaryOperator.MAXIMUM : null;
+            default -> null; // Division, modulo and swap are vanilla.
         };
         if (op == null) return null;
         try {
