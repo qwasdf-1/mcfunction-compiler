@@ -557,9 +557,11 @@ public final class TypedScoreIR {
      * propagated between instructions.
      */
     static int executeOptimizedStep(
-            TypedIROptimizer.Step step, TypedScoreIRRuntime.State state
+            TypedIROptimizer.Step step,
+            TypedIRPreparedSteps.Prepared prepared,
+            TypedScoreIRRuntime.State state
     ) {
-        int decision = state.begin(step.original());
+        int decision = state.begin(prepared);
         if (decision != TypedScoreIRRuntime.DIRECT) return decision;
         ScoreAccess score = state.access();
         int updated;
@@ -605,12 +607,16 @@ public final class TypedScoreIR {
          */
         private final Instruction[] steps;
         private final TypedIROptimizer.Step[] opcodes;
+        private final TypedIRPreparedSteps.Prepared[] prepared;
 
         Interpreted(Program program, TypedIROptimizer.Plan optimized) {
             this.steps = program.instructions().toArray(Instruction[]::new);
             this.opcodes = optimized.steps().toArray(TypedIROptimizer.Step[]::new);
-            if (steps.length != opcodes.length) {
-                throw new IllegalArgumentException("IR-035 source/plan length mismatch");
+            // IR-037: compile-time metadata: no Conditional/Binary/Mutation
+            // instanceof dispatch or terminal unwrapping in the execution loop.
+            this.prepared = TypedIRPreparedSteps.prepare(optimized);
+            if (steps.length != opcodes.length || steps.length != prepared.length) {
+                throw new IllegalArgumentException("IR-037 source/plan length mismatch");
             }
         }
 
@@ -623,8 +629,9 @@ public final class TypedScoreIR {
             TypedScoreIRRuntime.State state =
                     new TypedScoreIRRuntime.State(source, context, frame, steps);
             executed();
-            for (TypedIROptimizer.Step opcode : opcodes) {
-                if (executeOptimizedStep(opcode, state) == TypedScoreIRRuntime.STOP) return;
+            for (int index = 0; index < opcodes.length; index++) {
+                if (executeOptimizedStep(opcodes[index], prepared[index], state)
+                        == TypedScoreIRRuntime.STOP) return;
             }
         }
     }
