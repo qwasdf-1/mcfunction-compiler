@@ -210,6 +210,18 @@ final class TypedScoreIRBytecode implements Opcodes {
                 method.visitMethodInsn(INVOKEINTERFACE, SCORE, "add", "(I)I", true);
                 method.visitVarInsn(ISTORE, 7);
             }
+            case MIN_SCORE, MAX_SCORE -> {
+                method.visitInsn(POP);
+                method.visitInsn(DUP);
+                method.visitMethodInsn(INVOKEINTERFACE, SCORE, "get", "()I", true);
+                method.visitVarInsn(ILOAD, 8);
+                method.visitMethodInsn(INVOKESTATIC, "java/lang/Math",
+                        step.opcode() == TypedIROptimizer.Op.MIN_SCORE ? "min" : "max",
+                        "(II)I", false);
+                method.visitInsn(DUP);
+                method.visitVarInsn(ISTORE, 7);
+                method.visitMethodInsn(INVOKEINTERFACE, SCORE, "set", "(I)V", true);
+            }
             case MULTIPLY_SCORE -> {
                 // Retain original source-before-target read sequencing.
                 method.visitInsn(POP);
