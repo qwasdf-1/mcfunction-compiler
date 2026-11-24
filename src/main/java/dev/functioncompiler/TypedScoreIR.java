@@ -81,6 +81,8 @@ public final class TypedScoreIR {
     private static final LongAdder TRACKER_FEEDBACK_STEPS = new LongAdder();
     private static final LongAdder REENTRANT_YIELDS = new LongAdder();
     private static final LongAdder REENTRANT_QUEUED_STEPS = new LongAdder();
+    // IR-037: counts actual same-command map lookups removed (DIAGNOSTICS only).
+    private static final LongAdder OBJECTIVE_LOOKUPS_REUSED = new LongAdder();
     private static final LongAdder COST_NATIVE = new LongAdder();
     private static final LongAdder COST_INTERPRETED = new LongAdder();
     private static final LongAdder COST_BYTECODE = new LongAdder();
@@ -454,6 +456,10 @@ public final class TypedScoreIR {
         if (DIAGNOSTICS) REENTRANT_QUEUED_STEPS.increment();
     }
 
+    static void objectiveLookupReused() {
+        if (DIAGNOSTICS) OBJECTIVE_LOOKUPS_REUSED.increment();
+    }
+
     static void cacheHit() { if (DIAGNOSTICS) CACHE_HITS.increment(); }
     static void cacheMiss() { if (DIAGNOSTICS) CACHE_MISSES.increment(); }
     static void cacheInvalidated() {
@@ -487,6 +493,7 @@ public final class TypedScoreIR {
                 + " tracker_feedback_steps=" + TRACKER_FEEDBACK_STEPS.sum()
                 + " reentrant_yields=" + REENTRANT_YIELDS.sum()
                 + " reentrant_queued_steps=" + REENTRANT_QUEUED_STEPS.sum()
+                + " ir037_objective_lookups_reused=" + OBJECTIVE_LOOKUPS_REUSED.sum()
                 + " ir036_cost_policy=" + COST_SELECT
                 + " ir036_cost_native=" + COST_NATIVE.sum()
                 + " ir036_cost_interpreted=" + COST_INTERPRETED.sum()
