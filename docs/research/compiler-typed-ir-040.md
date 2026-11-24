@@ -1,6 +1,6 @@
 # IR-040 — Predicate dataflow, complete scoreboard operation representation, and first CPU crossover
 
-**Status: implemented; native semantics and CPU pilot pending.** Research branch `work/compiler-coverage`, draft PR #10. Production defaults unchanged.
+**Status: native semantic acceptance passed; synthetic CPU pilot completed but failed its preregistered stability gate (2026-11-24).** Research branch `work/compiler-coverage`, draft PR #10. Production defaults unchanged.
 
 ## Compiler design
 
@@ -26,4 +26,24 @@ The read-purity and effect assumptions from IR039 remain. No arbitrary modded re
 
 ## Results
 
-Pending.
+### Native semantic acceptance — passed
+
+[Run 45464991546](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45464991546) passed both jobs. [Ordinary CI on the restored manual-only workflow](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45465053337) passed. The [native evidence archive](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45464991546/artifacts/14955660174) contains the full snapshots and logs.
+
+- Independent abstract-domain oracle: 813 checks passed.
+- Five native modes: 1,161 state observations each, 5,805 total, exact native parity. This includes the full accepted IR039 fixture corpus and quota-12 regression.
+- New nine-fixture typed coverage: 46/72 with IR040 disabled; 72/72 with IR040 enabled in interpreter, bytecode and direct.
+- Each enabled mode: 752 additional dataflow proofs exercised, 509 operand reads reused, 695 exceptional-arithmetic steps (including 142 handled errors), 1,722 total compound predicate computations eliminated, 471 compound native fallbacks and 232 reentrant yields. All four IR040-specific counters were zero in the feature-off control.
+
+### CPU pilot — measured signal, stability gate failed
+
+[CPU evidence archive](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45464991546/artifacts/14955306595). Diagnostic path preflight and exact completed-work validation passed; two uninstrumented JVMs completed all 64 timed windows (2,097,152 source-command visits). The following values are descriptive reductions of Server-thread running CPU per source line, not accepted causal estimates.
+
+| Comparison | Four paired reductions, chronological within each boot | Median | Boot 0 median | Boot 1 median | Gate |
+| --- | --- | ---: | ---: | ---: | --- |
+| Native vs IR040 | 80.90%, 79.70%, 61.71%, 80.52% | 80.11% | 80.30% | 71.12% | Failed stability |
+| IR039-style vs IR040 | 16.40%, -22.59%, 29.94%, 18.21% | 17.31% | -3.09% | 24.08% | Failed stability and consistency |
+
+Maximum absolute A/A placebo reduction: **28.39%** (preregistered maximum 5%). Both pilot gates are false. Native-vs-flow was positive in every block, with much larger observed reductions than the incremental dataflow comparison, but the protocol does not permit a causal speedup claim. The incremental comparison also reversed direction in one block and had a negative boot-0 median. Raw per-line CPU costs change substantially over a boot, including identical-arm blocks; insufficient steady-state warmup, JIT transitions and other time-varying effects are hypotheses, not established causes. Do not remove early blocks post hoc or revise the threshold to accept this experiment.
+
+**Disposition:** IR040 native semantic milestone accepted for the tested scope. No CPU speedup gate passed. Next performance experiment should qualify a steady-state same-JVM protocol using longer warmup, longer measurement windows and interleaved A/A controls before interpreting treatment comparisons; retain this first pilot unchanged. Arithmetic compilation is not part of the timed workload, and no general datapack speedup or production promotion follows. Single-guard exceptional arithmetic and restrictive fork-limit dedicated tests remain outside demonstrated coverage.
