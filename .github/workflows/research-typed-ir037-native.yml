@@ -1,0 +1,58 @@
+name: COMPILER-IR-037 prepared command and objective reuse native parity
+
+# Manual-only semantic gate. Not a CPU benchmark; compiler stays opt-in.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir037-prepared-steps
+  cancel-in-progress: false
+
+jobs:
+  compiler-ir037-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Validate prepared descriptor / old IR semantic contracts before native boot
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir037.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir017.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir035.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir034.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir008.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir013.py' -v
+          python3 -m unittest discover -s tests -p 'test_typed_ir036.py' -v
+      - name: Build actual Minecraft 26.3 Fabric mod on Java 25
+        run: ./gradlew --no-daemon build
+      - name: Five JVMs guarded-binary and range/callback parity, prove objective lookups avoided
+        timeout-minutes: 42
+        run: python3 -u scripts/ci_typed_ir017.py
+      - name: Four JVMs vanilla/fused/interpreted/ASM scoreboard parity
+        timeout-minutes: 37
+        run: python3 -u scripts/ci_typed_ir008.py
+      - name: Six JVMs callback queue and partial quota parity with unsafe negative controls
+        timeout-minutes: 37
+        run: python3 -u scripts/ci_typed_ir013.py
+      - name: Archive native score state, proven objective reuse, and server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir037-prepared-objective-native
+          path: |
+            build/reports/COMPILER-IR-017/
+            build/reports/COMPILER-IR-008/
+            build/reports/COMPILER-IR-013/
+          retention-days: 21
+          if-no-files-found: warn
