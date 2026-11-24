@@ -1,12 +1,8 @@
 name: COMPILER-IR-034 immutable typed region backend semantic regression
 
-# One-shot trigger for the precommitted native semantic regression.
-# Restore manual-only as soon as the single run is created.
+# Manual only. This validates a compiler backend transformation, not a CPU gain.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - work/compiler-coverage
 
 permissions:
   contents: read
