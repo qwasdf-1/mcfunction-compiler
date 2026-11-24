@@ -32,7 +32,11 @@ final class TypedIRPreparedSteps {
             Feedback feedback, int feedbackAmount,
             boolean guardSharesTargetObjective,
             boolean operandSharesTargetObjective,
-            boolean operandSharesGuardObjective
+            boolean operandSharesGuardObjective,
+            boolean comparisonSharesTargetObjective,
+            boolean comparisonSharesGuardObjective,
+            boolean operandSharesComparisonObjective,
+            boolean comparisonSameSlot
     ) {
         Prepared {
             Objects.requireNonNull(original);
@@ -61,6 +65,16 @@ final class TypedIRPreparedSteps {
                     || operandSharesGuardObjective != (condition != null && binary != null
                     && conditionObjective.equals(operandObjective))) {
                 throw new IllegalArgumentException("unsound objective alias metadata");
+            }
+            boolean compares = condition != null && condition.comparison() != null;
+            if (comparisonSharesTargetObjective != (compares
+                    && targetObjective.equals(condition.comparisonObjective()))
+                    || comparisonSharesGuardObjective != (compares
+                    && conditionObjective.equals(condition.comparisonObjective()))
+                    || operandSharesComparisonObjective != (compares && binary != null
+                    && operandObjective.equals(condition.comparisonObjective()))
+                    || comparisonSameSlot != (compares && samePredicateSlot(condition))) {
+                throw new IllegalArgumentException("unsound comparison alias metadata");
             }
             if (binary == null) {
                 if (operandHolder != null || operandSelf || operandObjective != null
@@ -131,6 +145,22 @@ final class TypedIRPreparedSteps {
                 guard != null && original.objective().equals(guard.conditionObjective()),
                 binary != null && original.objective().equals(binary.sourceObjective()),
                 guard != null && binary != null
-                        && guard.conditionObjective().equals(binary.sourceObjective()));
+                        && guard.conditionObjective().equals(binary.sourceObjective()),
+                guard != null && guard.comparison() != null
+                        && original.objective().equals(guard.comparisonObjective()),
+                guard != null && guard.comparison() != null
+                        && guard.conditionObjective().equals(guard.comparisonObjective()),
+                guard != null && guard.comparison() != null && binary != null
+                        && binary.sourceObjective().equals(guard.comparisonObjective()),
+                guard != null && guard.comparison() != null && samePredicateSlot(guard));
     }
+    /** Exact alias only: never assume an entity @s aliases a literal fake holder. */
+    private static boolean samePredicateSlot(TypedScoreIR.Conditional guard) {
+        return guard.conditionObjective().equals(guard.comparisonObjective())
+                && guard.conditionSelf() == guard.comparisonSelf()
+                && (guard.conditionSelf()
+                    || guard.conditionHolder().getScoreboardName()
+                        .equals(guard.comparisonHolder().getScoreboardName()));
+    }
+
 }
