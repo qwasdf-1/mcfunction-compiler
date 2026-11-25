@@ -2,9 +2,6 @@ name: COMPILER-IR-044 native conditional terminals
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - work/compiler-coverage
 permissions:
   contents: read
   actions: read

@@ -7,7 +7,7 @@ import ci_typed_ir042_attribution as protocol
 import ci_typed_ir041 as prior
 from ci_typed_ir038 import stat
 
-OUT=base.ROOT/"build/reports/COMPILER-IR-043-CPU"
+OUT=base.ROOT/"build/reports/COMPILER-IR-044-CPU"
 ARMS=("native","typed")
 SOURCE=[
     "execute if block 0 63 0 minecraft:air run scoreboard players add #x fc_ir 1",
