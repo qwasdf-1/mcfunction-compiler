@@ -1,6 +1,6 @@
 # IR-044 — Single-condition native terminal specialization and publisher admission
 
-**Status: implemented; original publisher and IR043 regression accepted; corrected native and CPU gates pending.** Research-only on work/compiler-coverage; PR #10 remains draft. No production defaults change.
+**Status: implemented; original publisher and IR043 regression accepted; controlled CPU accepted; corrected native gate pending.** Research-only on work/compiler-coverage; PR #10 remains draft. No production defaults change.
 
 ## Selection from the original IR042 archive
 
@@ -30,6 +30,6 @@ Original event completed in 603 ticks with all 17 Y slices, five witnesses and m
 
 First attempt rejected at the vanilla reference before compilation: fixture did not execute via the separately summoned marker (full-quota #after=0). No semantic or CPU conclusion from that attempt. Corrected only fixture setup to require a loaded stone witness and use the established summon-and-call pattern; dedicated native rerun 45654918498. No threshold relaxed.
 
-### CPU
+### CPU — accepted controlled block-to-score workload
 
-Pending.
+[Run 45654587501, artifact 15043330311](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45654587501/artifacts/15043330311). Two independent boots completed, each with 128 fixed batches, six warmup and two holdout windows per arm, and 32 timed block windows. Minimum timed server-thread CPU 1,086.461 ms (gate 500 ms). All 64 timed windows independently checked against x=4,194,304, g=7, y=9, result=0, observed=0. Diagnostic preflight: G=64, direct_candidate=false, 8,192 typed entries, 4,096 pass, 4,096 skip, zero fallback/error, same state as native. Paired reductions 27.1368%, 27.7583%, 25.8979%, 25.9117%; boot medians 27.4475% and 25.9048%, combined median 26.5243%. Maximum absolute A/A deviation 1.5637% (gate 5%). Pilot gate true. Archive uses the old IR043 CPU directory name (corrected subsequently); its preflight, function and counters identify IR044. This qualifies only controlled block-to-score orchestration, not tag-terminal CPU or whole-datapack speedup. Production promotion false.
