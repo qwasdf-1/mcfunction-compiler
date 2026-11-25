@@ -27,7 +27,8 @@ final class ProbeCommands {
         if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR040_BENCHMARK"))) {
             dispatcher.register(Commands.literal("fc_ir040_batch")
                     .then(Commands.argument("arm", StringArgumentType.word())
-                            .then(Commands.argument("calls", IntegerArgumentType.integer(1, 128))
+                            .then(Commands.argument("calls", IntegerArgumentType.integer(1,
+                                    Boolean.parseBoolean(System.getenv("FC_TYPED_IR042_BENCHMARK")) ? 1024 : 128))
                                     .executes(context -> ir040Batch(context.getSource(),
                                             StringArgumentType.getString(context, "arm"),
                                             IntegerArgumentType.getInteger(context, "calls"))))));

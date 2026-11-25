@@ -100,12 +100,14 @@ def options(_):
         "FC_TYPED_IR_COST_POLICY":"",
     }
 
-def event(client,thread=None,label="event"):
+def event(client,thread=None,label="event",census=False):
     oracle.configure_stable_original_scene(client)
     # All samples must start from the verified full stone scene and no active job.
     prior=oracle.observe(client,label+"-before",include_slices=False)
     if not checkpoint_accepted(prior):
         raise AssertionError("event starting state not clean: "+repr(prior))
+    if census and "FC_EXEC started" not in client.command("functioncompiler exec-census-start"):
+        raise AssertionError("census start refused")
     env0=snapshot_jvm_environment(thread[0]) if thread else None
     throttle0=cgroup_throttle_count() if thread else None
     tick0=score(client,"#tick_id","erb.cfg")
@@ -125,6 +127,10 @@ def event(client,thread=None,label="event"):
     wall=time.monotonic_ns()-wall0
     env1=snapshot_jvm_environment(thread[0]) if thread else None
     throttle1=cgroup_throttle_count() if thread else None
+    if census:
+        reply=client.command("functioncompiler exec-census-stop")
+        if "FC_EXEC ended" not in reply or "overflow=0" not in reply:
+            raise AssertionError("census incomplete: "+reply)
     state=oracle.observe(client,label+"-after",include_slices=True)
     if not checkpoint_accepted(state) or oracle.count_native(client,"#fc042_count",
             "@e[type=minecraft:tnt,tag=fc_blastback_probe]")!=0:
@@ -191,13 +197,7 @@ def native_census(pack):
     proc,client,log=launch("census","native",census=True)
     r={"status":"started","target_functions":NATIVE_TARGETS,"callee_functions":CALLEE_TARGETS}
     try:
-        oracle.configure_stable_original_scene(client)
-        if "FC_EXEC started" not in client.command("functioncompiler exec-census-start"):
-            raise AssertionError("census start refused")
-        r["event"]=event(client,label="census")
-        reply=client.command("functioncompiler exec-census-stop")
-        if "FC_EXEC ended" not in reply or "overflow=0" not in reply:
-            raise AssertionError("census incomplete: "+reply)
+        r["event"]=event(client,label="census",census=True)
         r["status"]="observed"
     finally:
         stop(proc,client,log)
