@@ -28,7 +28,8 @@ final class ProbeCommands {
             dispatcher.register(Commands.literal("fc_ir040_batch")
                     .then(Commands.argument("arm", StringArgumentType.word())
                             .then(Commands.argument("calls", IntegerArgumentType.integer(1,
-                                    Boolean.parseBoolean(System.getenv("FC_TYPED_IR042_BENCHMARK")) ? 1024 : 128))
+                                    (Boolean.parseBoolean(System.getenv("FC_TYPED_IR042_BENCHMARK"))
+                                            || Boolean.parseBoolean(System.getenv("FC_TYPED_IR043_BENCHMARK"))) ? 1024 : 128))
                                     .executes(context -> ir040Batch(context.getSource(),
                                             StringArgumentType.getString(context, "arm"),
                                             IntegerArgumentType.getInteger(context, "calls"))))));
@@ -373,6 +374,10 @@ final class ProbeCommands {
             case "native" -> "fc_native:ir017_ir040_perf";
             case "base" -> "fc_ir:ir017_ir040_perf_base";
             case "flow" -> "fc_ir:ir017_ir040_perf";
+            case "dispatch_native" -> Boolean.parseBoolean(System.getenv("FC_TYPED_IR043_BENCHMARK"))
+                    ? "fc_native:ir017_ir043_perf" : null;
+            case "dispatch_typed" -> Boolean.parseBoolean(System.getenv("FC_TYPED_IR043_BENCHMARK"))
+                    ? "fc_ir:ir017_ir043_perf" : null;
             case "interp" -> Boolean.parseBoolean(System.getenv("FC_TYPED_IR042_BENCHMARK"))
                     ? "fc_ir:ir017_ir042_interp" : null;
             case "direct" -> Boolean.parseBoolean(System.getenv("FC_TYPED_IR042_BENCHMARK"))
