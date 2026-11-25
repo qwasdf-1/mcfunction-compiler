@@ -1,10 +1,10 @@
 # IR-044 — Single-condition native terminal specialization and publisher admission
 
-**Status: implementation and preregistered gates pending execution.** Research-only on work/compiler-coverage; PR #10 remains draft. No production defaults change.
+**Status: implemented; original publisher and IR043 regression accepted; corrected native and CPU gates pending.** Research-only on work/compiler-coverage; PR #10 remains draft. No production defaults change.
 
 ## Selection from the original IR042 archive
 
-Read the archived 347 source sites, 17 functions, 257,697 native reaches. Original [archive](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45516230461/artifacts/14978057388). Of 21,272 dispatch reaches, 14 bare static sites contributed 14,487, 26 pure-score static sites contributed 4,216 (18,703 combined, 87.92% source-shape screen); 11 other sites contributed 2,569. No parsed-admission or speedup inference from these counts. Five archived input strings are truncated; join against SHA-pinned full original source before classification. Actual ledger must reconcile D source indices with archived visits.
+Read the archived 347 source sites, 17 functions, 257,697 native reaches. Original [archive](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45516230461/artifacts/14978057388). Of 21,272 dispatch reaches, 14 bare static sites contributed 14,487, 26 pure-score static sites contributed 4,216 (18,703 combined, 87.92% source-shape screen); 10 other ordinary dispatch sites contributed 2,569; one separate macro dispatch site had zero visits. No parsed-admission or speedup inference from these counts. Five archived input strings are truncated; join against SHA-pinned full original source before classification. Actual ledger must reconcile D source indices with archived visits.
 
 Three if-block-to-tag sites in erb:capture/store account for 17,307 visits and only 230 ordinary terminal callbacks. Single score-guard-to-tag candidates add 5,771 visits (one separate return-run-tag site excluded). These 23,078 visits explain nearly all of the 23,710 execute_other bucket. Data/store 6,547; other dispatch 2,569, mostly source changes (as/at). Existing selector-fork, macro, tag-index and NBT experiments have not established a new removable cost; do not reopen from visit counts alone. Prioritize a reusable single-condition native ordinary-terminal control node over new world-state caches or new scheduler.
 
@@ -19,5 +19,17 @@ G is a one-source-position node: a validated single vanilla if/unless block (lit
 - CPU: original native twin, compiled twin, 64 single block guard commands, 32 successful native scoreboard increments per call, both paths same terminal callbacks, two JVMs, prior IR042 calibration, >=500 ms, six consecutive warmup windows plus two holdouts, ABBA/BAAB, max A/A <=5%. Preflight exact G paths and work; no diagnostics in timing. Only the tested block-to-score terminal workload qualifies, not tag or publisher CPU. No changes to gate thresholds if it fails.
 
 ## Results
+
+### Original publisher parsed admission and diagnostic event — accepted
+
+[Run 45654587501, publisher artifact 15040914276](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45654587501/artifacts/15040914276). The archived IR042 native rows were joined by exact source index and verified full source against the SHA-pinned original Blastback pack. All 40 D candidates and all 7 G candidates were admitted by the actual parsed compiler ledger, covering 18,703 and 23,078 historical native reaches respectively. No other ordinary dispatch sites admitted; their 2,569 reaches remain native. Explicit allowlist of 15 functions in namespace erb; erb_generated:restore/reset and restore/wrap deliberately not selected in this event. Within those 15 functions, J=24,665 historical reaches (56 sites), D=18,703 (40), G=23,078 (7), V=16,620 (58), S=1,091 (11), F=601 (2). Historical total 84,758 reaches; 66,446 at admitted J/D/G positions (78.40%). These are not dynamic compiled counts. Native terminal callbacks at V include 647,279 at the previously identified selector-fork restore/job_tick site; fork exposure and required work still matter. 
+
+Original event completed in 603 ticks with all 17 Y slices, five witnesses and marker/finish-counter cleanup matching the archived native final state. Actual event deltas: D 18,818 entered, 16,179 called, 2,639 skipped, zero fallbacks; G 23,078 entered, 230 passing, 22,848 skipped, zero fallback/error. Actual capture/store layout V1:1,J2:3,D5:1,G6:1,G7:1,G8:1,V9:1,G10:1,D11:1. Native capture peaks and tick totals differ across events; no causal event CPU estimate. The separately executed IR043 native regression job also passed.
+
+### Native suite
+
+First attempt rejected at the vanilla reference before compilation: fixture did not execute via the separately summoned marker (full-quota #after=0). No semantic or CPU conclusion from that attempt. Corrected only fixture setup to require a loaded stone witness and use the established summon-and-call pattern; dedicated native rerun 45654918498. No threshold relaxed.
+
+### CPU
 
 Pending.
