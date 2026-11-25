@@ -26,6 +26,17 @@ final class IR041CompileProbe {
             default -> false;
         };
     }
+    static void validate(net.minecraft.commands.functions.CommandFunction<?> function) {
+        ThreadMXBean clock = ManagementFactory.getThreadMXBean();
+        long cpuStart = clock.isCurrentThreadCpuTimeSupported() && clock.isThreadCpuTimeEnabled()
+                ? clock.getCurrentThreadCpuTime() : -1L;
+        long start = System.nanoTime();
+        ScoreAddPrototype.compile(function);
+        long wall = System.nanoTime() - start;
+        long cpu = cpuStart < 0 ? -1L : clock.getCurrentThreadCpuTime() - cpuStart;
+        System.out.println("IR042_ADAPTER function=" + function.id()
+                + " wall_ns=" + wall + " thread_cpu_ns=" + cpu);
+    }
     static InstantiatedFunction<CommandSourceStack> compile(PlainTextFunction<CommandSourceStack> function) {
         ThreadMXBean clock = ManagementFactory.getThreadMXBean();
         long cpuStart = clock.isCurrentThreadCpuTimeSupported() && clock.isThreadCpuTimeEnabled()

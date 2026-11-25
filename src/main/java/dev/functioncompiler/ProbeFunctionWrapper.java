@@ -62,6 +62,8 @@ public final class ProbeFunctionWrapper<T extends ExecutionCommandSource<T>> imp
                 } finally {
                     ProbeMetrics.compileWallTime(delegate.id(), false, System.nanoTime() - started);
                 }
+            } else if (IR041CompileProbe.enabledFor(delegate.id())) {
+                IR041CompileProbe.validate(delegate);
             } else {
                 ScoreAddPrototype.compile(delegate);
             }

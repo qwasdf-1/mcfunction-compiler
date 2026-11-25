@@ -18,7 +18,7 @@ def java(name: str) -> str:
 class TypedIROptimizer035(unittest.TestCase):
     def test_optimizer_is_explicit_boundary_between_lowering_and_both_backends(self):
         source = java("TypedScoreIR.java")
-        begin = source.index("static EmittedRegion emitRegion(Program program)")
+        begin = source.index("static EmittedRegion emitRegion(Program program, Identifier functionId)")
         end = source.index("static boolean retainsOriginal(", begin)
         emission = source[begin:end]
         self.assertLess(emission.index("TypedIROptimizer.optimize(program)"),
@@ -97,7 +97,7 @@ class TypedIROptimizer035(unittest.TestCase):
         runtime = java("TypedScoreIRRuntime.java")
         interpreter = java("TypedScoreIR.java")
         for token in ("new OpaqueBarrier(", "new TypedRegion(", "sourceCount()",
-                      "original.entries()", "TypedScoreIR.emitRegion(typed)"):
+                      "original.entries()", "TypedScoreIR.emitRegion(typed, functionId)"):
             self.assertIn(token, mixed)
         self.assertIn("new QueuedTail(source, instructions, nextIndex)", runtime)
         self.assertIn("TypedScoreIR.executeTypedStep(current, state)", runtime)
