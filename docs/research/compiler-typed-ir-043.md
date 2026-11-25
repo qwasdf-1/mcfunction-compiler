@@ -1,6 +1,6 @@
 # IR-043 — Typed conditional static function dispatch
 
-**Status: implementation complete; native and CPU acceptance pending.** Research-only, disabled by default; draft PR #10 on work/compiler-coverage.
+**Status: completed — native differential and controlled dispatch CPU pilot accepted (2026-11-25).** Research-only, disabled by default; draft PR #10 on work/compiler-coverage.
 
 ## Design
 
@@ -20,4 +20,16 @@ Separate diagnostic preflight: identical 64-line parent twins, shared pristine n
 
 ## Results
 
-Pending.
+[Research run 45554554773](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45554554773), tested commit `774e5d7d`; [manual-only restoration CI 45554596934](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45554596934) passed. All four research jobs completed.
+
+### Native acceptance
+
+[Raw native evidence](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45554554773/artifacts/14995715826): 880 observations per mode, 4,400 total; exact parity in all five modes. Each enabled mode lowered 31 sites, entered 1,494 dispatches: 829 calls, 402 skips, 263 native fallbacks; 660 reused operands, 183 proofs, 328 empty-stage debits. Feature-off counters zero. IR008 and IR013 inherited regression jobs passed (IR013 retains its intentional unsafe negative control). Dedicated trace and restrictive fork-limit fixtures remain open.
+
+### Controlled CPU acceptance
+
+[Raw CPU evidence](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45554554773/artifacts/14994967570) and [job logs](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45554554773/job/139003447525). Preflight: all 64 parent positions are D nodes; 8,192 typed entries, 4,096 calls, 4,096 skips, 8,192 reused operands, 6,144 proofs, zero fallbacks; final x=4096 in both arms. Two timed JVMs calibrated at 32 batches/window, fastest calibration 773.407 and 771.387 ms; six warmup rounds each. Both boots completed. Paired CPU reductions 39.9888%, 40.4784%, 39.6155%, 39.9419%; boot medians 40.2336% and 39.7787%; overall paired median **39.9653%**; maximum absolute A/A 1.9179% (limit 5%). Pilot gate true. Denominator is top-level source visits, with equal verified child work; no claim of whole-pack speedup or four independent JVM trials.
+
+### Disposition
+
+Accept IR043 for its tested scope; no default change, scheduler replacement, or promotion. Results transcribed from successful job logs; raw ZIP contents not independently reaudited in this closeout. The IR042 count of 21,272 function-dispatch reaches is an opportunity bucket, NOT actual newly admitted sites. Next reconcile exact publisher site shapes, observed visits and parsed D admission, and rank remaining execute modifiers before selecting IR044. Keep workflow manual-only and PR draft.
