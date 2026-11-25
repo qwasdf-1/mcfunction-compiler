@@ -350,7 +350,8 @@ public final class TypedScoreIR {
         // scoreboard regions. Never silently discard it just because the
         // original IR016 compiler first admitted only typed-score regions.
         // Plan-only/native-only forks are not sufficient to replace a function.
-        if (mixed.typedRegionCount() == 0 && mixed.compiledForkCount() == 0) return original;
+        if (mixed.typedRegionCount() == 0 && mixed.compiledForkCount() == 0
+                && mixed.typedCallCount() == 0) return original;
         List<UnboundEntryAction<CommandSourceStack>> entries = mixed.executableEntries();
         List<UnboundEntryAction<CommandSourceStack>> directChunks =
                 TypedScoreIRDirectScheduler.compilationEnabled()
@@ -647,7 +648,8 @@ public final class TypedScoreIR {
                 + " ir036_cost_bytecode=" + COST_BYTECODE.sum()
                 + ReentrantQueueProbe.diagnostics()
                 + TypedScoreIRDirectScheduler.diagnostics()
-                + MixedFunctionIR.diagnostics();
+                + MixedFunctionIR.diagnostics()
+                + TypedFunctionDispatch.diagnostics();
     }
 
     private record CompiledFunction(

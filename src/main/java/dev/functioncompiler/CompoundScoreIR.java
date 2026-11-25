@@ -81,13 +81,22 @@ final class CompoundScoreIR {
     }
 
     static Plan prepare(TypedScoreIR.Compound instruction) {
+        var terminal = instruction.terminal();
+        return preparePredicates(instruction.predicates(), instruction.dataflow(),
+                new Operand(terminal.holder(), terminal.holderSelf(), terminal.objective()),
+                terminal instanceof TypedScoreIR.Binary binary
+                        ? new Operand(binary.sourceHolder(), binary.sourceSelf(), binary.sourceObjective()) : null);
+    }
+
+    static Plan preparePredicates(List<Predicate> predicates, boolean dataflow,
+                                  Operand targetOperand, Operand sourceOperand) {
         Map<String, Integer> objectives = new LinkedHashMap<>();
         Map<TypedScoreIR.Slot, Integer> indices = new LinkedHashMap<>();
         List<Slot> slots = new ArrayList<>();
         List<Stage> stages = new ArrayList<>();
         Map<RawKey, Boolean> passed = new LinkedHashMap<>();
-        PredicateFacts.Flow flow = instruction.dataflow() ? new PredicateFacts.Flow() : null;
-        for (Predicate p : instruction.predicates()) {
+        PredicateFacts.Flow flow = dataflow ? new PredicateFacts.Flow() : null;
+        for (Predicate p : predicates) {
             int left = add(p.left(), objectives, indices, slots);
             int right = p.right() == null ? -1 : add(p.right(), objectives, indices, slots);
             // Reaching this stage proves every preceding stage passed.
@@ -113,14 +122,9 @@ final class CompoundScoreIR {
             stages.add(new Stage(p, left, right, evaluation, dataflowProven));
             passed.putIfAbsent(p.rawKey(), p.unless());
         }
-        var terminal = instruction.terminal();
-        int target = add(new Operand(terminal.holder(), terminal.holderSelf(), terminal.objective()),
-                objectives, indices, slots);
-        int source = terminal instanceof TypedScoreIR.Binary binary
-                ? add(new Operand(binary.sourceHolder(), binary.sourceSelf(), binary.sourceObjective()),
-                        objectives, indices, slots) : -1;
-        return new Plan(new ArrayList<>(objectives.keySet()), slots, stages, target, source,
-                instruction.dataflow());
+        int target = targetOperand == null ? -1 : add(targetOperand, objectives, indices, slots);
+        int source = sourceOperand == null ? -1 : add(sourceOperand, objectives, indices, slots);
+        return new Plan(new ArrayList<>(objectives.keySet()), slots, stages, target, source, dataflow);
     }
 
     private static int add(Operand operand, Map<String, Integer> objectives,

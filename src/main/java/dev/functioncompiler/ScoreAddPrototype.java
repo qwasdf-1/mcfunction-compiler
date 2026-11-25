@@ -305,6 +305,54 @@ public final class ScoreAddPrototype {
                 CompoundScoreIR.dataflowEnabledFor(functionId));
     }
 
+    @SuppressWarnings("unchecked")
+    static List<CompoundScoreIR.Predicate> parseDispatchPredicates(
+            ContextChain<CommandSourceStack> chain, String[] parts) {
+        var chainAccessor = (ContextChainAccessor<CommandSourceStack>) (Object) chain;
+        for (String part : parts) {
+            if (!ScoreConditionCommand.typedIrLiteralGuardShape(
+                    "execute " + part + " run scoreboard players add #ir043_shape dummy 1"))
+                return null;
+        }
+        List<CompoundScoreIR.Predicate> predicates = new ArrayList<>();
+        for (CommandContext<CommandSourceStack> modifier : chainAccessor.functionCompiler$getModifiers()) {
+            if (nodeNames(modifier).equals(List.of("run"))) {
+                if (modifier.getRedirectModifier() != null || modifier.isForked()) return null;
+                continue;
+            }
+            if (predicates.size() >= parts.length || modifier.getRedirectModifier() == null
+                    || modifier.getRedirectModifier() instanceof net.minecraft.commands.execution.CustomModifierExecutor<?>
+                    || !modifier.isForked()) return null;
+            // Source text is ONLY an eligibility and identity check. Actual
+            // holders, objectives, comparisons and ranges come from Brigadier.
+            ParsedCondition parsed = parseScoreCondition(modifier, true, true);
+            if (parsed == null) return null;
+            String[] words = parts[predicates.size()].split(" ");
+            if (parsed.unless() != "unless".equals(words[0])
+                    || !words[2].equals(TypedScoreIR.slotName(parsed.targetHolder(), parsed.isTargetSelf()))
+                    || !words[3].equals(parsed.targetObjective())) return null;
+            CompoundScoreIR.Operand left = new CompoundScoreIR.Operand(
+                    parsed.targetHolder(), parsed.isTargetSelf(), parsed.targetObjective());
+            if ("matches".equals(words[4])) {
+                if (words.length != 6 || parsed.operator() != null
+                        || !ScoreConditionCommand.sameParsedRange(parsed.range(), words[5])) return null;
+                predicates.add(new CompoundScoreIR.Predicate(
+                        left, parsed.range(), words[5], null, null, parsed.unless()));
+            } else {
+                if (words.length != 7 || parsed.range() != null
+                        || parsed.operator() != parseOperator(words[4])
+                        || !words[5].equals(TypedScoreIR.slotName(parsed.sourceHolder(), parsed.isSourceSelf()))
+                        || !words[6].equals(parsed.sourceObjective())) return null;
+                var right = new CompoundScoreIR.Operand(
+                        parsed.sourceHolder(), parsed.isSourceSelf(), parsed.sourceObjective());
+                predicates.add(new CompoundScoreIR.Predicate(
+                        left, null, null, parsed.operator(), right, parsed.unless()));
+            }
+        }
+        if (predicates.size() != parts.length) return null;
+        return List.copyOf(predicates);
+    }
+
     @FunctionalInterface
     private interface ExecutableCompiler {
         boolean compile(CommandContext<CommandSourceStack> executable, Identifier functionId);

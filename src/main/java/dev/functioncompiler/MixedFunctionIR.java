@@ -49,7 +49,7 @@ final class MixedFunctionIR {
 
     private MixedFunctionIR() {}
 
-    sealed interface Node permits TypedRegion, OpaqueBarrier, NativeForkPlanBarrier {
+    sealed interface Node permits TypedRegion, OpaqueBarrier, NativeForkPlanBarrier, TypedCallBoundary {
         int firstSourceIndex();
         int sourceCount();
         UnboundEntryAction<CommandSourceStack> action();
@@ -69,6 +69,18 @@ final class MixedFunctionIR {
 
         @Override
         public int sourceCount() { return typed.instructions().size(); }
+    }
+
+    // A typed control-flow node, not a straight-line score region. It owns
+    // exactly one original source position and never crosses a child call.
+    record TypedCallBoundary(int firstSourceIndex, TypedFunctionDispatch.Plan plan,
+            UnboundEntryAction<CommandSourceStack> action) implements Node {
+        TypedCallBoundary {
+            if (firstSourceIndex < 0) throw new IllegalArgumentException("negative source index");
+            java.util.Objects.requireNonNull(plan);
+            java.util.Objects.requireNonNull(action);
+        }
+        @Override public int sourceCount() { return 1; }
     }
 
     enum BarrierKind {
@@ -153,6 +165,10 @@ final class MixedFunctionIR {
             }
         }
 
+        int typedCallCount() {
+            return (int) nodes.stream().filter(TypedCallBoundary.class::isInstance).count();
+        }
+
         int typedRegionCount() {
             return (int) nodes.stream().filter(TypedRegion.class::isInstance).count();
         }
@@ -223,6 +239,7 @@ final class MixedFunctionIR {
                 if (!layout.isEmpty()) layout.append(',');
                 layout.append(node instanceof TypedRegion t
                         ? (t.bytecode() ? "J" : "I")
+                        : node instanceof TypedCallBoundary ? "D"
                         : node instanceof NativeForkPlanBarrier f
                             ? (f.bytecode() ? "C" : "N")
                         : node instanceof OpaqueBarrier b
@@ -235,6 +252,7 @@ final class MixedFunctionIR {
             return "IR016 function=" + id + " source_lines=" + sourceCount
                     + " typed_lines=" + typedSourceCount()
                     + " typed_regions=" + typedRegionCount()
+                    + " typed_calls=" + typedCallCount()
                     + " opaque_barriers=" + opaqueCount()
                     + " singleton_barriers=" + singletonCount()
                     + " dispatch_barriers=" + dispatchBarrierCount()
@@ -253,6 +271,12 @@ final class MixedFunctionIR {
         int first = 0;
         for (int index = 0; index < entries.size(); index++) {
             UnboundEntryAction<CommandSourceStack> entry = entries.get(index);
+            TypedFunctionDispatch.Plan call = TypedFunctionDispatch.lower(entry, original.id());
+            if (call != null) {
+                flush(nodes, pending, first, original.id());
+                nodes.add(new TypedCallBoundary(index, call, call));
+                continue;
+            }
             TypedScoreIR.Instruction instruction = ScoreAddPrototype.lowerCompound(entry, original.id());
             if (instruction == null) instruction = TypedScoreIR.lower(entry);
             if (instruction == null) {
