@@ -1,0 +1,46 @@
+name: COMPILER-IR-043 typed function dispatch
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - work/compiler-coverage
+permissions:
+  contents: read
+concurrency:
+  group: compiler-ir043
+  cancel-in-progress: false
+jobs:
+  study:
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ['043', '043_cpu', '008', '013']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Validate compiler contracts
+        run: |
+          for ir in 035 036 037 038 039 040 041 042 043; do python3 -m unittest discover -s tests -p "test_typed_ir${ir}.py" -v; done
+          python3 -m py_compile scripts/ci_typed_ir043.py scripts/ci_typed_ir043_cpu.py
+      - name: Build Minecraft Java 25
+        run: ./gradlew --no-daemon build
+      - name: Run native gate or calibrated CPU pilot
+        run: python3 -u scripts/ci_typed_ir${{ matrix.suite }}.py
+      - name: Archive raw evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir043-${{ matrix.suite }}
+          path: build/reports/COMPILER-IR-*/
+          retention-days: 21
+          if-no-files-found: warn

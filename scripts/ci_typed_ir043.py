@@ -76,11 +76,16 @@ EXTRA={
     "function #fc_ir:ir043_tag",
     "function fc_ir:ir019_ir043_macro {value:3}",
     "scoreboard players add #after fc_ir 1"],
+ "ir019_ir043_missing_function":[
+    "execute if score #g fc_ir matches 0 run function fc_ir:ir043_missing_target",
+    "execute if score #g fc_ir matches 1 run function fc_ir:ir043_missing_target",
+    "scoreboard players add #after fc_ir 1"],
  "ir019_ir043_macro":["$scoreboard players add #hit fc_ir $(value)"],
 }
 ROOTS=(*base.ROOT_CASES,"ir019_ir043_order","ir019_ir043_compound","ir019_ir043_suffix",
        "ir019_ir043_self","ir019_ir043_objective","ir019_ir043_recursive",
-       "ir019_ir043_result","ir019_ir043_callback","ir019_ir043_return","ir019_ir043_opaque")
+       "ir019_ir043_result","ir019_ir043_callback","ir019_ir043_return","ir019_ir043_opaque",
+       "ir019_ir043_missing_function")
 SELF={"ir019_self","ir019_ir043_self"}
 EXPECTED={
  "ir019_ir043_order":{"#order":1232,"#after":1},
@@ -91,6 +96,7 @@ EXPECTED={
  "ir019_ir043_result":{"#hit":1,"#skip":0,"#after":1},
  "ir019_ir043_return":{"#hit":1,"#skip":0},
  "ir019_ir043_opaque":{"#hit":13,"#after":1},
+ "ir019_ir043_missing_function":{"#after":1},
 }
 # Required explicit D node count for supported functions; unsupported forms
 # remain native; no direct cursor across a call boundary.
@@ -98,7 +104,8 @@ LAYOUTS={"ir019_single":3,"ir019_chained":2,"ir019_nested":1,"ir019_missing":2,
  "ir019_self":2,"ir019_mix":1,"ir019_return":0,"ir019_ir043_order":2,
  "ir019_ir043_compound":3,"ir019_ir043_suffix":3,"ir019_ir043_self":2,
  "ir019_ir043_objective":5,"ir019_ir043_recursive":1,"ir019_ir043_result":1,
- "ir019_ir043_callback":0,"ir019_ir043_return":0,"ir019_ir043_opaque":0}
+ "ir019_ir043_callback":0,"ir019_ir043_return":0,"ir019_ir043_opaque":0,
+ "ir019_ir043_missing_function":2}
 ORIGINAL_FIXTURE=base.fixture
 ORIGINAL_RESET=base.reset
 ORIGINAL_SNAPSHOT=base.snapshot
