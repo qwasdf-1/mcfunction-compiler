@@ -401,7 +401,7 @@ public final class TypedScoreIR {
      * refuse the mixed program, even though the ordinary interpreter remains
      * semantically eligible at the normal Minecraft queue position.
      */
-    static EmittedRegion emitRegion(Program program) {
+    static EmittedRegion emitRegion(Program program, Identifier functionId) {
         // IR-035: explicit post-lowering optimizer boundary. The optimized plan
         // retains each original Instruction and effect barrier in exact order.
         // Interpreter and ASM consume the SAME immutable opcode/argument plan.
@@ -409,6 +409,11 @@ public final class TypedScoreIR {
         IR036CostModel.Backend backend = "bytecode".equals(MODE)
                 ? IR036CostModel.Backend.BYTECODE
                 : IR036CostModel.Backend.INTERPRETED;
+        // Research-only exact interpreter twin; ordinary backend selection unchanged.
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR042_BENCHMARK"))
+                && functionId.getNamespace().equals("fc_ir")
+                && functionId.getPath().equals("ir017_ir042_interp"))
+            backend = IR036CostModel.Backend.INTERPRETED;
         if (COST_SELECT) {
             // Always analyze the original effects and per-command boundaries
             // before selecting an execution backend. No value propagation,

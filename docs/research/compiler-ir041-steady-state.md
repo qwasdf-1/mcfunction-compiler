@@ -1,6 +1,6 @@
 # IR-041 — Steady-state CPU qualification and mixed-workload pilot
 
-**Status: protocol implemented; native performance qualification pending.** No production compiler behavior is enabled by default. This is a bounded measurement milestone on `work/compiler-coverage`, not an additional optimization pass.
+**Status: complete — mixed synthetic cumulative CPU gate passed; compound and incremental claims unqualified (2026-11-24).** No production compiler behavior is enabled by default. This is a bounded measurement milestone on `work/compiler-coverage`, not an additional optimization pass.
 
 ## Motivation and frozen prior evidence
 
@@ -48,4 +48,13 @@ During the diagnostic boot only, a four-exact-ID probe records post-parse TypedS
 | Vein Miner | 768 | 170 | 136 | 96 / 532 |
 | Blastback | 269141 | 15474 | 562 | 324 / 248609 |
 
-Vein Miner: two compound candidates, 70 single guards, 98 plain score commands. Largest tick-scope candidate vm:detection/acquire_target (61 region lines; 63 shaped), followed by vm:player/register (26 region lines). Blastback: 239 compound candidates, 14,824 single guards, 408 plain score commands, three additional arithmetic candidates. Most candidate lines are isolated, so only 562 are region-eligible. Largest tick-scope candidate erb_generated:restore/reset (163 contiguous eligible lines in three chunks, including 160 compound predicates), followed by erb:restore/job_tick (13 across four regions) and erb_generated:restore/wrap (10 compound lines). Static census cannot establish whether reset is frequently executed or even admitted by Brigadier. Prefer actual native ledger and frequency validation before selecting a full publisher event. CPU qualification pending.
+Vein Miner: two compound candidates, 70 single guards, 98 plain score commands. Largest tick-scope candidate vm:detection/acquire_target (61 region lines; 63 shaped), followed by vm:player/register (26 region lines). Blastback: 239 compound candidates, 14,824 single guards, 408 plain score commands, three additional arithmetic candidates. Most candidate lines are isolated, so only 562 are region-eligible. Largest tick-scope candidate erb_generated:restore/reset (163 contiguous eligible lines in three chunks, including 160 compound predicates), followed by erb:restore/job_tick (13 across four regions) and erb_generated:restore/wrap (10 compound lines). Static census cannot establish whether reset is frequently executed or even admitted by Brigadier. Prefer actual native ledger and frequency validation before selecting a full publisher event. CPU qualification completed in [corrected run 45468182255](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45468182255). [Raw evidence](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45468182255/artifacts/14957055221). Initial preflight rejected the incorrect expected 48 mixed typed lines; the ledger showed 55, and only the expectation was corrected.
+
+| Workload / comparison | Median CPU reduction | Gate |
+| --- | ---: | --- |
+| Compound native vs flow | 81.54% | Failed final placebo (8.66%) |
+| Compound base vs flow | 21.44% | Failed final placebo |
+| Mixed native vs flow | 59.42% | Passed (max A/A 3.54%) |
+| Mixed base vs flow | 0.70% | No established gain |
+
+Both workloads passed exact state, path preflight, warmup and initial A/A in both boots. Mixed cumulative gain qualifies only for the fixed synthetic workload and Server-thread CPU. Cold compile wall/thread CPU ms: compound base 40.83/18.58, flow 39.94/17.27; mixed base 11.81/5.80, flow 26.51/18.65. No general datapack claim or production promotion.

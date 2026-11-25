@@ -78,7 +78,9 @@ public final class CompilerExecutionCensus {
     }
     private static final boolean CONFIGURED = REQUESTED
             && NAMESPACE != null && !NAMESPACE.isBlank() && !TARGETS.isEmpty()
-            && TARGETS.stream().allMatch(s -> s.startsWith(NAMESPACE + ":"))
+            && TARGETS.stream().allMatch(s -> s.startsWith(NAMESPACE + ":")
+                    || (Boolean.parseBoolean(System.getenv("FC_IR042_BLASTBACK_CENSUS"))
+                        && NAMESPACE.equals("erb") && s.startsWith("erb_generated:")))
             && CALLEES_VALID;
     private static final int MAX_SITES = 1024;
     private static final int MAX_EXAMPLE_CHARS = 240;

@@ -256,7 +256,7 @@ final class MixedFunctionIR {
             TypedScoreIR.Instruction instruction = ScoreAddPrototype.lowerCompound(entry, original.id());
             if (instruction == null) instruction = TypedScoreIR.lower(entry);
             if (instruction == null) {
-                flush(nodes, pending, first);
+                flush(nodes, pending, first, original.id());
                 CompilerForkPlan024.Plan plan = CompilerForkPlan024.classify(entry);
                 if (plan != null) {
                     // Compiler admission, NOT code generation: original
@@ -281,13 +281,13 @@ final class MixedFunctionIR {
             } else {
                 if (pending.isEmpty()) first = index;
                 if (pending.size() == TypedScoreIR.MAX_REGION_LENGTH) {
-                    flush(nodes, pending, first);
+                    flush(nodes, pending, first, original.id());
                     first = index;
                 }
                 pending.add(instruction);
             }
         }
-        flush(nodes, pending, first);
+        flush(nodes, pending, first, original.id());
         Program program = new Program(original.id(), entries.size(), nodes);
         if (DIAGNOSTICS) {
             VISITED.increment();
@@ -322,7 +322,7 @@ final class MixedFunctionIR {
     private static void flush(
             List<Node> nodes,
             List<TypedScoreIR.Instruction> pending,
-            int first
+            int first, Identifier functionId
     ) {
         if (pending.isEmpty()) return;
         if (pending.size() == 1) {
@@ -332,7 +332,7 @@ final class MixedFunctionIR {
                     pending.getFirst().vanilla().original(), BarrierKind.TYPED_SINGLETON));
         } else {
             TypedScoreIR.Program typed = new TypedScoreIR.Program(pending);
-            TypedScoreIR.EmittedRegion emitted = TypedScoreIR.emitRegion(typed);
+            TypedScoreIR.EmittedRegion emitted = TypedScoreIR.emitRegion(typed, functionId);
             if (emitted.vanilla()) {
                 // IR-036: NEVER collapse a cost-rejected region into one
                 // synthetic action. Preserve every original Minecraft queue

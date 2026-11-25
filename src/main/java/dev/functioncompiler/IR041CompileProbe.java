@@ -13,10 +13,16 @@ final class IR041CompileProbe {
     private static final boolean ENABLED = Boolean.parseBoolean(System.getenv("FC_IR041_COMPILE_TIMING"));
     private IR041CompileProbe() {}
     static boolean enabledFor(Identifier id) {
-        if (!ENABLED || id == null || !id.getNamespace().equals("fc_ir")) return false;
+        if (!ENABLED || id == null) return false;
+        String publisher = System.getenv("FC_IR042_COMPILE_TARGET");
+        if (publisher != null && !publisher.isBlank()
+                && (id.getNamespace().equals("erb") || id.getNamespace().equals("erb_generated"))
+                && publisher.equals(id.toString())) return true;
+        if (!id.getNamespace().equals("fc_ir")) return false;
         return switch (id.getPath()) {
             case "ir017_ir040_perf", "ir017_ir040_perf_base",
-                 "ir017_ir041_mixed", "ir017_ir041_mixed_base" -> true;
+                 "ir017_ir041_mixed", "ir017_ir041_mixed_base",
+                 "ir017_ir042_interp" -> true;
             default -> false;
         };
     }

@@ -28,7 +28,9 @@ final class CompoundScoreIR {
         return DATAFLOW && !(Boolean.parseBoolean(System.getenv("FC_TYPED_IR040_BENCHMARK"))
                 && id.getNamespace().equals("fc_ir") && (id.getPath().equals("ir017_ir040_perf_base")
                         || (Boolean.parseBoolean(System.getenv("FC_TYPED_IR041_BENCHMARK"))
-                            && id.getPath().equals("ir017_ir041_mixed_base"))));
+                            && id.getPath().equals("ir017_ir041_mixed_base"))
+                        || (Boolean.parseBoolean(System.getenv("FC_TYPED_IR042_BENCHMARK"))
+                            && id.getPath().equals("ir017_ir042_interp"))));
     }
     static int comparisonMask(ScoreConditionCommand.Operator operator) {
         return switch (operator) {
