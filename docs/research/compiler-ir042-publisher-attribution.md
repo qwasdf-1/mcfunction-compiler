@@ -1,6 +1,6 @@
 # IR-042 — Representative execution, attribution and compilation profitability
 
-**Status: implemented; native publisher and attribution results pending.** Research branch `work/compiler-coverage`, draft PR #10. No production default or heuristic promotion.
+**Status: completed — publisher diagnostic parity accepted; publisher CPU qualification blocked; controlled attribution passed three contrasts (2026-11-24).** Research branch `work/compiler-coverage`, draft PR #10. No production default or heuristic promotion.
 
 ## Prior evidence
 
@@ -28,4 +28,30 @@ Diagnostic-only current-thread CPU and wall time separately capture post-parse S
 
 ## Results
 
-Pending.
+### Native execution and publisher gate
+
+[Run 45516230461](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45516230461) completed both jobs; [final implementation CI](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45516280055) passed. [Publisher raw evidence](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45516230461/artifacts/14978057388).
+
+17 sampled non-macro functions, 257,697 native source entries, 197,604 candidate region entries (76.68% of sampled entries, NOT whole pack). Ranking: restore/wrap 172,450 entries (17,245 calls), capture/store 17,307, restore/job_tick 7,024, restore/reset 489 (three calls). The selected erb_generated:restore/wrap accounts for 87.27% of sampled region-candidate visits. Native/compiled diagnostic complete restoration parity passed: 600 ticks, 17 y slices, all witnesses, original marker cleanup. Actual J1:10 layout (10/10 typed), 17,245 executed regions, two executed terminal steps, zero reported fallback steps, compound native fallbacks, dataflow proofs or operand reuse. Native census had exactly two ordinary terminal callbacks among 172,450 wrap entries: 10 independent two-stage guards, each tests a radius and cursor boundary; overwhelmingly false guards. This is not a redundant-predicate workload; no evidence of an incremental IR040 gain in this publisher function.
+
+Both native control boots failed within-boot warmup (A0 18.840 -> 16.873 ms/tick, spread 11.01%; A1 20.100 -> 18.190 ms/tick, spread 9.98%). No measured native A/A block or timed treatment was admitted. No publisher CPU speedup claim. Sampled capture peaks differ across events; exact capture cardinality equivalence is not proved by the final state oracle. No throttling in these four windows. Initial A0 peak 1,530 vs 5,769 on later sampled events is not exact capture count.
+
+Diagnostic adapter/typed compiler thread CPU 11.392/21.944 ms, combined 33.336 ms; wall 11.442/164.808 ms. No publisher break-even estimate without qualified publisher CPU saving.
+
+### Controlled attribution — accepted qualified contrasts
+
+[Attribution raw evidence](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45516230461/artifacts/14978186570). All five actual path and exact-work preflight checks passed. Both boots calibrated at 128 batches x 1024 calls x 64 lines = 8,388,608 source visits/window; each qualified after six warmup rounds and two holdout rounds. 25 blocks per boot (five initial A/A plus 20 measurement blocks), 200 block windows overall. Minimum block-window CPU 779.281 ms. Maximum absolute A/A 0.73551%, below 5%. Both boot status complete.
+
+| Comparison | Four paired reductions (%) | Median | Gate |
+| --- | --- | ---: | --- |
+| Native / interpreter | 75.51, 75.47, 75.57, 75.59 | 75.54% | Pass |
+| Interpreter / bytecode | 2.75, 3.57, -4.79, -4.87 | -1.02% | No gain established |
+| Bytecode / dataflow | 20.53, 21.09, 31.75, 31.34 | 26.21% | Pass |
+| Dataflow / direct | 0.61, 1.12, 0.14, 0.53 | 0.57% | No gain established |
+| Native / flow | 81.25, 81.22, 82.33, 82.47 | 81.79% | Pass |
+
+Only the tested repeated compound fixture and measured Server-thread CPU qualify. Native/interpreter saving 25.587 us/call, cold post-parse compiler CPU 9.312 ms, illustrative break-even 364 calls; native/flow 27.664 us/call, 34.970 ms, 1,265 calls. Adapter/typed phase CPU for IR039 bytecode 0.346/21.811 ms. Cold phase costs include load-time/JIT variation; not calibrated policy or retained memory estimates. Bytecode does not establish an independent advantage; prefer wider typed coverage over further speculative ASM tuning. No general performance or production promotion.
+
+### IR043 opportunity decision
+
+Native reached unsupported entries: execute_other 23,710; function_dispatch 21,272; data_or_store 6,547; tag 5,777; entity_context_or_selector 1,688; isolated_typed_candidate 1,091. Categories are exclusive priority buckets, not an exhaustive typed classification. Callback cardinality differs dramatically: restore/job_tick has 653,227 ordinary callbacks, including 647,279 at the already investigated selector+score-guard+write site (IR025); reached-entry ranking alone understates fork work. Prior IR028 whole-event CPU comparison of that compiled fork was inconclusive. Prefer a reusable typed conditional static-function-dispatch capability next, preserving the original queued child-call and callback/return/quota semantics; classify actual eligible source sites before implementation. Investigate cheap false-guard paths and shared read/decision optimization for wrap only with exact effects; don't infer whole-event improvement from native entry counts. The publisher event still needs a better repeatable workload and warmup protocol; do not immediately rerun unchanged failed gate. No more broad benchmarking-only milestone before IR043 implementation.
