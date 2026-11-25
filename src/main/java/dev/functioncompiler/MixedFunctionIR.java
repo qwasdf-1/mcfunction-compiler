@@ -49,7 +49,7 @@ final class MixedFunctionIR {
 
     private MixedFunctionIR() {}
 
-    sealed interface Node permits TypedRegion, OpaqueBarrier, NativeForkPlanBarrier, TypedCallBoundary {
+    sealed interface Node permits TypedRegion, OpaqueBarrier, NativeForkPlanBarrier, TypedCallBoundary, TypedGuardBoundary {
         int firstSourceIndex();
         int sourceCount();
         UnboundEntryAction<CommandSourceStack> action();
@@ -81,6 +81,17 @@ final class MixedFunctionIR {
             java.util.Objects.requireNonNull(action);
         }
         @Override public int sourceCount() { return 1; }
+    }
+
+    /** IR044: one prevalidated conditional native terminal, one source slot. */
+    record TypedGuardBoundary(int firstSourceIndex, TypedConditionalTerminal.Plan plan)
+            implements Node {
+        TypedGuardBoundary {
+            if (firstSourceIndex < 0) throw new IllegalArgumentException("negative source index");
+            java.util.Objects.requireNonNull(plan);
+        }
+        @Override public int sourceCount() { return 1; }
+        @Override public UnboundEntryAction<CommandSourceStack> action() { return plan; }
     }
 
     enum BarrierKind {
@@ -169,6 +180,10 @@ final class MixedFunctionIR {
             return (int) nodes.stream().filter(TypedCallBoundary.class::isInstance).count();
         }
 
+        int typedGuardCount() {
+            return (int) nodes.stream().filter(TypedGuardBoundary.class::isInstance).count();
+        }
+
         int typedRegionCount() {
             return (int) nodes.stream().filter(TypedRegion.class::isInstance).count();
         }
@@ -240,6 +255,7 @@ final class MixedFunctionIR {
                 layout.append(node instanceof TypedRegion t
                         ? (t.bytecode() ? "J" : "I")
                         : node instanceof TypedCallBoundary ? "D"
+                        : node instanceof TypedGuardBoundary ? "G"
                         : node instanceof NativeForkPlanBarrier f
                             ? (f.bytecode() ? "C" : "N")
                         : node instanceof OpaqueBarrier b
@@ -253,6 +269,7 @@ final class MixedFunctionIR {
                     + " typed_lines=" + typedSourceCount()
                     + " typed_regions=" + typedRegionCount()
                     + " typed_calls=" + typedCallCount()
+                    + " typed_guards=" + typedGuardCount()
                     + " opaque_barriers=" + opaqueCount()
                     + " singleton_barriers=" + singletonCount()
                     + " dispatch_barriers=" + dispatchBarrierCount()
@@ -275,6 +292,12 @@ final class MixedFunctionIR {
             if (call != null) {
                 flush(nodes, pending, first, original.id());
                 nodes.add(new TypedCallBoundary(index, call, call));
+                continue;
+            }
+            TypedConditionalTerminal.Plan guard = TypedConditionalTerminal.lower(entry, original.id());
+            if (guard != null) {
+                flush(nodes, pending, first, original.id());
+                nodes.add(new TypedGuardBoundary(index, guard));
                 continue;
             }
             TypedScoreIR.Instruction instruction = ScoreAddPrototype.lowerCompound(entry, original.id());

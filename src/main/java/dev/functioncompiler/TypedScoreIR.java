@@ -38,6 +38,11 @@ public final class TypedScoreIR {
     // Empty/unset retains the existing namespace-wide typed compiler contract.
     private static final String FUNCTION_FILTER =
             System.getenv("FC_TYPED_IR_FUNCTION_FILTER");
+    // Explicit bounded list for publisher admission diagnostics; a single exact
+    // ID retains the previous filter behavior. No glob or namespace expansion.
+    private static final java.util.Set<String> FUNCTION_FILTER_IDS =
+            FUNCTION_FILTER == null || FUNCTION_FILTER.isEmpty() ? java.util.Set.of()
+                    : java.util.Set.copyOf(java.util.Arrays.asList(FUNCTION_FILTER.split(",", -1)));
     private static final boolean ACTIVE = ("interpreted".equals(MODE) || "bytecode".equals(MODE))
             && NAMESPACE != null && !NAMESPACE.isBlank();
     private static final boolean DIAGNOSTICS =
@@ -104,8 +109,7 @@ public final class TypedScoreIR {
     static boolean enabledFor(Identifier id) {
         return ACTIVE && id != null && NAMESPACE.equals(id.getNamespace())
                 && !ProbeConfiguration.isNamespaceExcluded(id.getNamespace())
-                && (FUNCTION_FILTER == null || FUNCTION_FILTER.isEmpty()
-                    || FUNCTION_FILTER.equals(id.toString()));
+                && (FUNCTION_FILTER_IDS.isEmpty() || FUNCTION_FILTER_IDS.contains(id.toString()));
     }
 
     /** Abstract scoreboard location; a namespace-local type, not a cached score. */
@@ -351,7 +355,7 @@ public final class TypedScoreIR {
         // original IR016 compiler first admitted only typed-score regions.
         // Plan-only/native-only forks are not sufficient to replace a function.
         if (mixed.typedRegionCount() == 0 && mixed.compiledForkCount() == 0
-                && mixed.typedCallCount() == 0) return original;
+                && mixed.typedCallCount() == 0 && mixed.typedGuardCount() == 0) return original;
         List<UnboundEntryAction<CommandSourceStack>> entries = mixed.executableEntries();
         List<UnboundEntryAction<CommandSourceStack>> directChunks =
                 TypedScoreIRDirectScheduler.compilationEnabled()
@@ -649,7 +653,8 @@ public final class TypedScoreIR {
                 + ReentrantQueueProbe.diagnostics()
                 + TypedScoreIRDirectScheduler.diagnostics()
                 + MixedFunctionIR.diagnostics()
-                + TypedFunctionDispatch.diagnostics();
+                + TypedFunctionDispatch.diagnostics()
+                + TypedConditionalTerminal.diagnostics();
     }
 
     private record CompiledFunction(
