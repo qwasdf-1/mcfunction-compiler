@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """IR044 native tag/block/score/queue differential. No synthetic scheduler."""
 from __future__ import annotations
-import json
+import json,time
 import ci_typed_ir019_native as base
 import ci_typed_ir043 as prior
 from ci_typed_ir013 import stop,stat
@@ -88,14 +88,16 @@ def reset(client):
     base.reset(client)
     client.command("scoreboard players set #result fc_ir 0")
     client.command("scoreboard objectives remove fc_temp")
-    client.command("kill @e[type=minecraft:marker,tag=fc044_probe]")
-    client.command('summon minecraft:marker 0 64 0 {Tags:["fc044_probe"]}')
+    client.command("kill @e[type=minecraft:marker]")
     client.command("setblock 0 63 0 minecraft:stone")
+    client.command("execute store success score #setupblock fc_ir run execute if block 0 63 0 minecraft:stone")
+    if base.nullable_score(client,"#setupblock","fc_ir")!=1:
+        raise AssertionError("fixture failed to establish loaded stone block")
 
 def snapshot(client):
     out=base.snapshot(client)|{"#result":base.nullable_score(client,"#result","fc_ir")}
     for tag in TAGS:
-        client.command(f"execute store success score #tagprobe fc_ir run execute if entity @e[type=minecraft:marker,tag=fc044_probe,tag={tag}]")
+        client.command(f"execute store success score #tagprobe fc_ir run execute if entity @e[type=minecraft:marker,tag={tag}]")
         out[tag]=base.nullable_score(client,"#tagprobe","fc_ir")
     client.command("execute store success score #blockprobe fc_ir run execute if block 0 63 0 minecraft:dirt")
     out["dirt"]=base.nullable_score(client,"#blockprobe","fc_ir")
@@ -106,18 +108,33 @@ def run(mode):
     r={"mode":mode,"cases":{},"layouts":{},"status":"started"}
     try:
         client.command("forceload add 0 0")
+        # Force-load tickets are asynchronous; establish a real block witness
+        # before beginning the native reference, not merely issue a command.
+        deadline=time.monotonic()+15
+        while True:
+            block_reply=client.command("setblock 0 63 0 minecraft:stone")
+            client.command("execute store success score #setupblock fc_ir run execute if block 0 63 0 minecraft:stone")
+            if base.nullable_score(client,"#setupblock","fc_ir")==1:break
+            if time.monotonic()>deadline:raise AssertionError("initial block unavailable: "+block_reply)
+            time.sleep(.1)
         for name in ROOTS:
             for quota in QUOTAS:
                 reset(client)
                 client.command(f"gamerule minecraft:max_command_sequence_length {quota}")
-                prefix="" if name=="ir019_ir044_no_entity" else "execute as @e[type=minecraft:marker,tag=fc044_probe,limit=1] at @s run "
-                client.command(prefix+"fc_ir019_call fc_ir:"+name)
+                prefix="" if name=="ir019_ir044_no_entity" else "execute positioned 0 64 0 summon minecraft:marker run "
+                reply=client.command(prefix+"fc_ir019_call fc_ir:"+name)
+                if "invalid or disallowed" in reply or "instantiation failed" in reply or "missing function" in reply:
+                    raise AssertionError("fixture invocation failed: "+reply)
                 client.command("gamerule minecraft:max_command_sequence_length 65536")
                 state=snapshot(client)
                 r["cases"][f"{name}/{quota}"]=state
                 if quota==65536:
+                    if name!="ir019_ir044_no_entity":
+                        client.command("execute store success score #markerprobe fc_ir run execute if entity @e[type=minecraft:marker]")
+                        if base.nullable_score(client,"#markerprobe","fc_ir")!=1:
+                            raise AssertionError("fixture did not summon marker: "+reply)
                     for k,v in EXPECTED[name].items():
-                        if state[k]!=v:raise AssertionError(f"{mode}/{name}/{k}: {state[k]} != {v}")
+                        if state[k]!=v:raise AssertionError(f"{mode}/{name}/{k}: {state[k]} != {v}; reply={reply!r}; state={state!r}")
         if mode!="native":
             for name,count in LAYOUTS.items():
                 ledger=client.command("functioncompiler ir016 fc_ir:"+name)
