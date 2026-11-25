@@ -1,0 +1,52 @@
+name: COMPILER-IR-042 publisher execution and attribution
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - work/compiler-coverage
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-ir042
+  cancel-in-progress: false
+
+jobs:
+  study:
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [publisher, attribution]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Validate protocol and inherited contracts
+        run: |
+          for ir in 035 036 037 038 039 040 041 042; do python3 -m unittest discover -s tests -p "test_typed_ir${ir}.py" -v; done
+          python3 -m py_compile scripts/ci_typed_ir042_publisher.py scripts/ci_typed_ir042_attribution.py
+      - name: Fetch exact pinned publisher archives
+        if: matrix.suite == 'publisher'
+        run: python3 scripts/ci_typed_ir015_fetch.py
+      - name: Build Minecraft Java 25
+        run: ./gradlew --no-daemon build
+      - name: Run fixed IR042 research gate
+        run: python3 -u scripts/ci_typed_ir042_${{ matrix.suite }}.py
+      - name: Archive all raw data and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir042-${{ matrix.suite }}
+          path: build/reports/COMPILER-IR-042-*/
+          retention-days: 21
+          if-no-files-found: warn

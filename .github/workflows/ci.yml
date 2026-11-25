@@ -100,3 +100,8 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_typed_ir041.py' -v
           python3 -m py_compile scripts/ci_typed_ir041.py scripts/ci_typed_ir041_source.py
+
+      - name: Validate IR-042 publisher and attribution protocol
+        run: |
+          python3 -m unittest discover -s tests -p 'test_typed_ir042.py' -v
+          python3 -m py_compile scripts/ci_typed_ir042_publisher.py scripts/ci_typed_ir042_attribution.py
