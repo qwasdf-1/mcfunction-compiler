@@ -28,7 +28,7 @@ Original event completed in 603 ticks with all 17 Y slices, five witnesses and m
 
 ### Native suite
 
-First attempt rejected at the vanilla reference before compilation: fixture did not execute via the separately summoned marker (full-quota #after=0). No semantic or CPU conclusion from that attempt. Corrected only fixture setup to require a loaded stone witness and use the established summon-and-call pattern; dedicated native rerun 45654918498. No threshold relaxed.
+First attempt rejected at the vanilla reference before compilation: fixture did not execute via the separately summoned marker (full-quota #after=0). No semantic or CPU conclusion from that attempt. Corrected only fixture setup to require a loaded stone witness and use the established summon-and-call pattern; dedicated native rerun 45654918498. No threshold relaxed. The second attempt [45654918498](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45654918498/artifacts/15043595017) also failed at the vanilla reference: invocation queued and #after=1/dirt=1, but no marker could be observed by the entity selector. Third attempt uses the IR019/043 armor-stand entity type, explicitly waits for independent selector visibility before lowering the quota, invokes as/at the visible entity, and observes tags by direct score writes. This changes fixture setup/observation only, not the expected state or acceptance thresholds. Both invalid attempts retained.
 
 ### CPU — accepted controlled block-to-score workload
 
