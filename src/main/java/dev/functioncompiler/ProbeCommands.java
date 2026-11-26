@@ -37,6 +37,10 @@ final class ProbeCommands {
                                             StringArgumentType.getString(context, "arm"),
                                             IntegerArgumentType.getInteger(context, "calls"))))));
         }
+        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR046_CALLBACK_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir046_callback")
+                    .executes(context -> ir046Callback(context.getSource())));
+        }
         if (GuardRunReuse.benchmarkToggleAllowed()) {
             dispatcher.register(Commands.literal("fc_ir046_reuse")
                     .then(Commands.literal("on").executes(context ->
@@ -379,6 +383,27 @@ final class ProbeCommands {
      * through the same Minecraft ExecutionContext as the current command.
      * No default mod installation registers this command.
      */
+    private static int ir046Callback(CommandSourceStack source) {
+        var execution = ExecutionContextBridge.currentContext();
+        var function = source.getServer().getFunctions().get(Identifier.tryParse("fc_ir:ir017_ir046_fake"));
+        if (execution == null || function.isEmpty()) return 0;
+        try {
+            var board = source.getServer().getScoreboard();
+            var objective = board.getObjective("fc_ir");
+            if (objective == null) return 0;
+            CommandResultCallback callback = (success, result) -> board.getOrCreatePlayerScore(
+                    net.minecraft.world.scores.ScoreHolder.forNameOnly("#fc046_callback_seen"), objective).add(1);
+            ExecutionContext.queueInitialFunctionCall(execution,
+                    function.get().instantiate(null, source.dispatcher()),
+                    source.withSuppressedOutput().withCallback(callback), CommandResultCallback.EMPTY);
+            source.sendSuccess(() -> Component.literal("IR046 callback queued"), false);
+            return 1;
+        } catch (Exception error) {
+            source.sendFailure(Component.literal("IR046 callback failed " + error));
+            return 0;
+        }
+    }
+
     private static int ir040Batch(CommandSourceStack source, String arm, int calls) {
         String name = switch (arm) {
             case "native" -> "fc_native:ir017_ir040_perf";
