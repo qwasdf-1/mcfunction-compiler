@@ -15,6 +15,7 @@ CONTRASTS=(("native","interp"),("interp","base"),("base","flow"),("flow","direct
 PAIRS=(("native","native"),("native","interp"),("interp","interp"),("interp","base"),
        ("base","base"),("base","flow"),("flow","flow"),("flow","direct"),("direct","direct"),("native","flow"))
 CALLS=1024
+TOP_LEVEL_LINES=64
 START_BATCHES=8
 MAX_BATCHES=256
 MIN_CPU_NS=500_000_000
@@ -149,7 +150,7 @@ def run_boot(boot):
             e1=snapshot_jvm_environment(thread[0])
             if cpu<=0:raise AssertionError("invalid CPU clock")
             return {"arm":arm,"cpu_ns":cpu,"wall_ns":wall,"batches":batches,
-                    "top_level_lines":64*CALLS*batches,"state":validate(client,batches),
+                    "top_level_lines":TOP_LEVEL_LINES*CALLS*batches,"state":validate(client,batches),
                     "environment":delta_environment(e0,e1)}
         # Calibrate before treatment; same number of calls in ALL arms.
         batches=START_BATCHES
