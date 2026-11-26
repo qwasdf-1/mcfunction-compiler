@@ -37,7 +37,8 @@ final class TypedIRPreparedSteps {
             boolean comparisonSharesGuardObjective,
             boolean operandSharesComparisonObjective,
             boolean comparisonSameSlot,
-            CompoundScoreIR.Plan compound
+            CompoundScoreIR.Plan compound,
+            GuardRunReuse.Shape guardRun
     ) {
         Prepared {
             Objects.requireNonNull(original);
@@ -100,7 +101,12 @@ final class TypedIRPreparedSteps {
             if (original != plan.source().instructions().get(i)) {
                 throw new IllegalArgumentException("optimizer changed original instruction identity");
             }
-            result[i] = prepare(original);
+            GuardRunReuse.Shape shape = GuardRunReuse.shape(original);
+            // Share identity only with the immediately preceding eligible
+            // descriptor. Queued tails use the single-step overload (no run).
+            if (shape != null && i > 0 && shape.equals(result[i-1].guardRun()))
+                shape = result[i-1].guardRun();
+            result[i] = prepare(original, shape);
         }
         return result;
     }
@@ -111,6 +117,10 @@ final class TypedIRPreparedSteps {
      * descriptors allocated once at function compilation.
      */
     static Prepared prepare(TypedScoreIR.Instruction original) {
+        return prepare(original, null);
+    }
+
+    private static Prepared prepare(TypedScoreIR.Instruction original, GuardRunReuse.Shape shape) {
         Objects.requireNonNull(original);
         TypedScoreIR.Conditional guard =
                 original instanceof TypedScoreIR.Conditional condition ? condition : null;
@@ -157,7 +167,7 @@ final class TypedIRPreparedSteps {
                 guard != null && guard.comparison() != null && binary != null
                         && binary.sourceObjective().equals(guard.comparisonObjective()),
                 guard != null && guard.comparison() != null && samePredicateSlot(guard),
-                original instanceof TypedScoreIR.Compound compound ? CompoundScoreIR.prepare(compound) : null);
+                original instanceof TypedScoreIR.Compound compound ? CompoundScoreIR.prepare(compound) : null, shape);
     }
     /** Exact alias only: never assume an entity @s aliases a literal fake holder. */
     private static boolean samePredicateSlot(TypedScoreIR.Conditional guard) {

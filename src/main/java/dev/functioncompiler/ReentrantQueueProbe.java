@@ -38,6 +38,7 @@ public final class ReentrantQueueProbe {
             case "#ir014_recreate" -> "ir014_inject_recreate";
             case "#ir014_drop" -> "ir014_inject_drop";
             case "#ir014_return" -> "ir014_inject_return";
+            case "#fc046_queue" -> "ir017_ir046_injected";
             default -> null;
         };
         return path == null ? null : Identifier.fromNamespaceAndPath("fc_ir", path);

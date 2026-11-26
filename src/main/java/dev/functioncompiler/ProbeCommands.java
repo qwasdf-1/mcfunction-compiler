@@ -31,10 +31,18 @@ final class ProbeCommands {
                                     (Boolean.parseBoolean(System.getenv("FC_TYPED_IR042_BENCHMARK"))
                                             || Boolean.parseBoolean(System.getenv("FC_TYPED_IR043_BENCHMARK"))
                                             || Boolean.parseBoolean(System.getenv("FC_TYPED_IR044_BENCHMARK"))
-                                            || Boolean.parseBoolean(System.getenv("FC_TYPED_IR045_BENCHMARK"))) ? 1024 : 128))
+                                            || Boolean.parseBoolean(System.getenv("FC_TYPED_IR045_BENCHMARK"))
+                                            || Boolean.parseBoolean(System.getenv("FC_TYPED_IR046_BENCHMARK"))) ? 1024 : 128))
                                     .executes(context -> ir040Batch(context.getSource(),
                                             StringArgumentType.getString(context, "arm"),
                                             IntegerArgumentType.getInteger(context, "calls"))))));
+        }
+        if (GuardRunReuse.benchmarkToggleAllowed()) {
+            dispatcher.register(Commands.literal("fc_ir046_reuse")
+                    .then(Commands.literal("on").executes(context ->
+                            GuardRunReuse.toggle(context.getSource(), true)))
+                    .then(Commands.literal("off").executes(context ->
+                            GuardRunReuse.toggle(context.getSource(), false))));
         }
         // IR-011: research-only same-JVM singleton response A/B control.
         // Both arms execute the exact same emitted instructions and
@@ -376,6 +384,10 @@ final class ProbeCommands {
             case "native" -> "fc_native:ir017_ir040_perf";
             case "base" -> "fc_ir:ir017_ir040_perf_base";
             case "flow" -> "fc_ir:ir017_ir040_perf";
+            case "wrap_pure" -> Boolean.parseBoolean(System.getenv("FC_TYPED_IR046_BENCHMARK"))
+                    ? "fc_ir:ir017_ir046_pure" : null;
+            case "wrap_mixed" -> Boolean.parseBoolean(System.getenv("FC_TYPED_IR046_BENCHMARK"))
+                    ? "fc_ir:ir017_ir046_mixed" : null;
             case "store_native" -> Boolean.parseBoolean(System.getenv("FC_TYPED_IR045_BENCHMARK"))
                     ? "fc_native:ir017_ir045_perf" : null;
             case "store_typed" -> Boolean.parseBoolean(System.getenv("FC_TYPED_IR045_BENCHMARK"))

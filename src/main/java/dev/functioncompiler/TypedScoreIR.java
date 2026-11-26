@@ -655,7 +655,8 @@ public final class TypedScoreIR {
                 + MixedFunctionIR.diagnostics()
                 + TypedFunctionDispatch.diagnostics()
                 + TypedConditionalTerminal.diagnostics()
-                + TypedNativeStore.diagnostics();
+                + TypedNativeStore.diagnostics()
+                + GuardRunReuse.diagnostics();
     }
 
     private record CompiledFunction(

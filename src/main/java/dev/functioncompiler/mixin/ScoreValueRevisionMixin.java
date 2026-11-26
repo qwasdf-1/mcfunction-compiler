@@ -30,6 +30,8 @@ public abstract class ScoreValueRevisionMixin implements ScoreValueRevisionAcces
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SCORE_CACHE"));
     @Unique private static final boolean functionCompiler$testObserver =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SCORE_CACHE_TEST_OBSERVER"));
+    @Unique private static final boolean functionCompiler$ir046Observer =
+            Boolean.parseBoolean(System.getenv("FC_TYPED_IR046_TEST_OBSERVER"));
     @Unique private final Map<Key, Long> functionCompiler$revisions = new HashMap<>();
 
     @Override
@@ -61,6 +63,16 @@ public abstract class ScoreValueRevisionMixin implements ScoreValueRevisionAcces
             ScoreHolder owner, Objective objective, Score score, CallbackInfo ci) {
         if (functionCompiler$enabled) {
             functionCompiler$bump(new Key(owner.getScoreboardName(), objective.getName()));
+        }
+        // IR046 disposable synchronous adversary. Only the fixture's exact
+        // cursor terminal can trigger it; set/reset radius is a different slot.
+        if (functionCompiler$ir046Observer && "fc_ir".equals(objective.getName())) {
+            Scoreboard board = (Scoreboard) (Object) this;
+            String name = owner.getScoreboardName();
+            if ("#fc046_change".equals(name) && score.value() == 0)
+                board.getOrCreatePlayerScore(ScoreHolder.forNameOnly("#fc046_radius"), objective).set(6);
+            if ("#fc046_remove".equals(name) && score.value() == 0)
+                board.resetSinglePlayerScore(ScoreHolder.forNameOnly("#fc046_radius"), objective);
         }
         // Native test-only observer: mutate a previously watched source slot
         // *inside* a scoreboard change callback. Every vanilla/compiled arm

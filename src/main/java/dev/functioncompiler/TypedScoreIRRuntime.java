@@ -100,6 +100,10 @@ final class TypedScoreIRRuntime {
         private ScoreHolder[] compoundHolders;
         private int[] compoundValues;
         private int compoundVisited, compoundPresent;
+        // IR046: facts survive only a fully failed pure guard, in this State.
+        private final boolean reuseGuards;
+        private GuardRunReuse.Shape priorFailedRun, activeGuardRun;
+        private int inheritedGuardBits;
 
         // Immutable snapshot; only valid while the exact objective identity
         // and the watched slot's scoreboard mutation revision still match.
@@ -115,6 +119,7 @@ final class TypedScoreIRRuntime {
             this.context = context;
             this.frame = frame;
             this.instructions = instructions;
+            this.reuseGuards = GuardRunReuse.enabled() && REENTRANT_SAFE && context instanceof ReentrantQueueEpoch;
             this.scoreboard = source.getServer().getScoreboard();
             this.initialQueueEpoch = REENTRANT_SAFE && context instanceof ReentrantQueueEpoch epoch
                     ? epoch.functionCompiler$queuedWorkEpoch() : 0L;
@@ -153,6 +158,7 @@ final class TypedScoreIRRuntime {
             if (REENTRANT_SAFE && nextIndex > 0
                     && context instanceof ReentrantQueueEpoch epoch
                     && epoch.functionCompiler$queuedWorkEpoch() != initialQueueEpoch) {
+                clearGuardRun();
                 if (quota() > 0) {
                     context.queueNext(new CommandQueueEntry<>(
                             frame, new QueuedTail(source, instructions, nextIndex)));
@@ -161,8 +167,9 @@ final class TypedScoreIRRuntime {
                 return STOP;
             }
             nextIndex++;
-            if (quota() <= 0) return STOP;
+            if (quota() <= 0) { clearGuardRun(); return STOP; }
             if (prepared.compound() != null) return startCompound(prepared);
+            clearGuardRun();
             ScoreHolder target = prepared.targetSelf()
                     ? source.getEntity() : prepared.targetHolder();
             if (target == null) return original(instruction);
@@ -309,8 +316,12 @@ final class TypedScoreIRRuntime {
             var plan = prepared.compound();
             if (context.tracer() != null
                     || context.forkLimit() <= 1
-                    || source.callback() != net.minecraft.commands.CommandResultCallback.EMPTY)
+                    || source.callback() != net.minecraft.commands.CommandResultCallback.EMPTY) {
+                if (reuseGuards && prepared.guardRun() != null)
+                    GuardRunReuse.rejected(context.tracer() != null, context.forkLimit() <= 1,
+                            source.callback() != net.minecraft.commands.CommandResultCallback.EMPTY);
                 return compoundNative(prepared.original());
+            }
             int capacity = CompoundScoreIR.MAX_PREDICATES * 2 + 2;
             if (compoundObjectives == null) {
                 compoundObjectives = new Objective[capacity];
@@ -331,14 +342,34 @@ final class TypedScoreIRRuntime {
                 return compoundNative(prepared.original());
             if (plan.dataflow()) {
                 if (compoundValues == null) compoundValues = new int[capacity];
-                compoundVisited = compoundPresent = 0;
+                activeGuardRun = reuseGuards ? prepared.guardRun() : null;
+                if (activeGuardRun != null && activeGuardRun == priorFailedRun) {
+                    inheritedGuardBits = compoundVisited;
+                    GuardRunReuse.boundary();
+                } else {
+                    compoundVisited = compoundPresent = inheritedGuardBits = 0;
+                }
+                // Only compoundBranch(false) can authorize the next boundary.
+                priorFailedRun = null;
+            } else {
+                clearGuardRun();
             }
             current = prepared.original();
             currentPrepared = prepared;
             return DIRECT;
         }
 
+        private void clearGuardRun() {
+            if (priorFailedRun != null || activeGuardRun != null) {
+                GuardRunReuse.invalidated();
+                compoundVisited = compoundPresent = 0;
+            }
+            priorFailedRun = activeGuardRun = null;
+            inheritedGuardBits = 0;
+        }
+
         private int compoundNative(TypedScoreIR.Instruction instruction) {
+            clearGuardRun();
             TypedScoreIR.compoundFallback();
             TypedScoreIR.fallback();
             // Unlike the old single-guard callback fallback, the original
@@ -387,7 +418,11 @@ final class TypedScoreIRRuntime {
         private boolean compoundValuePresent(CompoundScoreIR.Plan plan, int index) {
             int bit = 1 << index;
             if ((compoundVisited & bit) != 0) {
-                TypedScoreIR.dataflowReadReused();
+                if ((inheritedGuardBits & bit) != 0) {
+                    GuardRunReuse.reused((compoundPresent & bit) != 0);
+                } else {
+                    TypedScoreIR.dataflowReadReused();
+                }
                 return (compoundPresent & bit) != 0;
             }
             var info = compoundRead(plan, index);
@@ -443,6 +478,9 @@ final class TypedScoreIRRuntime {
             TypedScoreIR.compoundStage(reused, pass);
             if (!pass) {
                 TypedScoreIR.skippedConditional();
+                // Only this pure failed-guard exit may carry predicate facts.
+                priorFailedRun = activeGuardRun;
+                activeGuardRun = null;
                 // Native 26.3 BuildContexts still visits ALL remaining
                 // redirect stages with an empty source list. It debits each
                 // stage but performs no further predicate reads. Its modifier
@@ -458,6 +496,9 @@ final class TypedScoreIRRuntime {
 
         // Called only after all original predicate stages have passed.
         boolean compoundTerminal() {
+            // Invalidate before even obtaining a writable score (row creation
+            // itself may notify observers); never pass cached values to terminal.
+            clearGuardRun();
             if (quota() <= 0) return false;
             context.incrementCost();
             var plan = currentPrepared.compound();
