@@ -384,7 +384,7 @@ final class ProbeCommands {
      * No default mod installation registers this command.
      */
     private static int ir046Callback(CommandSourceStack source) {
-        var execution = ExecutionContextBridge.currentContext();
+        ExecutionContext<CommandSourceStack> execution = ExecutionContextBridge.currentContext();
         var function = source.getServer().getFunctions().get(Identifier.tryParse("fc_ir:ir017_ir046_fake"));
         if (execution == null || function.isEmpty()) return 0;
         try {
