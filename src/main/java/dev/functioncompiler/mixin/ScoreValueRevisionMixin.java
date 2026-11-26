@@ -32,6 +32,8 @@ public abstract class ScoreValueRevisionMixin implements ScoreValueRevisionAcces
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SCORE_CACHE_TEST_OBSERVER"));
     @Unique private static final boolean functionCompiler$ir046Observer =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR046_TEST_OBSERVER"));
+    @Unique private static final boolean functionCompiler$ir047Observer =
+            Boolean.parseBoolean(System.getenv("FC_TYPED_IR047_TEST_OBSERVER"));
     @Unique private final Map<Key, Long> functionCompiler$revisions = new HashMap<>();
 
     @Override
@@ -63,6 +65,14 @@ public abstract class ScoreValueRevisionMixin implements ScoreValueRevisionAcces
             ScoreHolder owner, Objective objective, Score score, CallbackInfo ci) {
         if (functionCompiler$enabled) {
             functionCompiler$bump(new Key(owner.getScoreboardName(), objective.getName()));
+        }
+        // IR047: delete a *different* objective inside the successful
+        // terminal's listener, before the next guard's preflight.
+        if (functionCompiler$ir047Observer && "fc_ir".equals(objective.getName())
+                && "#fc047_drop".equals(owner.getScoreboardName()) && score.value() == 0) {
+            Scoreboard board = (Scoreboard) (Object) this;
+            Objective removed = board.getObjective("fc047_guard");
+            if (removed != null) board.removeObjective(removed);
         }
         // IR046 disposable synchronous adversary. Only the fixture's exact
         // cursor terminal can trigger it; set/reset radius is a different slot.

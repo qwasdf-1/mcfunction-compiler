@@ -95,13 +95,15 @@ final class TypedScoreIRRuntime {
         private ScoreHolder targetResolved;
         private ScoreHolder sourceResolved;
         private Map<ScoreValueRevisionAccess.Key, CachedSourceValue> cachedSources;
-        // Per-invocation scratch, overwritten for every compound command.
+        // Per-invocation scratch; IR047 may retain successful preflight
+        // references solely across an authorized pure failed-guard boundary.
         private Objective[] compoundObjectives;
         private ScoreHolder[] compoundHolders;
         private int[] compoundValues;
         private int compoundVisited, compoundPresent;
         // IR046: facts survive only a fully failed pure guard, in this State.
         private final boolean reuseGuards;
+        private final boolean reusePreflight;
         private GuardRunReuse.Shape priorFailedRun, activeGuardRun;
         private int inheritedGuardBits;
 
@@ -120,6 +122,7 @@ final class TypedScoreIRRuntime {
             this.frame = frame;
             this.instructions = instructions;
             this.reuseGuards = GuardRunReuse.enabled() && REENTRANT_SAFE && context instanceof ReentrantQueueEpoch;
+            this.reusePreflight = reuseGuards && GuardPreflightReuse.enabled();
             this.scoreboard = source.getServer().getScoreboard();
             this.initialQueueEpoch = REENTRANT_SAFE && context instanceof ReentrantQueueEpoch epoch
                     ? epoch.functionCompiler$queuedWorkEpoch() : 0L;
@@ -327,19 +330,29 @@ final class TypedScoreIRRuntime {
                 compoundObjectives = new Objective[capacity];
                 compoundHolders = new ScoreHolder[capacity];
             }
-            for (int i = 0; i < plan.objectives().size(); i++) {
-                Objective value = scoreboard.getObjective(plan.objectives().get(i));
-                if (value == null) return compoundNative(prepared.original());
-                compoundObjectives[i] = value;
+            // The identity is shared only by adjacent validated descriptors
+            // with the same ordered slots. A prior pure failure guarantees
+            // the previous successful preflight is still valid. No reuse
+            // after a terminal, fallback, opaque boundary or queued yield.
+            boolean sameRun = reuseGuards && prepared.guardRun() != null
+                    && prepared.guardRun() == priorFailedRun;
+            if (reusePreflight && sameRun) {
+                GuardPreflightReuse.reused(plan.objectives().size(), plan.slots().size());
+            } else {
+                for (int i = 0; i < plan.objectives().size(); i++) {
+                    Objective value = scoreboard.getObjective(plan.objectives().get(i));
+                    if (value == null) return compoundNative(prepared.original());
+                    compoundObjectives[i] = value;
+                }
+                for (int i = 0; i < plan.slots().size(); i++) {
+                    var operand = plan.slots().get(i).operand();
+                    ScoreHolder holder = operand.self() ? source.getEntity() : operand.holder();
+                    if (holder == null) return compoundNative(prepared.original());
+                    compoundHolders[i] = holder;
+                }
+                if (compoundObjective(plan, plan.targetIndex()).getCriteria().isReadOnly())
+                    return compoundNative(prepared.original());
             }
-            for (int i = 0; i < plan.slots().size(); i++) {
-                var operand = plan.slots().get(i).operand();
-                ScoreHolder holder = operand.self() ? source.getEntity() : operand.holder();
-                if (holder == null) return compoundNative(prepared.original());
-                compoundHolders[i] = holder;
-            }
-            if (compoundObjective(plan, plan.targetIndex()).getCriteria().isReadOnly())
-                return compoundNative(prepared.original());
             if (plan.dataflow()) {
                 if (compoundValues == null) compoundValues = new int[capacity];
                 activeGuardRun = reuseGuards ? prepared.guardRun() : null;
@@ -413,8 +426,8 @@ final class TypedScoreIRRuntime {
             return compoundBranch(index, true, pass);
         }
 
-        // Cache a value AND its existence, only between pure predicate stages
-        // in this original command. Never use these snapshots for the terminal.
+        // Cache a value AND its existence between pure predicate stages and
+        // authorized IR046 failed guards. Never use these snapshots for the terminal.
         private boolean compoundValuePresent(CompoundScoreIR.Plan plan, int index) {
             int bit = 1 << index;
             if ((compoundVisited & bit) != 0) {

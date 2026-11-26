@@ -41,6 +41,13 @@ final class ProbeCommands {
             dispatcher.register(Commands.literal("fc_ir046_callback")
                     .executes(context -> ir046Callback(context.getSource())));
         }
+        if (GuardPreflightReuse.benchmarkToggleAllowed()) {
+            dispatcher.register(Commands.literal("fc_ir047_preflight")
+                    .then(Commands.literal("on").executes(context ->
+                            GuardPreflightReuse.toggle(context.getSource(), true)))
+                    .then(Commands.literal("off").executes(context ->
+                            GuardPreflightReuse.toggle(context.getSource(), false))));
+        }
         if (GuardRunReuse.benchmarkToggleAllowed()) {
             dispatcher.register(Commands.literal("fc_ir046_reuse")
                     .then(Commands.literal("on").executes(context ->
