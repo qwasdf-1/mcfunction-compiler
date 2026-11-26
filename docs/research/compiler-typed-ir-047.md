@@ -1,6 +1,6 @@
 # IR-047 — Effect-bounded objective and holder preflight reuse
 
-**Status: implementation and fixed verification gates staged; acceptance pending.** Research-only, default off. Baseline is accepted IR046 at checkpoint/ir046-accepted (c03903e8d285885116a622819a5a333705033611). No new lowering coverage or global caches.
+**Status: accepted — all five gates completed successfully (2026-11-26).** Research-only, default off. Baseline is accepted IR046 at checkpoint/ir046-accepted (c03903e8d285885116a622819a5a333705033611). No new lowering coverage or global caches.
 
 ## Plan and invariants
 
@@ -19,6 +19,35 @@ IR047 adds FC_TYPED_IR_GUARD_PREFLIGHT_REUSE, effective only with IR046 runtime 
 
 PR #10 is technically clean but very large (988 commits, 362 files, +43936/-123 at IR046). Preserve checkpoint; keep research branch and history. Before integrating into main, inventory accepted vs rejected/diagnostic-only paths, remove obsolete research hooks from the integration runtime or establish disabled overhead, retain tests and evidence provenance, curate supported scope and flags, build and run default-off baseline parity and disabled-overhead A/A plus opt-in differential/performance regression against the accepted checkpoint. Create focused integration PR rather than treating default-off as proof of zero overhead. No default enable or merge authorized yet.
 
-## Results
+## Results — accepted
 
-Pending.
+[Research matrix 45908911065](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45908911065), tested b8ce4d304852574f1e90ee6368e22a6d982698a3; core implementation 13a1f81f4a05dc3bc33211612963f4ba68fe018c. All five jobs passed on first attempt. Standard CI [45908756880](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45908756880), [45908919183](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45908919183) and [45908937153](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45908937153) passed. Workflow restored to manual-only in 5699d5e.
+
+### Native differential
+
+[Raw artifact 15158667898](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45908911065/artifacts/15158667898). Independently opened archive, verified CRC and compared all five actual case maps: 670 observations per mode, 3350 total, exact native equality. Full-quota deletion leaves objective absent and cursor=0; two fresh missing-objective fallbacks in each compiled mode. Recreation leaves new objective present, radius=6, cursor=8. Ordered-slot reversal leaves entity cursor=123, fake guard=10. Each enabled mode 1871 compatible boundaries, 3333 unique objective lookups avoided, 3742 holder-slot resolutions avoided, 1871 writable checks avoided. IR047-off compiled control zero IR047 counters; IR046 counts equal across all compiled arms (1871 boundaries, 1669 present and 315 absent reads reused, 653 invalidations, one each trace/fork/callback fallback). Each compiled arm 22 reentrant yields, 331 queued steps, 378 native compound fallbacks. Direct arm actually executed 565 direct calls. State parity not exhaustive trace event parity or arbitrary mod compatibility.
+
+### Controlled incremental CPU
+
+[Pure artifact 15158728144](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45908911065/artifacts/15158728144); [mixed artifact 15158668185](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45908911065/artifacts/15158668185). Both exact workload twins use IR046 in both arms, same bytecode, diagnostic-off timed runs. Each workload two complete independently booted JVMs, 2048 batches per window, 1024 calls per batch. Reopened both raw archives and verified 64 timed block windows per workload, all x=2097152, radius=12, cursor=1 pure/0 mixed; minimum CPU 896.534 ms pure, 892.980 ms mixed. Both qualified.
+
+| Metric | Pure | Mixed |
+|---|---:|---:|
+| Paired reduction 1 | 33.9489% | 27.2533% |
+| Paired reduction 2 | 33.9825% | 26.1531% |
+| Paired reduction 3 | 34.7805% | 29.5171% |
+| Paired reduction 4 | 34.5565% | 28.6731% |
+| Boot 1 median | 33.9657% | 26.7032% |
+| Boot 2 median | 34.6685% | 29.0951% |
+| Overall median | 34.2695% | 27.9632% |
+| Maximum absolute A/A | 1.1884% | 1.7419% |
+
+Diagnostic preflight exact equal IR046 counters and work; pure 1152 boundaries/2304 objectives/2304 holders/1152 criteria skipped and mixed 1024/2048/2048/1024, zero IR047 in control. No additive combination with earlier independent CPU experiments as a measured cumulative effect.
+
+### Original publisher and regression
+
+[Publisher artifact 15158938187](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45908911065/artifacts/15158938187): original frozen census SHA256 5977367281d9c0958f5dbc3cabb7d22c65902373f71cf1871893a68d14c820a9. Both arms J1:10, complete restoration equal to native and each other, 17245 invocations, two terminal steps, zero fallbacks, IR046 155203 boundaries/172446 score reads avoided in both. IR047 enabled 155203 boundaries/310406 unique objective lookups/310406 holder-slot resolutions/155203 writable checks avoided, exactly predicted; disabled zero. Counted operations differ in cost. No whole-event CPU claim.
+
+[IR046 regression artifact 15159138099](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45908911065/artifacts/15159138099): 583 exact observations per mode, 2915 total, passed with IR047 off.
+
+**Disposition:** IR047 accepted for the narrow tested shape. No production defaults changed, PR #10 remains draft/unmerged. Next recommended work is Integration-001, independent of new coverage: inventory accepted runtime dependencies, audit rejected and diagnostic paths, prepare focused supported compiler integration, test installed-but-disabled overhead and native parity against main, and regress opt-in behavior against the accepted checkpoint. Retain historical evidence and do not merge research wholesale. Context-transforming dispatch and singleton specialization remain subsequent research candidates.
