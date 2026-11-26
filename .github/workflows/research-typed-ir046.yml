@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ['046', '046_cpu', '046_cpu_mixed', '046_publisher', '045']
+        suite: ['046']
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:

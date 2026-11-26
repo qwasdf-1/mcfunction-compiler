@@ -108,10 +108,15 @@ def snapshot(client):
     out["cursor"]=base.nullable_score(client,SELECTOR,"fc_cursor")
     out["storage"]=client.command("data get storage fc_ir:ir046 dummy")
     return out
-def invoke(client,name,entity):
+def invoke(client,name,entity,quota=65536):
     prefix=f"execute as {SELECTOR} at @s run " if entity else ""
     reply=client.command(prefix+"fc_ir017_call fc_ir:ir017_ir046_"+name)
-    if "FC_ARCH_CALL queued" not in reply:raise AssertionError("invocation failed "+reply)
+    # The two native source modifiers can exhaust quota before the ordinary
+    # harness terminal is queued; blank feedback is expected at those cuts.
+    # Retain strict invocation validation at every other quota.
+    if entity and quota <= 2 and not reply.strip():return
+    if "FC_ARCH_CALL queued" not in reply:raise AssertionError(
+        f"invocation failed {name}/{entity}/{quota}: {reply!r}")
 def run(mode):
     proc,client,log=base.start(mode)
     r={"mode":mode,"cases":{},"layouts":{},"status":"started"}
@@ -121,7 +126,7 @@ def run(mode):
             for quota in QUOTAS:
                 reset(client,name,radius,cursor,entity)
                 client.command(f"gamerule minecraft:max_command_sequence_length {quota}")
-                invoke(client,name,entity)
+                invoke(client,name,entity,quota)
                 client.command("gamerule minecraft:max_command_sequence_length 65536")
                 state=snapshot(client)
                 r["cases"][f"{i}/{name}/{quota}"]=state

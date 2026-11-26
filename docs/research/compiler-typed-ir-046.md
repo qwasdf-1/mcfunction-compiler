@@ -1,6 +1,6 @@
 # IR-046 — Effect-bounded cross-command guard reuse
 
-**Status: implementation and fixed studies staged; acceptance pending.** Research-only, default off, draft PR #10. See [candidate investigation](compiler-typed-ir-046-candidate-investigation.md).
+**Status: both controlled CPU gates, publisher and IR045 regression passed; native differential pending.** Research-only, default off, draft PR #10. See [candidate investigation](compiler-typed-ir-046-candidate-investigation.md).
 
 ## Implementation
 
@@ -15,4 +15,10 @@ FC_TYPED_IR_GUARD_RUN_REUSE gates compile-time matching of adjacent compound two
 
 ## Results
 
-Pending.
+Initial run [45904269084](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45904269084) failed compilation due to generic inference in test-only callback harness. Corrected in 092171f; runtime optimization unchanged. [Corrected matrix 45904368493](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45904368493), ordinary CI 45904373530 passed.
+
+- Pure CPU [artifact 15157990910](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45904368493/artifacts/15157990910): two complete boots, four paired reductions 10.3062%, 11.1912%, 12.4327%, 12.3892%; boot medians 10.7487%, 12.4110%; overall 11.7902%; max absolute A/A 1.0931%, pilot gate true. Diagnostic preflight equal 128 calls/witness writes, 1152 boundaries and 1280 present reads reused, 128 invalidations.
+- Mixed CPU [artifact 15157956083](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45904368493/artifacts/15157956083): two complete boots, four paired reductions 7.2545%, 5.3421%, 8.1927%, 7.5317%; boot medians 6.2983%, 7.8622%; overall 7.3931%; max absolute A/A 1.1199%, pilot gate true. Preflight equal 128 calls, 384 terminal steps, 1024 boundaries and reads reused, 256 invalidations. Both contrasts incremental reuse-on vs same emitted code reuse-off, not vanilla.
+- Original publisher [artifact 15157102565](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45904368493/artifacts/15157102565): both arms J1:10, 17,245 region invocations, two terminal steps, exact frozen native final-state restoration; zero native fallbacks. Enabled 155,203 boundaries, 172,446 present reads reused, two invalidations. No whole-event CPU inference.
+- IR045 regression [artifact 15157866234](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45904368493/artifacts/15157866234): all 203 observations per arm exact parity.
+- Native [failed artifact 15158080386](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45904368493/artifacts/15158080386): stopped in vanilla, after one full-quota wrap observation, at first quota=1. Blank reply from entity-source invocation because the native as/at modifier budget exhausted before harness terminal; server log reports command limit. No compiled arm executed. Correct fixture permits blank only at entity quotas <=2, still captures and compares state at all cuts. No compiler change or relaxed semantic parity gate. Focused native-only rerun required before formal acceptance.
