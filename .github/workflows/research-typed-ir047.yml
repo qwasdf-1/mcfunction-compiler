@@ -1,0 +1,66 @@
+name: COMPILER-IR-047 effect-bounded preflight reuse
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - work/compiler-coverage
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: compiler-ir047
+  cancel-in-progress: false
+jobs:
+  study:
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ['047', '047_cpu', '047_cpu_mixed', '047_publisher', '046']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Validate compiler contracts
+        run: |
+          for ir in 035 036 037 038 039 040 041 042 043 044 045 046 047; do python3 -m unittest discover -s tests -p "test_typed_ir${ir}.py" -v; done
+          python3 -m py_compile scripts/ci_typed_ir047*.py
+      - name: Fetch exact pinned original publisher
+        if: matrix.suite == '047_publisher'
+        run: python3 scripts/ci_typed_ir015_fetch.py
+      - name: Fetch frozen IR042 census
+        if: matrix.suite == '047_publisher'
+        uses: actions/download-artifact@v4
+        with:
+          name: compiler-ir042-publisher
+          run-id: 45516230461
+          github-token: ${{ github.token }}
+          path: build/ir042-original
+      - name: Build Minecraft Java 25
+        run: ./gradlew --no-daemon build
+      - name: Run fixed IR047 study or IR046 regression
+        env:
+          FC_IR047_CENSUS_JSON: build/ir042-original/COMPILER-IR-042-PUBLISHER/census.json
+          FC_IR047_WORKLOAD: ${{ matrix.suite == '047_cpu_mixed' && 'mixed' || 'pure' }}
+        run: |
+          if [ "${{ matrix.suite }}" = "047_cpu_mixed" ]; then
+            python3 -u scripts/ci_typed_ir047_cpu.py
+          else
+            python3 -u scripts/ci_typed_ir${{ matrix.suite }}.py
+          fi
+      - name: Archive raw evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-ir047-${{ matrix.suite }}
+          path: build/reports/COMPILER-IR-*/
+          retention-days: 21
+          if-no-files-found: warn
