@@ -623,9 +623,7 @@ final class TypedScoreIRRuntime {
             objective = null;
             access = null;
             sourceAccess = null;
-            sourceObjective = null;
             targetResolved = null;
-            sourceResolved = null;
         }
     }
 }
