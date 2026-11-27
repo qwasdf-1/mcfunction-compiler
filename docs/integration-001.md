@@ -1,6 +1,6 @@
 # Integration-001 — maintained experimental typed compiler
 
-Status: draft candidate; no merge authorization. Base main 976806f9f7d2a72cab51837c5927bd9b176f8bab; accepted research checkpoint 9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c (checkpoint/ir047-accepted). Keep PR #10 and research history intact. Candidate branch is based directly on main, not the research branch.
+Status (2026-11-27): engineering and scoped verification complete; absolute mixed-write CPU screen explicitly waived by the operator, not passed. Ready for final merge decision; no default enablement or release authorization. Earlier progress sections below are historical. Base main 976806f9f7d2a72cab51837c5927bd9b176f8bab; accepted research checkpoint 9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c (checkpoint/ir047-accepted). Keep PR #10 and research history intact. Candidate branch is based directly on main, not the research branch.
 
 ## First extraction slice
 
@@ -69,3 +69,20 @@ The operator declined dedicated hardware and authorized one additional controlle
 [45942387217](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45942387217) completed inconclusive: 7/8 JVMs qualified; checkpoint boot 5 combined holdout spread 5.63565% exceeded 5%. Exact preflight parity; block one descriptive CPU reduction 2.82367%, A/A 2.40926%/1.64601%; block two incomplete. No absolute mixed regression demonstrated and no accepted mixed absolute nonregression result. Raw evidence hash/CRC verified; archive submitted. All other gates accepted. No more automatic hosted retries; explicit operator decision required. PR remains draft and unmerged.
 
 The additional mixed-only retry archive is durably stored at [49be887](https://github.com/qwasdf-1/mcfunction-compiler/tree/49be8873536f3d2580930df409180201164710e1/evidence/compiler), with 72/72 original ZIPs, 6,015,743 bytes, no missing; archival run 45947731829 succeeded. The last absolute mixed gate remains inconclusive.
+
+## Final disposition — 2026-11-27
+
+Operator approved closing Integration-001 with an explicit waiver of the absolute mixed-write CPU nonregression screen after three inconclusive attempts. This changes the **merge-readiness decision only**, not any experimental gate, recorded observation, or runtime. No further hosted reruns. No statistical equivalence claim and no general datapack speedup claim.
+
+| Gate | Disposition | Evidence |
+|---|---|---|
+| A — clean extraction, Java 25 build, structural contracts | Accepted | [CI 45947792274](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45947792274) |
+| B — default-off native parity and bounded CPU | Accepted | [Controlled retry 45934828312](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45934828312); ratios 0.958884, 0.989987; max A/A 4.5458% |
+| C — native IR043–047 and publisher regression | Accepted | [Final matrix 45930919331](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45930919331); exact IR047 checkpoint cases/counters; original Blastback restoration |
+| C — incremental IR047 pure and mixed | Accepted | Pure 34.55092% ([controlled retry](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45934828312)); mixed 25.95275% ([final matrix](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45930919331)); scoped workload reductions over IR046 |
+| C — absolute pure | Accepted | [Controlled retry](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45934828312); ratios 0.988433, 0.941276; max A/A 3.4672% |
+| C — absolute mixed | **Inconclusive; operator waiver** | [Original](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45930919331), [controlled](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45934828312), [additional](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45942387217). All five complete blocks descriptively favor candidate; two attempts failed between-boot A/A, final attempt failed checkpoint holdout. No qualified absolute mixed result. |
+| D — dormant runtime pruning, fixture packaging, public opt-in profile | Accepted within tested scope | [Final matrix](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45930919331), [CI](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45947792274); actual JAR inspection and three-arm production profile smoke |
+| E — evidence, review readiness | Complete with waiver | [72 verified ZIPs](https://github.com/qwasdf-1/mcfunction-compiler/tree/49be8873536f3d2580930df409180201164710e1/evidence/compiler), in-tree frozen reference fixtures, matching manifest. |
+
+Final pre-closeout head 410486741c4eaeb8a57ce0bf1370e00628794f0f: source blobs under src/, tests/runtime/, build.gradle and gradle.properties match the qualified runtime tree 5d3d0d5533df5ef5a2fe5ffc886459bd634cddab. Base still 976806f9f7d2a72cab51837c5927bd9b176f8bab. Ordinary CI completed all build, JAR, static and documentation tests. No review threads or submitted reviews at this inspection; no assertion of independent human code review. PR #11 clean and mergeable before docs closeout. Preserve PR #10, accepted checkpoint, research branch and immutable archive; close PR #10 unmerged only after PR #11 merges. Do not merge #10 first. Remaining legacy admin-command permission enforcement is not newly implemented in this integration (no explicit requirement on either command root); documentation must not promise an enforced operator-only restriction. This is a pre-existing administrative surface concern, not a result of the CPU waiver. No blanket third-party compatibility or release/default promotion. PR #11 may proceed to final merge decision.

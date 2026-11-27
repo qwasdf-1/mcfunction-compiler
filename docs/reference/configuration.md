@@ -39,9 +39,9 @@ The compiler automatically creates a default configuration file at `config/funct
 
 ---
 
-## 2. In-Game Operator Commands
+## 2. Administrative Commands
 
-The mod registers the `/functioncompiler` root command for server operators (Permission Level 2 / OP).
+The mod registers the `/functioncompiler` root and legacy `/function_compiler_probe` alias. These commands are intended for administration; the current registrations do not explicitly enforce an operator permission level. Do not rely on the command names as an access-control boundary.
 
 ### `/functioncompiler status`
 Displays the current runtime configuration, active optimization passes, and namespace exclusion rules:
@@ -93,3 +93,7 @@ configuration, so `score_add=false` does not disable specialization while
 fusion is active. A focused probe can still force the specialization off by
 setting `FC_SCORE_ADD_PROTOTYPE=false`; that combination exercises fusion with
 vanilla scoreboard command execution and is not a production mode.
+
+## 4. Startup-only typed compiler profile
+
+See [Opt-in typed compiler](features/typed-compiler.md). Set `FC_TYPED_COMPILER_PROFILE=validated` and `FC_TYPED_IR_NAMESPACE=my_pack` before server startup. Explicit feature flags override profile defaults. No namespace means the profile stays off; `FC_WRAPPER_PROBE=false` overrides the wrapper gate. `/functioncompiler reload` does not change startup-only typed flags. `/functioncompiler status` includes requested typed profile, mode, namespace, reentrant and reuse flags and fixture-build status. `/functioncompiler ir008` reports typed counters; `/functioncompiler ir016 <namespace:function>` reports the diagnostic layout ledger when enabled. The former IR025 diagnostic command is withdrawn along with the abandoned fork backend. No legacy JSON defaults changed.
