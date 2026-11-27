@@ -2,6 +2,9 @@ name: Preserve compiler evidence
 
 on:
   workflow_dispatch:
+  push:
+    branches: [work/compiler-ir048]
+    paths: ['.github/workflows/preserve-compiler-evidence.yml']
 permissions:
   contents: write
   actions: read
