@@ -1,7 +1,7 @@
 {
   "repository": "qwasdf-1/mcfunction-compiler",
   "checkpoint": "9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c",
-  "scope": "IR037–047 selected native and CPU studies, failed attempts, original IR042 census and first integration matrix; earlier historical artifacts not exhaustively archived",
+  "scope": "IR037–047 selected native and CPU studies, failed attempts, original IR042 census and first integration matrix; earlier historical artifacts not exhaustively archived; qualified integration rerun 45919681014",
   "artifacts": [
     {
       "run": 45306171166,
@@ -369,6 +369,78 @@
       "name": "integration-001-043",
       "size": 156033,
       "digest": "sha256:1f2d0732c9511736c3818a284183a4587720e77251918b9413a07bb6a01e10d7",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15164401046,
+      "name": "integration-001-045",
+      "size": 122998,
+      "digest": "sha256:e9fc051eb31f2de4eba3a9d788999074914e4b785f224ec13ada26df67d877e9",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15164372794,
+      "name": "integration-001-default_off",
+      "size": 132034,
+      "digest": "sha256:67cb0a94211e70e0560c91b12fdc5b7fe3b43266e93388ef96dece4411276404",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15164171720,
+      "name": "integration-001-043",
+      "size": 156447,
+      "digest": "sha256:255763710e785e5b72be4af21f47836d7fb3ac72dfc7214adf2f3a328949b4ae",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15164062226,
+      "name": "integration-001-047_cpu_mixed",
+      "size": 124463,
+      "digest": "sha256:1f055ecdcfed54917efc3d2897c908fc8b299234ffe64a1a6cf2f6d5ef3cd2be",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15163423818,
+      "name": "integration-001-044",
+      "size": 118018,
+      "digest": "sha256:8766b30aac9440ce6d316a15c6fa226b9d6c89a8f978dde545e5b34f792a8145",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15163398766,
+      "name": "integration-001-047",
+      "size": 153499,
+      "digest": "sha256:060ecf97d6bbfd266d036b48e8dafe36422b1483905a60549f55b22c2ce48f26",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15163358810,
+      "name": "integration-001-047_publisher",
+      "size": 89864,
+      "digest": "sha256:b54b1ca91cdcc6d1696c9714505354779cbbb00f53682dcbd26048e5fd24e710",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15163329125,
+      "name": "integration-001-047_cpu",
+      "size": 124552,
+      "digest": "sha256:968e1bd930eaffe3c1a57ec3d1680fcbb46cc4409c0c940354c10f8467d67125",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15163328782,
+      "name": "integration-001-046",
+      "size": 144296,
+      "digest": "sha256:46a7c5aa4628a51b4ba0beb4bf492b31a69027ed50364ce4acfa41788f0e39e2",
       "expired": false
     }
   ]
