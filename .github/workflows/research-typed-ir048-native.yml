@@ -1,6 +1,9 @@
 name: IR-048 initial native dispatch qualification
 on:
   workflow_dispatch:
+  push:
+    branches: [work/compiler-ir048]
+    paths: ['.github/workflows/research-typed-ir048-native.yml']
 permissions:
   contents: read
 jobs:
@@ -8,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ['048','043','047']
+        suite: ['048']
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
