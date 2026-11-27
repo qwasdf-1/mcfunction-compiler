@@ -6,7 +6,8 @@
     "ScoreLifecycleFixtureMixin",
     "ScoreboardQueueInjectionMixin",
     "IR048BuildContextsFixtureMixin",
-    "IR048ContextChainFixtureMixin"
+    "IR048ContextChainFixtureMixin",
+    "IR048FunctionBuilderFixtureMixin"
   ],
   "injectors": {
     "defaultRequire": 1

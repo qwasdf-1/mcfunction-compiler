@@ -63,10 +63,9 @@ def join(census, pack):
         total += visits
         kind = shape(line)
         if kind is not None:
-            if all_inputs[line] != 1:
-                raise AssertionError("ambiguous original exact-input site: " + fid)
             sites.append({"function": fid, "index": index, "input": line, "shape": kind,
-                          "historical_visits": visits, "historical_ordinary_callbacks": int(row["callbacks"])})
+                          "historical_visits": visits, "historical_ordinary_callbacks": int(row["callbacks"]),
+                          "publisher_identical_text_sites": all_inputs[line]})
     for fid in census["target_functions"]:
         if sum(f == fid for f, _ in seen) != len(pack.functions[fid]):
             raise AssertionError("incomplete historical source join")
@@ -84,6 +83,13 @@ def join(census, pack):
 
 def parse_log(raw, sites):
     assert raw.count("IR048_CENSUS_BEGIN") == 1 and raw.count("IR048_CENSUS_END invalid=0") == 1, "missing or invalid bounded census"
+    registered = {}
+    for m in re.finditer(r"IR048_REGISTER id=(\d+) function=(\S+) index=(\d+)", raw):
+        idx, fid, index = m.groups()
+        idx = int(idx)
+        assert idx not in registered
+        registered[idx] = (fid, int(index))
+    assert registered == {s["id"]: (s["function"], s["index"]) for s in sites}, registered
     pattern = r"IR048_SITE id=(\d+) builds=(\d+) terminals=(\d+)"
     rows = {}
     for m in re.finditer(pattern, raw):
@@ -143,7 +149,7 @@ def main():
         return original_options(mode) | {
             "FC_WRAPPER_PROBE": "false", "FC_TYPED_COMPILER_PROFILE": "",
             "FC_TYPED_IR_MODE": "", "FC_IR048_CENSUS": "true",
-            "FC_IR048_CENSUS_INPUTS": "\n".join(s["input"] for s in sites),
+            "FC_IR048_CENSUS_SITES": "\n".join(f"{s['function']}\t{s['index']}\t{s['input']}" for s in sites),
         }
     pub.base.OUT = OUT
     pub.base.options = options

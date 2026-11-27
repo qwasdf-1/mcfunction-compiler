@@ -32,3 +32,9 @@ Required differential: zero/one/many selected entities, ordered score-before/aft
 ## Launch
 
 [Phase A workflow 46057445324](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/46057445324) launched at `2be66a3eee3f811d89d19d9c177ac72415276416`. Pending build, JAR boundary, publisher-source uniqueness and native event/cardinality verification. No runtime changes; the observer is fixture-only. Main documentation closeout `696a334` passed [CI 46057246678](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/46057246678).
+
+## Phase A first attempt and identity correction
+
+[46057445324](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/46057445324) passed both production and fixture builds/JAR checks. Historical join failed closed at `erb:group/join`: identical text is present elsewhere in the original publisher. No native event or counts were obtained. The exact initial revision is retained via `checkpoint/ir048-first-census` (7870ca17), with test run at 2be66a3. [Failure artifact](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/46057445324/artifacts/15227137406).
+
+Rebased both research commits onto main `6268e5fc3d3e64e8394ad19e83c742375698cb22` (Bellows spelling correction); no overlaps or runtime changes. Supersede the text-uniqueness condition: join by function ID and zero-based index, report identical-text multiplicity, then register each original parsed `BuildContexts.Unbound` entry by object identity in a fixture-only FunctionBuilder return observer (wrapper disabled). Validate exact source and custom terminal at registration; require all seven registrations and exact logged keys before accepting results. Distinct identical-text entries now have independent identities. No command or callback wrapping, no production observer. This is an attribution correction, not a relaxation of the exact source-index gate. No live fanout result until the corrected run qualifies.

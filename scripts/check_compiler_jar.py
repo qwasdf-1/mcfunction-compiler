@@ -17,7 +17,7 @@ with zipfile.ZipFile(jars[0]) as z:
     for name in ("ReentrantQueueProbe","mixin/ScoreLifecycleFixtureMixin",
                  "mixin/ScoreboardQueueInjectionMixin","mixin/IntegrationMixinPlugin",
                  "IR048DispatchCensus","mixin/IR048BuildContextsFixtureMixin",
-                 "mixin/IR048ContextChainFixtureMixin"):
+                 "mixin/IR048ContextChainFixtureMixin","mixin/IR048FunctionBuilderFixtureMixin"):
         assert (prefix+name+".class" in names)==fixture,name
     assert ("function_compiler.fixtures.mixins.json" in names)==fixture
     assert ("function_compiler.fixtures.mixins.json" in mod["mixins"])==fixture

@@ -23,13 +23,13 @@ class Census(unittest.TestCase):
             self.assertIsNone(shape(s), s)
 
     def test_parse_native_counts(self):
-        raw = ("IR048_CENSUS_BEGIN\nIR048_SITE id=0 builds=3 terminals=6\n"
+        raw = ("IR048_REGISTER id=0 function=x:y index=7\nIR048_CENSUS_BEGIN\nIR048_SITE id=0 builds=3 terminals=6\n"
                "IR048_STAGE id=0 key=execute/as/targets calls=3 returns=3 outputs=6 max_outputs=3 forked_calls=3\n"
                "IR048_CENSUS_END invalid=0\n")
-        self.assertEqual(parse_log(raw, [{"id": 0}])[0]["fresh_native"]["terminal_invocations"], 6)
-        for bad in (raw.replace("invalid=0", "invalid=1"), raw.replace("outputs=6", "outputs=10"), raw.replace("id=0 builds", "id=1 builds")):
+        self.assertEqual(parse_log(raw, [{"id": 0, "function": "x:y", "index": 7}])[0]["fresh_native"]["terminal_invocations"], 6)
+        for bad in (raw.replace("invalid=0", "invalid=1"), raw.replace("outputs=6", "outputs=10"), raw.replace("id=0 builds", "id=1 builds"), raw.replace("index=7", "index=8")):
             with self.assertRaises(AssertionError):
-                parse_log(bad, [{"id": 0}])
+                parse_log(bad, [{"id": 0, "function": "x:y", "index": 7}])
 
 if __name__ == "__main__":
     unittest.main()

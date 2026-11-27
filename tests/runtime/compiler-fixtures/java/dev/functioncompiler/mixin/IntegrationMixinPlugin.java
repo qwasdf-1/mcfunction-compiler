@@ -17,7 +17,8 @@ public final class IntegrationMixinPlugin implements IMixinConfigPlugin {
         if (mixin.endsWith(".ScoreboardQueueInjectionMixin"))
             return flag("FC_TYPED_IR_REENTRANT_TEST_OBSERVER");
         if (mixin.endsWith(".IR048BuildContextsFixtureMixin")
-                || mixin.endsWith(".IR048ContextChainFixtureMixin"))
+                || mixin.endsWith(".IR048ContextChainFixtureMixin")
+                || mixin.endsWith(".IR048FunctionBuilderFixtureMixin"))
             return flag("FC_IR048_CENSUS");
         return true;
     }
