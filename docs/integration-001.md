@@ -53,3 +53,7 @@ New startup profile: `FC_TYPED_COMPILER_PROFILE=validated` and `FC_TYPED_IR_NAME
 ### Final matrix disposition and measurement-noise retry
 
 Final 45930919331 accepted eight jobs, including real production profile and packaging, exact native/Blastback parity and mixed incremental CPU 25.95%. Four CPU gates inconclusive: pure holdout, default-off within-boot instability and both absolute studies between-boot A/A. See [noise investigation and controlled retry](research/integration-001-noise.md) for independently inspected raw windows and preregistered one-shot CPU placement intervention. No runtime changes or threshold relaxation; PR remains draft pending qualification.
+
+### Controlled CPU qualification — 3/4 remaining gates accepted
+
+[45934828312](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45934828312) at c7cf704: final default-off accepted (ratios 0.958884/0.989987; all eight exact state parity), pure incremental accepted (34.55092%, both boots, max A/A 0.51305%), absolute pure accepted (ratios 0.988433/0.941276; max A/A 3.46725%). Absolute mixed still inconclusive (0.965411/0.989399, checkpoint block 2 A/A 8.42144%). All four controlled results use unchanged acceptance thresholds. Final mixed incremental already accepted. [Detailed telemetry and disposition](research/integration-001-noise.md). One remaining performance gate, dedicated runner required by stop rule; no hosted retry or merge. Archive all four artifacts. No change in runtime or production configuration.

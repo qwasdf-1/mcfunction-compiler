@@ -1,7 +1,7 @@
 {
   "repository": "qwasdf-1/mcfunction-compiler",
   "checkpoint": "9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c",
-  "scope": "IR037–047 selected native and CPU studies, failed attempts, original IR042 census and first integration matrix; earlier historical artifacts not exhaustively archived; qualified integration rerun 45919681014; complete final consolidation matrix 45930919331, including four unqualified CPU experiments",
+  "scope": "IR037–047 selected native and CPU studies, failed attempts, original IR042 census and first integration matrix; earlier historical artifacts not exhaustively archived; qualified integration rerun 45919681014; complete final consolidation matrix 45930919331, including four unqualified CPU experiments; bounded controlled placement retry 45934828312",
   "artifacts": [
     {
       "run": 45306171166,
@@ -537,6 +537,38 @@
       "name": "integration-001-046",
       "size": 143605,
       "digest": "sha256:5187cf7006ea4f04b66e1dba36d18d5136bebaf0e54125480d883d17b4b5c7ff",
+      "expired": false
+    },
+    {
+      "run": 45934828312,
+      "id": 15171092457,
+      "name": "integration-noise-controlled-absolute_mixed",
+      "size": 163060,
+      "digest": "sha256:5523c1fa8ca11ef8d789326d10a6bb44bfd2942b218bc48d34c165106588685c",
+      "expired": false
+    },
+    {
+      "run": 45934828312,
+      "id": 15170492057,
+      "name": "integration-noise-controlled-default_off",
+      "size": 148755,
+      "digest": "sha256:52aea1568ef98a6d278201178bef6d64565c9c939392d96e5b48fb4ccc974e11",
+      "expired": false
+    },
+    {
+      "run": 45934828312,
+      "id": 15170393822,
+      "name": "integration-noise-controlled-absolute_pure",
+      "size": 161880,
+      "digest": "sha256:75dfc3c40a10dc2a9f2589e2409b992d8c728db9761f113b105265c3237657f8",
+      "expired": false
+    },
+    {
+      "run": 45934828312,
+      "id": 15170079887,
+      "name": "integration-noise-controlled-047_cpu",
+      "size": 145915,
+      "digest": "sha256:fcdeb6b2877071603f03077989716de55094ce4f168e537bf42a00ebe16f416e",
       "expired": false
     }
   ]
