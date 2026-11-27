@@ -1,0 +1,64 @@
+name: IR-048 initial native dispatch qualification
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/compiler-ir048]
+    paths: ['.github/workflows/research-typed-ir048-native.yml']
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ['048','043','047']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      ORG_GRADLE_PROJECT_fcIntegrationFixtures: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check static contracts
+        run: |
+          python3 -m unittest discover -s tests -p test_integration_001.py -v
+          for ir in 037 038 039 040 043 044 045 046 047 048; do python3 -m unittest discover -s tests -p "test_typed_ir${ir}.py" -v; done
+          python3 -m unittest discover -s tests -p test_typed_ir048_census.py -v
+      - name: Check production JAR
+        if: matrix.suite == '048'
+        env:
+          ORG_GRADLE_PROJECT_fcIntegrationFixtures: 'false'
+        run: |
+          ./gradlew --no-daemon clean build
+          python3 scripts/check_compiler_jar.py production
+      - name: Build fixture JAR
+        run: |
+          ./gradlew --no-daemon clean build
+          python3 scripts/check_compiler_jar.py fixture
+      - name: Run native differential
+        run: python3 -u scripts/ci_typed_ir${{ matrix.suite }}.py
+      - name: Compare exact IR047 reference
+        if: matrix.suite == '047'
+        run: |
+          python3 - <<'PY'
+          import json
+          ref=json.load(open("tests/fixtures/compiler/ir047-native.json"))
+          got=json.load(open("build/reports/COMPILER-IR-047/results.json"))
+          assert got["status"]==ref["status"]=="accepted"
+          assert [a["cases"] for a in got["arms"]]==[a["cases"] for a in ref["arms"]]
+          assert [a.get("counts") for a in got["arms"]]==[a.get("counts") for a in ref["arms"]]
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ir048-native-${{ matrix.suite }}
+          path: build/reports/
+          retention-days: 30
+          if-no-files-found: warn
