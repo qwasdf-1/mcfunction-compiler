@@ -1,9 +1,6 @@
 name: IR-048 native context dispatch census
 on:
   workflow_dispatch:
-  push:
-    branches: [work/compiler-ir048]
-    paths: ['.github/workflows/research-typed-ir048-census.yml']
 permissions:
   contents: read
 jobs:
