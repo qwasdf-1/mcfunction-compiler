@@ -84,8 +84,19 @@ def establish(client):
         client.command(f"setblock {x} 64 2 minecraft:diamond_block")
         reply=client.command(f'summon minecraft:marker {x} 64 1 {{Tags:["fc048_marker","fc048_{i}"],Rotation:[0f,0f]}}')
         s=f"@e[tag=fc048_{i},limit=1]"
-        client.command(f"scoreboard players set {s} fc_ir {i}")
-        assert score(client,s)==i, reply
+        # A block-accessible chunk need not yet expose freshly spawned entities.
+        # Use the same bounded native selector readiness gate as IR047.
+        deadline = time.monotonic()+10
+        while True:
+            client.command("scoreboard players set #entity_ready fc_ir 0")
+            probe = client.command(f"execute as @e[type=minecraft:marker,tag=fc048_{i}] run scoreboard players add #entity_ready fc_ir 1")
+            count = score(client,"#entity_ready")
+            if count == 1: break
+            if count != 0 or time.monotonic()>deadline:
+                raise AssertionError(f"marker {i} unavailable or duplicated: count={count}, summon={reply!r}, probe={probe!r}")
+            time.sleep(.1)
+        assigned = client.command(f"scoreboard players set {s} fc_ir {i}")
+        assert score(client,s)==i, (reply,assigned)
     client.command("gamerule minecraft:max_command_forks 65536")
 
 def reset(client,n,gate):
