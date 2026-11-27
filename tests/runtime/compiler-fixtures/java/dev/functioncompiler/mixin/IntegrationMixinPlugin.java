@@ -16,6 +16,9 @@ public final class IntegrationMixinPlugin implements IMixinConfigPlugin {
             return flag("FC_TYPED_IR046_TEST_OBSERVER") || flag("FC_TYPED_IR047_TEST_OBSERVER");
         if (mixin.endsWith(".ScoreboardQueueInjectionMixin"))
             return flag("FC_TYPED_IR_REENTRANT_TEST_OBSERVER");
+        if (mixin.endsWith(".IR048BuildContextsFixtureMixin")
+                || mixin.endsWith(".IR048ContextChainFixtureMixin"))
+            return flag("FC_IR048_CENSUS");
         return true;
     }
     @Override public void onLoad(String pkg) {}

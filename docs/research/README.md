@@ -29,3 +29,5 @@ Versioned plans and their validation matrix live under [`../v1/`](../v1/).
 ## Compiler studies
 
 [Compiler research record through IR-047](compiler-history.md) indexes the preserved accepted, rejected and descriptive studies. Historical source links are pinned; current runtime claims belong in the maintained reference.
+
+[IR-048 — Context-transforming static function dispatch](compiler-typed-ir-048.md) begins with a native cardinality census; no runtime change or performance claim.
