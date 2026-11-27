@@ -36,6 +36,8 @@ jobs:
       - name: Build mod jar
         run: ./gradlew build
 
+      - name: Inspect production artifact
+        run: python3 scripts/check_compiler_jar.py production
       - name: Install uv
         uses: astral-sh/setup-uv@v6
 

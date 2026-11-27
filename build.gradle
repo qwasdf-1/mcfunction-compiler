@@ -21,7 +21,7 @@ if (integrationFixtures) {
     sourceSets.main.java.srcDir 'src/production/java'
 }
 
-version = project.mod_version
+version = project.mod_version + (integrationFixtures ? '-fixtures' : '')
 group = project.maven_group
 
 base {

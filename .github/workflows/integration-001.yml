@@ -2,6 +2,9 @@ name: Integration-001 candidate verification
 
 on:
   workflow_dispatch:
+  push:
+    branches: [work/compiler-integration]
+    paths: ['.github/workflows/integration-001.yml']
 permissions:
   contents: read
   actions: read
@@ -13,9 +16,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ['043', '044', '045', '046', '047', '047_cpu', '047_cpu_mixed', '047_publisher', 'default_off']
+        suite: ['043', '044', '045', '046', '047', '047_cpu', '047_cpu_mixed', '047_publisher', 'default_off', 'profile', 'absolute_pure', 'absolute_mixed']
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
+    env:
+      ORG_GRADLE_PROJECT_fcIntegrationFixtures: ${{ matrix.suite != 'default_off' && matrix.suite != 'profile' && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,6 +39,8 @@ jobs:
           PYTHONPATH=scripts python3 -c 'import ci_typed_ir043, ci_typed_ir044, ci_typed_ir045, ci_typed_ir046, ci_typed_ir047, ci_typed_ir047_cpu, ci_typed_ir047_publisher'
       - name: Build candidate
         run: ./gradlew --no-daemon build
+      - name: Audit actual JAR boundary
+        run: python3 scripts/check_compiler_jar.py ${{ matrix.suite != 'default_off' && matrix.suite != 'profile' && 'fixture' || 'production' }}
       - name: Static candidate boundary contracts
         run: |
           python3 -m unittest discover -s tests -p test_integration_001.py -v
@@ -49,14 +56,24 @@ jobs:
           git worktree add --detach "$RUNNER_TEMP/fc-main" 976806f9f7d2a72cab51837c5927bd9b176f8bab
           cd "$RUNNER_TEMP/fc-main"
           ./gradlew --no-daemon build
+      - name: Build pinned IR047 checkpoint twin
+        if: matrix.suite == 'absolute_pure' || matrix.suite == 'absolute_mixed'
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/fc-checkpoint" 9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c
+          cd "$RUNNER_TEMP/fc-checkpoint"
+          ./gradlew --no-daemon build
       - name: Execute regression or default-off screen
         env:
           FC_IR047_CENSUS_JSON: tests/fixtures/compiler/ir042-census.json
-          FC_IR047_WORKLOAD: ${{ matrix.suite == '047_cpu_mixed' && 'mixed' || 'pure' }}
+          FC_IR047_WORKLOAD: ${{ (matrix.suite == '047_cpu_mixed' || matrix.suite == 'absolute_mixed') && 'mixed' || 'pure' }}
         run: |
           suite="${{ matrix.suite }}"
           if [ "$suite" = default_off ]; then
             python3 -u scripts/ci_integration_001_off.py "$RUNNER_TEMP/fc-main"
+          elif [ "$suite" = profile ]; then
+            python3 -u scripts/ci_integration_001_profile.py
+          elif [[ "$suite" == absolute_* ]]; then
+            python3 -u scripts/ci_integration_001_absolute.py "$RUNNER_TEMP/fc-checkpoint"
           elif [ "$suite" = 047_cpu_mixed ]; then
             python3 -u scripts/ci_typed_ir047_cpu.py
           else
@@ -74,11 +91,11 @@ jobs:
           PY
           fi
       - name: Enforce CPU qualification
-        if: matrix.suite == '047_cpu' || matrix.suite == '047_cpu_mixed' || matrix.suite == 'default_off'
+        if: matrix.suite == '047_cpu' || matrix.suite == '047_cpu_mixed' || matrix.suite == 'default_off' || matrix.suite == 'absolute_pure' || matrix.suite == 'absolute_mixed'
         run: |
           python3 - <<'PY'
           import json, pathlib
-          paths={"047_cpu":"COMPILER-IR-047-CPU-PURE","047_cpu_mixed":"COMPILER-IR-047-CPU-MIXED","default_off":"INTEGRATION-001-OFF"}
+          paths={"047_cpu":"COMPILER-IR-047-CPU-PURE","047_cpu_mixed":"COMPILER-IR-047-CPU-MIXED","default_off":"INTEGRATION-001-OFF","absolute_pure":"INTEGRATION-001-ABSOLUTE-PURE","absolute_mixed":"INTEGRATION-001-ABSOLUTE-MIXED"}
           data=json.loads((pathlib.Path("build/reports")/paths["${{ matrix.suite }}"]/"results.json").read_text())
           passed=data.get("gate_pass",data.get("summary",{}).get("pilot_gate_pass",False))
           if not passed: raise SystemExit("INTEGRATION CPU gate not qualified; preserve raw evidence")

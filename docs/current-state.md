@@ -15,6 +15,10 @@ real-world gain; it remains disabled by default. Tiered bytecode is present but
 opt-in; the bounded reload and Metaspace evidence only supports continued
 experimentation, not blanket production claims.
 
+## Typed compiler integration
+
+The integration candidate retains the scoped accepted IR043–047 paths and the default-off/opt-in regression evidence recorded in [Integration-001](integration-001.md). The final consolidated build and new [startup profile](reference/features/typed-compiler.md) are pending final qualification; no default enable or general datapack speedup is claimed. Historical reports are indexed in [compiler research history](research/compiler-history.md).
+
 ## Verified
 
 - The official Minecraft 26.3 server artifact and Loom-produced classfiles are

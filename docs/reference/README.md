@@ -16,6 +16,7 @@ differential test traces remain implementation truth when prose disagrees.
 | [`configuration.md`](configuration.md) | Production JSON configuration schema (`config/function-compiler.json`) and `/functioncompiler` admin commands. |
 | [`benchmarks/README.md`](benchmarks/README.md) | Authoritative benchmark hub: adversarial red-teaming, memory footprint, extreme 5-datapack stress tests, and comparative mod matrix. |
 | [`features/inventory.md`](features/inventory.md) | Repo-wide maintained feature inventory covering optimizations, hooks, and verification status. |
+| [Typed compiler](features/typed-compiler.md) | Opt-in profile, typed mixed IR and effect-bounded reuse. |
 | [`features/fused-regions.md`](features/fused-regions.md) | Multi-command queue compaction, Stage 1A–1D specializations, and error continuation. |
 | [`features/selective-macro-arguments.md`](features/selective-macro-arguments.md) | Selective argument extraction for entity and storage macros, bypassing full compound serialization. |
 | [`features/emitted-bytecode.md`](features/emitted-bytecode.md) | Parameterized hidden ASM classes, `CONSTRUCTOR_CACHE`, tiered JIT engine, and Metaspace lifecycle. |
