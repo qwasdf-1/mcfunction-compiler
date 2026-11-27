@@ -17,7 +17,7 @@ abstract class IR048BuildContextsFixtureMixin {
     }
 
     @Inject(method = "execute(Lnet/minecraft/commands/ExecutionCommandSource;Ljava/util/List;Lnet/minecraft/commands/execution/ExecutionContext;Lnet/minecraft/commands/execution/Frame;Lnet/minecraft/commands/execution/ChainModifiers;)V",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/commands/execution/CustomCommandExecutor;run(Lnet/minecraft/commands/ExecutionCommandSource;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/commands/execution/ChainModifiers;Lnet/minecraft/commands/execution/ExecutionControl;)V"))
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/commands/execution/CustomCommandExecutor;run(Ljava/lang/Object;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/commands/execution/ChainModifiers;Lnet/minecraft/commands/execution/ExecutionControl;)V"))
     private void fc$ir048Terminal(CallbackInfo ci) {
         IR048DispatchCensus.customTerminal();
     }
