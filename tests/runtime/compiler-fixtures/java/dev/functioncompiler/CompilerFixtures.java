@@ -27,6 +27,10 @@ final class CompilerFixtures {
                     .then(Commands.literal("start").executes(c -> IR048DispatchCensus.start(c.getSource())))
                     .then(Commands.literal("stop").executes(c -> IR048DispatchCensus.stop(c.getSource()))));
         }
+        if (Boolean.parseBoolean(System.getenv("FC_IR048_NATIVE_HARNESS"))) {
+            dispatcher.register(Commands.literal("fc_ir048_callback")
+                    .executes(c -> ir048Callback(c.getSource())));
+        }
         // IR-040: explicitly gated benchmark only. All three arms use the
         // identical native initial-call scheduler and empty result callbacks.
         if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR040_BENCHMARK"))) {
@@ -244,6 +248,27 @@ final class CompilerFixtures {
      * through the same Minecraft ExecutionContext as the current command.
      * No default mod installation registers this command.
      */
+    private static int ir048Callback(CommandSourceStack source) {
+        ExecutionContext<CommandSourceStack> execution = ExecutionContextBridge.currentContext();
+        var function = source.getServer().getFunctions().get(Identifier.tryParse("fc_ir:ir019_ir048_at"));
+        if (execution == null || function.isEmpty()) return 0;
+        try {
+            var board = source.getServer().getScoreboard();
+            var objective = board.getObjective("fc_ir");
+            if (objective == null) return 0;
+            CommandResultCallback callback = (success, result) -> board.getOrCreatePlayerScore(
+                    net.minecraft.world.scores.ScoreHolder.forNameOnly("#callback_seen"), objective).add(1);
+            ExecutionContext.queueInitialFunctionCall(execution,
+                    function.get().instantiate(null, source.dispatcher()),
+                    source.withSuppressedOutput().withCallback(callback), CommandResultCallback.EMPTY);
+            source.sendSuccess(() -> Component.literal("IR048 callback queued"), false);
+            return 1;
+        } catch (Exception error) {
+            source.sendFailure(Component.literal("IR048 callback failed " + error));
+            return 0;
+        }
+    }
+
     private static int ir046Callback(CommandSourceStack source) {
         ExecutionContext<CommandSourceStack> execution = ExecutionContextBridge.currentContext();
         var function = source.getServer().getFunctions().get(Identifier.tryParse("fc_ir:ir017_ir046_fake"));

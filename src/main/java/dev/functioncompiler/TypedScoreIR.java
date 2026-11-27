@@ -336,7 +336,8 @@ public final class TypedScoreIR {
     ) {
         MixedFunctionIR.Program mixed = MixedFunctionIR.lower(original);
         if (mixed.typedRegionCount() == 0
-                && mixed.typedCallCount() == 0 && mixed.typedGuardCount() == 0 && mixed.typedStoreCount() == 0) return original;
+                && mixed.typedCallCount() == 0 && mixed.typedGuardCount() == 0 && mixed.typedStoreCount() == 0
+                && mixed.typedContextCallCount() == 0) return original;
         List<UnboundEntryAction<CommandSourceStack>> entries = mixed.executableEntries();
         List<UnboundEntryAction<CommandSourceStack>> directChunks =
                 TypedScoreIRDirectScheduler.compilationEnabled()
@@ -577,6 +578,7 @@ public final class TypedScoreIR {
                 + TypedScoreIRDirectScheduler.diagnostics()
                 + MixedFunctionIR.diagnostics()
                 + TypedFunctionDispatch.diagnostics()
+                + TypedContextDispatch.diagnostics()
                 + TypedConditionalTerminal.diagnostics()
                 + TypedNativeStore.diagnostics()
                 + GuardRunReuse.diagnostics()

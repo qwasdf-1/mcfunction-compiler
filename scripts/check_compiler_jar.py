@@ -23,6 +23,6 @@ with zipfile.ZipFile(jars[0]) as z:
     assert ("function_compiler.fixtures.mixins.json" in mod["mixins"])==fixture
     assert ("-fixtures" in mod["version"])==fixture
     commands=z.read(prefix+"CompilerFixtures.class")
-    for token in (b"fc_ir040_batch",b"fc_ir046_callback",b"fc_probe_leaf",b"fc_ir048_census"):
+    for token in (b"fc_ir040_batch",b"fc_ir046_callback",b"fc_probe_leaf",b"fc_ir048_census",b"fc_ir048_callback"):
         assert (token in commands)==fixture,token
 print("INTEGRATION_JAR",json.dumps({"jar":jars[0].name,"fixture":fixture,"status":"accepted"}))

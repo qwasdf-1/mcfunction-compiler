@@ -1,6 +1,6 @@
 # IR-048 — Context-transforming static function dispatch
 
-**Status:** Phase A (native opportunity census and parsed-stage evidence). Branch `work/compiler-ir048`, based on merged Integration-001 `fa4162181e66cf43faf727d33a918bf5379ad4de` plus documentation-only closeout `696a3340c1f7ba05c43b43de2dd220db8030676e`. No new runtime optimization or default change. No general speedup claim.
+**Status:** Phase A accepted; Phase B implementation submitted for native qualification. Branch `work/compiler-ir048`, based on merged Integration-001 `fa4162181e66cf43faf727d33a918bf5379ad4de` plus documentation-only closeout `696a3340c1f7ba05c43b43de2dd220db8030676e`. No new runtime optimization or default change. No general speedup claim.
 
 ## Motivation and historical scope
 
@@ -50,3 +50,11 @@ Corrected [census run 46058463130](https://github.com/qwasdf-1/mcfunction-compil
 ## Phase A accepted — 46059397114
 
 All seven exact source positions registered; all 2,567 native BuildContexts entries match historical exposure. 672 native custom terminal invocations, all from the four as/at sites. The three marker sites reached 79/454/139 terminals, headless player site zero. Score-before-as/at: 601 score invocations, 120 outputs, 120 selector calls, zero selector outputs. Two as-score sites: three entries, zero selected sources. Maximum observed modifier result cardinality one; 1,895 entries invoke no terminal. Complete restoration parity and both production/fixture JAR checks passed. These counts are not child completions or CPU shares. Empty/singleton fast path prioritized; general fanout still a correctness requirement. Raw success artifact 15227678223 and both failed setup attempts submitted for durable archive. Operator authorized consolidation: three permanent branches; preserve original history with verified tags before deleting only four redundant refs at exact expected SHAs.
+
+### Evidence and refs consolidated
+
+[Archive 078b338](https://github.com/qwasdf-1/mcfunction-compiler/tree/078b33838362c3b23eee8cfefc0bb5a2adb67983/evidence/compiler) contains 75/75 original ZIPs, 7,071,368 bytes, no missing, with CRC and digest checks. [Consolidation run 46067254894](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/46067254894) verified remote tags research/ir046-accepted (c03903e8), research/ir047-accepted (9dcd9fc6) and research/ir048-first-census (7870ca17) before deleting four exact redundant branch refs. Main, work/compiler-ir048 and archive/compiler-evidence-ir047 remain. Historical references to checkpoint branches now refer to the corresponding tags/immutable SHA.
+
+## Phase B initial implementation
+
+Separate H boundary and `FC_TYPED_IR_CONTEXT_DISPATCH` default-off flag, not in validated profile. Three fixed shape families from census; exact parsed nodes, original ordinary native ExecuteCommand redirect host, native FunctionCommand custom terminal host, exact complete command text. No source parsing into selector objects, no replacement of callbacks. For each non-null forked stage, one debit even on empty input; scalar current source for zero/one, materialize ordered lists only when a stage returns multiple sources. Multi-source stages preserve cumulative exclusive fork limit (>=), per-source native syntax-error handling, original-source limit error and returned ordering; never replay an executed modifier. Invoke native custom terminal directly with shared original ExecutionControl, no terminal debit, no direct cursor. Tracer, nonempty source callback and forkLimit<=1 fall back before effects. All remaining IR043–047 flags and default profile unchanged. Design based on pinned mapped BuildContexts offsets 135–317, 343–464 and Unbound entry path; no native source copied. Initial native correctness campaign must pass before any timing study. Additional dimension, reload, recursion and exact trace coverage to be added before final acceptance; initial matrix is deliberately bounded.

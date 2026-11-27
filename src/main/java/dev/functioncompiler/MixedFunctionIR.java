@@ -48,7 +48,7 @@ final class MixedFunctionIR {
 
     private MixedFunctionIR() {}
 
-    sealed interface Node permits TypedRegion, OpaqueBarrier, TypedCallBoundary, TypedGuardBoundary, TypedStoreBoundary {
+    sealed interface Node permits TypedRegion, OpaqueBarrier, TypedCallBoundary, TypedGuardBoundary, TypedStoreBoundary, TypedContextCallBoundary {
         int firstSourceIndex();
         int sourceCount();
         UnboundEntryAction<CommandSourceStack> action();
@@ -96,6 +96,16 @@ final class MixedFunctionIR {
     /** IR045: native score-store redirect and deferred ordinary terminal. */
     record TypedStoreBoundary(int firstSourceIndex, TypedNativeStore.Plan plan) implements Node {
         TypedStoreBoundary {
+            if (firstSourceIndex < 0) throw new IllegalArgumentException("negative source index");
+            java.util.Objects.requireNonNull(plan);
+        }
+        @Override public int sourceCount() { return 1; }
+        @Override public UnboundEntryAction<CommandSourceStack> action() { return plan; }
+    }
+
+    /** IR048: one source-transforming native custom-terminal boundary. */
+    record TypedContextCallBoundary(int firstSourceIndex, TypedContextDispatch.Plan plan) implements Node {
+        TypedContextCallBoundary {
             if (firstSourceIndex < 0) throw new IllegalArgumentException("negative source index");
             java.util.Objects.requireNonNull(plan);
         }
@@ -162,6 +172,10 @@ final class MixedFunctionIR {
             return (int) nodes.stream().filter(TypedCallBoundary.class::isInstance).count();
         }
 
+        int typedContextCallCount() {
+            return (int) nodes.stream().filter(TypedContextCallBoundary.class::isInstance).count();
+        }
+
         int typedStoreCount() {
             return (int) nodes.stream().filter(TypedStoreBoundary.class::isInstance).count();
         }
@@ -226,6 +240,7 @@ final class MixedFunctionIR {
                         : node instanceof TypedCallBoundary ? "D"
                         : node instanceof TypedGuardBoundary ? "G"
                         : node instanceof TypedStoreBoundary ? "T"
+                        : node instanceof TypedContextCallBoundary ? "H"
 
                         : node instanceof OpaqueBarrier b
                             && b.kind() == BarrierKind.TYPED_SINGLETON ? "S"
@@ -238,6 +253,7 @@ final class MixedFunctionIR {
                     + " typed_lines=" + typedSourceCount()
                     + " typed_regions=" + typedRegionCount()
                     + " typed_calls=" + typedCallCount()
+                    + " typed_context_calls=" + typedContextCallCount()
                     + " typed_guards=" + typedGuardCount()
                     + " typed_stores=" + typedStoreCount()
                     + " opaque_barriers=" + opaqueCount()
@@ -262,6 +278,12 @@ final class MixedFunctionIR {
             if (call != null) {
                 flush(nodes, pending, first, original.id());
                 nodes.add(new TypedCallBoundary(index, call, call));
+                continue;
+            }
+            TypedContextDispatch.Plan contextCall = TypedContextDispatch.lower(entry, original.id());
+            if (contextCall != null) {
+                flush(nodes, pending, first, original.id());
+                nodes.add(new TypedContextCallBoundary(index, contextCall));
                 continue;
             }
             TypedConditionalTerminal.Plan guard = TypedConditionalTerminal.lower(entry, original.id());
