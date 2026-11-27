@@ -7,9 +7,6 @@ on:
         type: choice
         options: [hosted, dedicated]
         default: hosted
-  push:
-    branches: [work/compiler-integration]
-    paths: ['.github/workflows/integration-001-noise.yml']
 permissions:
   contents: read
 concurrency:
