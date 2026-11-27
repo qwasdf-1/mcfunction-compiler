@@ -813,6 +813,54 @@
       "sha256": "5187cf7006ea4f04b66e1dba36d18d5136bebaf0e54125480d883d17b4b5c7ff",
       "path": "evidence/compiler/15168198687-integration-001-046.zip",
       "bytes": 143605
+    },
+    {
+      "run": 45934828312,
+      "id": 15171092457,
+      "name": "integration-noise-controlled-absolute_mixed",
+      "size": 163060,
+      "digest": "sha256:5523c1fa8ca11ef8d789326d10a6bb44bfd2942b218bc48d34c165106588685c",
+      "expired": false,
+      "status": "archived",
+      "sha256": "5523c1fa8ca11ef8d789326d10a6bb44bfd2942b218bc48d34c165106588685c",
+      "path": "evidence/compiler/15171092457-integration-noise-controlled-absolute_mixed.zip",
+      "bytes": 163060
+    },
+    {
+      "run": 45934828312,
+      "id": 15170492057,
+      "name": "integration-noise-controlled-default_off",
+      "size": 148755,
+      "digest": "sha256:52aea1568ef98a6d278201178bef6d64565c9c939392d96e5b48fb4ccc974e11",
+      "expired": false,
+      "status": "archived",
+      "sha256": "52aea1568ef98a6d278201178bef6d64565c9c939392d96e5b48fb4ccc974e11",
+      "path": "evidence/compiler/15170492057-integration-noise-controlled-default_off.zip",
+      "bytes": 148755
+    },
+    {
+      "run": 45934828312,
+      "id": 15170393822,
+      "name": "integration-noise-controlled-absolute_pure",
+      "size": 161880,
+      "digest": "sha256:75dfc3c40a10dc2a9f2589e2409b992d8c728db9761f113b105265c3237657f8",
+      "expired": false,
+      "status": "archived",
+      "sha256": "75dfc3c40a10dc2a9f2589e2409b992d8c728db9761f113b105265c3237657f8",
+      "path": "evidence/compiler/15170393822-integration-noise-controlled-absolute_pure.zip",
+      "bytes": 161880
+    },
+    {
+      "run": 45934828312,
+      "id": 15170079887,
+      "name": "integration-noise-controlled-047_cpu",
+      "size": 145915,
+      "digest": "sha256:fcdeb6b2877071603f03077989716de55094ce4f168e537bf42a00ebe16f416e",
+      "expired": false,
+      "status": "archived",
+      "sha256": "fcdeb6b2877071603f03077989716de55094ce4f168e537bf42a00ebe16f416e",
+      "path": "evidence/compiler/15170079887-integration-noise-controlled-047_cpu.zip",
+      "bytes": 145915
     }
   ]
 }
