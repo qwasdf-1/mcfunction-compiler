@@ -12,7 +12,7 @@
     ]
   },
   "mixins": [
-    "function_compiler.mixins.json"
+    "function_compiler.mixins.json"${fixtureMixins}
   ],
   "depends": {
     "fabricloader": ">=0.20.1",

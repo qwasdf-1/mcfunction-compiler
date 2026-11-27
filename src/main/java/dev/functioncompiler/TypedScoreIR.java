@@ -47,9 +47,6 @@ public final class TypedScoreIR {
             && NAMESPACE != null && !NAMESPACE.isBlank();
     private static final boolean DIAGNOSTICS =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIAGNOSTICS"));
-    // IR-036: opt-in, UNCALIBRATED structural selection only.
-    // With no policy flag the original compiler backend decisions are kept.
-    private static final boolean COST_SELECT = false; // unqualified IR036 policy
     // IR-018: dynamic @s scoreboard holder lowering is research-only and
     // independently gated from IR-017 ranged-condition syntax.
     private static final boolean SELF_HOLDER =
@@ -58,10 +55,6 @@ public final class TypedScoreIR {
     static String slotName(ScoreHolder holder, boolean isSelf) {
         return isSelf ? "@s" : holder.getScoreboardName();
     }
-    // Requires matching server-scoreboard revision hooks; strict opt-in.
-    private static final boolean SCORE_CACHE = false; // rejected IR010 cache
-    // Optional research-only same-JVM A/B control. Never available by default.
-    private static volatile boolean scoreCacheRuntime = SCORE_CACHE;
     // IR-011: lower the exact one-element scoreboard feedback case without
     // allocating a general CommandResponseTracker. No production default.
     private static final boolean SINGLETON_FEEDBACK =
@@ -77,9 +70,6 @@ public final class TypedScoreIR {
     private static final LongAdder CONDITIONAL_STEPS = new LongAdder();
     private static final LongAdder GUARDED_BINARY_STEPS = new LongAdder();
     private static final LongAdder CONDITIONAL_SKIPS = new LongAdder();
-    private static final LongAdder CACHE_HITS = new LongAdder();
-    private static final LongAdder CACHE_MISSES = new LongAdder();
-    private static final LongAdder CACHE_INVALIDATIONS = new LongAdder();
     private static final LongAdder SINGLETON_FEEDBACK_STEPS = new LongAdder();
     private static final LongAdder TRACKER_FEEDBACK_STEPS = new LongAdder();
     private static final LongAdder REENTRANT_YIELDS = new LongAdder();
@@ -98,9 +88,6 @@ public final class TypedScoreIR {
     private static final LongAdder DATAFLOW_READS_REUSED = new LongAdder();
     private static final LongAdder NATIVE_ARITHMETIC_STEPS = new LongAdder();
     private static final LongAdder NATIVE_ARITHMETIC_ERRORS = new LongAdder();
-    private static final LongAdder COST_NATIVE = new LongAdder();
-    private static final LongAdder COST_INTERPRETED = new LongAdder();
-    private static final LongAdder COST_BYTECODE = new LongAdder();
 
     private TypedScoreIR() {}
 
@@ -348,11 +335,7 @@ public final class TypedScoreIR {
             PlainTextFunction<CommandSourceStack> original
     ) {
         MixedFunctionIR.Program mixed = MixedFunctionIR.lower(original);
-        // IR025 can emit an actual compiled fork with zero neighboring typed
-        // scoreboard regions. Never silently discard it just because the
-        // original IR016 compiler first admitted only typed-score regions.
-        // Plan-only/native-only forks are not sufficient to replace a function.
-        if (mixed.typedRegionCount() == 0 && mixed.compiledForkCount() == 0
+        if (mixed.typedRegionCount() == 0
                 && mixed.typedCallCount() == 0 && mixed.typedGuardCount() == 0 && mixed.typedStoreCount() == 0) return original;
         List<UnboundEntryAction<CommandSourceStack>> entries = mixed.executableEntries();
         List<UnboundEntryAction<CommandSourceStack>> directChunks =
@@ -375,27 +358,9 @@ public final class TypedScoreIR {
 
     record EmittedRegion(
             UnboundEntryAction<CommandSourceStack> action,
-            boolean bytecode,
-            boolean vanilla
+            boolean bytecode
     ) {
-        EmittedRegion {
-            // The mixed IR layer must expand vanilla to ORIGINAL per-command
-            // EntryActions. Never smuggle a null action into the queue.
-            if (vanilla ? (action != null || bytecode) : action == null) {
-                throw new IllegalArgumentException("invalid IR-036 emission choice");
-            }
-        }
-    }
-
-    private static long assumedCalls() {
-        String raw = System.getenv("FC_TYPED_IR_EXPECTED_CALLS");
-        if (raw == null || raw.isBlank()) return 16L;
-        try {
-            long calls = Long.parseLong(raw);
-            return calls >= 1 && calls <= 1_000_000 ? calls : 1L;
-        } catch (NumberFormatException invalid) {
-            return 1L; // invalid policy input fails toward vanilla
-        }
+        EmittedRegion { Objects.requireNonNull(action); }
     }
 
     /**
@@ -409,36 +374,15 @@ public final class TypedScoreIR {
         // retains each original Instruction and effect barrier in exact order.
         // Interpreter and ASM consume the SAME immutable opcode/argument plan.
         TypedIROptimizer.Plan optimized = TypedIROptimizer.optimize(program);
-        IR036CostModel.Backend backend = "bytecode".equals(MODE)
-                ? IR036CostModel.Backend.BYTECODE
-                : IR036CostModel.Backend.INTERPRETED;
-        // Research-only exact interpreter twin; ordinary backend selection unchanged.
-        if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR042_BENCHMARK"))
+        boolean emitBytecode = "bytecode".equals(MODE);
+        if (CompilerFixtures.ENABLED && Boolean.parseBoolean(System.getenv("FC_TYPED_IR042_BENCHMARK"))
                 && functionId.getNamespace().equals("fc_ir")
-                && functionId.getPath().equals("ir017_ir042_interp"))
-            backend = IR036CostModel.Backend.INTERPRETED;
-        if (COST_SELECT) {
-            // Always analyze the original effects and per-command boundaries
-            // before selecting an execution backend. No value propagation,
-            // command elimination or reordering is authorized by this model.
-            TypedIREffectAnalysis.Analysis effects = TypedIREffectAnalysis.analyze(optimized);
-            IR036CostModel.Decision decision = IR036CostModel.choose(
-                    effects.features(), assumedCalls(), "bytecode".equals(MODE));
-            backend = decision.backend();
-            if (backend == IR036CostModel.Backend.VANILLA) {
-                if (DIAGNOSTICS) COST_NATIVE.increment();
-                return new EmittedRegion(null, false, true);
-            }
-            if (DIAGNOSTICS) {
-                if (backend == IR036CostModel.Backend.BYTECODE) COST_BYTECODE.increment();
-                else COST_INTERPRETED.increment();
-            }
-        }
+                && functionId.getPath().equals("ir017_ir042_interp")) emitBytecode = false;
         UnboundEntryAction<CommandSourceStack> action = new Interpreted(program, optimized);
         boolean bytecode = false;
-        if (backend == IR036CostModel.Backend.BYTECODE) {
+        if (emitBytecode) {
             try {
-                if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR_FORCE_FAILURE"))) {
+                if (CompilerFixtures.ENABLED && Boolean.parseBoolean(System.getenv("FC_TYPED_IR_FORCE_FAILURE"))) {
                     throw new IllegalStateException("IR injected compilation failure");
                 }
                 action = TypedScoreIRBytecode.emit(optimized);
@@ -450,7 +394,7 @@ public final class TypedScoreIR {
             }
         }
         if (DIAGNOSTICS) COMPILED_REGIONS.increment();
-        return new EmittedRegion(action, bytecode, false);
+        return new EmittedRegion(action, bytecode);
     }
 
     static boolean retainsOriginal(
@@ -511,19 +455,6 @@ public final class TypedScoreIR {
         if (DIAGNOSTICS) FALLBACK_STEPS.increment();
     }
 
-    static boolean scoreCacheCompiled() { return SCORE_CACHE; }
-    static boolean scoreCacheEnabled() { return SCORE_CACHE && scoreCacheRuntime; }
-
-    static int toggleCache(CommandSourceStack source, boolean enabled) {
-        if (!SCORE_CACHE || !Boolean.parseBoolean(
-                System.getenv("FC_TYPED_IR_SCORE_CACHE_TOGGLE"))) {
-            return 0;
-        }
-        scoreCacheRuntime = enabled;
-        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
-                "IR010 cache enabled=" + enabled), false);
-        return 1;
-    }
     static boolean singletonFeedbackEnabled() {
         return SINGLETON_FEEDBACK && singletonFeedbackRuntime;
     }
@@ -596,12 +527,6 @@ public final class TypedScoreIR {
         }
     }
 
-    static void cacheHit() { if (DIAGNOSTICS) CACHE_HITS.increment(); }
-    static void cacheMiss() { if (DIAGNOSTICS) CACHE_MISSES.increment(); }
-    static void cacheInvalidated() {
-        if (DIAGNOSTICS) CACHE_INVALIDATIONS.increment();
-    }
-
     static int report(CommandSourceStack source) {
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
                 diagnosticStatus()), false);
@@ -620,10 +545,10 @@ public final class TypedScoreIR {
                 + " conditional_steps=" + CONDITIONAL_STEPS.sum()
                 + " guarded_binary_steps=" + GUARDED_BINARY_STEPS.sum()
                 + " conditional_skips=" + CONDITIONAL_SKIPS.sum()
-                + " score_cache=" + scoreCacheEnabled()
-                + " cache_hits=" + CACHE_HITS.sum()
-                + " cache_misses=" + CACHE_MISSES.sum()
-                + " cache_invalidations=" + CACHE_INVALIDATIONS.sum()
+
+
+
+
                 + " singleton_feedback=" + singletonFeedbackEnabled()
                 + " singleton_feedback_steps=" + SINGLETON_FEEDBACK_STEPS.sum()
                 + " tracker_feedback_steps=" + TRACKER_FEEDBACK_STEPS.sum()
@@ -644,11 +569,11 @@ public final class TypedScoreIR {
                 + " ir040_operand_reads_reused=" + DATAFLOW_READS_REUSED.sum()
                 + " ir040_arithmetic_steps=" + NATIVE_ARITHMETIC_STEPS.sum()
                 + " ir040_arithmetic_errors=" + NATIVE_ARITHMETIC_ERRORS.sum()
-                + " ir036_cost_policy=" + COST_SELECT
-                + " ir036_cost_native=" + COST_NATIVE.sum()
-                + " ir036_cost_interpreted=" + COST_INTERPRETED.sum()
-                + " ir036_cost_bytecode=" + COST_BYTECODE.sum()
-                + ReentrantQueueProbe.diagnostics()
+
+
+
+
+                + CompilerFixtures.diagnostics()
                 + TypedScoreIRDirectScheduler.diagnostics()
                 + MixedFunctionIR.diagnostics()
                 + TypedFunctionDispatch.diagnostics()
@@ -690,8 +615,7 @@ public final class TypedScoreIR {
                 state.applyNativeArithmetic();
                 return TypedScoreIRRuntime.DIRECT;
             }
-            int operand = SCORE_CACHE
-                    ? state.sourceOperand() : state.sourceAccess().get();
+            int operand = state.sourceAccess().get();
             updated = switch (binary.operation()) {
                 case ASSIGN -> { score.set(operand); yield operand; }
                 case ADD -> score.add(operand);
@@ -752,8 +676,7 @@ public final class TypedScoreIR {
                 return TypedScoreIRRuntime.DIRECT;
             }
             case ASSIGN_SCORE, ADD_SCORE, SUBTRACT_SCORE, MULTIPLY_SCORE, MIN_SCORE, MAX_SCORE -> {
-                int operand = SCORE_CACHE
-                        ? state.sourceOperand() : state.sourceAccess().get();
+                int operand = state.sourceAccess().get();
                 updated = switch (step.opcode()) {
                     case ASSIGN_SCORE -> {
                         score.set(operand);

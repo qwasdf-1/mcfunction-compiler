@@ -12,7 +12,7 @@ public final class IntegrationMixinPlugin implements IMixinConfigPlugin {
         return Boolean.parseBoolean(System.getenv(name));
     }
     @Override public boolean shouldApplyMixin(String target, String mixin) {
-        if (mixin.endsWith(".ScoreValueRevisionMixin"))
+        if (mixin.endsWith(".ScoreLifecycleFixtureMixin"))
             return flag("FC_TYPED_IR046_TEST_OBSERVER") || flag("FC_TYPED_IR047_TEST_OBSERVER");
         if (mixin.endsWith(".ScoreboardQueueInjectionMixin"))
             return flag("FC_TYPED_IR_REENTRANT_TEST_OBSERVER");

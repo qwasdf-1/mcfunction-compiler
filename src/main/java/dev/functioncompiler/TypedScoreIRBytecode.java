@@ -214,15 +214,9 @@ final class TypedScoreIRBytecode implements Opcodes {
 
     private static void emitBinary(MethodVisitor method, TypedIROptimizer.Step step) {
         method.visitVarInsn(ALOAD, 5);
-        if (TypedScoreIR.scoreCacheCompiled()) {
-            // Preserve runtime-guarded exact source-score revisions, if opted in.
-            method.visitMethodInsn(INVOKEVIRTUAL, STATE, "sourceOperand",
-                    "()I", false);
-        } else {
-            method.visitMethodInsn(INVOKEVIRTUAL, STATE, "sourceAccess",
-                    "()L" + SCORE + ";", false);
-            method.visitMethodInsn(INVOKEINTERFACE, SCORE, "get", "()I", true);
-        }
+        method.visitMethodInsn(INVOKEVIRTUAL, STATE, "sourceAccess",
+                "()L" + SCORE + ";", false);
+        method.visitMethodInsn(INVOKEINTERFACE, SCORE, "get", "()I", true);
         method.visitVarInsn(ISTORE, 8);
 
         target(method);

@@ -12,6 +12,15 @@ if (project.hasProperty('fcEnableConcurrentReloadProbe')
     sourceSets.main.java.srcDir 'tests/runtime/concurrent-reload-probe/java'
 }
 
+// Disposable fixture code is compiled only for explicit verification builds.
+def integrationFixtures = providers.gradleProperty("fcIntegrationFixtures").map { it.toBoolean() }.getOrElse(false)
+if (integrationFixtures) {
+    sourceSets.main.java.srcDir 'tests/runtime/compiler-fixtures/java'
+    sourceSets.main.resources.srcDir 'tests/runtime/compiler-fixtures/resources'
+} else {
+    sourceSets.main.java.srcDir 'src/production/java'
+}
+
 version = project.mod_version
 group = project.maven_group
 
@@ -51,8 +60,9 @@ dependencies {
 
 processResources {
     inputs.property "version", project.version
+    inputs.property "integrationFixtures", integrationFixtures
     filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        expand "version": project.version, "fixtureMixins": integrationFixtures ? ', "function_compiler.fixtures.mixins.json"' : ''
     }
 }
 

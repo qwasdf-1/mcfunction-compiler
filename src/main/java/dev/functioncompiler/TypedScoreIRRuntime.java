@@ -16,8 +16,6 @@ import net.minecraft.world.scores.ReadOnlyScoreInfo;
 import net.minecraft.world.scores.ScoreAccess;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.ScoreHolder;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Shared IR interpreter/ASM semantic boundary. All direct instructions still
@@ -89,12 +87,9 @@ final class TypedScoreIRRuntime {
         private Objective objective;
         private ScoreAccess access;
         private ScoreAccess sourceAccess;
-        private Objective sourceObjective;
         // IR-018: no entity-derived holder can be cached at compilation time.
         // Resolve @s against the actual execution source for each instruction.
         private ScoreHolder targetResolved;
-        private ScoreHolder sourceResolved;
-        private Map<ScoreValueRevisionAccess.Key, CachedSourceValue> cachedSources;
         // Per-invocation scratch; IR047 may retain successful preflight
         // references solely across an authorized pure failed-guard boundary.
         private Objective[] compoundObjectives;
@@ -106,10 +101,6 @@ final class TypedScoreIRRuntime {
         private final boolean reusePreflight;
         private GuardRunReuse.Shape priorFailedRun, activeGuardRun;
         private int inheritedGuardBits;
-
-        // Immutable snapshot; only valid while the exact objective identity
-        // and the watched slot's scoreboard mutation revision still match.
-        private record CachedSourceValue(Objective objective, long revision, int value) {}
 
         State(
                 CommandSourceStack source,
@@ -304,8 +295,6 @@ final class TypedScoreIRRuntime {
             // across synchronous scoreboard callbacks or outside observers.
             access = scoreboard.getOrCreatePlayerScore(target, selected);
             if (hasBinary) {
-                sourceObjective = operandObjective;
-                sourceResolved = operandHolder;
                 sourceAccess = scoreboard.getOrCreatePlayerScore(operandHolder, operandObjective);
             }
             TypedScoreIR.step(instruction);
@@ -519,9 +508,8 @@ final class TypedScoreIRRuntime {
             targetResolved = compoundHolders[plan.targetIndex()];
             access = scoreboard.getOrCreatePlayerScore(targetResolved, objective);
             if (plan.sourceIndex() >= 0) {
-                sourceObjective = compoundObjective(plan, plan.sourceIndex());
-                sourceResolved = compoundHolders[plan.sourceIndex()];
-                sourceAccess = scoreboard.getOrCreatePlayerScore(sourceResolved, sourceObjective);
+                sourceAccess = scoreboard.getOrCreatePlayerScore(
+                        compoundHolders[plan.sourceIndex()], compoundObjective(plan, plan.sourceIndex()));
             }
             TypedScoreIR.step(current);
             return true;
@@ -543,48 +531,6 @@ final class TypedScoreIRRuntime {
 
         ScoreAccess access() { return access; }
         ScoreAccess sourceAccess() { return sourceAccess; }
-
-        /**
-         * IR-010: optionally reuse a source read from an earlier instruction
-         * in THIS compiled region, but only while the server scoreboard's
-         * watched revision and exact Objective instance still match. An
-         * intervening ScoreAccess.set/add or scoreboard reset invalidates
-         * the snapshot even if triggered by a synchronous result callback.
-         *
-         * We deliberately still call getOrCreatePlayerScore in begin() for
-         * every instruction to preserve the vanilla scoreboard row-creation
-         * and command feedback behavior. This is only a pure value read
-         * optimization; never defer or coalesce writes.
-         */
-        int sourceOperand() {
-            // IR-037: binary shape and operand name were validated and
-            // predecoded at compilation; the revision and score remain live.
-            TypedIRPreparedSteps.Prepared prepared = currentPrepared;
-            if (!TypedScoreIR.scoreCacheEnabled()
-                    || prepared.binary() == null
-                    || !(scoreboard instanceof ScoreValueRevisionAccess versions)) {
-                return sourceAccess.get();
-            }
-            var key = new ScoreValueRevisionAccess.Key(
-                    sourceResolved.getScoreboardName(),
-                    prepared.operandObjective());
-            long revision = versions.functionCompiler$watch(key);
-            if (revision < 0) return sourceAccess.get();  // fail closed
-            if (cachedSources == null) cachedSources = new HashMap<>();
-            CachedSourceValue entry = cachedSources.get(key);
-            if (entry != null && entry.revision() == revision
-                    && entry.objective() == sourceObjective) {
-                TypedScoreIR.cacheHit();
-                return entry.value();
-            }
-            if (entry != null) TypedScoreIR.cacheInvalidated();
-            // The exact 26.3 ScoreAccess.get implementation is a pure read.
-            // ScoreAccess is obtained afresh each instruction by begin().
-            int fresh = sourceAccess.get();
-            cachedSources.put(key, new CachedSourceValue(sourceObjective, revision, fresh));
-            TypedScoreIR.cacheMiss();
-            return fresh;
-        }
 
         private void traceReturn(TypedScoreIR.Instruction instruction, int result) {
             TraceCallbacks tracer = context.tracer();

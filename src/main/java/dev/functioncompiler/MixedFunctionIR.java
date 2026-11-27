@@ -40,7 +40,6 @@ final class MixedFunctionIR {
     private static final LongAdder OPAQUE_NODES = new LongAdder();
     private static final LongAdder SINGLETON_NODES = new LongAdder();
     private static final LongAdder DISPATCH_BARRIERS = new LongAdder();
-    private static final LongAdder COST_VANILLA_ENTRIES = new LongAdder();
     // IR-018 audit classification only. Conditional function calls retain
     // their original EntryAction; no child-frame semantics are synthesized.
     private static final java.util.regex.Pattern DISPATCH_SOURCE =
@@ -49,7 +48,7 @@ final class MixedFunctionIR {
 
     private MixedFunctionIR() {}
 
-    sealed interface Node permits TypedRegion, OpaqueBarrier, NativeForkPlanBarrier, TypedCallBoundary, TypedGuardBoundary, TypedStoreBoundary {
+    sealed interface Node permits TypedRegion, OpaqueBarrier, TypedCallBoundary, TypedGuardBoundary, TypedStoreBoundary {
         int firstSourceIndex();
         int sourceCount();
         UnboundEntryAction<CommandSourceStack> action();
@@ -105,8 +104,7 @@ final class MixedFunctionIR {
     }
 
     enum BarrierKind {
-        UNSUPPORTED_OR_CONTROL, FUNCTION_DISPATCH, TYPED_SINGLETON,
-        COST_MODEL_VANILLA
+        UNSUPPORTED_OR_CONTROL, FUNCTION_DISPATCH, TYPED_SINGLETON
     }
 
     record OpaqueBarrier(
@@ -122,32 +120,6 @@ final class MixedFunctionIR {
 
         @Override
         public int sourceCount() { return 1; }
-    }
-
-    /**
-     * IR-024 recognized post-Brigadier fork, but NEVER a selector replacement.
-     * An original native queue action remains in the exact same source slot.
-     * The existing typed bytecode direct scheduler declines this node.
-     */
-    record NativeForkPlanBarrier(
-            int firstSourceIndex,
-            CompilerForkPlan024.Plan plan,
-            UnboundEntryAction<CommandSourceStack> action,
-            boolean bytecode
-    ) implements Node {
-        NativeForkPlanBarrier(
-                int firstSourceIndex,
-                CompilerForkPlan024.Plan plan,
-                UnboundEntryAction<CommandSourceStack> original
-        ) {
-            this(firstSourceIndex, plan, original, false);
-        }
-        NativeForkPlanBarrier {
-            if (firstSourceIndex < 0) throw new IllegalArgumentException("negative source index");
-            java.util.Objects.requireNonNull(plan);
-            java.util.Objects.requireNonNull(action);
-        }
-        @Override public int sourceCount() { return 1; }
     }
 
     record Program(Identifier id, int sourceCount, List<Node> nodes) {
@@ -208,10 +180,7 @@ final class MixedFunctionIR {
         }
 
         int opaqueCount() {
-            // Recognized native fork plans are still exact opaque queue actions.
-            // Do not undercount them or accidentally imply a direct-only program.
-            return (int) nodes.stream().filter(n -> n instanceof OpaqueBarrier
-                    || n instanceof NativeForkPlanBarrier).count();
+            return (int) nodes.stream().filter(OpaqueBarrier.class::isInstance).count();
         }
 
         int singletonCount() {
@@ -222,20 +191,6 @@ final class MixedFunctionIR {
         int dispatchBarrierCount() {
             return (int) nodes.stream().filter(n -> n instanceof OpaqueBarrier b
                     && b.kind() == BarrierKind.FUNCTION_DISPATCH).count();
-        }
-
-        int costVanillaCount() {
-            return (int) nodes.stream().filter(n -> n instanceof OpaqueBarrier b
-                    && b.kind() == BarrierKind.COST_MODEL_VANILLA).count();
-        }
-
-        int nativeForkPlanCount() {
-            return (int) nodes.stream().filter(NativeForkPlanBarrier.class::isInstance).count();
-        }
-
-        int compiledForkCount() {
-            return (int) nodes.stream().filter(n -> n instanceof NativeForkPlanBarrier b
-                    && b.bytecode()).count();
         }
 
         List<UnboundEntryAction<CommandSourceStack>> executableEntries() {
@@ -271,8 +226,7 @@ final class MixedFunctionIR {
                         : node instanceof TypedCallBoundary ? "D"
                         : node instanceof TypedGuardBoundary ? "G"
                         : node instanceof TypedStoreBoundary ? "T"
-                        : node instanceof NativeForkPlanBarrier f
-                            ? (f.bytecode() ? "C" : "N")
+
                         : node instanceof OpaqueBarrier b
                             && b.kind() == BarrierKind.TYPED_SINGLETON ? "S"
                         : node instanceof OpaqueBarrier b
@@ -289,9 +243,9 @@ final class MixedFunctionIR {
                     + " opaque_barriers=" + opaqueCount()
                     + " singleton_barriers=" + singletonCount()
                     + " dispatch_barriers=" + dispatchBarrierCount()
-                    + " cost_vanilla_entries=" + costVanillaCount()
-                    + " native_fork_plans=" + nativeForkPlanCount()
-                    + " compiled_forks=" + compiledForkCount()
+
+
+
                     + " direct_candidate=" + (directBytecodeChunks() != null)
                     + " layout=" + layout;
         }
@@ -326,27 +280,9 @@ final class MixedFunctionIR {
             if (instruction == null) instruction = TypedScoreIR.lower(entry);
             if (instruction == null) {
                 flush(nodes, pending, first, original.id());
-                CompilerForkPlan024.Plan plan = CompilerForkPlan024.classify(entry);
-                if (plan != null) {
-                    // Compiler admission, NOT code generation: original
-                    // BuildContexts.Unbound still executes all native stages.
-                    if (CompilerForkExecutor025.enabled()) {
-                        UnboundEntryAction<CommandSourceStack> generated =
-                                CompilerForkExecutor025.compile(plan, entry);
-                        if (generated != entry) {
-                            nodes.add(new NativeForkPlanBarrier(
-                                    index, plan, generated, true));
-                        } else {
-                            nodes.add(new NativeForkPlanBarrier(index, plan, entry));
-                        }
-                    } else {
-                        nodes.add(new NativeForkPlanBarrier(index, plan, entry));
-                    }
-                } else {
-                    nodes.add(new OpaqueBarrier(index, entry,
-                            isFunctionDispatch(entry) ? BarrierKind.FUNCTION_DISPATCH
-                                    : BarrierKind.UNSUPPORTED_OR_CONTROL));
-                }
+                nodes.add(new OpaqueBarrier(index, entry,
+                        isFunctionDispatch(entry) ? BarrierKind.FUNCTION_DISPATCH
+                                : BarrierKind.UNSUPPORTED_OR_CONTROL));
             } else {
                 if (pending.isEmpty()) first = index;
                 if (pending.size() == TypedScoreIR.MAX_REGION_LENGTH) {
@@ -366,7 +302,6 @@ final class MixedFunctionIR {
             OPAQUE_NODES.add(program.opaqueCount());
             SINGLETON_NODES.add(program.singletonCount());
             DISPATCH_BARRIERS.add(program.dispatchBarrierCount());
-            COST_VANILLA_ENTRIES.add(program.costVanillaCount());
             if (LEDGER.size() < MAX_LEDGER_FUNCTIONS) {
                 LEDGER.put(program.id().toString(), program.summary());
             }
@@ -402,18 +337,7 @@ final class MixedFunctionIR {
         } else {
             TypedScoreIR.Program typed = new TypedScoreIR.Program(pending);
             TypedScoreIR.EmittedRegion emitted = TypedScoreIR.emitRegion(typed, functionId);
-            if (emitted.vanilla()) {
-                // IR-036: NEVER collapse a cost-rejected region into one
-                // synthetic action. Preserve every original Minecraft queue
-                // entry, source position, command quota and reentrant boundary.
-                for (int offset = 0; offset < pending.size(); offset++) {
-                    nodes.add(new OpaqueBarrier(first + offset,
-                            pending.get(offset).vanilla().original(),
-                            BarrierKind.COST_MODEL_VANILLA));
-                }
-            } else {
-                nodes.add(new TypedRegion(first, typed, emitted.action(), emitted.bytecode()));
-            }
+            nodes.add(new TypedRegion(first, typed, emitted.action(), emitted.bytecode()));
         }
         pending.clear();
     }
@@ -425,8 +349,7 @@ final class MixedFunctionIR {
                 + " ir016_typed_lines=" + TYPED_LINES.sum()
                 + " ir016_opaque_barriers=" + OPAQUE_NODES.sum()
                 + " ir016_singletons=" + SINGLETON_NODES.sum()
-                + " ir018_dispatch_barriers=" + DISPATCH_BARRIERS.sum()
-                + " ir036_cost_vanilla_entries=" + COST_VANILLA_ENTRIES.sum();
+                + " ir018_dispatch_barriers=" + DISPATCH_BARRIERS.sum();
     }
 
     static int report(CommandSourceStack source, String id) {
