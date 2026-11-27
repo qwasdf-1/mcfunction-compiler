@@ -1,0 +1,74 @@
+name: Preserve IR048 census and consolidate research refs
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/compiler-ir048]
+    paths: ['.github/workflows/ir048-preserve-and-consolidate.yml']
+permissions:
+  contents: write
+  actions: read
+jobs:
+  preserve:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: archive/compiler-evidence-ir047
+          fetch-depth: 0
+      - name: Preserve all raw evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin "${{ github.sha }}"
+          git show "${{ github.sha }}:scripts/archive_compiler_evidence.py" > scripts/archive_compiler_evidence.py
+          git show "${{ github.sha }}:docs/research/compiler-evidence-plan.json" > docs/research/compiler-evidence-plan.json
+          python3 scripts/archive_compiler_evidence.py
+          python3 - <<'PY'
+          import json
+          rows=json.load(open("evidence/compiler/manifest.json"))["artifacts"]
+          assert len(rows)==75 and all(r["status"]=="archived" for r in rows), rows
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f evidence/compiler tests/fixtures/compiler
+          git add scripts/archive_compiler_evidence.py docs/research/compiler-evidence-plan.json
+          git diff --cached --quiet || git commit -m "archive: preserve all IR048 native census attempts"
+          git push origin HEAD:refs/heads/archive/compiler-evidence-ir047
+      - name: Verify and retire redundant branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          declare -A expected=(
+            [checkpoint/ir046-accepted]=c03903e8d285885116a622819a5a333705033611
+            [checkpoint/ir047-accepted]=9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c
+            [checkpoint/ir048-first-census]=7870ca17b0c1a8e1d531d56fa45fcd4245c4cfd9
+            [work/compiler-coverage]=9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c
+          )
+          declare -A tags=(
+            [research/ir046-accepted]=c03903e8d285885116a622819a5a333705033611
+            [research/ir047-accepted]=9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c
+            [research/ir048-first-census]=7870ca17b0c1a8e1d531d56fa45fcd4245c4cfd9
+          )
+          for ref in "${!expected[@]}"; do
+            test "$(git ls-remote --heads origin "refs/heads/$ref" | cut -f1)" = "${expected[$ref]}"
+          done
+          for tag in "${!tags[@]}"; do
+            existing="$(git ls-remote --tags origin "refs/tags/$tag" | cut -f1)"
+            if [ -z "$existing" ]; then
+              git push origin "${tags[$tag]}:refs/tags/$tag"
+            else
+              test "$existing" = "${tags[$tag]}"
+            fi
+            test "$(git ls-remote --tags origin "refs/tags/$tag" | cut -f1)" = "${tags[$tag]}"
+            echo "VERIFIED_TAG $tag ${tags[$tag]}"
+          done
+          # All checkpoints verified on remote BEFORE any deletion.
+          for ref in "${!expected[@]}"; do
+            git push --force-with-lease="refs/heads/$ref:${expected[$ref]}" origin ":refs/heads/$ref"
+          done
+          git ls-remote --heads origin
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compiler-census-durable-manifest
+          path: evidence/compiler/manifest.json
