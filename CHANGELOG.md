@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Integrate the maintained experimental typed compiler (Integration-001, PR #11, merge `fa41621`). Bounded score IR, interpreter/JVM bytecode, native dispatch/guard/store boundaries and guard value/preflight reuse; unsupported entries retain native delegation. Enable at startup with `FC_TYPED_COMPILER_PROFILE=validated` and an explicit `FC_TYPED_IR_NAMESPACE`; off by default. Remove rejected research backends and isolate synthetic commands/observers in fixture-only builds. Native/publisher, packaging/profile, default-off CPU, incremental pure/mixed and absolute pure qualification accepted in their scoped tests. Absolute mixed CPU screen inconclusive after three attempts and explicitly waived for integration; no general performance or compatibility claim. Preserve 72 original evidence ZIPs and historical research; see [Integration-001](docs/integration-001.md). Post-merge CI passed.
+
 - License the project under the Apache License 2.0 (`LICENSE`, the
   `license` field in `fabric.mod.json`, and the license file packed into the
   mod jar), matching Soul Link and Terra Rasa.

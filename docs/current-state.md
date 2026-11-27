@@ -17,7 +17,7 @@ experimentation, not blanket production claims.
 
 ## Typed compiler integration
 
-Integration-001 consolidates the scoped accepted IR043–047 paths with a default-off, explicit-namespace [startup profile](reference/features/typed-compiler.md). Native differential, original publisher, packaging, production-profile, default-off CPU, incremental pure/mixed CPU, and absolute pure CPU gates passed within their tested scopes. The absolute mixed-write CPU screen is inconclusive after three attempts and explicitly waived for integration readiness, not passed. See [final disposition](integration-001.md#final-disposition--2026-11-27) and [compiler research history](research/compiler-history.md). No default enable, arbitrary compatibility, or general datapack speedup is claimed. The older verification history below describes legacy prototypes separately from the typed compiler.
+Integration-001 consolidates the scoped accepted IR043–047 paths with a default-off, explicit-namespace [startup profile](reference/features/typed-compiler.md). Native differential, original publisher, packaging, production-profile, default-off CPU, incremental pure/mixed CPU, and absolute pure CPU gates passed within their tested scopes. The absolute mixed-write CPU screen is inconclusive after three attempts and explicitly waived for integration, not passed. PR #11 merged at `fa41621` and post-merge CI passed. See [final disposition](integration-001.md#final-disposition--2026-11-27) and [compiler research history](research/compiler-history.md). No default enable, arbitrary compatibility, or general datapack speedup is claimed. The older verification history below describes legacy prototypes separately from the typed compiler.
 
 ## Verified
 
