@@ -1,0 +1,79 @@
+name: Integration-001 dedicated absolute mixed qualification
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: compiler-integration-001-noise
+  cancel-in-progress: false
+jobs:
+  retry:
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [absolute_mixed]
+    runs-on: [self-hosted, linux, x64, compiler-benchmark]
+    timeout-minutes: 120
+    env:
+      ORG_GRADLE_PROJECT_fcIntegrationFixtures: ${{ matrix.suite == 'default_off' && 'false' || 'true' }}
+      FC_IR047_WORKLOAD: ${{ matrix.suite == 'absolute_mixed' && 'mixed' || 'pure' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate CPU placement contracts
+        run: |
+          python3 -m unittest discover -s tests -p test_integration_cpu_placement.py -v
+          python3 -m unittest discover -s tests -p test_integration_001.py -v
+          python3 -m py_compile scripts/run_integration_noise_control.py scripts/integration_cpu_placement.py
+      - name: Build final candidate
+        run: |
+          ./gradlew --no-daemon clean build
+          python3 scripts/check_compiler_jar.py ${{ matrix.suite == 'default_off' && 'production' || 'fixture' }}
+      - name: Build pinned twin
+        if: matrix.suite != '047_cpu'
+        run: |
+          ref=9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c
+          if [ "${{ matrix.suite }}" = default_off ]; then ref=976806f9f7d2a72cab51837c5927bd9b176f8bab; fi
+          twin="$RUNNER_TEMP/fc-noise-${{ github.run_id }}-${{ matrix.suite }}"
+          git worktree add --detach "$twin" "$ref"
+          cd "$twin"
+          ./gradlew --no-daemon clean build
+      - name: Execute controlled retry (no runtime changes)
+        run: |
+          suite="${{ matrix.suite }}"
+          if [ "$suite" = 047_cpu ]; then
+            python3 -u scripts/run_integration_noise_control.py "$suite"
+          else
+            python3 -u scripts/run_integration_noise_control.py "$suite" "$RUNNER_TEMP/fc-noise-${{ github.run_id }}-$suite"
+          fi
+      - name: Enforce unchanged qualification thresholds
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          paths={"047_cpu":"COMPILER-IR-047-CPU-PURE","default_off":"INTEGRATION-001-OFF","absolute_pure":"INTEGRATION-001-ABSOLUTE-PURE","absolute_mixed":"INTEGRATION-001-ABSOLUTE-MIXED"}
+          data=json.loads((pathlib.Path("build/reports")/paths["${{ matrix.suite }}"]/"results.json").read_text())
+          passed=data.get("gate_pass",data.get("summary",{}).get("pilot_gate_pass",False))
+          if not passed: raise SystemExit("CPU gate not qualified; preserve complete attempt; do not automatically retry")
+          PY
+      - name: Archive complete evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-noise-controlled-${{ matrix.suite }}
+          path: build/reports/
+          retention-days: 30
+          if-no-files-found: warn
+      - name: Clean isolated twin checkout
+        if: always() && matrix.suite != '047_cpu'
+        run: |
+          twin="$RUNNER_TEMP/fc-noise-${{ github.run_id }}-${{ matrix.suite }}"
+          if [ -d "$twin" ]; then git worktree remove --force "$twin"; fi

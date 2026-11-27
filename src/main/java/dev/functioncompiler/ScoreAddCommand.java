@@ -121,6 +121,61 @@ final class ScoreAddCommand implements FusableCommand {
         this.useLegacyFlagLookups = ProbeConfiguration.legacyScoreAddLookupForFunction(functionId);
     }
 
+    // IR-008 only accepts an exact parsed, unmodified literal fake-holder
+    // command. The regex is a *source-shape guard*, not the command parser:
+    // holder, amount, objective and operation are taken from the existing
+    // vanilla-Brigadier-validated typed ScoreAddCommand instance.
+    private static final java.util.regex.Pattern IR_LITERAL_SOURCE =
+            java.util.regex.Pattern.compile(
+                    "^scoreboard players (add|set|remove) (#[A-Za-z0-9_.+\\-]+|@s) "
+                            + "([A-Za-z0-9_.+\\-]+) (-?\\d+)$");
+
+    // A source-only preflight for IR-only mode. It prevents the wider legacy
+    // parser from rewriting unsupported commands before the typed IR can
+    // decide to retain their original vanilla queue entries. Parsed arguments
+    // are still validated separately in toMutation().
+    static boolean typedIrLiteralSourceShape(String source) {
+        if (source == null) return false;
+        var matcher = IR_LITERAL_SOURCE.matcher(source);
+        return matcher.matches()
+                && (TypedScoreIR.selfHolderEnabled() || !"@s".equals(matcher.group(2)));
+    }
+
+    TypedScoreIR.Mutation toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
+        return toMutation(parsed, parsed.commandInput());
+    }
+
+    /**
+     * Validate the previously parsed terminal command against a literal
+     * source-shaped subset. The explicit source is used by IR-009 for an
+     * execute-if-score command, whose parent source contains its terminal.
+     */
+    TypedScoreIR.Mutation toMutation(
+            FusedRegionPrototype.FusedCommand parsed,
+            String terminalSource
+    ) {
+        if ((isSelfSelector && !TypedScoreIR.selfHolderEnabled())
+                || (!isSelfSelector && (holder == null
+                        || !holder.getScoreboardName().startsWith("#")))
+                || objectiveName == null) {
+            return null;
+        }
+        var matcher = IR_LITERAL_SOURCE.matcher(terminalSource);
+        if (!matcher.matches()
+                || !matcher.group(1).equalsIgnoreCase(operation.name())
+                || !matcher.group(2).equals(isSelfSelector ? "@s" : holder.getScoreboardName())
+                || !matcher.group(3).equals(objectiveName)) {
+            return null;
+        }
+        try {
+            if (Integer.parseInt(matcher.group(4)) != amount) return null;
+        } catch (NumberFormatException invalid) {
+            return null;
+        }
+        return new TypedScoreIR.Mutation(
+                parsed, holder, isSelfSelector, objectiveName, operation, amount);
+    }
+
     @Override
     public int run(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         boolean fixedFlags = usesFixedResearchFlags();

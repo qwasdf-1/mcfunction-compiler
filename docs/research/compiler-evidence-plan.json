@@ -1,0 +1,583 @@
+{
+  "repository": "qwasdf-1/mcfunction-compiler",
+  "checkpoint": "9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c",
+  "scope": "IR037–047 selected native and CPU studies, failed attempts, original IR042 census and first integration matrix; earlier historical artifacts not exhaustively archived; qualified integration rerun 45919681014; complete final consolidation matrix 45930919331, including four unqualified CPU experiments; bounded controlled placement retry 45934828312; authorized additional mixed-only hosted attempt 45942387217",
+  "artifacts": [
+    {
+      "run": 45306171166,
+      "id": 14881122679,
+      "name": "compiler-ir037-prepared-objective-native",
+      "size": 80008,
+      "digest": "sha256:ace6f8f8a6765d1e53fdabd9e99432416dd7b02554b8041046eabeedda460579",
+      "expired": false
+    },
+    {
+      "run": 45448263135,
+      "id": 14948730165,
+      "name": "compiler-ir038-native-extended-score",
+      "size": 77243,
+      "digest": "sha256:d836f9c08ccdf870a682e79828c007dd788146a2017a98ba7bca7e32abf12fad",
+      "expired": false
+    },
+    {
+      "run": 45452975608,
+      "id": 14949975010,
+      "name": "compiler-ir039-native-008",
+      "size": 17610,
+      "digest": "sha256:5449fc4bc4eb03bfd5e6dfade1f3d246de0bdc73900de7f71ab75bacd9e3cb51",
+      "expired": false
+    },
+    {
+      "run": 45452975608,
+      "id": 14949606107,
+      "name": "compiler-ir039-native-039",
+      "size": 19239,
+      "digest": "sha256:c3db6a6bd6e0678796476da3e758847a1fe7708cea5c864e95b93b91e2992ba3",
+      "expired": false
+    },
+    {
+      "run": 45452975608,
+      "id": 14947609303,
+      "name": "compiler-ir039-native-013",
+      "size": 28159,
+      "digest": "sha256:5827454ee658f9413e69f4a58da4d9ef288c7e8455d8ea9e61899fb3fac94d58",
+      "expired": false
+    },
+    {
+      "run": 45459761063,
+      "id": 14951148974,
+      "name": "compiler-ir039-native-039",
+      "size": 59770,
+      "digest": "sha256:28b1daed0cbbdf1e78ef5d38b3ad8b5d9297c6d5c8bb539e6734a9d14bd77de1",
+      "expired": false
+    },
+    {
+      "run": 45459761063,
+      "id": 14951093987,
+      "name": "compiler-ir039-native-013",
+      "size": 28241,
+      "digest": "sha256:a995c63c5d470055886d791045a1b19455ef491f0397ed58680b1b6c53c60116",
+      "expired": false
+    },
+    {
+      "run": 45459761063,
+      "id": 14950444276,
+      "name": "compiler-ir039-native-008",
+      "size": 17677,
+      "digest": "sha256:ce33216438a3bee83ad4c7c88ad463ebffdd56547dce6b6760462472caa0c00d",
+      "expired": false
+    },
+    {
+      "run": 45464991546,
+      "id": 14955660174,
+      "name": "compiler-ir040-native",
+      "size": 86814,
+      "digest": "sha256:f20f4c34e6c88b07c4d8bc4c10b0a4f1932c381e56bd99c8f5731663d587c121",
+      "expired": false
+    },
+    {
+      "run": 45464991546,
+      "id": 14955306595,
+      "name": "compiler-ir040-cpu",
+      "size": 12763,
+      "digest": "sha256:91e34c027e8c32a80bb89186d34001877cc46c0267e3b2d95c9b0c90279f1cfa",
+      "expired": false
+    },
+    {
+      "run": 45516230461,
+      "id": 14978186570,
+      "name": "compiler-ir042-attribution",
+      "size": 85672,
+      "digest": "sha256:3504964d56a68e0f04e61bbe9734ce3a74bd9bba5ad5bfc9e29fd07646e4bf52",
+      "expired": false
+    },
+    {
+      "run": 45516230461,
+      "id": 14978057388,
+      "name": "compiler-ir042-publisher",
+      "size": 31440,
+      "digest": "sha256:63aac8292a51d1607bb5d5a207bf7190c0b8734710ffc57f6643d23fc549bc4b",
+      "expired": false
+    },
+    {
+      "run": 45554554773,
+      "id": 14995715826,
+      "name": "compiler-ir043-043",
+      "size": 73349,
+      "digest": "sha256:240df472f0bd14c88c39225bb51647fc8542864f71d2725c0c49a2f4ce0e4224",
+      "expired": false
+    },
+    {
+      "run": 45554554773,
+      "id": 14995536203,
+      "name": "compiler-ir043-013",
+      "size": 29080,
+      "digest": "sha256:64264ebb41a4df1e6c3b547b7a2b5692657ae2a58da8542b3413e2a832b8d2e9",
+      "expired": false
+    },
+    {
+      "run": 45554554773,
+      "id": 14995415935,
+      "name": "compiler-ir043-008",
+      "size": 18174,
+      "digest": "sha256:5f187f069713eeac2ee80c3cd887572e4a1ceca49233d8a587800b46f1d209bf",
+      "expired": false
+    },
+    {
+      "run": 45554554773,
+      "id": 14994967570,
+      "name": "compiler-ir043-043_cpu",
+      "size": 37302,
+      "digest": "sha256:049e9c021bfb0a76360d49bb4922f4f401acacd072c8302bdc0aa1da145d819b",
+      "expired": false
+    },
+    {
+      "run": 45654587501,
+      "id": 15043330311,
+      "name": "compiler-ir044-044_cpu",
+      "size": 40381,
+      "digest": "sha256:4b00102f1638417eee274b24ef5013b467452fe32b9992ee7c2a4703fe31ba12",
+      "expired": false
+    },
+    {
+      "run": 45654587501,
+      "id": 15043025141,
+      "name": "compiler-ir044-043",
+      "size": 73754,
+      "digest": "sha256:fd13c8b016b638312e8b0d319abb1ce50be1eeaddc95cb29a0c6239fe84e86ef",
+      "expired": false
+    },
+    {
+      "run": 45654587501,
+      "id": 15040914276,
+      "name": "compiler-ir044-044_publisher",
+      "size": 10829,
+      "digest": "sha256:ea9cb19612eccb6d0a774949ee483f99c4c67d4ca7999ab37ea152f8d55021b2",
+      "expired": false
+    },
+    {
+      "run": 45654587501,
+      "id": 15040799955,
+      "name": "compiler-ir044-044",
+      "size": 3205,
+      "digest": "sha256:25cb3ba5b533f978568f7c9474e35c221976376946814b843e819e13087cee7c",
+      "expired": false
+    },
+    {
+      "run": 45654918498,
+      "id": 15043595017,
+      "name": "compiler-ir044-044",
+      "size": 3240,
+      "digest": "sha256:4e5f76b1187ab9df4de6b4a04487ca9fe88dd35ef62aab1c7cbd8e1c6d2b4905",
+      "expired": false
+    },
+    {
+      "run": 45655666776,
+      "id": 15043091063,
+      "name": "compiler-ir044-044",
+      "size": 35904,
+      "digest": "sha256:bc9ae5b5c8f36712c5b0f4c8c8c606bd0b54ea47b49380a8c1eff34ae7ac2336",
+      "expired": false
+    },
+    {
+      "run": 45688081984,
+      "id": 15057711978,
+      "name": "compiler-ir045-044",
+      "size": 36275,
+      "digest": "sha256:723dfb4543bc615c4ffc56bb8675d64377d2cf41a222a064f9e9ee664dd38b64",
+      "expired": false
+    },
+    {
+      "run": 45688081984,
+      "id": 15057162805,
+      "name": "compiler-ir045-045",
+      "size": 41169,
+      "digest": "sha256:fd8a8a00b75bfbddb19de2f644f608cf5341dbf64a87aa0aed010a3739a22b1c",
+      "expired": false
+    },
+    {
+      "run": 45688081984,
+      "id": 15056933471,
+      "name": "compiler-ir045-045_cpu",
+      "size": 38130,
+      "digest": "sha256:d22c2417f4cb24983d004a7e7c1c94f2d7c58bd9105ef060b5e3b6eb1768deb0",
+      "expired": false
+    },
+    {
+      "run": 45688081984,
+      "id": 15056808821,
+      "name": "compiler-ir045-045_publisher",
+      "size": 10918,
+      "digest": "sha256:51e43f50e25614fd010ab00502b5cbd090d7a327e6d56b5ffe0560e5e86817b8",
+      "expired": false
+    },
+    {
+      "run": 45904368493,
+      "id": 15158080386,
+      "name": "compiler-ir046-046",
+      "size": 3241,
+      "digest": "sha256:b48ed1efb4990d7fbf0821fc701eb314cb5332a26555e5dfd26eaef0b4286d9a",
+      "expired": false
+    },
+    {
+      "run": 45904368493,
+      "id": 15157990910,
+      "name": "compiler-ir046-046_cpu",
+      "size": 42781,
+      "digest": "sha256:f4bedf107cbaa8e26312fc422439c152be6dcaed6d6d4716ca094ff2d745f74f",
+      "expired": false
+    },
+    {
+      "run": 45904368493,
+      "id": 15157956083,
+      "name": "compiler-ir046-046_cpu_mixed",
+      "size": 42677,
+      "digest": "sha256:7a3f4f70719ce38ff6ff991032b5fbbb0422939b033887d6a62446dd15c46786",
+      "expired": false
+    },
+    {
+      "run": 45904368493,
+      "id": 15157866234,
+      "name": "compiler-ir046-045",
+      "size": 41653,
+      "digest": "sha256:58f6e4f09072ea14a75493ca15de21955eb2131182d4c61a8b35744c44544aae",
+      "expired": false
+    },
+    {
+      "run": 45904368493,
+      "id": 15157102565,
+      "name": "compiler-ir046-046_publisher",
+      "size": 8430,
+      "digest": "sha256:d0b69e2d2363f7121e75a835c0dd81ee2130d5004f0bf2bb3422d29390d071b1",
+      "expired": false
+    },
+    {
+      "run": 45904989691,
+      "id": 15157277558,
+      "name": "compiler-ir046-046",
+      "size": 63209,
+      "digest": "sha256:eec56be69cae2bb51f19fd24247abaf37c52c72cc11d6fe9b8cf6c3308103eed",
+      "expired": false
+    },
+    {
+      "run": 45908911065,
+      "id": 15159138099,
+      "name": "compiler-ir047-046",
+      "size": 63031,
+      "digest": "sha256:c30c3c6757e6db6911d524b8ef36d8bbac5dea317c887140a20503c14cb6a91e",
+      "expired": false
+    },
+    {
+      "run": 45908911065,
+      "id": 15158938187,
+      "name": "compiler-ir047-047_publisher",
+      "size": 8673,
+      "digest": "sha256:647c95a8a65e0df36c9c6362bd303ba14bff191c499eaa87ef52e895afe06522",
+      "expired": false
+    },
+    {
+      "run": 45908911065,
+      "id": 15158728144,
+      "name": "compiler-ir047-047_cpu",
+      "size": 43825,
+      "digest": "sha256:8a60aced5ae2fe3a3c6dd9a6832cc184275af0f36223f1f1498f8687157fdcee",
+      "expired": false
+    },
+    {
+      "run": 45908911065,
+      "id": 15158668185,
+      "name": "compiler-ir047-047_cpu_mixed",
+      "size": 43295,
+      "digest": "sha256:a264cb3a5f714111b1c9aebfe6ece7c7aa3b1f4de18fc69026133354fd06f7a7",
+      "expired": false
+    },
+    {
+      "run": 45908911065,
+      "id": 15158667898,
+      "name": "compiler-ir047-047",
+      "size": 71987,
+      "digest": "sha256:5a731c71d9d860ff5842f785f4c2d735c55ac5cbf3f2fb50dcabd92bca605cea",
+      "expired": false
+    },
+    {
+      "run": 45915361507,
+      "id": 15162625124,
+      "name": "integration-001-044",
+      "size": 118012,
+      "digest": "sha256:0e1a9d94ab052f92395b3e16aedbe291e933efab4d5931d84c2655c6e7333708",
+      "expired": false
+    },
+    {
+      "run": 45915361507,
+      "id": 15162321013,
+      "name": "integration-001-047",
+      "size": 153900,
+      "digest": "sha256:c52bb28412c1f162587316f81a8426a13d3b8c26011e7a8aa2365129645fc93c",
+      "expired": false
+    },
+    {
+      "run": 45915361507,
+      "id": 15161952443,
+      "name": "integration-001-047_cpu_mixed",
+      "size": 101626,
+      "digest": "sha256:157060c906ccf727e8135aa547cec2bece2cab4ce2ff3306d91feca6991ce472",
+      "expired": false
+    },
+    {
+      "run": 45915361507,
+      "id": 15161857977,
+      "name": "integration-001-045",
+      "size": 122996,
+      "digest": "sha256:ccc04154c6b3962f00718d49c79c082cfa2e81bd18b09710d01905703b522b93",
+      "expired": false
+    },
+    {
+      "run": 45915361507,
+      "id": 15161738365,
+      "name": "integration-001-046",
+      "size": 144258,
+      "digest": "sha256:cb4a5296ec49412111d0d92a454985b10ca9a05418c8c25c1c7243c353bd095d",
+      "expired": false
+    },
+    {
+      "run": 45915361507,
+      "id": 15161683724,
+      "name": "integration-001-047_publisher",
+      "size": 89898,
+      "digest": "sha256:002ecd716b820ef341d8bc69560451dd2c0e84f4862329651f2a61d3c366240b",
+      "expired": false
+    },
+    {
+      "run": 45915361507,
+      "id": 15161648635,
+      "name": "integration-001-047_cpu",
+      "size": 113250,
+      "digest": "sha256:a6471531573d34705dccdca572164afe9575e155ed91517bc55fb67ac0de51d6",
+      "expired": false
+    },
+    {
+      "run": 45915361507,
+      "id": 15161588769,
+      "name": "integration-001-default_off",
+      "size": 88812,
+      "digest": "sha256:4f06ebb70914a27a5e6354ce77b4d6f3dddc3b368565200552dc8c5f52b2f36b",
+      "expired": false
+    },
+    {
+      "run": 45915361507,
+      "id": 15161564019,
+      "name": "integration-001-043",
+      "size": 156033,
+      "digest": "sha256:1f2d0732c9511736c3818a284183a4587720e77251918b9413a07bb6a01e10d7",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15164401046,
+      "name": "integration-001-045",
+      "size": 122998,
+      "digest": "sha256:e9fc051eb31f2de4eba3a9d788999074914e4b785f224ec13ada26df67d877e9",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15164372794,
+      "name": "integration-001-default_off",
+      "size": 132034,
+      "digest": "sha256:67cb0a94211e70e0560c91b12fdc5b7fe3b43266e93388ef96dece4411276404",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15164171720,
+      "name": "integration-001-043",
+      "size": 156447,
+      "digest": "sha256:255763710e785e5b72be4af21f47836d7fb3ac72dfc7214adf2f3a328949b4ae",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15164062226,
+      "name": "integration-001-047_cpu_mixed",
+      "size": 124463,
+      "digest": "sha256:1f055ecdcfed54917efc3d2897c908fc8b299234ffe64a1a6cf2f6d5ef3cd2be",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15163423818,
+      "name": "integration-001-044",
+      "size": 118018,
+      "digest": "sha256:8766b30aac9440ce6d316a15c6fa226b9d6c89a8f978dde545e5b34f792a8145",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15163398766,
+      "name": "integration-001-047",
+      "size": 153499,
+      "digest": "sha256:060ecf97d6bbfd266d036b48e8dafe36422b1483905a60549f55b22c2ce48f26",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15163358810,
+      "name": "integration-001-047_publisher",
+      "size": 89864,
+      "digest": "sha256:b54b1ca91cdcc6d1696c9714505354779cbbb00f53682dcbd26048e5fd24e710",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15163329125,
+      "name": "integration-001-047_cpu",
+      "size": 124552,
+      "digest": "sha256:968e1bd930eaffe3c1a57ec3d1680fcbb46cc4409c0c940354c10f8467d67125",
+      "expired": false
+    },
+    {
+      "run": 45919681014,
+      "id": 15163328782,
+      "name": "integration-001-046",
+      "size": 144296,
+      "digest": "sha256:46a7c5aa4628a51b4ba0beb4bf492b31a69027ed50364ce4acfa41788f0e39e2",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15169100500,
+      "name": "integration-001-default_off",
+      "size": 135865,
+      "digest": "sha256:58570c31ef7ea8a170915765779b8f295946b92ea81f96e1fe3d6cd2f243b9d4",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15169026523,
+      "name": "integration-001-047_publisher",
+      "size": 89899,
+      "digest": "sha256:cea54674276ea41942e45ec0b1d699e8d6563a5c9897a94834ebc6c424f330c7",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15169009209,
+      "name": "integration-001-absolute_mixed",
+      "size": 148860,
+      "digest": "sha256:7d138ca1fe73be85b15f12ec99c91b52826df4319c2bf99a1963ce662083acc8",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15168872235,
+      "name": "integration-001-047_cpu_mixed",
+      "size": 123628,
+      "digest": "sha256:1960c52c0edca4c707b5c0ceee127f42fb487cdddbbdb50ee59793938c9771c3",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15168816953,
+      "name": "integration-001-profile",
+      "size": 94177,
+      "digest": "sha256:85902e48cf86ecafa43de90d185e7437478e13e11c5d9ee99707a0793697218f",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15168746671,
+      "name": "integration-001-044",
+      "size": 117548,
+      "digest": "sha256:e611ed1d65455f4a04c3c28e41826e7e66dacf0fe0923aef5a8bcd80141a46b3",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15168617616,
+      "name": "integration-001-047_cpu",
+      "size": 118189,
+      "digest": "sha256:276e68386861158fc3b452fea52be52f918a50ddd6dd4f4e680ed7e92c77fb5c",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15168531960,
+      "name": "integration-001-045",
+      "size": 122601,
+      "digest": "sha256:b7ac667c9f4d7fe99b0b4f9f02b6fab338ab3d1b87e63dedab42ca2cb54350a0",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15168473055,
+      "name": "integration-001-047",
+      "size": 152662,
+      "digest": "sha256:a7c94b83c0ce86700f9a3cb57c098bed6fb1a63efcd0cd3d88cdae3f7f5df1ea",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15168273508,
+      "name": "integration-001-043",
+      "size": 155610,
+      "digest": "sha256:d08828864b98202023427a146f4257778b908ea2a58fc7539502eaa4ba85b2f4",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15168224822,
+      "name": "integration-001-absolute_pure",
+      "size": 148823,
+      "digest": "sha256:2fb33ecd85054f3306d652d92acd08778a93c4d4db9d808bad31737af67aee87",
+      "expired": false
+    },
+    {
+      "run": 45930919331,
+      "id": 15168198687,
+      "name": "integration-001-046",
+      "size": 143605,
+      "digest": "sha256:5187cf7006ea4f04b66e1dba36d18d5136bebaf0e54125480d883d17b4b5c7ff",
+      "expired": false
+    },
+    {
+      "run": 45934828312,
+      "id": 15171092457,
+      "name": "integration-noise-controlled-absolute_mixed",
+      "size": 163060,
+      "digest": "sha256:5523c1fa8ca11ef8d789326d10a6bb44bfd2942b218bc48d34c165106588685c",
+      "expired": false
+    },
+    {
+      "run": 45934828312,
+      "id": 15170492057,
+      "name": "integration-noise-controlled-default_off",
+      "size": 148755,
+      "digest": "sha256:52aea1568ef98a6d278201178bef6d64565c9c939392d96e5b48fb4ccc974e11",
+      "expired": false
+    },
+    {
+      "run": 45934828312,
+      "id": 15170393822,
+      "name": "integration-noise-controlled-absolute_pure",
+      "size": 161880,
+      "digest": "sha256:75dfc3c40a10dc2a9f2589e2409b992d8c728db9761f113b105265c3237657f8",
+      "expired": false
+    },
+    {
+      "run": 45934828312,
+      "id": 15170079887,
+      "name": "integration-noise-controlled-047_cpu",
+      "size": 145915,
+      "digest": "sha256:fcdeb6b2877071603f03077989716de55094ce4f168e537bf42a00ebe16f416e",
+      "expired": false
+    },
+    {
+      "run": 45942387217,
+      "id": 15173866979,
+      "name": "integration-noise-controlled-absolute_mixed",
+      "size": 160562,
+      "digest": "sha256:71759a3199609b18f2888910dd1e3b20bbe9c003f751b0e9561b9d699b377391",
+      "expired": false
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 package dev.functioncompiler.mixin;
 
 import dev.functioncompiler.ExecutionContextBridge;
+import dev.functioncompiler.ReentrantQueueEpoch;
+import dev.functioncompiler.TypedCompilerConfiguration;
 import dev.functioncompiler.FunctionCompilerMod;
 import dev.functioncompiler.ProbeConfiguration;
 import dev.functioncompiler.ProbeMetrics;
@@ -19,7 +21,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.Deque;
 
 @Mixin(ExecutionContext.class)
-abstract class ExecutionContextMixin<T> {
+abstract class ExecutionContextMixin<T> implements ReentrantQueueEpoch {
+    @Unique private static final boolean functionCompiler$watchReentrantEnqueues =
+            TypedCompilerConfiguration.flag("FC_TYPED_IR_REENTRANT_SAFE");
+    @Unique private long functionCompiler$queuedWorkEpoch;
+
+    @Override
+    public long functionCompiler$queuedWorkEpoch() {
+        return functionCompiler$queuedWorkEpoch;
+    }
+
+    @Inject(method = "queueNext", at = @At("HEAD"))
+    private void functionCompiler$watchCallbackEnqueue(
+            CommandQueueEntry<T> entry, CallbackInfo ci
+    ) {
+        // No work in normal installs: the IR-013 feature flag is fixed at
+        // process startup, and queueNext is still fully vanilla.
+        if (functionCompiler$watchReentrantEnqueues) {
+            functionCompiler$queuedWorkEpoch++;
+        }
+    }
+
     @Unique private int functionCompiler$commandCallbackMetricsScopeDepth;
 
     @Shadow @Final private Deque<CommandQueueEntry<T>> commandQueue;

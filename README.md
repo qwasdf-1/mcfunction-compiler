@@ -8,6 +8,16 @@ Minecraft Function Compiler investigates eliminating Minecraft's recursive comma
 
 ## Features & Optimizations
 
+### Maintained typed compiler (opt-in, experimental)
+
+The consolidated typed compiler uses bounded parsed-command IR, an interpreter and direct JVM bytecode for eligible scoreboard regions, with native dispatch, conditional terminal and score-store boundaries. Unsupported commands retain their native queue entries. Enable only for a selected namespace, at server startup:
+
+```sh
+FC_TYPED_COMPILER_PROFILE=validated FC_TYPED_IR_NAMESPACE=my_pack java -jar fabric-server-launch.jar nogui
+```
+
+See the [typed compiler reference](docs/reference/features/typed-compiler.md) for flags, invariants, diagnostics and fixture packaging. Default-off parity/CPU, native IR043–047, publisher restoration, incremental pure/mixed CPU and absolute pure CPU passed scoped qualification; absolute mixed CPU nonregression remains inconclusive and is explicitly waived for integration readiness. See [Integration-001](docs/integration-001.md#final-disposition--2026-11-27). No blanket speedup or default enablement is claimed. The sections below describe separate legacy engines.
+
 ### 1. Fused Region Specialization (Disabled by Default / Experimental)
 Minecraft functions normally execute commands sequentially through an iterative command queue (`ExecutionContext`), allocating separate execution frames and re-resolving command dispatchers on every line. 
 

@@ -58,7 +58,7 @@ public final class ProbeConfiguration {
     }
 
     public static boolean wrapperEnabled() {
-        return readBoolean("FC_WRAPPER_PROBE", CompilerConfig.isEnabled());
+        return readBoolean("FC_WRAPPER_PROBE", CompilerConfig.isEnabled() || TypedCompilerConfiguration.profileActive());
     }
 
     public static boolean traceEnabled() {
@@ -203,6 +203,37 @@ public final class ProbeConfiguration {
 
     public static boolean bytecodeMacroEnabled() {
         return readBoolean("FC_BYTECODE_MACRO", true);
+    }
+
+    // IR-030 is a research-only, exact-function opt-in. It is never enabled
+    // by the ordinary compiler config and never broadens to an entire namespace.
+    private static final boolean IR030_POS_GET_ENABLED =
+            readBoolean("FC_IR030_POS_GET", false);
+    private static final boolean IR030_POS_GET_VERIFY =
+            readBoolean("FC_IR030_POS_GET_VERIFY", false);
+    private static final String IR030_POS_GET_FUNCTIONS =
+            System.getenv("FC_IR030_POS_GET_FUNCTIONS");
+
+    public static boolean ir030PosGetEnabled() {
+        return IR030_POS_GET_ENABLED;
+    }
+
+    public static boolean ir030PosGetVerify() {
+        return IR030_POS_GET_VERIFY;
+    }
+
+    public static boolean ir030PosGetForFunction(net.minecraft.resources.Identifier id) {
+        if (!IR030_POS_GET_ENABLED || id == null
+                || IR030_POS_GET_FUNCTIONS == null
+                || IR030_POS_GET_FUNCTIONS.isBlank()) {
+            return false;
+        }
+        for (String entry : IR030_POS_GET_FUNCTIONS.split(",")) {
+            if (id.toString().equals(entry.strip())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static boolean isNamespaceExcluded(String namespace) {

@@ -64,6 +64,158 @@ final class ScoreConditionCommand implements FusableCommand {
         this.functionId = functionId;
     }
 
+    /**
+     * IR-017: one Brigadier-validated literal fake-holder range predicate
+     * guarding either an IR mutation or one of the four safe IR binary
+     * operations. The source regex is an eligibility preflight, not a command
+     * parser: the actual operand identity, operation and bounds come from
+     * the existing parsed Minecraft callbacks.
+     */
+    // IR-017 stays disabled unless explicitly enabled alongside the typed IR.
+    // OFF preserves IR-009's exact integer/mutation-only acceptance and gives
+    // the real-datapack coverage study an identical-compiler control arm.
+    private static final boolean RANGE_GUARDS_ENABLED =
+            TypedCompilerConfiguration.flag("FC_TYPED_IR_RANGE_GUARDS");
+
+    private static final String IR_HOLDER = "(?:#[A-Za-z0-9_.+\\-]+|@s)";
+    private static final String IR_RANGE =
+            "(?:-?\\d+(?:\\.\\.(?:-?\\d+)?)?|\\.\\.-?\\d+)";
+    private static final String IR_MUTATION =
+            "scoreboard players (?:add|set|remove) "
+                    + IR_HOLDER + " [A-Za-z0-9_.+\\-]+ -?\\d+";
+    private static final String IR_BINARY =
+            "scoreboard players operation " + IR_HOLDER + " "
+                    + "[A-Za-z0-9_.+\\-]+ (?:=|\\+=|-=|\\*=|<|>|/=|%=|><) "
+                    + IR_HOLDER + " [A-Za-z0-9_.+\\-]+";
+    private static final java.util.regex.Pattern IR_GUARD =
+            java.util.regex.Pattern.compile(
+                    "^execute (if|unless) score (" + IR_HOLDER + ") "
+                            + "([A-Za-z0-9_.+\\-]+) matches (" + IR_RANGE + ") "
+                            + "run (" + IR_MUTATION + "|" + IR_BINARY + ")$");
+
+    private static final java.util.regex.Pattern IR_COMPARISON =
+            java.util.regex.Pattern.compile(
+                    "^execute (if|unless) score (" + IR_HOLDER + ") "
+                            + "([A-Za-z0-9_.+\\-]+) (=|<|<=|>|>=) (" + IR_HOLDER + ") "
+                            + "([A-Za-z0-9_.+\\-]+) run (" + IR_MUTATION + "|" + IR_BINARY + ")$");
+
+    private static boolean terminalAllowed(String input) {
+        return !input.startsWith("scoreboard players operation ")
+                || ScoreOperationCommand.typedIrLiteralSourceShape(input);
+    }
+
+    static boolean typedIrLiteralGuardShape(String input) {
+        if (input == null) return false;
+        var matcher = IR_GUARD.matcher(input);
+        if (!TypedScoreIR.selfHolderEnabled() && input.contains("@s")) return false;
+        if (!matcher.matches()) {
+            var comparison = IR_COMPARISON.matcher(input);
+            return TypedScoreIR.extendedScoreEnabled() && comparison.matches()
+                    && terminalAllowed(comparison.group(7));
+        }
+        return terminalAllowed(matcher.group(5)) && (RANGE_GUARDS_ENABLED
+                || (!matcher.group(4).contains("..")
+                        && !matcher.group(5).startsWith("scoreboard players operation ")));
+    }
+
+    /**
+     * Do not trust the text representation of a Minecraft range alone: check
+     * that the already-parsed MinMaxBounds matches both inclusive endpoints
+     * and rejects the immediate values outside any bounded endpoint. MIN/MAX
+     * are explicitly tested for open-ended ranges. Overflow is declined.
+     */
+    static boolean sameParsedRange(MinMaxBounds.Ints parsed, String source) {
+        if (parsed == null || source == null) return false;
+        try {
+            int separator = source.indexOf("..");
+            int lower;
+            int upper;
+            if (separator < 0) {
+                lower = Integer.parseInt(source);
+                upper = lower;
+            } else {
+                String left = source.substring(0, separator);
+                String right = source.substring(separator + 2);
+                if (left.isEmpty() && right.isEmpty()) return false;
+                lower = left.isEmpty() ? Integer.MIN_VALUE : Integer.parseInt(left);
+                upper = right.isEmpty() ? Integer.MAX_VALUE : Integer.parseInt(right);
+            }
+            if (lower > upper || !parsed.matches(lower) || !parsed.matches(upper)) {
+                return false;
+            }
+            if (lower != Integer.MIN_VALUE && parsed.matches(lower - 1)) return false;
+            if (upper != Integer.MAX_VALUE && parsed.matches(upper + 1)) return false;
+            return true;
+        } catch (NumberFormatException | IndexOutOfBoundsException invalid) {
+            return false;
+        }
+    }
+
+    TypedScoreIR.Conditional toTypedIR(FusedRegionPrototype.FusedCommand parsed) {
+        if (operator != null) return toComparisonIR(parsed);
+        if ((isTargetSelf && !TypedScoreIR.selfHolderEnabled())
+                || (!isTargetSelf && targetHolder == null) || range == null
+                || operator != null || sourceHolder != null
+                || targetObjective == null) {
+            return null;
+        }
+        var matcher = IR_GUARD.matcher(parsed.commandInput());
+        if (!matcher.matches()
+                || (!RANGE_GUARDS_ENABLED
+                        && (matcher.group(4).contains("..")
+                                || innerCommand instanceof ScoreOperationCommand))
+                || !matcher.group(2).equals(
+                        isTargetSelf ? "@s" : targetHolder.getScoreboardName())
+                || !matcher.group(3).equals(targetObjective)
+                || ("unless".equals(matcher.group(1)) != unless)
+                || !sameParsedRange(range, matcher.group(4))) {
+            return null;
+        }
+        TypedScoreIR.Instruction terminal = null;
+        if (innerCommand instanceof ScoreAddCommand score) {
+            terminal = score.toMutation(parsed, matcher.group(5));
+        } else if (innerCommand instanceof ScoreOperationCommand binary) {
+            terminal = binary.toBinary(parsed, matcher.group(5));
+        }
+        return terminal == null ? null : new TypedScoreIR.Conditional(
+                parsed, terminal, targetHolder, isTargetSelf, targetObjective, range, unless);
+    }
+
+    /** IR-038: exact Brigadier-validated comparison and terminal, no reparsing at runtime. */
+    private TypedScoreIR.Conditional toComparisonIR(FusedRegionPrototype.FusedCommand parsed) {
+        if (!TypedScoreIR.extendedScoreEnabled() || range != null
+                || (!TypedScoreIR.selfHolderEnabled() && (isTargetSelf || isSourceSelf))
+                || (!isTargetSelf && targetHolder == null)
+                || (!isSourceSelf && sourceHolder == null)
+                || targetObjective == null || sourceObjective == null) return null;
+        var matcher = IR_COMPARISON.matcher(parsed.commandInput());
+        if (!matcher.matches()
+                || !matcher.group(2).equals(isTargetSelf ? "@s" : targetHolder.getScoreboardName())
+                || !matcher.group(3).equals(targetObjective)
+                || !matcher.group(5).equals(isSourceSelf ? "@s" : sourceHolder.getScoreboardName())
+                || !matcher.group(6).equals(sourceObjective)
+                || ("unless".equals(matcher.group(1)) != unless)
+                || !terminalAllowed(matcher.group(7))) return null;
+        Operator expected = switch (matcher.group(4)) {
+            case "=" -> Operator.EQUALS;
+            case "<" -> Operator.LESS_THAN;
+            case "<=" -> Operator.LESS_THAN_OR_EQUAL;
+            case ">" -> Operator.GREATER_THAN;
+            case ">=" -> Operator.GREATER_THAN_OR_EQUAL;
+            default -> null;
+        };
+        if (operator != expected) return null;
+        TypedScoreIR.Instruction terminal = null;
+        if (innerCommand instanceof ScoreAddCommand score) {
+            terminal = score.toMutation(parsed, matcher.group(7));
+        } else if (innerCommand instanceof ScoreOperationCommand binary) {
+            terminal = binary.toBinary(parsed, matcher.group(7));
+        }
+        return terminal == null ? null : new TypedScoreIR.Conditional(
+                parsed, terminal, targetHolder, isTargetSelf, targetObjective, null, unless,
+                operator, sourceHolder, isSourceSelf, sourceObjective);
+    }
+
     @Override
     public int run(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         if (ProbeConfiguration.scoreAddTimingEnabled()) {
@@ -168,7 +320,7 @@ final class ScoreConditionCommand implements FusableCommand {
         return staticHolder;
     }
 
-    private static boolean compareScores(int target, int source, Operator op) {
+    static boolean compareScores(int target, int source, Operator op) {
         return switch (op) {
             case EQUALS -> target == source;
             case LESS_THAN -> target < source;
