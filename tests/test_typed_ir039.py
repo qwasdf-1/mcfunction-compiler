@@ -20,7 +20,7 @@ class IR039(unittest.TestCase):
         for text in ("record Compound(", "predicates = List.copyOf(predicates)",
                      "CompoundScoreIR.reads(predicates)", "terminal.vanilla() != vanilla"):
             self.assertIn(text, ir)
-        for text in ("MAX_PREDICATES = 8", 'System.getenv("FC_TYPED_IR_COMPOUND_SCORE")',
+        for text in ("MAX_PREDICATES = 8", 'TypedCompilerConfiguration.flag("FC_TYPED_IR_COMPOUND_SCORE")',
                      "record RawKey(", "left.key()", "right.key()",
                      "passed.get(p.rawKey())", "passed.putIfAbsent(p.rawKey(), p.unless())",
                      "Evaluation.KNOWN_PASS", "Evaluation.KNOWN_FAIL",

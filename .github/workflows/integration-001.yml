@@ -33,7 +33,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Validate maintained harness
+      - name: Validate maintained harness and profile contract
         run: |
           python3 -m py_compile scripts/ci_integration_001_off.py scripts/ci_typed_ir047*.py
           PYTHONPATH=scripts python3 -c 'import ci_typed_ir043, ci_typed_ir044, ci_typed_ir045, ci_typed_ir046, ci_typed_ir047, ci_typed_ir047_cpu, ci_typed_ir047_publisher'
