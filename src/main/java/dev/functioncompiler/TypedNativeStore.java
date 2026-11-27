@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  * transformed source, objective, score, callback, or data accessor.
  */
 final class TypedNativeStore {
-    private static final boolean ENABLED = Boolean.parseBoolean(System.getenv("FC_TYPED_IR_NATIVE_STORE"));
+    private static final boolean ENABLED = TypedCompilerConfiguration.flag("FC_TYPED_IR_NATIVE_STORE");
     private static final boolean DIAGNOSTICS = Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIAGNOSTICS"));
     private static final String H = "(?:#[A-Za-z0-9_.+\\-]+|@s)";
     private static final String O = "[A-Za-z0-9_.+\\-]+";

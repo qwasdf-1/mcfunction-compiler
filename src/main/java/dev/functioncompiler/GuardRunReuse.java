@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.LongAdder;
  * State owns all read facts and authorizes reuse only after a pure failure.
  */
 final class GuardRunReuse {
-    private static final boolean ENABLED = Boolean.parseBoolean(System.getenv("FC_TYPED_IR_GUARD_RUN_REUSE"));
+    private static final boolean ENABLED = TypedCompilerConfiguration.flag("FC_TYPED_IR_GUARD_RUN_REUSE");
     private static final boolean DIAGNOSTICS = Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIAGNOSTICS"));
     private static volatile boolean runtime = ENABLED;
     private static final LongAdder BOUNDARIES = new LongAdder(), PRESENT = new LongAdder(),
@@ -38,7 +38,7 @@ final class GuardRunReuse {
 
     static boolean enabled() { return ENABLED && runtime; }
     static boolean benchmarkToggleAllowed() {
-        return ENABLED && Boolean.parseBoolean(System.getenv("FC_TYPED_IR046_BENCHMARK"));
+        return CompilerFixtures.ENABLED && ENABLED && Boolean.parseBoolean(System.getenv("FC_TYPED_IR046_BENCHMARK"));
     }
     static int toggle(CommandSourceStack source, boolean on) {
         if (!benchmarkToggleAllowed()) return 0;

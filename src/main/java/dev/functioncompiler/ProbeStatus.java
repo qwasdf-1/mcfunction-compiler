@@ -111,6 +111,7 @@ final class ProbeStatus {
                 + " lifecycle_macro_is_macro=" + isMacro(manager, LIFECYCLE_MACRO)
                 + " lifecycle_macro_wrapped=" + isWrapped(manager, LIFECYCLE_MACRO)
                 + " wrapper_enabled=" + ProbeConfiguration.wrapperEnabled()
+                + TypedCompilerConfiguration.summary()
                 + " score_add_prototype_enabled=" + ProbeConfiguration.scoreAddPrototypeEnabled()
                 + " score_add_metrics_enabled=" + ProbeConfiguration.scoreAddMetricsEnabled()
                 + " score_add_timing_enabled=" + ProbeConfiguration.scoreAddTimingEnabled()

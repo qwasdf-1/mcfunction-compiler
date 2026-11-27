@@ -33,8 +33,7 @@ import java.util.regex.Pattern;
  * Vanilla continuation/terminal charging and live world effects are preserved.
  */
 final class TypedConditionalTerminal {
-    private static final boolean ENABLED = Boolean.parseBoolean(
-            System.getenv("FC_TYPED_IR_GUARD_TERMINAL"));
+    private static final boolean ENABLED = TypedCompilerConfiguration.flag("FC_TYPED_IR_GUARD_TERMINAL");
     private static final boolean DIAGNOSTICS = Boolean.parseBoolean(
             System.getenv("FC_TYPED_IR_DIAGNOSTICS"));
     private static final String POS = "(?:-?\\d+|~(?:-?\\d+)?)";

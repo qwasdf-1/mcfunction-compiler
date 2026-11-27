@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.LongAdder;
  * scheduling, result propagation, quota debits and trace callback boundaries.
  */
 public final class TypedScoreIR {
-    private static final String MODE = System.getenv("FC_TYPED_IR_MODE");
+    private static final String MODE = TypedCompilerConfiguration.mode();
     private static final String NAMESPACE = System.getenv("FC_TYPED_IR_NAMESPACE");
     // Optional exact function boundary for original-publisher real-world pilots.
     // Empty/unset retains the existing namespace-wide typed compiler contract.
@@ -50,7 +50,7 @@ public final class TypedScoreIR {
     // IR-018: dynamic @s scoreboard holder lowering is research-only and
     // independently gated from IR-017 ranged-condition syntax.
     private static final boolean SELF_HOLDER =
-            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_SELF_HOLDER"));
+            TypedCompilerConfiguration.flag("FC_TYPED_IR_SELF_HOLDER");
     static boolean selfHolderEnabled() { return SELF_HOLDER; }
     static String slotName(ScoreHolder holder, boolean isSelf) {
         return isSelf ? "@s" : holder.getScoreboardName();
@@ -162,7 +162,7 @@ public final class TypedScoreIR {
 
     // IR-038: extended non-throwing, single-write score operations and comparisons.
     private static final boolean EXTENDED_SCORE =
-            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_EXTENDED_SCORE"));
+            TypedCompilerConfiguration.flag("FC_TYPED_IR_EXTENDED_SCORE");
     static boolean extendedScoreEnabled() { return EXTENDED_SCORE; }
 
     /** Single-write operators; division, modulo and swap remain native. */
@@ -460,7 +460,7 @@ public final class TypedScoreIR {
     }
 
     static int toggleSingletonFeedback(CommandSourceStack source, boolean enabled) {
-        if (!SINGLETON_FEEDBACK || !Boolean.parseBoolean(
+        if (!CompilerFixtures.ENABLED || !SINGLETON_FEEDBACK || !Boolean.parseBoolean(
                 System.getenv("FC_TYPED_IR_SINGLETON_FEEDBACK_TOGGLE"))) {
             return 0;
         }

@@ -75,7 +75,7 @@ final class ScoreConditionCommand implements FusableCommand {
     // OFF preserves IR-009's exact integer/mutation-only acceptance and gives
     // the real-datapack coverage study an identical-compiler control arm.
     private static final boolean RANGE_GUARDS_ENABLED =
-            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_RANGE_GUARDS"));
+            TypedCompilerConfiguration.flag("FC_TYPED_IR_RANGE_GUARDS");
 
     private static final String IR_HOLDER = "(?:#[A-Za-z0-9_.+\\-]+|@s)";
     private static final String IR_RANGE =

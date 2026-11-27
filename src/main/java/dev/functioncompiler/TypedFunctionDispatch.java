@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
  */
 final class TypedFunctionDispatch {
     private static final boolean ENABLED =
-            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DISPATCH"));
+            TypedCompilerConfiguration.flag("FC_TYPED_IR_DISPATCH");
     private static final boolean DIAGNOSTICS =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIAGNOSTICS"));
     private static final Pattern TARGET = Pattern.compile("^function ([a-z0-9_.-]+:[a-z0-9_./-]+)$");

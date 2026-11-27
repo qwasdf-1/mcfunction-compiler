@@ -58,7 +58,7 @@ public final class ProbeConfiguration {
     }
 
     public static boolean wrapperEnabled() {
-        return readBoolean("FC_WRAPPER_PROBE", CompilerConfig.isEnabled());
+        return readBoolean("FC_WRAPPER_PROBE", CompilerConfig.isEnabled() || TypedCompilerConfiguration.profileActive());
     }
 
     public static boolean traceEnabled() {

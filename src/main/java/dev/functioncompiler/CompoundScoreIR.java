@@ -19,13 +19,13 @@ final class CompoundScoreIR {
     private CompoundScoreIR() {}
     static final int MAX_PREDICATES = 8;
     private static final boolean ENABLED =
-            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_COMPOUND_SCORE"));
+            TypedCompilerConfiguration.flag("FC_TYPED_IR_COMPOUND_SCORE");
     static boolean enabled() { return ENABLED && TypedScoreIR.extendedScoreEnabled(); }
     private static final boolean DATAFLOW =
-            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DATAFLOW"));
+            TypedCompilerConfiguration.flag("FC_TYPED_IR_DATAFLOW");
     static boolean dataflowEnabledFor(net.minecraft.resources.Identifier id) {
         // Only the explicitly enabled benchmark has an identical IR-039 twin.
-        return DATAFLOW && !(Boolean.parseBoolean(System.getenv("FC_TYPED_IR040_BENCHMARK"))
+        return DATAFLOW && !(CompilerFixtures.ENABLED && Boolean.parseBoolean(System.getenv("FC_TYPED_IR040_BENCHMARK"))
                 && id.getNamespace().equals("fc_ir") && (id.getPath().equals("ir017_ir040_perf_base")
                         || (Boolean.parseBoolean(System.getenv("FC_TYPED_IR041_BENCHMARK"))
                             && id.getPath().equals("ir017_ir041_mixed_base"))

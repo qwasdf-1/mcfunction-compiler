@@ -31,7 +31,7 @@ final class TypedScoreIRRuntime {
     private TypedScoreIRRuntime() {}
 
     private static final boolean REENTRANT_SAFE =
-            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_REENTRANT_SAFE"));
+            TypedCompilerConfiguration.flag("FC_TYPED_IR_REENTRANT_SAFE");
 
     /**
      * Exceptional-only queue cursor. When a scoreboard callback queues work

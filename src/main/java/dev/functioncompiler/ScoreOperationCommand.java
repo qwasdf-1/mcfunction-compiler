@@ -50,7 +50,7 @@ final class ScoreOperationCommand implements FusableCommand {
      * this additional text/argument equality check is an eligibility gate.
      */
     private static final boolean ARITHMETIC =
-            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_ARITHMETIC"));
+            TypedCompilerConfiguration.flag("FC_TYPED_IR_ARITHMETIC");
     static boolean exceptionalSourceShape(String input) {
         return input != null && (input.contains(" /= ") || input.contains(" %= ") || input.contains(" >< "));
     }

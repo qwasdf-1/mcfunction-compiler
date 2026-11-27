@@ -56,7 +56,7 @@ public final class TypedScoreIRDirectScheduler {
     }
 
     static int toggle(CommandSourceStack source, boolean enabled) {
-        if (!ENABLED || !TOGGLE_ALLOWED) return 0;
+        if (!CompilerFixtures.ENABLED || !ENABLED || !TOGGLE_ALLOWED) return 0;
         active = enabled;
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
                 "IR012 direct function enabled=" + enabled), false);

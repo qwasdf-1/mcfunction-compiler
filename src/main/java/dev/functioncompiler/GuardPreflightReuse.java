@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.LongAdder;
  */
 final class GuardPreflightReuse {
     private static final boolean ENABLED =
-            Boolean.parseBoolean(System.getenv("FC_TYPED_IR_GUARD_PREFLIGHT_REUSE"));
+            TypedCompilerConfiguration.flag("FC_TYPED_IR_GUARD_PREFLIGHT_REUSE");
     private static final boolean DIAGNOSTICS =
             Boolean.parseBoolean(System.getenv("FC_TYPED_IR_DIAGNOSTICS"));
     private static volatile boolean runtime = ENABLED;
@@ -25,7 +25,7 @@ final class GuardPreflightReuse {
     static boolean enabled() { return ENABLED && runtime; }
 
     static boolean benchmarkToggleAllowed() {
-        return ENABLED && Boolean.parseBoolean(System.getenv("FC_TYPED_IR047_BENCHMARK"));
+        return CompilerFixtures.ENABLED && ENABLED && Boolean.parseBoolean(System.getenv("FC_TYPED_IR047_BENCHMARK"));
     }
 
     static int toggle(CommandSourceStack source, boolean on) {
