@@ -1,0 +1,3412 @@
+{
+  "status": "observed",
+  "target_functions": [
+    "erb_generated:restore/reset",
+    "erb_generated:restore/wrap",
+    "erb:restore/job_tick",
+    "erb:source/projectile_probe_step",
+    "erb:watch/player_state",
+    "erb:runtime_tick",
+    "erb:runtime/finish",
+    "erb:capture/prepare",
+    "erb:capture/check_captured_position",
+    "erb:capture/queue",
+    "erb:capture/loop",
+    "erb:capture/store",
+    "erb:group/join",
+    "erb:pump/dormant",
+    "erb:source/tick_dimension",
+    "erb:job/create",
+    "erb:watch/scan/root"
+  ],
+  "callee_functions": [
+    "erb_generated:restore/reset",
+    "erb_generated:restore/wrap",
+    "erb:restore/job_tick",
+    "erb:source/projectile_probe_step",
+    "erb:watch/player_state",
+    "erb:runtime_tick",
+    "erb:runtime/finish",
+    "erb:capture/prepare",
+    "erb:capture/check_captured_position",
+    "erb:capture/queue",
+    "erb:capture/loop",
+    "erb:capture/store",
+    "erb:group/join",
+    "erb:pump/dormant",
+    "erb:source/tick_dimension",
+    "erb:job/create",
+    "erb:watch/scan/root",
+    "erb:group/add_segment",
+    "erb:capture/requeue_moved",
+    "erb:capture/schedule"
+  ],
+  "event": {
+    "ticks": 600,
+    "max_sampled_capture": 3438,
+    "capture_polls": 2,
+    "state": {
+      "template": true,
+      "y_slices": {
+        "56": true,
+        "57": true,
+        "58": true,
+        "59": true,
+        "60": true,
+        "61": true,
+        "62": true,
+        "63": true,
+        "64": true,
+        "65": true,
+        "66": true,
+        "67": true,
+        "68": true,
+        "69": true,
+        "70": true,
+        "71": true,
+        "72": true
+      },
+      "witnesses": {
+        "gold_block": true,
+        "diamond_block": true,
+        "redstone_block": true,
+        "emerald_block": true,
+        "stone": true
+      },
+      "markers": {
+        "block": 0,
+        "eligible": 0,
+        "verified": 0,
+        "unresolved": 0,
+        "verifying": 0,
+        "restore_job": 0,
+        "job_marker": 0,
+        "segment": 0,
+        "group_member": 0,
+        "danger_zone": 0,
+        "protected_item": 0,
+        "verify_wait": 0,
+        "retry_3plus": 0
+      },
+      "finish_counters": {
+        "saved": 0,
+        "groups": 0,
+        "capturing": 0,
+        "queued": 0,
+        "explosions": 0,
+        "paused": 0,
+        "needs_restore": 0
+      }
+    },
+    "wall_ns": 31373939804
+  },
+  "rows": [
+    {
+      "function": "erb:capture/check_captured_position",
+      "index": "0",
+      "entries": "78",
+      "callbacks": "78",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result score #x erb.tmp run data get entity @s Pos[0] 1"
+    },
+    {
+      "function": "erb:capture/check_captured_position",
+      "index": "1",
+      "entries": "78",
+      "callbacks": "78",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result score #y erb.tmp run data get entity @s Pos[1] 1"
+    },
+    {
+      "function": "erb:capture/check_captured_position",
+      "index": "2",
+      "entries": "78",
+      "callbacks": "78",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result score #z erb.tmp run data get entity @s Pos[2] 1"
+    },
+    {
+      "function": "erb:capture/check_captured_position",
+      "index": "3",
+      "entries": "78",
+      "callbacks": "78",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #moved erb.tmp 0"
+    },
+    {
+      "function": "erb:capture/check_captured_position",
+      "index": "4",
+      "entries": "78",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute unless score @s erb.x = #x erb.tmp run scoreboard players set #moved erb.tmp 1"
+    },
+    {
+      "function": "erb:capture/check_captured_position",
+      "index": "5",
+      "entries": "78",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute unless score @s erb.y = #y erb.tmp run scoreboard players set #moved erb.tmp 1"
+    },
+    {
+      "function": "erb:capture/check_captured_position",
+      "index": "6",
+      "entries": "78",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute unless score @s erb.z = #z erb.tmp run scoreboard players set #moved erb.tmp 1"
+    },
+    {
+      "function": "erb:capture/check_captured_position",
+      "index": "7",
+      "entries": "78",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #moved erb.tmp matches 1 run function erb:capture/requeue_moved"
+    },
+    {
+      "function": "erb:capture/loop",
+      "index": "0",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players remove #capture_budget erb.tmp 1"
+    },
+    {
+      "function": "erb:capture/loop",
+      "index": "1",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb_generated:scan/dispatch"
+    },
+    {
+      "function": "erb:capture/loop",
+      "index": "2",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players add @s erb.scan 1"
+    },
+    {
+      "function": "erb:capture/loop",
+      "index": "3",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb_generated:scan/finished"
+    },
+    {
+      "function": "erb:capture/loop",
+      "index": "4",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "complex_or_return_call",
+      "input": "execute if score #capture_budget erb.tmp matches 1.. if entity @s[tag=erb.capture_active] run function erb:capture/loop"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "0",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #active erb.job = @s erb.job"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "1",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #capture_x erb.tmp = @s erb.x"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "2",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #capture_y erb.tmp = @s erb.y"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "3",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #capture_z erb.tmp = @s erb.z"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "4",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #covered erb.tmp 0"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "5",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #union erb.tmp 0"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "6",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute as @e[type=minecraft:marker,tag=erb.segment] if score @s erb.job = #active erb.job run scoreboard players set #union erb.tmp 1"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "7",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 as @e[type=minecraft:marker,tag=erb.segment,tag=erb.snapshot_complete,scores={erb.radius=3}] if score @s erb.epoch = #epoch erb.cfg if score @s erb.job = #active erb.job if score @s erb.x = #capture_"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "8",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 as @e[type=minecraft:marker,tag=erb.segment,tag=erb.snapshot_complete,scores={erb.radius=6}] if score @s erb.epoch = #epoch erb.cfg if score @s erb.job = #active erb.job if score @s erb.x = #capture_"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "9",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 as @e[type=minecraft:marker,tag=erb.segment,tag=erb.snapshot_complete,scores={erb.radius=8}] if score @s erb.epoch = #epoch erb.cfg if score @s erb.job = #active erb.job if score @s erb.x = #capture_"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "10",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 as @e[type=minecraft:marker,tag=erb.segment,tag=erb.snapshot_complete,scores={erb.radius=10}] if score @s erb.epoch = #epoch erb.cfg if score @s erb.job = #active erb.job if score @s erb.x = #captur"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "11",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 as @e[type=minecraft:marker,tag=erb.segment,tag=erb.snapshot_complete,scores={erb.radius=12}] if score @s erb.epoch = #epoch erb.cfg if score @s erb.job = #active erb.job if score @s erb.x = #captur"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "12",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #covered erb.tmp matches 0 run function erb:group/add_segment"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "13",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score #covered erb.tmp matches 1 run tag @s add erb.capture_skipped"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "14",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score #union erb.tmp matches 1 run tag @s add erb.capture_union"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "15",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "tag @s remove erb.capture_new"
+    },
+    {
+      "function": "erb:capture/prepare",
+      "index": "16",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #covered erb.tmp matches 1 run function erb:capture/finish"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "0",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if entity @s[tag=erb.source_bed] run tag @s add erb.capture_air"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "1",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if entity @s[tag=erb.source_anchor] run tag @s add erb.capture_air"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "2",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players add #next erb.job 1"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "3",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @s erb.job = #next erb.job"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "4",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @s erb.origin = #next erb.job"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "5",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set @s erb.scan 0"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "6",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @s erb.epoch = #epoch erb.cfg"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "7",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result score @s erb.x run data get entity @s Pos[0] 1"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "8",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result score @s erb.y run data get entity @s Pos[1] 1"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "9",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result score @s erb.z run data get entity @s Pos[2] 1"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "10",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if entity @s[tag=erb.source_watcher] run scoreboard players set @s erb.timer 1000000"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "11",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "tag @s add erb.capture_queued"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "12",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "tag @s add erb.danger"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "13",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:group/join"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "14",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:drop/protect_area"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "15",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "execute unless entity @s[tag=erb.source_watcher] run function erb:drop/start"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "16",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "execute unless entity @s[tag=erb.capture_counted] run function erb:pump/count_capture"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "17",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:pump/capture_start"
+    },
+    {
+      "function": "erb:capture/queue",
+      "index": "18",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:pump/dormant_start"
+    },
+    {
+      "function": "erb:capture/store",
+      "index": "0",
+      "entries": "5769",
+      "callbacks": "5769",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "tag @s add erb.block"
+    },
+    {
+      "function": "erb:capture/store",
+      "index": "1",
+      "entries": "5769",
+      "callbacks": "5769",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @s erb.job = #active erb.job"
+    },
+    {
+      "function": "erb:capture/store",
+      "index": "2",
+      "entries": "5769",
+      "callbacks": "5769",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @s erb.origin = #active erb.job"
+    },
+    {
+      "function": "erb:capture/store",
+      "index": "3",
+      "entries": "5769",
+      "callbacks": "5769",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @s erb.epoch = #epoch erb.cfg"
+    },
+    {
+      "function": "erb:capture/store",
+      "index": "4",
+      "entries": "5769",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb_generated:read/root"
+    },
+    {
+      "function": "erb:capture/store",
+      "index": "5",
+      "entries": "5769",
+      "callbacks": "138",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if block ~ ~ ~ #erb:late run tag @s add erb.late"
+    },
+    {
+      "function": "erb:capture/store",
+      "index": "6",
+      "entries": "5769",
+      "callbacks": "92",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if block ~ ~ ~ #erb:fluid run tag @s add erb.fluid"
+    },
+    {
+      "function": "erb:capture/store",
+      "index": "7",
+      "entries": "5769",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if block ~ ~ ~ minecraft:tnt run tag @s add erb.saved_tnt"
+    },
+    {
+      "function": "erb:capture/store",
+      "index": "8",
+      "entries": "5769",
+      "callbacks": "5769",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store success score @s erb.tmp run data modify entity @s data.saved_nbt set from block ~ ~ ~ {}"
+    },
+    {
+      "function": "erb:capture/store",
+      "index": "9",
+      "entries": "5769",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.tmp matches 1 run tag @s add erb.has_nbt"
+    },
+    {
+      "function": "erb:capture/store",
+      "index": "10",
+      "entries": "5769",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:capture/dependencies"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "0",
+      "entries": "2",
+      "callbacks": "2",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #group_new erb.tmp = @s erb.job"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "1",
+      "entries": "2",
+      "callbacks": "2",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #group_target erb.tmp = @s erb.job"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "2",
+      "entries": "2",
+      "callbacks": "2",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #group_found erb.tmp 0"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "3",
+      "entries": "2",
+      "callbacks": "2",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "tag @s add erb.group_joining"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "4",
+      "entries": "2",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score @s erb.radius matches 3 run function erb:group/join_r3"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "5",
+      "entries": "2",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score @s erb.radius matches 6 run function erb:group/join_r6"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "6",
+      "entries": "2",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score @s erb.radius matches 8 run function erb:group/join_r8"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "7",
+      "entries": "2",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score @s erb.radius matches 10 run function erb:group/join_r10"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "8",
+      "entries": "2",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score @s erb.radius matches 12 run function erb:group/join_r12"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "9",
+      "entries": "2",
+      "callbacks": "2",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #merge_from erb.tmp = #group_new erb.tmp"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "10",
+      "entries": "2",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "complex_or_return_call",
+      "input": "execute unless score #merge_from erb.tmp = #group_target erb.tmp run function erb:group/merge_from"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "11",
+      "entries": "2",
+      "callbacks": "2",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @s erb.job = #group_target erb.tmp"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "12",
+      "entries": "2",
+      "callbacks": "2",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "tag @s remove erb.group_joining"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "13",
+      "entries": "2",
+      "callbacks": "2",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #active erb.job = #group_target erb.tmp"
+    },
+    {
+      "function": "erb:group/join",
+      "index": "14",
+      "entries": "2",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "execute as @e[type=minecraft:marker,tag=erb.job_marker] if score @s erb.job = #active erb.job run function erb:job/pause_group"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "0",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:group/join"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "1",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #active erb.job = @s erb.job"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "2",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #create_radius erb.tmp = @s erb.radius"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "3",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #create_timer erb.tmp = #delay erb.cfg"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "4",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.timer matches 1.. run scoreboard players operation #create_timer erb.tmp += @s erb.timer"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "5",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #job_exists erb.tmp 0"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "6",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "execute as @e[type=minecraft:marker,tag=erb.job_marker] if score @s erb.job = #active erb.job run function erb:job/reopen"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "7",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #job_exists erb.tmp matches 0 run function erb:job/create_new"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "8",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "summon minecraft:marker ~ ~ ~ {Tags:[\"erb.danger_zone\",\"erb.new_danger\"]}"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "9",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set @e[type=minecraft:marker,tag=erb.new_danger,distance=..0.1,limit=1] erb.timer 1"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "10",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if entity @s[tag=erb.source_tnt] run scoreboard players operation @e[type=minecraft:marker,tag=erb.new_danger,distance=..0.1,limit=1] erb.timer = @s erb.timer"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "11",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if entity @s[tag=erb.source_minecart] run scoreboard players operation @e[type=minecraft:marker,tag=erb.new_danger,distance=..0.1,limit=1] erb.timer = @s erb.timer"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "12",
+      "entries": "1",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if entity @s[tag=erb.source_creeper] run scoreboard players operation @e[type=minecraft:marker,tag=erb.new_danger,distance=..0.1,limit=1] erb.timer = @s erb.timer"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "13",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @e[type=minecraft:marker,tag=erb.new_danger,distance=..0.1,limit=1] erb.job = #active erb.job"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "14",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @e[type=minecraft:marker,tag=erb.new_danger,distance=..0.1,limit=1] erb.epoch = #epoch erb.cfg"
+    },
+    {
+      "function": "erb:job/create",
+      "index": "15",
+      "entries": "1",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "tag @e[type=minecraft:marker,tag=erb.new_danger,distance=..0.1,limit=1] remove erb.new_danger"
+    },
+    {
+      "function": "erb:pump/dormant",
+      "index": "0",
+      "entries": "30",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "execute unless score #installed erb.cfg matches 1 run return 0"
+    },
+    {
+      "function": "erb:pump/dormant",
+      "index": "1",
+      "entries": "30",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "execute unless score #enabled erb.cfg matches 1 run return 0"
+    },
+    {
+      "function": "erb:pump/dormant",
+      "index": "2",
+      "entries": "30",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #captures_active erb.cfg matches 1.. run function erb:pump/capture_loaded"
+    },
+    {
+      "function": "erb:pump/dormant",
+      "index": "3",
+      "entries": "30",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "complex_or_return_call",
+      "input": "execute if score #captures_active erb.cfg matches 1.. if score #capture_loaded erb.tmp matches 1 run function erb:pump/capture_start"
+    },
+    {
+      "function": "erb:pump/dormant",
+      "index": "4",
+      "entries": "30",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #groups_active erb.cfg matches 1.. run function erb:pump/group_loaded"
+    },
+    {
+      "function": "erb:pump/dormant",
+      "index": "5",
+      "entries": "30",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "complex_or_return_call",
+      "input": "execute if score #groups_active erb.cfg matches 1.. if score #group_loaded_h3 erb.tmp matches 1 run function erb:pump/group_start"
+    },
+    {
+      "function": "erb:pump/dormant",
+      "index": "6",
+      "entries": "30",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #groups_active erb.cfg matches 1.. run function erb:pump/cleanup_start"
+    },
+    {
+      "function": "erb:pump/dormant",
+      "index": "7",
+      "entries": "30",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #groups_active erb.cfg matches 1.. run function erb:pump/verify_start"
+    },
+    {
+      "function": "erb:pump/dormant",
+      "index": "8",
+      "entries": "30",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #epoch_cleanup erb.cfg matches 1 run function erb:admin/purge_stale"
+    },
+    {
+      "function": "erb:pump/dormant",
+      "index": "9",
+      "entries": "30",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute unless score #captures_active erb.cfg matches 1.. unless score #groups_active erb.cfg matches 1.. unless score #epoch_cleanup erb.cfg matches 1 run scoreboard players set #dormant_pump erb.cfg 0"
+    },
+    {
+      "function": "erb:pump/dormant",
+      "index": "10",
+      "entries": "30",
+      "callbacks": "30",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score #dormant_pump erb.cfg matches 1 run schedule function erb:pump/dormant 20t replace"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "0",
+      "entries": "541",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute unless score @s erb.mode matches 0..1 run scoreboard players set @s erb.mode 1"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "1",
+      "entries": "541",
+      "callbacks": "541",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #group_mode erb.tmp = @s erb.mode"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "2",
+      "entries": "541",
+      "callbacks": "541",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #active erb.job = @s erb.job"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "3",
+      "entries": "541",
+      "callbacks": "541",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #needs_restore erb.tmp 0"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "4",
+      "entries": "541",
+      "callbacks": "647279",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute as @e[type=minecraft:marker,tag=erb.block,tag=!erb.verified] if score @s erb.job = #active erb.job run scoreboard players set #needs_restore erb.tmp 1"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "5",
+      "entries": "541",
+      "callbacks": "1",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score #needs_restore erb.tmp matches 0 run return run tag @s add erb.finishing"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "6",
+      "entries": "540",
+      "callbacks": "540",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #restore_pass erb.tmp = @s erb.pass"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "7",
+      "entries": "540",
+      "callbacks": "540",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #group_count erb.tmp 0"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "8",
+      "entries": "540",
+      "callbacks": "540",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute as @e[type=minecraft:marker,tag=erb.group_member,tag=erb.counted] if score @s erb.job = #active erb.job run scoreboard players add #group_count erb.tmp 1"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "9",
+      "entries": "540",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score #group_count erb.tmp matches 0 run scoreboard players set #group_count erb.tmp 1"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "10",
+      "entries": "540",
+      "callbacks": "540",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #restore_remaining erb.tmp = #bpt erb.cfg"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "11",
+      "entries": "540",
+      "callbacks": "540",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #restore_remaining erb.tmp *= #group_count erb.tmp"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "12",
+      "entries": "540",
+      "callbacks": "540",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #restore_scan erb.tmp 32"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "13",
+      "entries": "540",
+      "callbacks": "540",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #restore_sound erb.tmp 0"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "14",
+      "entries": "540",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:restore/group_loop"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "15",
+      "entries": "540",
+      "callbacks": "2",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score #restore_sound erb.tmp matches 1 if score #sound_played erb.tmp matches 0 run playsound minecraft:block.bubble_column.bubble_pop block @a[distance=..32] ~ ~ ~ 0.35 1.4"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "16",
+      "entries": "540",
+      "callbacks": "540",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #active erb.job -1"
+    },
+    {
+      "function": "erb:restore/job_tick",
+      "index": "17",
+      "entries": "540",
+      "callbacks": "2",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score #restore_sound erb.tmp matches 1 run scoreboard players set #sound_played erb.tmp 1"
+    },
+    {
+      "function": "erb:runtime/finish",
+      "index": "0",
+      "entries": "454",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "execute as @e[type=minecraft:marker,tag=erb.danger_zone] at @s run function erb:danger/tick"
+    },
+    {
+      "function": "erb:runtime/finish",
+      "index": "1",
+      "entries": "454",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "execute as @e[type=minecraft:marker,tag=erb.job_marker] at @s run function erb:job/quiet_tick"
+    },
+    {
+      "function": "erb:runtime/finish",
+      "index": "2",
+      "entries": "454",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "execute as @e[type=minecraft:marker,tag=erb.waiting_job] at @s run function erb:job/tick_once"
+    },
+    {
+      "function": "erb:runtime/finish",
+      "index": "3",
+      "entries": "454",
+      "callbacks": "454",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #restore_ran erb.tmp 0"
+    },
+    {
+      "function": "erb:runtime/finish",
+      "index": "4",
+      "entries": "454",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #restore_due erb.tmp matches 1 run function erb:restore/tick"
+    },
+    {
+      "function": "erb:runtime/finish",
+      "index": "5",
+      "entries": "454",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #clock erb.cfg matches 0 run function erb:admin/purge_stale"
+    },
+    {
+      "function": "erb:runtime_tick",
+      "index": "0",
+      "entries": "601",
+      "callbacks": "601",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players add #tick_id erb.cfg 1"
+    },
+    {
+      "function": "erb:runtime_tick",
+      "index": "1",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:player/enable_triggers"
+    },
+    {
+      "function": "erb:runtime_tick",
+      "index": "2",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "execute as @a at @s run function erb:player/tick"
+    },
+    {
+      "function": "erb:runtime_tick",
+      "index": "3",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #enabled erb.cfg matches 1 run function erb:runtime/active"
+    },
+    {
+      "function": "erb:runtime_tick",
+      "index": "4",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute unless score #enabled erb.cfg matches 1 run function erb:runtime/disabled"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "0",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #probe_x erb.tmp = #probe_motion_x erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "1",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #probe_x erb.tmp *= #probe_step erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "2",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #probe_x erb.tmp /= #probe_divisor erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "3",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result storage erb:context probe.x double 0.000244140625 run scoreboard players get #probe_x erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "4",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #probe_y erb.tmp = #probe_motion_y erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "5",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #probe_y erb.tmp *= #probe_step erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "6",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #probe_y erb.tmp /= #probe_divisor erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "7",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result storage erb:context probe.y double 0.000244140625 run scoreboard players get #probe_y erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "8",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #probe_z erb.tmp = #probe_motion_z erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "9",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #probe_z erb.tmp *= #probe_step erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "10",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation #probe_z erb.tmp /= #probe_divisor erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "11",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result storage erb:context probe.z double 0.000244140625 run scoreboard players get #probe_z erb.tmp"
+    },
+    {
+      "function": "erb:source/projectile_probe_step",
+      "index": "12",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:source/projectile_probe_at with storage erb:context probe"
+    },
+    {
+      "function": "erb:source/tick_dimension",
+      "index": "0",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:source/tick_active"
+    },
+    {
+      "function": "erb:source/tick_dimension",
+      "index": "1",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:source/discover_phase1"
+    },
+    {
+      "function": "erb:source/tick_dimension",
+      "index": "2",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "none",
+      "input": "function erb:source/projectiles"
+    },
+    {
+      "function": "erb:source/tick_dimension",
+      "index": "3",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #clock erb.cfg matches 1 run function erb:source/creeper/tick"
+    },
+    {
+      "function": "erb:source/tick_dimension",
+      "index": "4",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #clock erb.cfg matches 2 run function erb:source/discover_phase2"
+    },
+    {
+      "function": "erb:source/tick_dimension",
+      "index": "5",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score #clock erb.cfg matches 3 run function erb:source/discover_phase3"
+    },
+    {
+      "function": "erb:source/tick_dimension",
+      "index": "6",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score #clock erb.cfg matches 4 as @e[type=minecraft:marker,tag=erb.watcher] run scoreboard players add #watchers_active erb.cfg 1"
+    },
+    {
+      "function": "erb:source/tick_dimension",
+      "index": "7",
+      "entries": "601",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "complex_or_return_call",
+      "input": "execute if score #clock erb.cfg matches 4 as @e[type=minecraft:marker,tag=erb.watcher] at @s run function erb:watch/tick_once"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "0",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #watch_changed erb.tmp 0"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "1",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result score #watch_x erb.tmp run data get entity @s Pos[0] 0.25"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "2",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result score #watch_y erb.tmp run data get entity @s Pos[1] 0.25"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "3",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute store result score #watch_z erb.tmp run data get entity @s Pos[2] 0.25"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "4",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set #watch_dim erb.tmp 3"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "5",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if dimension minecraft:overworld run scoreboard players set #watch_dim erb.tmp 0"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "6",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if dimension minecraft:the_nether run scoreboard players set #watch_dim erb.tmp 1"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "7",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if dimension minecraft:the_end run scoreboard players set #watch_dim erb.tmp 2"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "8",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute unless entity @s[tag=erb.watch_initialized] run scoreboard players set #watch_changed erb.tmp 1"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "9",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute unless score @s erb.watch_x = #watch_x erb.tmp run scoreboard players set #watch_changed erb.tmp 1"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "10",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute unless score @s erb.watch_y = #watch_y erb.tmp run scoreboard players set #watch_changed erb.tmp 1"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "11",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute unless score @s erb.watch_z = #watch_z erb.tmp run scoreboard players set #watch_changed erb.tmp 1"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "12",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute unless score @s erb.watch_dim = #watch_dim erb.tmp run scoreboard players set #watch_changed erb.tmp 1"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "13",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @s erb.watch_x = #watch_x erb.tmp"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "14",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @s erb.watch_y = #watch_y erb.tmp"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "15",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @s erb.watch_z = #watch_z erb.tmp"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "16",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players operation @s erb.watch_dim = #watch_dim erb.tmp"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "17",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "tag @s add erb.watch_initialized"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "18",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score #watch_changed erb.tmp matches 1 run scoreboard players set @s erb.watch_scan 0"
+    },
+    {
+      "function": "erb:watch/player_state",
+      "index": "19",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score #watch_changed erb.tmp matches 1 run tag @s add erb.watch_scan_pending"
+    },
+    {
+      "function": "erb:watch/scan/root",
+      "index": "0",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score @s erb.watch_scan matches 0..705 run function erb:watch/scan/root_0"
+    },
+    {
+      "function": "erb:watch/scan/root",
+      "index": "1",
+      "entries": "0",
+      "callbacks": "0",
+      "kind": "custom_executor",
+      "dispatch_shape": "single_score_static_call",
+      "input": "execute if score @s erb.watch_scan matches 706..1412 run function erb:watch/scan/root_1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "0",
+      "entries": "3",
+      "callbacks": "3",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "1",
+      "entries": "3",
+      "callbacks": "3",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set @s erb.step 1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "2",
+      "entries": "3",
+      "callbacks": "3",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "scoreboard players set @s erb.scanned 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "3",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 2 run scoreboard players set @s erb.cursor 122"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "4",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 2 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "5",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 3 run scoreboard players set @s erb.cursor 122"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "6",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 3 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "7",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 6 run scoreboard players set @s erb.cursor 122"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "8",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 6 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "9",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 7 run scoreboard players set @s erb.cursor 122"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "10",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 7 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "11",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 0 run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "12",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 1 run scoreboard players set @s erb.cursor 15"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "13",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 2 run scoreboard players set @s erb.cursor 30"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "14",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 3 run scoreboard players set @s erb.cursor 46"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "15",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 4 run scoreboard players set @s erb.cursor 61"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "16",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 5 run scoreboard players set @s erb.cursor 76"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "17",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 6 run scoreboard players set @s erb.cursor 92"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "18",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 7 run scoreboard players set @s erb.cursor 107"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "19",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 8 run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "20",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 8 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "21",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 9 run scoreboard players set @s erb.cursor 15"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "22",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 9 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "23",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 10 run scoreboard players set @s erb.cursor 30"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "24",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 10 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "25",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 11 run scoreboard players set @s erb.cursor 46"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "26",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 11 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "27",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 12 run scoreboard players set @s erb.cursor 61"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "28",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 12 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "29",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 13 run scoreboard players set @s erb.cursor 76"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "30",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 13 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "31",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 14 run scoreboard players set @s erb.cursor 92"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "32",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 14 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "33",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 15 run scoreboard players set @s erb.cursor 107"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "34",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.anim matches 0 if score @s erb.variant matches 15 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "35",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 2 run scoreboard players set @s erb.cursor 924"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "36",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 2 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "37",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 3 run scoreboard players set @s erb.cursor 924"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "38",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 3 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "39",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 6 run scoreboard players set @s erb.cursor 924"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "40",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 6 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "41",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 7 run scoreboard players set @s erb.cursor 924"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "42",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 7 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "43",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 0 run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "44",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 1 run scoreboard players set @s erb.cursor 115"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "45",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 2 run scoreboard players set @s erb.cursor 231"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "46",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 3 run scoreboard players set @s erb.cursor 346"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "47",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 4 run scoreboard players set @s erb.cursor 462"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "48",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 5 run scoreboard players set @s erb.cursor 578"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "49",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 6 run scoreboard players set @s erb.cursor 693"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "50",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 7 run scoreboard players set @s erb.cursor 809"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "51",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 8 run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "52",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 8 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "53",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 9 run scoreboard players set @s erb.cursor 115"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "54",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 9 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "55",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 10 run scoreboard players set @s erb.cursor 231"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "56",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 10 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "57",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 11 run scoreboard players set @s erb.cursor 346"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "58",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 11 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "59",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 12 run scoreboard players set @s erb.cursor 462"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "60",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 12 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "61",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 13 run scoreboard players set @s erb.cursor 578"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "62",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 13 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "63",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 14 run scoreboard players set @s erb.cursor 693"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "64",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 14 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "65",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 15 run scoreboard players set @s erb.cursor 809"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "66",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.anim matches 0 if score @s erb.variant matches 15 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "67",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 2 run scoreboard players set @s erb.cursor 2108"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "68",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 2 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "69",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 3 run scoreboard players set @s erb.cursor 2108"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "70",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 3 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "71",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 6 run scoreboard players set @s erb.cursor 2108"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "72",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 6 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "73",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 7 run scoreboard players set @s erb.cursor 2108"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "74",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 7 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "75",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 0 run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "76",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 1 run scoreboard players set @s erb.cursor 263"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "77",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 2 run scoreboard players set @s erb.cursor 527"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "78",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 3 run scoreboard players set @s erb.cursor 790"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "79",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 4 run scoreboard players set @s erb.cursor 1054"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "80",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 5 run scoreboard players set @s erb.cursor 1318"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "81",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 6 run scoreboard players set @s erb.cursor 1581"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "82",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 7 run scoreboard players set @s erb.cursor 1845"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "83",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 8 run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "84",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 8 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "85",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 9 run scoreboard players set @s erb.cursor 263"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "86",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 9 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "87",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 10 run scoreboard players set @s erb.cursor 527"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "88",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 10 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "89",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 11 run scoreboard players set @s erb.cursor 790"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "90",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 11 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "91",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 12 run scoreboard players set @s erb.cursor 1054"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "92",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 12 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "93",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 13 run scoreboard players set @s erb.cursor 1318"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "94",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 13 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "95",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 14 run scoreboard players set @s erb.cursor 1581"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "96",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 14 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "97",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 15 run scoreboard players set @s erb.cursor 1845"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "98",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.anim matches 0 if score @s erb.variant matches 15 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "99",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 2 run scoreboard players set @s erb.cursor 4168"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "100",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 2 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "101",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 3 run scoreboard players set @s erb.cursor 4168"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "102",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 3 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "103",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 6 run scoreboard players set @s erb.cursor 4168"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "104",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 6 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "105",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 7 run scoreboard players set @s erb.cursor 4168"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "106",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 7 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "107",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 0 run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "108",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 1 run scoreboard players set @s erb.cursor 521"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "109",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 2 run scoreboard players set @s erb.cursor 1042"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "110",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 3 run scoreboard players set @s erb.cursor 1563"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "111",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 4 run scoreboard players set @s erb.cursor 2084"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "112",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 5 run scoreboard players set @s erb.cursor 2605"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "113",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 6 run scoreboard players set @s erb.cursor 3126"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "114",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 7 run scoreboard players set @s erb.cursor 3647"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "115",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 8 run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "116",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 8 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "117",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 9 run scoreboard players set @s erb.cursor 521"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "118",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 9 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "119",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 10 run scoreboard players set @s erb.cursor 1042"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "120",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 10 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "121",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 11 run scoreboard players set @s erb.cursor 1563"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "122",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 11 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "123",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 12 run scoreboard players set @s erb.cursor 2084"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "124",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 12 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "125",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 13 run scoreboard players set @s erb.cursor 2605"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "126",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 13 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "127",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 14 run scoreboard players set @s erb.cursor 3126"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "128",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 14 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "129",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 15 run scoreboard players set @s erb.cursor 3647"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "130",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.anim matches 0 if score @s erb.variant matches 15 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "131",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 2 run scoreboard players set @s erb.cursor 7152"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "132",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 2 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "133",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 3 run scoreboard players set @s erb.cursor 7152"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "134",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 3 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "135",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 6 run scoreboard players set @s erb.cursor 7152"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "136",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 6 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "137",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 7 run scoreboard players set @s erb.cursor 7152"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "138",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 7 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "139",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 0 run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "140",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 1 run scoreboard players set @s erb.cursor 894"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "141",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 2 run scoreboard players set @s erb.cursor 1788"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "142",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 3 run scoreboard players set @s erb.cursor 2682"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "143",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 4 run scoreboard players set @s erb.cursor 3576"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "144",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 5 run scoreboard players set @s erb.cursor 4470"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "145",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 6 run scoreboard players set @s erb.cursor 5364"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "146",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 7 run scoreboard players set @s erb.cursor 6258"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "147",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 8 run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "148",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 8 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "149",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 9 run scoreboard players set @s erb.cursor 894"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "150",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 9 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "151",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 10 run scoreboard players set @s erb.cursor 1788"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "152",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 10 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "153",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 11 run scoreboard players set @s erb.cursor 2682"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "154",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 11 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "155",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 12 run scoreboard players set @s erb.cursor 3576"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "156",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 12 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "157",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 13 run scoreboard players set @s erb.cursor 4470"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "158",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 13 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "159",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 14 run scoreboard players set @s erb.cursor 5364"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "160",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 14 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "161",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 15 run scoreboard players set @s erb.cursor 6258"
+    },
+    {
+      "function": "erb_generated:restore/reset",
+      "index": "162",
+      "entries": "3",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.anim matches 0 if score @s erb.variant matches 15 run scoreboard players set @s erb.step -1"
+    },
+    {
+      "function": "erb_generated:restore/wrap",
+      "index": "0",
+      "entries": "17245",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.cursor matches 123.. run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/wrap",
+      "index": "1",
+      "entries": "17245",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 3 if score @s erb.cursor matches ..-1 run scoreboard players set @s erb.cursor 122"
+    },
+    {
+      "function": "erb_generated:restore/wrap",
+      "index": "2",
+      "entries": "17245",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.cursor matches 925.. run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/wrap",
+      "index": "3",
+      "entries": "17245",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 6 if score @s erb.cursor matches ..-1 run scoreboard players set @s erb.cursor 924"
+    },
+    {
+      "function": "erb_generated:restore/wrap",
+      "index": "4",
+      "entries": "17245",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.cursor matches 2109.. run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/wrap",
+      "index": "5",
+      "entries": "17245",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 8 if score @s erb.cursor matches ..-1 run scoreboard players set @s erb.cursor 2108"
+    },
+    {
+      "function": "erb_generated:restore/wrap",
+      "index": "6",
+      "entries": "17245",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.cursor matches 4169.. run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/wrap",
+      "index": "7",
+      "entries": "17245",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 10 if score @s erb.cursor matches ..-1 run scoreboard players set @s erb.cursor 4168"
+    },
+    {
+      "function": "erb_generated:restore/wrap",
+      "index": "8",
+      "entries": "17245",
+      "callbacks": "2",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.cursor matches 7153.. run scoreboard players set @s erb.cursor 0"
+    },
+    {
+      "function": "erb_generated:restore/wrap",
+      "index": "9",
+      "entries": "17245",
+      "callbacks": "0",
+      "kind": "ordinary_callback",
+      "dispatch_shape": "none",
+      "input": "execute if score @s erb.radius matches 12 if score @s erb.cursor matches ..-1 run scoreboard players set @s erb.cursor 7152"
+    }
+  ],
+  "summary": {
+    "functions": [
+      {
+        "function": "erb_generated:restore/wrap",
+        "native_call_tasks": 17245,
+        "entries": 172450,
+        "ordinary_callbacks": 2,
+        "candidate_region_entries": 172450
+      },
+      {
+        "function": "erb:capture/store",
+        "native_call_tasks": 5769,
+        "entries": 63459,
+        "ordinary_callbacks": 29075,
+        "candidate_region_entries": 17307
+      },
+      {
+        "function": "erb:restore/job_tick",
+        "native_call_tasks": 541,
+        "entries": 9726,
+        "ordinary_callbacks": 653227,
+        "candidate_region_entries": 7024
+      },
+      {
+        "function": "erb_generated:restore/reset",
+        "native_call_tasks": 3,
+        "entries": 489,
+        "ordinary_callbacks": 9,
+        "candidate_region_entries": 489
+      },
+      {
+        "function": "erb:capture/check_captured_position",
+        "native_call_tasks": 78,
+        "entries": 624,
+        "ordinary_callbacks": 312,
+        "candidate_region_entries": 312
+      },
+      {
+        "function": "erb:capture/prepare",
+        "native_call_tasks": 1,
+        "entries": 17,
+        "ordinary_callbacks": 7,
+        "candidate_region_entries": 6
+      },
+      {
+        "function": "erb:group/join",
+        "native_call_tasks": 2,
+        "entries": 30,
+        "ordinary_callbacks": 16,
+        "candidate_region_entries": 6
+      },
+      {
+        "function": "erb:capture/queue",
+        "native_call_tasks": 1,
+        "entries": 19,
+        "ordinary_callbacks": 10,
+        "candidate_region_entries": 5
+      },
+      {
+        "function": "erb:job/create",
+        "native_call_tasks": 1,
+        "entries": 16,
+        "ordinary_callbacks": 11,
+        "candidate_region_entries": 5
+      },
+      {
+        "function": "erb:capture/loop",
+        "native_call_tasks": 0,
+        "entries": 0,
+        "ordinary_callbacks": 0
+      },
+      {
+        "function": "erb:pump/dormant",
+        "native_call_tasks": 30,
+        "entries": 330,
+        "ordinary_callbacks": 30
+      },
+      {
+        "function": "erb:runtime/finish",
+        "native_call_tasks": 454,
+        "entries": 2724,
+        "ordinary_callbacks": 454
+      },
+      {
+        "function": "erb:runtime_tick",
+        "native_call_tasks": 601,
+        "entries": 3005,
+        "ordinary_callbacks": 601
+      },
+      {
+        "function": "erb:source/projectile_probe_step",
+        "native_call_tasks": 0,
+        "entries": 0,
+        "ordinary_callbacks": 0,
+        "candidate_region_entries": 0
+      },
+      {
+        "function": "erb:source/tick_dimension",
+        "native_call_tasks": 601,
+        "entries": 4808,
+        "ordinary_callbacks": 0
+      },
+      {
+        "function": "erb:watch/player_state",
+        "native_call_tasks": 0,
+        "entries": 0,
+        "ordinary_callbacks": 0,
+        "candidate_region_entries": 0
+      },
+      {
+        "function": "erb:watch/scan/root",
+        "native_call_tasks": 0,
+        "entries": 0,
+        "ordinary_callbacks": 0
+      }
+    ],
+    "all_allowlisted_calls": {
+      "erb:capture/check_captured_position": 78,
+      "erb:capture/loop": 0,
+      "erb:capture/prepare": 1,
+      "erb:capture/queue": 1,
+      "erb:capture/requeue_moved": 0,
+      "erb:capture/schedule": 449,
+      "erb:capture/store": 5769,
+      "erb:group/add_segment": 1,
+      "erb:group/join": 2,
+      "erb:job/create": 1,
+      "erb:pump/dormant": 30,
+      "erb:restore/job_tick": 541,
+      "erb:runtime/finish": 454,
+      "erb:runtime_tick": 601,
+      "erb:source/projectile_probe_step": 0,
+      "erb:source/tick_dimension": 601,
+      "erb:watch/player_state": 0,
+      "erb:watch/scan/root": 0,
+      "erb_generated:restore/reset": 3,
+      "erb_generated:restore/wrap": 17245
+    },
+    "unsupported_entry_rank": [
+      [
+        "execute_other",
+        23710
+      ],
+      [
+        "function_dispatch",
+        21272
+      ],
+      [
+        "data_or_store",
+        6547
+      ],
+      [
+        "tag",
+        5777
+      ],
+      [
+        "entity_context_or_selector",
+        1688
+      ],
+      [
+        "isolated_typed_candidate",
+        1091
+      ],
+      [
+        "execute_run_scoreboard_other",
+        4
+      ],
+      [
+        "scoreboard_other",
+        3
+      ],
+      [
+        "summon",
+        1
+      ],
+      [
+        "function_dispatch_or_macro",
+        0
+      ]
+    ],
+    "observed_scope_entries": 257697,
+    "candidate_region_entries": 197604,
+    "static_region_prediction_only": true
+  }
+}

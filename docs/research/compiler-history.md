@@ -68,3 +68,7 @@ This index preserves the findings, rejected paths, and methodology of compiler r
 ## Verification and evidence
 
 The maintained regression workflow uses in-tree scripts and structural contracts. Shared imported helper modules can contain historical standalone entrypoints that require discarded probes: only the curated integration matrix is supported. Exact old code and workflows remain at the checkpoint. The evidence retention manifest will identify original archive digests, immutable Git snapshots and any gaps due to expiry. See [archive README](../archive/compiler-research/README.md).
+
+### Durable raw evidence
+
+[Original evidence archive at 9c8663d](https://github.com/qwasdf-1/mcfunction-compiler/tree/9c8663d5aeeabc461a12ef8e6a79d01531f5dfa1/evidence/compiler) preserves 46 original ZIP files (2,517,933 bytes), including selected IR037–047 native and CPU studies, failed attempts and the first Integration-001 matrix. All 46 original reported SHA-256 digests and ZIP integrity checks passed in [archive run 45919516763](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45919516763). The [manifest](compiler-evidence-manifest.json) records original artifact IDs, digest, size and path relative to that immutable evidence commit. Earlier historical raw archives are not exhaustively preserved; the corresponding historical reports remain indexed. The two frozen reference fixtures are also maintained directly in the test tree, with exact hashes checked by the integration structural tests.

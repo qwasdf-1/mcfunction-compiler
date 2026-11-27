@@ -2,6 +2,9 @@ name: Integration-001 candidate verification
 
 on:
   workflow_dispatch:
+  push:
+    branches: [work/compiler-integration]
+    paths: ['.github/workflows/integration-001.yml']
 permissions:
   contents: read
   actions: read
@@ -41,22 +44,8 @@ jobs:
       - name: Fetch original publisher pack
         if: matrix.suite == '047_publisher'
         run: python3 scripts/ci_typed_ir015_fetch.py
-      - name: Fetch frozen native census
-        if: matrix.suite == '047_publisher'
-        uses: actions/download-artifact@v4
-        with:
-          name: compiler-ir042-publisher
-          run-id: 45516230461
-          github-token: ${{ github.token }}
-          path: build/ir042-original
-      - name: Fetch accepted IR047 native artifact
-        if: matrix.suite == '047'
-        uses: actions/download-artifact@v4
-        with:
-          name: compiler-ir047-047
-          run-id: 45908911065
-          github-token: ${{ github.token }}
-          path: build/accepted-native
+      - name: Verify frozen reference inputs
+        run: python3 -m unittest discover -s tests -p test_integration_001.py -v
       - name: Build pinned main twin
         if: matrix.suite == 'default_off'
         run: |
@@ -65,7 +54,7 @@ jobs:
           ./gradlew --no-daemon build
       - name: Execute regression or default-off screen
         env:
-          FC_IR047_CENSUS_JSON: build/ir042-original/COMPILER-IR-042-PUBLISHER/census.json
+          FC_IR047_CENSUS_JSON: tests/fixtures/compiler/ir042-census.json
           FC_IR047_WORKLOAD: ${{ matrix.suite == '047_cpu_mixed' && 'mixed' || 'pure' }}
         run: |
           suite="${{ matrix.suite }}"
@@ -79,7 +68,7 @@ jobs:
           if [ "$suite" = 047 ]; then
             python3 - <<'PY'
           import json,pathlib
-          ref=json.loads(next(pathlib.Path("build/accepted-native").rglob("results.json")).read_text())
+          ref=json.loads(pathlib.Path("tests/fixtures/compiler/ir047-native.json").read_text())
           got=json.loads(pathlib.Path("build/reports/COMPILER-IR-047/results.json").read_text())
           assert got["status"]==ref["status"]=="accepted"
           assert [a["cases"] for a in got["arms"]]==[a["cases"] for a in ref["arms"]]
