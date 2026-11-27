@@ -22,6 +22,11 @@ final class CompilerFixtures {
     static String diagnostics() { return ReentrantQueueProbe.diagnostics(); }
     private CompilerFixtures() {}
     static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        if (Boolean.parseBoolean(System.getenv("FC_IR048_CENSUS"))) {
+            dispatcher.register(Commands.literal("fc_ir048_census")
+                    .then(Commands.literal("start").executes(c -> IR048DispatchCensus.start(c.getSource())))
+                    .then(Commands.literal("stop").executes(c -> IR048DispatchCensus.stop(c.getSource()))));
+        }
         // IR-040: explicitly gated benchmark only. All three arms use the
         // identical native initial-call scheduler and empty result callbacks.
         if (Boolean.parseBoolean(System.getenv("FC_TYPED_IR040_BENCHMARK"))) {

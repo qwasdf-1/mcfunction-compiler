@@ -4,7 +4,9 @@
   "compatibilityLevel": "JAVA_25",
   "mixins": [
     "ScoreLifecycleFixtureMixin",
-    "ScoreboardQueueInjectionMixin"
+    "ScoreboardQueueInjectionMixin",
+    "IR048BuildContextsFixtureMixin",
+    "IR048ContextChainFixtureMixin"
   ],
   "injectors": {
     "defaultRequire": 1

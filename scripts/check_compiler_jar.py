@@ -15,12 +15,14 @@ with zipfile.ZipFile(jars[0]) as z:
                  "IR036CostModel","TypedIREffectAnalysis","ScoreValueRevisionAccess","mixin/ScoreValueRevisionMixin"):
         assert prefix+name+".class" not in names,name
     for name in ("ReentrantQueueProbe","mixin/ScoreLifecycleFixtureMixin",
-                 "mixin/ScoreboardQueueInjectionMixin","mixin/IntegrationMixinPlugin"):
+                 "mixin/ScoreboardQueueInjectionMixin","mixin/IntegrationMixinPlugin",
+                 "IR048DispatchCensus","mixin/IR048BuildContextsFixtureMixin",
+                 "mixin/IR048ContextChainFixtureMixin"):
         assert (prefix+name+".class" in names)==fixture,name
     assert ("function_compiler.fixtures.mixins.json" in names)==fixture
     assert ("function_compiler.fixtures.mixins.json" in mod["mixins"])==fixture
     assert ("-fixtures" in mod["version"])==fixture
     commands=z.read(prefix+"CompilerFixtures.class")
-    for token in (b"fc_ir040_batch",b"fc_ir046_callback",b"fc_probe_leaf"):
+    for token in (b"fc_ir040_batch",b"fc_ir046_callback",b"fc_probe_leaf",b"fc_ir048_census"):
         assert (token in commands)==fixture,token
 print("INTEGRATION_JAR",json.dumps({"jar":jars[0].name,"fixture":fixture,"status":"accepted"}))
