@@ -28,15 +28,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Extract immutable accepted harness (not runtime)
+      - name: Validate maintained harness
         run: |
-          git fetch origin 9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c
-          git archive 9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c scripts | tar -x
-          python3 -m py_compile scripts/ci_integration_001_off.py
+          python3 -m py_compile scripts/ci_integration_001_off.py scripts/ci_typed_ir047*.py
+          PYTHONPATH=scripts python3 -c 'import ci_typed_ir043, ci_typed_ir044, ci_typed_ir045, ci_typed_ir046, ci_typed_ir047, ci_typed_ir047_cpu, ci_typed_ir047_publisher'
       - name: Build candidate
         run: ./gradlew --no-daemon build
       - name: Static candidate boundary contracts
-        run: python3 -m unittest discover -s tests -p test_integration_001.py -v
+        run: |
+          python3 -m unittest discover -s tests -p test_integration_001.py -v
+          for ir in 037 038 039 040 043 044 045 046 047; do python3 -m unittest discover -s tests -p "test_typed_ir${ir}.py" -v; done
       - name: Fetch original publisher pack
         if: matrix.suite == '047_publisher'
         run: python3 scripts/ci_typed_ir015_fetch.py
@@ -86,6 +87,16 @@ jobs:
           print("INTEGRATION_NATIVE_CHECKPOINT exact states and counters")
           PY
           fi
+      - name: Enforce CPU qualification
+        if: matrix.suite == '047_cpu' || matrix.suite == '047_cpu_mixed' || matrix.suite == 'default_off'
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          paths={"047_cpu":"COMPILER-IR-047-CPU-PURE","047_cpu_mixed":"COMPILER-IR-047-CPU-MIXED","default_off":"INTEGRATION-001-OFF"}
+          data=json.loads((pathlib.Path("build/reports")/paths["${{ matrix.suite }}"]/"results.json").read_text())
+          passed=data.get("gate_pass",data.get("summary",{}).get("pilot_gate_pass",False))
+          if not passed: raise SystemExit("INTEGRATION CPU gate not qualified; preserve raw evidence")
+          PY
       - name: Archive evidence
         if: always()
         uses: actions/upload-artifact@v4

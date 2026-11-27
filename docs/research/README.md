@@ -25,3 +25,7 @@ runtime behavior and the candidate issues identified in the audits remain
 unverified.
 
 Versioned plans and their validation matrix live under [`../v1/`](../v1/).
+
+## Compiler studies
+
+[Compiler research record through IR-047](compiler-history.md) indexes the preserved accepted, rejected and descriptive studies. Historical source links are pinned; current runtime claims belong in the maintained reference.

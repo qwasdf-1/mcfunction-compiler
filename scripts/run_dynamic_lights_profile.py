@@ -7,8 +7,11 @@ import argparse
 from contextlib import contextmanager
 import hashlib
 import json
+import math
 import os
+import re
 import secrets
+import statistics
 import shutil
 import socket
 import subprocess
@@ -23,6 +26,19 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from player_bot import PacketIds, PlayerBot  # noqa: E402
 from mod_artifacts import MODS, MODS_DIR, STACK_MODS  # noqa: E402
+from ci_ir032_dynamic_lights_source import (  # noqa: E402
+    apply_ir032_runtime_hotfix,
+    census as census_dynamic_lights_source,
+    execution_census_allowlist,
+)
+from ci_server_event_cpu import (  # noqa: E402
+    cgroup_throttle_count,
+    event_cpu_delta,
+    find_server_thread,
+    parse_tick_query,
+    pre_event_stability,
+    read_thread_schedstat,
+)
 from run_runtime_probe import RconClient, locate_official_server_jar  # noqa: E402
 from run_spawn_animations_profile import (  # noqa: E402
     count_entities,
@@ -44,6 +60,25 @@ SERVER_HOST = "127.0.0.1"
 PROFILE_SECONDS = 18
 PLAYER_COUNT = 4
 ITEM_COUNT = 24
+STATIONARY_MAX_DISPLACEMENT_BLOCKS = 0.25
+MOVING_MIN_DISPLACEMENT_BLOCKS = 1.0
+
+
+def configure_gradle_cache_environment(environment: dict[str, str]) -> dict[str, str]:
+    """Avoid aliasing Gradle's writable cache as its read-only dependency cache."""
+    environment = environment.copy()
+    project_cache = ROOT / ".gradle-user-home"
+    if "GRADLE_USER_HOME" not in environment and project_cache.is_dir():
+        environment["GRADLE_USER_HOME"] = str(project_cache)
+    writable_home = Path(
+        environment.get("GRADLE_USER_HOME", str(Path.home() / ".gradle"))
+    ).expanduser().resolve()
+    readonly = environment.get("GRADLE_RO_DEP_CACHE")
+    if readonly and Path(readonly).expanduser().resolve() == writable_home / "caches":
+        environment.pop("GRADLE_RO_DEP_CACHE")
+    # Do not synthesize GRADLE_RO_DEP_CACHE from ~/.gradle/caches. It must be
+    # an explicitly separate, read-only cache or omitted entirely.
+    return environment
 
 
 def sha256(path: Path) -> str:
@@ -124,6 +159,346 @@ def count_entities_with_tag_predicate(
     return count_score(rcon, holder, objective)
 
 
+def data_modify_succeeded(response: str) -> bool:
+    """Accept both a real mutation and Minecraft's explicit already-equal no-op."""
+    normalized = response.casefold()
+    return "modified" in normalized or "nothing changed" in normalized
+
+
+# Minecraft 26.3 renamed Java game rules to namespaced snake_case IDs in 1.21.11.
+# Never accept the legacy names merely because a command returned an RCON string.
+ADVANCE_TIME_GAMERULE = "minecraft:advance_time"
+SPAWN_MOBS_GAMERULE = "minecraft:spawn_mobs"
+
+
+def disable_and_verify_gamerule(rcon: RconClient, rule: str) -> dict[str, str]:
+    if rule not in (ADVANCE_TIME_GAMERULE, SPAWN_MOBS_GAMERULE):
+        raise ValueError(f"Unexpected Minecraft 26.3 gamerule requested: {rule!r}")
+    set_response = rcon.command(f"gamerule {rule} false")
+    query_response = rcon.command(f"gamerule {rule}")
+    if not re.search(r"\bfalse\b\s*$", query_response.casefold()):
+        raise RuntimeError(
+            f"Minecraft 26.3 gamerule {rule} did not read back as false: "
+            f"set={set_response!r}, query={query_response!r}"
+        )
+    return {"rule": rule, "set_response": set_response, "query_response": query_response}
+
+
+def dynamic_lights_source_population(rcon: RconClient, objective: str) -> dict:
+    """Count every entity category that can add work to the Smart preset."""
+    def count(selector: str) -> int:
+        return count_entities(rcon, "#fc_population", objective, selector)
+
+    holder_types = {
+        "players": count("@e[type=minecraft:player]"),
+        "zombies": count("@e[type=minecraft:zombie]"),
+        "husks": count("@e[type=minecraft:husk]"),
+        "foxes": count("@e[type=minecraft:fox]"),
+        "zombie_villagers": count("@e[type=minecraft:zombie_villager]"),
+        "allays": count("@e[type=minecraft:allay]"),
+    }
+    return {
+        "item_entities": count("@e[type=minecraft:item]"),
+        "holder_entities": count(
+            "@e[type=#dynamic_lights_by_creepermeyt:can_hold_dynbc]"
+        ),
+        "holder_entities_by_type": holder_types,
+        "other_light_sources": {
+            "on_fire": count(
+                "@e[type=!#dynamic_lights_by_creepermeyt:cannot_be_on_fire,"
+                "predicate=dynamic_lights_by_creepermeyt:on_fire]"
+            ),
+            "tnt": count("@e[type=minecraft:tnt]"),
+            "glowing": count(
+                "@e[type=!#dynamic_lights_by_creepermeyt:cannot_be_on_fire,"
+                "predicate=dynamic_lights_by_creepermeyt:is_glowing]"
+            ),
+            "glow_squids": count("@e[type=minecraft:glow_squid]"),
+            "allays": count("@e[type=#dynamic_lights_by_creepermeyt:allay]"),
+            "enchanted_armor": count(
+                "@e[type=#dynamic_lights_by_creepermeyt:can_wear_armor,"
+                "predicate=!dynamic_lights_by_creepermeyt:no_armor_enchantment]"
+            ),
+        },
+    }
+
+
+def purge_post_warmup_non_fixture_items(rcon: RconClient, objective: str) -> dict:
+    """Remove delayed non-fixture drops exactly once before measuring.
+
+    An early kill of preexisting mobs can leave drops appearing on subsequent
+    ticks. The cleanup must never target our 24 individually tagged torch
+    actors. The strict before/after population gate remains authoritative.
+    """
+    selector = "@e[type=minecraft:item,tag=!fc_dl]"
+    before = count_entities(rcon, "#fc_untracked_items", objective, selector)
+    removal = rcon.command(f"kill {selector}") if before else None
+    after = count_entities(rcon, "#fc_untracked_items", objective, selector)
+    if after != 0:
+        raise RuntimeError(
+            f"Untracked dropped items remain after single pre-measurement cleanup: "
+            f"before={before}, after={after}, response={removal!r}"
+        )
+    return {
+        "selector": selector,
+        "untracked_items_removed_before_measurement": before,
+        "untracked_items_remaining": after,
+        "kill_response": removal,
+        "cleanup_only_before_measurement": True,
+    }
+
+
+def assert_clean_dynamic_lights_population(population: dict) -> None:
+    expected_holders = {
+        "players": PLAYER_COUNT,
+        "zombies": 0,
+        "husks": 0,
+        "foxes": 0,
+        "zombie_villagers": 0,
+        "allays": 0,
+    }
+    if population["item_entities"] != ITEM_COUNT:
+        raise RuntimeError(
+            f"Dynamic Lights fixture expected exactly {ITEM_COUNT} dropped items: {population!r}"
+        )
+    if population["holder_entities_by_type"] != expected_holders:
+        raise RuntimeError(
+            f"Dynamic Lights fixture contains uncontrolled holder entities: {population!r}"
+        )
+    if population["holder_entities"] != PLAYER_COUNT:
+        raise RuntimeError(
+            f"Dynamic Lights holder selector expected exactly {PLAYER_COUNT} players: {population!r}"
+        )
+    unexpected_sources = {
+        name: count for name, count in population["other_light_sources"].items()
+        if count != 0
+    }
+    if unexpected_sources:
+        raise RuntimeError(
+            f"Dynamic Lights fixture contains non-torch light sources: {unexpected_sources!r}"
+        )
+
+
+def entity_position(rcon: RconClient, index: int) -> tuple[float, float, float]:
+    selector = f"@e[type=minecraft:item,tag=fc_dl_{index},limit=1]"
+    response = rcon.command(f"data get entity {selector} Pos")
+    match = re.search(
+        r"\[\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)[d]?\s*,"
+        r"\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)[d]?\s*,"
+        r"\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)[d]?\s*\]",
+        response,
+    )
+    if match is None:
+        raise RuntimeError(f"Could not parse position for Dynamic Lights item {index}: {response!r}")
+    return tuple(float(value) for value in match.groups())
+
+
+def item_motion(index: int) -> tuple[float, float]:
+    local_index = index // PLAYER_COUNT
+    dx_slot = local_index % 3
+    z_slot = local_index // 3
+    return (0.35 if dx_slot < 2 else -0.35, 0.12 if z_slot == 0 else -0.12)
+
+
+def summarize_item_displacements(displacements: dict[int, float]) -> dict:
+    """Summarize measured motion without conflating small drift with relocation."""
+    if not displacements:
+        raise ValueError("No Dynamic Lights source positions were measured")
+    values = list(displacements.values())
+    if any(not math.isfinite(value) or value < 0 for value in values):
+        raise ValueError(f"Invalid Dynamic Lights source displacement values: {values!r}")
+    return {
+        "item_count": len(values),
+        "moved_item_count": sum(
+            distance >= MOVING_MIN_DISPLACEMENT_BLOCKS for distance in values
+        ),
+        "minimum_displacement_blocks": min(values),
+        "mean_displacement_blocks": statistics.mean(values),
+        "maximum_displacement_blocks": max(values),
+        "stationary_max_displacement_blocks": STATIONARY_MAX_DISPLACEMENT_BLOCKS,
+        "moving_min_displacement_blocks": MOVING_MIN_DISPLACEMENT_BLOCKS,
+    }
+
+
+def assert_item_motion_scenario(summary: dict, scenario: str) -> None:
+    if scenario == "stationary":
+        if summary["maximum_displacement_blocks"] > STATIONARY_MAX_DISPLACEMENT_BLOCKS:
+            raise RuntimeError(
+                "Stationary source control exceeded its quarter-block drift bound: "
+                f"{summary!r}"
+            )
+    elif scenario == "moving":
+        if summary["moved_item_count"] != summary["item_count"]:
+            raise RuntimeError(
+                "Moving source fixture did not move every item by at least one block: "
+                f"{summary!r}"
+            )
+    else:
+        raise ValueError(f"Unknown Dynamic Lights motion scenario: {scenario!r}")
+
+
+def parse_exec_census_lines(lines: list[str], expected_namespace: str) -> dict:
+    """Parse and reconcile the research-only execution census log."""
+    def fields_for(prefix: str, line: str) -> dict:
+        marker = prefix + " "
+        position = line.find(marker)
+        if position < 0:
+            raise ValueError(f"Missing {prefix} marker")
+        body = line[position + len(marker):]
+        return dict(re.findall(r"([a-z_]+)=([^\s]+)", body))
+
+    begin_lines = [line for line in lines if "FC_EXEC_BEGIN " in line]
+    end_lines = [line for line in lines if "FC_EXEC_END " in line]
+    if len(begin_lines) != 1 or len(end_lines) != 1:
+        raise ValueError(
+            f"Expected one FC_EXEC_BEGIN and FC_EXEC_END, found {len(begin_lines)} and {len(end_lines)}"
+        )
+    begin = fields_for("FC_EXEC_BEGIN", begin_lines[0])
+    end = fields_for("FC_EXEC_END", end_lines[0])
+
+    integer_keys = (
+        "sites", "entries", "callbacks", "overflow", "targets", "callees",
+        "native_calls", "single_dispatch_entries", "complex_dispatch_entries",
+    )
+    summary = {"namespace": begin.get("namespace")}
+    for key in integer_keys:
+        if key not in begin:
+            raise ValueError(f"FC_EXEC_BEGIN missing {key}")
+        summary[key] = int(begin[key])
+        if key in end and int(end[key]) != summary[key]:
+            raise ValueError(f"FC_EXEC_BEGIN/END mismatch for {key}")
+    if summary["namespace"] != expected_namespace or end.get("namespace") != expected_namespace:
+        raise ValueError(
+            f"Execution census namespace mismatch: {summary['namespace']!r}, {end.get('namespace')!r}"
+        )
+
+    site_rows = []
+    for line in lines:
+        if "FC_EXEC_ROW " not in line:
+            continue
+        row = fields_for("FC_EXEC_ROW", line)
+        input_match = re.search(r"\binput=(.*)$", line)
+        site_rows.append({
+            "function": row["function"],
+            "index": int(row["index"]),
+            "entries": int(row["entries"]),
+            "callbacks": int(row["callbacks"]),
+            "kind": row["kind"],
+            "dispatch_shape": row["dispatch_shape"],
+            "input": input_match.group(1) if input_match else "",
+        })
+
+    callee_rows = []
+    for line in lines:
+        if "FC_EXEC_CALLEE " not in line:
+            continue
+        row = fields_for("FC_EXEC_CALLEE", line)
+        callee_rows.append({
+            "function": row["function"],
+            "native_call_tasks": int(row["native_call_tasks"]),
+        })
+
+    if summary["overflow"] != 0:
+        raise ValueError(f"Execution census registration overflow: {summary['overflow']}")
+    if summary["sites"] != len(site_rows):
+        raise ValueError(
+            f"Execution census site conservation failed: summary={summary['sites']} rows={len(site_rows)}"
+        )
+    if summary["entries"] != sum(row["entries"] for row in site_rows):
+        raise ValueError("Execution census entry conservation failed")
+    if summary["callbacks"] != sum(row["callbacks"] for row in site_rows):
+        raise ValueError("Execution census callback conservation failed")
+    single_dispatch_entries = sum(
+        row["entries"] for row in site_rows
+        if row["dispatch_shape"] == "single_score_static_call"
+    )
+    complex_dispatch_entries = sum(
+        row["entries"] for row in site_rows
+        if row["dispatch_shape"] == "complex_or_return_call"
+    )
+    if summary["single_dispatch_entries"] != single_dispatch_entries:
+        raise ValueError("Execution census single-dispatch conservation failed")
+    if summary["complex_dispatch_entries"] != complex_dispatch_entries:
+        raise ValueError("Execution census complex-dispatch conservation failed")
+    if summary["callees"] != len(callee_rows):
+        raise ValueError(
+            f"Execution census callee conservation failed: summary={summary['callees']} rows={len(callee_rows)}"
+        )
+    if summary["native_calls"] != sum(row["native_call_tasks"] for row in callee_rows):
+        raise ValueError("Execution census native-call conservation failed")
+    if summary["sites"] == 0 or summary["entries"] == 0:
+        raise ValueError("Execution census produced no registered or reached datapack entries")
+
+    per_function = {}
+    for row in site_rows:
+        aggregate = per_function.setdefault(row["function"], {
+            "sites": 0, "active_sites": 0, "entries": 0,
+            "callbacks": 0, "active_callback_sites": 0,
+        })
+        aggregate["sites"] += 1
+        aggregate["active_sites"] += row["entries"] > 0
+        aggregate["entries"] += row["entries"]
+        aggregate["callbacks"] += row["callbacks"]
+        aggregate["active_callback_sites"] += row["callbacks"] > 0
+    return {
+        "namespace": summary["namespace"],
+        "summary": summary,
+        "per_function": dict(sorted(per_function.items())),
+        "site_rows": sorted(site_rows, key=lambda row: (row["function"], row["index"])),
+        "callee_rows": sorted(callee_rows, key=lambda row: row["function"]),
+    }
+
+
+DISABLED_COMPILER_STATUS_FLAGS = (
+    "score_add_prototype_enabled",
+    "score_add_metrics_enabled",
+    "score_add_timing_enabled",
+    "score_add_attr_enabled",
+    "score_attr_diag_enabled",
+    "fused_region_prototype_enabled",
+    "direct_scheduler_prototype_enabled",
+    "direct_scheduler_diagnostics_enabled",
+    "bytecode_region_prototype_enabled",
+    "bytecode_compile_failure_forced",
+    "arch_counters_enabled",
+    "ir030_pos_get_enabled",
+    "ir030_pos_get_verify",
+    "function_timing_enabled",
+    "command_callback_metrics_enabled",
+    "command_callback_metrics_all_queues",
+    "selective_macro_arguments_enabled",
+    "selective_macro_arguments_metrics_enabled",
+)
+
+
+def assert_compiler_research_features_disabled(status: str) -> None:
+    for name in DISABLED_COMPILER_STATUS_FLAGS:
+        match = re.search(rf"\b{name}=(true|false)\b", status)
+        if match is None or match.group(1) != "false":
+            raise RuntimeError(
+                f"Dynamic Lights census requires {name}=false; status={status!r}"
+            )
+
+
+def parse_game_time_query(message: str) -> int:
+    """Require the single integer returned by Minecraft 26.3 time query gametime."""
+    values = re.findall(r"(?<!\d)\d+(?!\d)", message)
+    if len(values) != 1:
+        raise ValueError(f"Ambiguous gametime query response: {message!r}")
+    return int(values[0])
+
+
+def jcmd_jfr(pid: int, *arguments: str) -> str:
+    result = subprocess.run(
+        ["jcmd", str(pid), *arguments],
+        capture_output=True, text=True, timeout=40, check=False,
+    )
+    message = (result.stdout or "") + (result.stderr or "")
+    if result.returncode != 0:
+        raise RuntimeError(f"JFR {arguments[0]} failed: {message[-2000:]}")
+    return message
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stack", choices=("vanilla", *STACK_MODS), default="vanilla")
@@ -141,6 +516,30 @@ def parse_args() -> argparse.Namespace:
         help="Run with the pinned Dynamic Lights pack or as a matched datapack-off control.",
     )
     parser.add_argument("--seconds", type=int, default=PROFILE_SECONDS)
+    parser.add_argument(
+        "--scenario", choices=("stationary", "moving"), default="stationary",
+        help="Stationary source control or matched moving dropped-torch workload.",
+    )
+    parser.add_argument(
+        "--exec-census", action="store_true",
+        help="Run the explicit Function Compiler execution census with Spark sampling disabled.",
+    )
+    parser.add_argument(
+        "--apply-ir032-upstream-hotfix", action="store_true",
+        help="Remove the two stale overloadcheck calls deleted by upstream commit b3ea1239.",
+    )
+    parser.add_argument(
+        "--no-spark", action="store_true",
+        help="Do not attach or load Spark; required for IR-032 Gate C CPU and JFR arms.",
+    )
+    parser.add_argument(
+        "--capture-server-thread-cpu", action="store_true",
+        help="Read Linux Server-thread schedstat and cgroup throttling across the measurement.",
+    )
+    parser.add_argument(
+        "--jfr-server-thread", action="store_true",
+        help="Separate descriptive JFR ExecutionSample arm (never a CPU comparison arm).",
+    )
     return parser.parse_args()
 
 
@@ -169,10 +568,34 @@ def main() -> int:
         raise ValueError("--wrapper on is available only for Fabric server stacks")
     if args.datapack == "off" and args.wrapper == "on":
         raise ValueError("--wrapper on is not part of the datapack on/off workload control")
-    artifacts = [
-        (PACK, PACK_SHA256, "Dynamic Lights datapack"),
-        (SPARK_AGENT, SPARK_SHA256, "Spark standalone agent"),
-    ]
+    if args.datapack == "on" and not args.apply_ir032_upstream_hotfix:
+        raise ValueError(
+            "Pinned Dynamic Lights v1.4.6 contains a stale unconditional overloadcheck call; "
+            "pass --apply-ir032-upstream-hotfix for the documented benchmark-only correction"
+        )
+    if args.apply_ir032_upstream_hotfix and args.datapack != "on":
+        raise ValueError("--apply-ir032-upstream-hotfix requires --datapack on")
+    if args.no_spark and args.mode != "idle":
+        raise ValueError("--no-spark requires --mode idle")
+    if args.capture_server_thread_cpu or args.jfr_server_thread:
+        if (args.stack != "fabric" or args.wrapper != "on"
+                or args.datapack != "on" or args.mode != "idle"
+                or not args.no_spark or not args.apply_ir032_upstream_hotfix
+                or args.exec_census):
+            raise ValueError("IR-032 Gate C requires Fabric wrapper, patched pack, idle mode, "
+                             "--no-spark and no execution census")
+        if args.jfr_server_thread and not args.capture_server_thread_cpu:
+            raise ValueError("JFR arm requires Server-thread identification via CPU capture")
+    if args.exec_census:
+        if args.no_spark:
+            raise ValueError("--exec-census cannot be combined with --no-spark")
+        if args.stack == "vanilla" or args.wrapper != "on" or args.datapack != "on" or args.mode != "idle":
+            raise ValueError("--exec-census requires --stack fabric --wrapper on --datapack on --mode idle")
+        if not args.apply_ir032_upstream_hotfix:
+            raise ValueError("--exec-census requires the explicit IR-032 upstream hotfix")
+    artifacts = [(PACK, PACK_SHA256, "Dynamic Lights datapack")]
+    if not (args.exec_census or args.no_spark):
+        artifacts.append((SPARK_AGENT, SPARK_SHA256, "Spark standalone agent"))
     artifacts.extend(
         (MODS_DIR / MODS[key][0], MODS[key][1], f"{key} mod")
         for key in STACK_MODS.get(args.stack, ())
@@ -181,13 +604,27 @@ def main() -> int:
         if not path.is_file() or sha256(path) != expected:
             raise FileNotFoundError(f"Missing or mismatched pinned {label}: {path}")
 
+    census_allowlist = None
+    if args.exec_census:
+        source_report = census_dynamic_lights_source(PACK)
+        census_allowlist = execution_census_allowlist(source_report)
+
     server_jar = locate_official_server_jar()
     if sha256(server_jar) != SERVER_SHA256:
         raise RuntimeError(f"Minecraft 26.3 server jar hash mismatch: {server_jar}")
 
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + secrets.token_hex(3)
-    output_dir = OUTPUT_ROOT / f"dynamic-lights-{args.stack}-pack-{args.datapack}-{args.wrapper}-{args.mode}-{run_id}"
+    census_suffix = "-exec-census" if args.exec_census else ""
+    output_dir = OUTPUT_ROOT / f"dynamic-lights-{args.stack}-pack-{args.datapack}-{args.wrapper}-{args.mode}-{args.scenario}{census_suffix}-{run_id}"
     output_dir.mkdir(parents=True, exist_ok=False)
+    runtime_pack = PACK
+    runtime_pack_patch = None
+    if args.apply_ir032_upstream_hotfix:
+        runtime_pack = output_dir / "dynamic-lights-ir032-runtime-patched.zip"
+        runtime_pack_patch = apply_ir032_runtime_hotfix(PACK, runtime_pack)
+        (output_dir / "runtime-pack-patch.json").write_text(
+            json.dumps(runtime_pack_patch, indent=2) + "\n", encoding="utf-8"
+        )
     server_port, rcon_port, spark_port = reserve_free_ports(3)
     password = secrets.token_urlsafe(24)
     player_names = [f"DLight{i:02d}" for i in range(1, PLAYER_COUNT + 1)]
@@ -197,6 +634,25 @@ def main() -> int:
     server: subprocess.Popen[bytes] | None = None
     log_handle = None
     work_directory: Path | None = None
+    exec_census_started = False
+    exec_census_start_status = None
+    exec_census_stop_status = None
+    exec_census_results = None
+    item_motion_summary = None
+    item_displacements = None
+    source_population_before_profile = None
+    source_population_after_profile = None
+    source_cleanup_responses = {}
+    cpu_measurement = None
+    pre_window_stability = None
+    game_time_before_window = None
+    game_time_after_window = None
+    game_ticks_during_window = None
+    cpu_thread = None
+    jfr_started = False
+    jfr_path = None
+    mob_spawning_gamerule_status = None
+    daylight_gamerule_status = None
 
     try:
         with create_workdir(args.stack, run_id) as work:
@@ -226,7 +682,7 @@ def main() -> int:
             datapacks = work / "world" / "datapacks"
             datapacks.mkdir(parents=True)
             if args.datapack == "on":
-                shutil.copy2(PACK, datapacks / "dynamic-lights.zip")
+                shutil.copy2(runtime_pack, datapacks / "dynamic-lights.zip")
             probe_pack = datapacks / "function_compiler_probe"
             shutil.copytree(ROOT / "src" / "main" / "resources" / "data", probe_pack / "data")
             (probe_pack / "pack.mcmeta").write_text(
@@ -274,38 +730,72 @@ def main() -> int:
             log_path = work / "server.log"
             log_handle = log_path.open("wb")
             if args.stack == "vanilla":
-                server_command = [
-                    "java",
-                    "-Xms1G",
-                    "-Xmx3G",
-                    f"-javaagent:{SPARK_AGENT}=port={spark_port}",
-                    "-jar",
-                    str(server_jar),
-                    "nogui",
-                ]
+                server_command = ["java", "-Xms1G", "-Xmx3G"]
+                if not args.no_spark:
+                    server_command.append(f"-javaagent:{SPARK_AGENT}=port={spark_port}")
+                server_command.extend(["-jar", str(server_jar), "nogui"])
                 server_cwd = work
                 server_environment = None
             else:
-                server_environment = os.environ.copy()
-                project_cache = ROOT / ".gradle-user-home"
-                if "GRADLE_USER_HOME" not in server_environment and project_cache.is_dir():
-                    server_environment["GRADLE_USER_HOME"] = str(project_cache)
-                shared_cache = Path.home() / ".gradle" / "caches"
-                if "GRADLE_RO_DEP_CACHE" not in server_environment and shared_cache.is_dir():
-                    server_environment["GRADLE_RO_DEP_CACHE"] = str(shared_cache)
+                server_environment = configure_gradle_cache_environment(os.environ.copy())
                 server_environment.update(
                     {
                         "FC_WRAPPER_PROBE": "true" if args.wrapper == "on" else "false",
                         "FC_RUNTIME_TRACE": "false",
+                        "FC_SCORE_ADD_PROTOTYPE": "false",
+                        "FC_SCORE_ADD_METRICS": "false",
+                        "FC_SCORE_ADD_TIMING": "false",
+                        "FC_SCORE_ADD_ATTRIBUTION": "false",
+                        "FC_SCORE_ADD_PHASE_TIMERS": "false",
+                        "FC_SCORE_ADD_ATTR_DIAGNOSTICS": "false",
+                        "FC_FUSED_REGION_PROTOTYPE": "false",
+                        "FC_DIRECT_SCHEDULER_PROTOTYPE": "false",
+                        "FC_DIRECT_SCHEDULER_DIAGNOSTICS": "false",
+                        "FC_BYTECODE_REGION_PROTOTYPE": "false",
+                        "FC_BYTECODE_FORCE_COMPILE_FAILURE": "false",
+                        "FC_FUNCTION_TIMING": "false",
+                        "FC_COMMAND_CALLBACK_METRICS": "false",
+                        "FC_COMMAND_CALLBACK_METRICS_ALL_QUEUES": "false",
+                        "FC_SCHED_ARCH_COUNTERS": "false",
+                        "FC_SELECTIVE_MACRO_ARGUMENTS": "false",
+                        "FC_SELECTIVE_MACRO_ARGUMENTS_METRICS": "false",
+                        "FC_IR030_POS_GET": "false",
+                        "FC_IR030_POS_GET_VERIFY": "false",
+                        "FC_TYPED_IR_MODE": "off",
+                        "FC_TYPED_IR_DIAGNOSTICS": "false",
+                        "FC_TYPED_IR_SELF_HOLDER": "false",
+                        "FC_TYPED_IR_SCORE_CACHE": "false",
+                        "FC_TYPED_IR_SINGLETON_FEEDBACK": "false",
+                        # Never inherit an ambient census toggle into a non-census run.
+                        "FC_COMPILER_EXEC_CENSUS": "true" if args.exec_census else "false",
+                        "FC_COMPILER_ACCEPTANCE_NAMESPACE": "",
+                        "FC_CPU004_MODE": "",
+                        "FC_CPU005_MODE": "",
+                        "FC_MACRO006_MODE": "",
+                        "FC_IR031_MODE": "",
+                        "FC_JFR_CPU_CAPTURE": "false",
+                        "FC_JFR_EXECUTION_CAPTURE": "false",
+                        "FC_COMPILER_EXEC_CENSUS_NAMESPACE": (
+                            census_allowlist["namespace"] if census_allowlist else ""
+                        ),
+                        "FC_COMPILER_EXEC_CENSUS_FUNCTIONS": (
+                            ",".join(census_allowlist["functions"]) if census_allowlist else ""
+                        ),
+                        "FC_COMPILER_EXEC_CENSUS_CALLEES": (
+                            ",".join(census_allowlist["callees"]) if census_allowlist else ""
+                        ),
                     }
                 )
                 gradle_arguments = [
                     "--no-daemon",
                     f"-PfcRunDirectory={work.relative_to(ROOT).as_posix()}",
-                    f"-PfcSparkAgentPath={SPARK_AGENT}",
-                    f"-PfcSparkPort={spark_port}",
-                    "runServer",
                 ]
+                if not (args.exec_census or args.no_spark):
+                    gradle_arguments.extend([
+                        f"-PfcSparkAgentPath={SPARK_AGENT}",
+                        f"-PfcSparkPort={spark_port}",
+                    ])
+                gradle_arguments.append("runServer")
                 if os.environ.get("FC_GRADLE_OFFLINE", "").casefold() in {"1", "true", "yes"}:
                     gradle_arguments.insert(0, "--offline")
                 server_command = [str(ROOT / "gradlew"), *gradle_arguments]
@@ -351,10 +841,15 @@ def main() -> int:
                 for invariant in ("tag_same_instance=true", "delegates_original=true"):
                     if invariant not in compiler_probe_status:
                         raise RuntimeError(f"Wrapper probe invariant failed ({invariant}): {compiler_probe_status!r}")
+                assert_compiler_research_features_disabled(compiler_probe_status)
             if args.datapack == "on":
                 rcon.command("scoreboard players set p dynbclevel 2")
-            rcon.command("gamerule doDaylightCycle false")
-            rcon.command("gamerule doMobSpawning false")
+            daylight_gamerule_status = disable_and_verify_gamerule(
+                rcon, ADVANCE_TIME_GAMERULE
+            )
+            mob_spawning_gamerule_status = disable_and_verify_gamerule(
+                rcon, SPAWN_MOBS_GAMERULE
+            )
             rcon.command("time set midnight")
             forced_chunks = rcon.command("forceload add -16 -16 256 32")
             if not any(word in forced_chunks.casefold() for word in ("added", "marked")):
@@ -362,6 +857,16 @@ def main() -> int:
             floor = rcon.command("fill -16 63 -16 256 63 32 minecraft:stone")
             if not any(word in floor.casefold() for word in ("changed", "successfully filled")):
                 raise RuntimeError(f"Could not create the fixed test platform: {floor!r}")
+
+            source_cleanup_responses = {
+                "non_player_non_item_non_marker": rcon.command(
+                    "kill @e[type=!minecraft:player,type=!minecraft:item,type=!minecraft:marker]"
+                ),
+                "preexisting_item_entities": rcon.command("kill @e[type=minecraft:item]"),
+                "preexisting_dynamic_light_markers": rcon.command(
+                    "kill @e[type=minecraft:marker,tag=dynbc]"
+                ),
+            }
 
             for index, name in enumerate(player_names):
                 bots.append(PlayerBot(name, SERVER_HOST, server_port, packet_ids).connect())
@@ -380,7 +885,7 @@ def main() -> int:
                 response = rcon.command(
                     f'execute at {player} run summon minecraft:item ~{dx} ~1 ~{dz} '
                     f'{{NoGravity:1b,Motion:[0.0d,0.0d,0.0d],PickupDelay:32767,'
-                    f'Item:{{id:"minecraft:torch",count:1}},Tags:["fc_dl"]}}'
+                    f'Item:{{id:"minecraft:torch",count:1}},Tags:["fc_dl","fc_dl_{index}"]}}'
                 )
                 if "summoned" not in response.casefold():
                     raise RuntimeError(f"Could not create Dynamic Lights item actor: {response!r}")
@@ -392,7 +897,9 @@ def main() -> int:
             tracked_items = 0
             marker_count = 0
             stable_actor_reads = 0
+            stable_marker_reads = 0
             previous_tracked_items: int | None = None
+            previous_marker_count: int | None = None
             workload_ready_at = time.monotonic() + 90
             workload_started_at = time.monotonic()
             while time.monotonic() < workload_ready_at:
@@ -409,15 +916,30 @@ def main() -> int:
                     stable_actor_reads += 1
                 else:
                     stable_actor_reads = 0
-                if tracked_items == ITEM_COUNT and stable_actor_reads >= 10:
+                if marker_count == previous_marker_count:
+                    stable_marker_reads += 1
+                else:
+                    stable_marker_reads = 0
+                if (
+                    tracked_items == ITEM_COUNT
+                    and stable_actor_reads >= 10
+                    and stable_marker_reads >= 10
+                ):
                     break
                 previous_tracked_items = tracked_items
+                previous_marker_count = marker_count
                 time.sleep(1)
             workload_warmup_seconds = round(time.monotonic() - workload_started_at, 2)
-            if tracked_items != ITEM_COUNT or stable_actor_reads < 10:
+            if (
+                tracked_items != ITEM_COUNT
+                or stable_actor_reads < 10
+                or stable_marker_reads < 10
+                or marker_count <= 0
+            ):
                 raise RuntimeError(
-                    "Dynamic Lights item tracking did not stabilize: "
-                    f"tracked items={tracked_items}, markers={marker_count}, stable actor reads={stable_actor_reads}"
+                    "Dynamic Lights source/marker workload did not stabilize: "
+                    f"tracked items={tracked_items}, markers={marker_count}, "
+                    f"stable actor reads={stable_actor_reads}, stable marker reads={stable_marker_reads}"
                 )
             torch_sources = count_entities(
                 rcon, "#fc_torches", tracking_objective, "@e[type=item,tag=fc_dl,tag=dynbc.torch]"
@@ -429,34 +951,137 @@ def main() -> int:
                 "@e[type=item,tag=fc_dl]",
                 "dynbc.torch",
             )
+            if args.datapack == "on" and (
+                torch_sources != ITEM_COUNT or torch_sources_by_predicate != ITEM_COUNT
+            ):
+                raise RuntimeError(
+                    "Dynamic Lights did not recognize every torch source before profiling: "
+                    f"direct={torch_sources}, predicate={torch_sources_by_predicate}"
+                )
+            source_cleanup_responses["post_warmup_non_fixture_item_cleanup"] = (
+                purge_post_warmup_non_fixture_items(rcon, tracking_objective)
+            )
+            source_population_before_profile = dynamic_lights_source_population(
+                rcon, tracking_objective
+            )
+            assert_clean_dynamic_lights_population(source_population_before_profile)
 
-            spark_password = wait_for_spark_password(log_path, server)
-            ssh = start_spark_shell(work, spark_password, spark_port)
-            if args.mode == "cpu":
-                command = "spark profiler start --interval 4 --thread *\n"
-            elif args.mode == "alloc":
-                command = "spark profiler start --alloc --interval 524287\n"
+            if args.scenario == "stationary":
+                for index in range(ITEM_COUNT):
+                    selector = f"@e[type=minecraft:item,tag=fc_dl_{index},limit=1]"
+                    response = rcon.command(
+                        f"data modify entity {selector} Motion set value [0.0d,0.0d,0.0d]"
+                    )
+                    if not data_modify_succeeded(response):
+                        raise RuntimeError(
+                            f"Could not reset stationary source velocity for item {index}: {response!r}"
+                        )
             else:
-                command = None
-            if command is not None:
-                assert ssh.stdin is not None
-                profile_deadline = time.monotonic() + args.seconds
-                ssh.stdin.write(command.encode("utf-8"))
-                ssh.stdin.flush()
-                time.sleep(min(1, args.seconds))
-                remaining = profile_deadline - time.monotonic()
-                if remaining > 0:
-                    time.sleep(remaining)
-            else:
+                for index in range(ITEM_COUNT):
+                    vx, vz = item_motion(index)
+                    selector = f"@e[type=minecraft:item,tag=fc_dl_{index},limit=1]"
+                    response = rcon.command(
+                        f"data modify entity {selector} Motion set value [{vx:.2f}d,0.0d,{vz:.2f}d]"
+                    )
+                    if not data_modify_succeeded(response):
+                        raise RuntimeError(
+                            f"Could not set moving source velocity for item {index}: {response!r}")
+            item_positions_before = {
+                index: entity_position(rcon, index) for index in range(ITEM_COUNT)
+            }
+            if args.capture_server_thread_cpu:
+                # Pre-intervention host gate; no outcome-based retry or exclusion.
+                baseline_raw = rcon.command("tick query")
+                pre_window_stability = pre_event_stability(parse_tick_query(baseline_raw))
+                if not pre_window_stability["stable"]:
+                    raise RuntimeError(f"IR-032 pre-window host instability: {pre_window_stability!r}")
+                cpu_thread = find_server_thread(server.pid)
+                if args.jfr_server_thread:
+                    jfr_path = output_dir / "dynamic-lights-ir032-gate-c.jfr"
+                    output = jcmd_jfr(
+                        cpu_thread[0], "JFR.start", "name=IR032GateC",
+                        "settings=profile", "disk=true", "dumponexit=false",
+                        "jdk.ExecutionSample#enabled=true",
+                        "jdk.ExecutionSample#period=2ms",
+                        "jdk.CPUTimeSample#enabled=false",
+                        "maxage=3m", "maxsize=128m",
+                    )
+                    if "Started recording" not in output:
+                        raise RuntimeError(f"JFR did not confirm start: {output!r}")
+                    jfr_started = True
+                game_time_before_window = parse_game_time_query(
+                    rcon.command("time query gametime"))
+                cpu_before = read_thread_schedstat(*cpu_thread)
+                throttle_before = cgroup_throttle_count()
+            if args.exec_census:
+                exec_census_start_status = rcon.command("function_compiler_probe exec-census-start")
+                if "FC_EXEC started" not in exec_census_start_status:
+                    raise RuntimeError(
+                        f"Function execution census did not start: {exec_census_start_status!r}")
+                exec_census_started = True
                 time.sleep(args.seconds)
-
-            if args.mode == "idle":
-                spark_output = stop_idle_spark_shell(ssh)
-                ssh = None
+                exec_census_stop_status = rcon.command("function_compiler_probe exec-census-stop")
+                if "FC_EXEC ended" not in exec_census_stop_status:
+                    raise RuntimeError(
+                        f"Function execution census did not stop: {exec_census_stop_status!r}")
+                exec_census_started = False
+                spark_output = ""
+            elif args.no_spark:
+                time.sleep(args.seconds)
+                spark_output = ""
             else:
-                spark_output = stop_spark_shell(ssh)
-                ssh = None
+                spark_password = wait_for_spark_password(log_path, server)
+                ssh = start_spark_shell(work, spark_password, spark_port)
+                if args.mode == "cpu":
+                    command = "spark profiler start --interval 4 --thread *\n"
+                elif args.mode == "alloc":
+                    command = "spark profiler start --alloc --interval 524287\n"
+                else:
+                    command = None
+                if command is not None:
+                    assert ssh.stdin is not None
+                    profile_deadline = time.monotonic() + args.seconds
+                    ssh.stdin.write(command.encode("utf-8"))
+                    ssh.stdin.flush()
+                    time.sleep(min(1, args.seconds))
+                    remaining = profile_deadline - time.monotonic()
+                    if remaining > 0:
+                        time.sleep(remaining)
+                else:
+                    time.sleep(args.seconds)
 
+                if args.mode == "idle":
+                    spark_output = stop_idle_spark_shell(ssh)
+                    ssh = None
+                else:
+                    spark_output = stop_spark_shell(ssh)
+                    ssh = None
+            if args.capture_server_thread_cpu:
+                assert cpu_thread is not None
+                cpu_after = read_thread_schedstat(*cpu_thread)
+                throttle_after = cgroup_throttle_count()
+                game_time_after_window = parse_game_time_query(
+                    rcon.command("time query gametime"))
+                game_ticks_during_window = game_time_after_window - game_time_before_window
+                if game_ticks_during_window < 1:
+                    raise RuntimeError("GameTime did not advance during Dynamic Lights measurement")
+                cpu_measurement = event_cpu_delta(
+                    cpu_before, cpu_after, throttle_before, throttle_after)
+                cpu_measurement["game_ticks_during_window"] = game_ticks_during_window
+                cpu_measurement["server_thread_cpu_ns_per_game_tick"] = (
+                    cpu_measurement["server_thread_cpu_running_ns"] / game_ticks_during_window)
+                if not cpu_measurement["host_quality_pass"]:
+                    raise RuntimeError(f"IR-032 Gate C host-quality screen failed: {cpu_measurement!r}")
+            if jfr_started:
+                assert cpu_thread is not None and jfr_path is not None
+                stop_output = jcmd_jfr(
+                    cpu_thread[0], "JFR.stop", "name=IR032GateC",
+                    f"filename={jfr_path.resolve()}")
+                jfr_started = False
+                if "Stopped recording" not in stop_output:
+                    raise RuntimeError(f"JFR did not confirm stop: {stop_output!r}")
+                if not jfr_path.is_file() or jfr_path.stat().st_size <= 0:
+                    raise RuntimeError("IR-032 JFR artifact missing or empty")
             profile_path: Path | None = None
             if args.mode != "idle":
                 profile_files = list(work.rglob("*.sparkprofile"))
@@ -485,6 +1110,67 @@ def main() -> int:
             else:
                 spark_thread_nodes = 0
 
+            item_positions_after = {
+                index: entity_position(rcon, index) for index in range(ITEM_COUNT)
+            }
+            item_displacements = {
+                index: math.dist(item_positions_before[index], item_positions_after[index])
+                for index in range(ITEM_COUNT)
+            }
+            item_motion_summary = summarize_item_displacements(item_displacements)
+            item_motion_summary["scenario"] = args.scenario
+            assert_item_motion_scenario(item_motion_summary, args.scenario)
+
+            if args.exec_census:
+                log_handle.flush()
+                census_lines = []
+                for candidate_log in (work / "logs" / "latest.log", log_path):
+                    if not candidate_log.is_file():
+                        continue
+                    candidate_lines = [
+                        line for line in candidate_log.read_text(
+                            encoding="utf-8", errors="replace"
+                        ).splitlines() if "FC_EXEC_" in line
+                    ]
+                    if any("FC_EXEC_BEGIN" in line for line in candidate_lines) and any(
+                        "FC_EXEC_END" in line for line in candidate_lines
+                    ):
+                        census_lines = candidate_lines
+                        break
+                if not census_lines:
+                    raise RuntimeError("Function execution census log boundaries are missing")
+                (output_dir / "exec-census.log").write_text(
+                    "\n".join(census_lines) + "\n", encoding="utf-8")
+                exec_census_results = parse_exec_census_lines(
+                    census_lines, census_allowlist["namespace"]
+                )
+                census_summary = exec_census_results["summary"]
+                if census_summary["targets"] != len(census_allowlist["functions"]):
+                    raise RuntimeError(
+                        "Runtime census target allowlist drift: "
+                        f"{census_summary['targets']} != {len(census_allowlist['functions'])}"
+                    )
+                if census_summary["callees"] != len(census_allowlist["callees"]):
+                    raise RuntimeError(
+                        "Runtime census callee allowlist drift: "
+                        f"{census_summary['callees']} != {len(census_allowlist['callees'])}"
+                    )
+                observed_callees = {
+                    row["function"] for row in exec_census_results["callee_rows"]
+                }
+                if observed_callees != set(census_allowlist["callees"]):
+                    raise RuntimeError("Runtime census callee IDs differ from the source-derived allowlist")
+                observed_targets = set(exec_census_results["per_function"])
+                if not observed_targets.issubset(set(census_allowlist["functions"])):
+                    raise RuntimeError("Runtime census emitted a function outside the source-derived target allowlist")
+                if census_summary["sites"] > census_allowlist["static_site_upper_bound"]:
+                    raise RuntimeError(
+                        "Runtime census sites exceed static source upper bound: "
+                        f"{census_summary['sites']} > {census_allowlist['static_site_upper_bound']}"
+                    )
+                (output_dir / "exec-census.json").write_text(
+                    json.dumps(exec_census_results, indent=2) + "\n", encoding="utf-8")
+
             tracked_selector = (
                 "@e[type=item,tag=fc_dl,tag=dynbc.haslvl]"
                 if args.datapack == "on"
@@ -501,17 +1187,30 @@ def main() -> int:
                 "@e[type=item,tag=fc_dl]",
                 "dynbc.torch",
             )
+            source_population_after_profile = dynamic_lights_source_population(
+                rcon, tracking_objective
+            )
+            assert_clean_dynamic_lights_population(source_population_after_profile)
             markers_after = count_entities(
                 rcon, "#fc_markers", tracking_objective, "@e[type=marker,tag=dynbc]"
             )
             dynamic_lights_tick_state = (
                 {
                     holder: rcon.command(f"scoreboard players get {holder} dynbclevel")
-                    for holder in ("k", "-", "p")
+                    for holder in ("k", "-", "p", "f", "t", "g", "s", "a", "e")
                 }
                 if args.datapack == "on"
                 else None
             )
+            if args.datapack == "on":
+                final_tick_state = {
+                    "k": count_score(rcon, "k", "dynbclevel"),
+                    "preset": count_score(rcon, "p", "dynbclevel"),
+                }
+                if final_tick_state["k"] != -2 or final_tick_state["preset"] != 2:
+                    raise RuntimeError(
+                        f"Dynamic Lights did not remain on the Smart preset with completed ticks: {final_tick_state!r}"
+                    )
             first_source_score = (
                 rcon.command("scoreboard players get @e[type=item,tag=fc_dl,limit=1] dynbclevel")
                 if args.datapack == "on"
@@ -519,13 +1218,22 @@ def main() -> int:
             )
             tick_query = rcon.command("tick query")
             players_online = rcon.command("list")
+            if tracked_after != ITEM_COUNT:
+                raise RuntimeError(f"Tracked item count changed during profile: {tracked_items} -> {tracked_after}")
+            if args.datapack == "on" and (
+                torch_sources_after != ITEM_COUNT or torch_sources_after_by_predicate != ITEM_COUNT
+            ):
+                raise RuntimeError(
+                    "Dynamic Lights torch-source tags changed during profile: "
+                    f"direct={torch_sources_after}, predicate={torch_sources_after_by_predicate}"
+                )
             for bot in bots:
                 bot.assert_connected()
 
             metadata = {
                 "benchmark": "PERF-010",
                 "workload": "Dynamic Lights By CreepermeYT 1.4.6 datapack",
-                "purpose": f"{args.stack} 26.3 {args.mode} profile, Dynamic Lights datapack {args.datapack}; not an optimization comparison",
+                "purpose": f"{args.stack} 26.3 {args.mode} profile, Dynamic Lights datapack {args.datapack}, scenario={args.scenario}; not an optimization comparison",
                 "mode": args.mode,
                 "stack": args.stack,
                 "dynamic_lights_datapack_enabled": args.datapack == "on",
@@ -534,15 +1242,64 @@ def main() -> int:
                 "function_compiler_probe_status": compiler_probe_status,
                 "minecraft": "26.3 official server" if args.stack == "vanilla" else "26.3 Fabric Loom development server",
                 "server_jar_sha256": sha256(server_jar),
-                "spark": "1.10.194 standalone-agent",
-                "spark_sha256": SPARK_SHA256,
+                "publisher_archive_sha256": PACK_SHA256 if args.datapack == "on" else None,
+                "runtime_pack_sha256": (
+                    runtime_pack_patch["runtime_pack_sha256"]
+                    if runtime_pack_patch else None
+                ),
+                "runtime_pack_is_publisher_byte_exact": (
+                    runtime_pack_patch is None if args.datapack == "on" else None
+                ),
+                "runtime_pack_patch": runtime_pack_patch,
+                "runtime_pack_file": (
+                    str(runtime_pack.relative_to(ROOT))
+                    if runtime_pack_patch else None
+                ),
+                "spark": None if args.exec_census or args.no_spark else "1.10.194 standalone-agent",
+                "spark_sha256": None if args.exec_census or args.no_spark else SPARK_SHA256,
                 "mods": {
                     mod_key: {"file": MODS[mod_key][0], "sha256": MODS[mod_key][1]}
                     for mod_key in STACK_MODS.get(args.stack, ())
                 },
                 "datapack": "Dynamic Lights By CreepermeYT v1.4.6-mc1.17.x-26.3 datapack zip",
                 "datapack_sha256": sha256(PACK),
-                "scenario": "four connected creative players holding non-light-emitting stone at fixed positions 64 blocks apart; 24 tagged stationary, zero-motion dropped torches in fixed non-overlapping light-source positions on a stone platform; fixed seed 264010; daylight cycle and natural mob spawning disabled; Smart preset",
+                "scenario": (
+                    "four connected creative players holding non-light-emitting stone at fixed positions 64 blocks apart; "
+                    f"24 tagged {args.scenario} dropped torches in fixed non-overlapping light-source positions; "
+                    "fixed seed 264010; daylight cycle and natural mob spawning disabled; Smart preset"
+                ),
+                "item_motion": item_motion_summary,
+                "item_motion_setup": {
+                    "no_gravity": True,
+                    "stationary": (
+                        "After workload warmup, reset each tagged torch item's Motion to zero "
+                        "immediately before the measurement window."
+                    ),
+                    "moving": (
+                        "After workload warmup, assign each tagged torch a deterministic "
+                        "horizontal Motion vector; no per-tick teleport or motion reset is used."
+                    ),
+                },
+                "item_displacements_blocks": {
+                    str(index): distance for index, distance in sorted(item_displacements.items())
+                },
+                "compiler_exec_census_enabled": args.exec_census,
+                "exec_census_start_status": exec_census_start_status,
+                "exec_census_stop_status": exec_census_stop_status,
+                "exec_census_allowlist": (
+                    {
+                        "namespace": census_allowlist["namespace"],
+                        "function_count": len(census_allowlist["functions"]),
+                        "callee_count": len(census_allowlist["callees"]),
+                        "static_site_upper_bound": census_allowlist["static_site_upper_bound"],
+                        "required_runtime_hotfixes": census_allowlist["required_runtime_hotfixes"],
+                        "known_missing_references": census_allowlist["known_missing_references"],
+                    } if census_allowlist else None
+                ),
+                "exec_census_log": str((output_dir / "exec-census.log").relative_to(ROOT))
+                    if args.exec_census else None,
+                "exec_census_results": str((output_dir / "exec-census.json").relative_to(ROOT))
+                    if args.exec_census else None,
                 "players": player_names,
                 "preset_score": 2,
                 "control_tracking_objective": tracking_objective,
@@ -553,13 +1310,37 @@ def main() -> int:
                 "tagged_torch_sources_by_predicate_before_profile": torch_sources_by_predicate,
                 "tagged_torch_sources_by_predicate_after_profile": torch_sources_after_by_predicate,
                 "workload_warmup_seconds": workload_warmup_seconds,
+                "stable_actor_reads_before_profile": stable_actor_reads,
+                "stable_marker_reads_before_profile": stable_marker_reads,
                 "dynamic_light_markers_before_profile": marker_count,
                 "dynamic_light_markers_after_profile": markers_after,
                 "dynamic_light_marker_delta": markers_after - marker_count,
                 "dynamic_lights_tick_state_after_profile": dynamic_lights_tick_state,
+                "mob_spawning_gamerule_status": mob_spawning_gamerule_status,
+                "daylight_gamerule_status": daylight_gamerule_status,
+                "source_cleanup_responses": source_cleanup_responses,
+                "source_population_cleanup_policy": (
+                    "Before player login, clear preexisting mobs/items/dynamic-light markers; "
+                    "after stable warmup, remove any delayed non-fixture dropped items exactly once; "
+                    "require four player holders, 24 tagged torch items, zero other light "
+                    "sources before and after the measurement. No cleanup occurs during timing."
+                ),
+                "source_population_before_profile": source_population_before_profile,
+                "source_population_after_profile": source_population_after_profile,
                 "first_source_light_level_score": first_source_score,
                 "profile_seconds": args.seconds,
-                "spark_sampling": {
+                "gate_c_cpu_capture_enabled": args.capture_server_thread_cpu,
+                "gate_c_jfr_capture_enabled": args.jfr_server_thread,
+                "gate_c_jfr_execution_sample_period_ms": 2 if args.jfr_server_thread else None,
+                "pre_window_host_stability": pre_window_stability,
+                "game_time_before_window": game_time_before_window,
+                "game_time_after_window": game_time_after_window,
+                "game_ticks_during_window": game_ticks_during_window,
+                "server_thread_cpu": cpu_measurement,
+                "jfr_path": str(jfr_path.relative_to(ROOT)) if jfr_path else None,
+                "jfr_sha256": sha256(jfr_path) if jfr_path else None,
+                "jfr_bytes": jfr_path.stat().st_size if jfr_path else None,
+                "spark_sampling": None if args.exec_census or args.no_spark else {
                     "cpu_interval_ms": 4,
                     "cpu_thread_scope": "all threads",
                     "allocation_interval_bytes": 524287,
@@ -573,8 +1354,13 @@ def main() -> int:
                 "connected_players": players_online,
                 "spark_shell_output": spark_output,
                 "limitations": [
-                    "One run only; repeat distribution is not established.",
-                    "No Function Compiler optimization or exact per-function timer is active.",
+                    "One run per scenario; repeat distribution is not established.",
+                    (
+                        "Function Compiler execution census is diagnostic counts only; "
+                        "no optimization or CPU timing is active."
+                        if args.exec_census else
+                        "No Function Compiler optimization or exact per-function timer is active."
+                    ),
                 ],
             }
             (output_dir / "results.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
@@ -586,6 +1372,12 @@ def main() -> int:
             rcon.close()
             rcon = None
     except Exception as error:
+        if exec_census_started and rcon is not None:
+            try:
+                rcon.command("function_compiler_probe exec-census-stop")
+            except Exception:
+                pass
+            exec_census_started = False
         diagnostics: list[str] = []
         if log_handle is not None:
             log_handle.flush()
@@ -607,11 +1399,28 @@ def main() -> int:
             "mode": args.mode,
             "run_id": run_id,
             "failure": str(error),
+            "scenario": args.scenario,
+            "item_motion_summary": item_motion_summary,
+            "pre_window_host_stability": pre_window_stability,
+            "server_thread_cpu": cpu_measurement,
+            "source_population_before_profile": source_population_before_profile,
+            "source_population_after_profile": source_population_after_profile,
+            "source_cleanup_responses": source_cleanup_responses,
+            "mob_spawning_gamerule_status": mob_spawning_gamerule_status,
+            "item_displacements_blocks": (
+                {str(index): distance for index, distance in sorted(item_displacements.items())}
+                if item_displacements is not None else None
+            ),
             "server_diagnostics": excerpt,
         }
         (output_dir / "failure.json").write_text(json.dumps(failure, indent=2) + "\n", encoding="utf-8")
         raise RuntimeError(f"{error}\nFiltered server diagnostics:\n{excerpt}") from error
     finally:
+        if jfr_started and cpu_thread is not None:
+            try:
+                jcmd_jfr(cpu_thread[0], "JFR.stop", "name=IR032GateC")
+            except Exception:
+                pass
         if ssh is not None and ssh.poll() is None:
             try:
                 if ssh.stdin is not None:

@@ -25,6 +25,7 @@ Mixins, server logs, differential traces, and verified benchmark results.
 - **[`v1/`](v1/README.md):** Version 1 milestone planning, roadmap, and active specifications.
   - [`v1/plans/`](v1/plans/README.md): Active implementation specifications and companion test matrix.
 - **[`external_repo_research/`](external_repo_research/README.md):** Feature-oriented donor research and external mod investigations (Bellows, Vein Miner, MCFC, Mercury, etc.).
+- **[`research/`](research/README.md):** Evidence, research methods and the [compiler research history](research/compiler-history.md).
 - **[`archive/`](archive/README.md):** Canonical categorized historical records, audit snapshots, and prior proposals.
 - **[`generated/`](generated/documentation-index.md):** Programmatically generated structure, symbol navigation, feature index, and link verification aids.
 
