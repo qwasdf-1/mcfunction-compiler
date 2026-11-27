@@ -19,6 +19,6 @@ class IR046(unittest.TestCase):
         self.assertNotIn("ScoreValueRevision",p)
     def test_flag(self):
         p=(ROOT/"src/main/java/dev/functioncompiler/GuardRunReuse.java").read_text()
-        self.assertIn('System.getenv("FC_TYPED_IR_GUARD_RUN_REUSE")',p)
+        self.assertIn('TypedCompilerConfiguration.flag("FC_TYPED_IR_GUARD_RUN_REUSE")',p)
         self.assertIn('System.getenv("FC_TYPED_IR046_BENCHMARK")',p)
 if __name__=="__main__":unittest.main()

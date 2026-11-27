@@ -14,7 +14,7 @@ class IR038(unittest.TestCase):
         ir = (JAVA / "TypedScoreIR.java").read_text()
         cond = (JAVA / "ScoreConditionCommand.java").read_text()
         op = (JAVA / "ScoreOperationCommand.java").read_text()
-        self.assertIn('System.getenv("FC_TYPED_IR_EXTENDED_SCORE")', ir)
+        self.assertIn('TypedCompilerConfiguration.flag("FC_TYPED_IR_EXTENDED_SCORE")', ir)
         self.assertIn("MINIMUM, MAXIMUM", ir)
         self.assertIn("exactly one predicate kind required", ir)
         self.assertIn("comparison != null", ir)

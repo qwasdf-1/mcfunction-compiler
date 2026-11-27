@@ -23,7 +23,7 @@ class IR047(unittest.TestCase):
         self.assertIn("clearGuardRun();\n            if (quota() <= 0)",r)
         self.assertIn("clearGuardRun();\n            TypedScoreIR.compoundFallback()",r)
         h=(java/"GuardPreflightReuse.java").read_text()
-        self.assertIn('System.getenv("FC_TYPED_IR_GUARD_PREFLIGHT_REUSE")',h)
+        self.assertIn('TypedCompilerConfiguration.flag("FC_TYPED_IR_GUARD_PREFLIGHT_REUSE")',h)
         self.assertNotIn("ScoreAccess",h)
         self.assertNotIn("Scoreboard",h)
         self.assertNotIn("ScoreValueRevision",h)

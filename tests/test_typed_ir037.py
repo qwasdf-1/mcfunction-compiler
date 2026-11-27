@@ -72,10 +72,8 @@ class IR037PreparedRuntime(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, fast)
 
-    def test_feedback_and_revision_cache_use_original_prepared_metadata(self):
+    def test_feedback_uses_original_prepared_metadata_and_no_revision_cache(self):
         runtime = source("TypedScoreIRRuntime.java")
-        cached = runtime.split("int sourceOperand()", 1)[1].split(
-            "private void traceReturn(", 1)[0]
         finish = runtime.split("void finish(int newScore)", 1)[1]
         for expected in (
             "TypedIRPreparedSteps.Prepared prepared = currentPrepared",
@@ -92,9 +90,10 @@ class IR037PreparedRuntime(unittest.TestCase):
             self.assertIn(expected, finish)
         self.assertNotIn("instanceof TypedScoreIR.Conditional", finish)
         self.assertNotIn("instanceof TypedScoreIR.Binary", finish)
-        self.assertIn("prepared.operandObjective()", cached)
-        self.assertIn("versions.functionCompiler$watch(key)", cached)
-        self.assertNotIn("instanceof TypedScoreIR.Binary", cached)
+        self.assertNotIn("ScoreValueRevisionAccess", runtime)
+        self.assertNotIn("sourceOperand()", runtime)
+        self.assertIn("state.sourceAccess().get()", source("TypedScoreIR.java"))
+        self.assertIn('INVOKEINTERFACE, SCORE, "get"', source("TypedScoreIRBytecode.java"))
 
     def test_hot_interpreter_and_asm_share_prepared_metadata(self):
         ir = source("TypedScoreIR.java")

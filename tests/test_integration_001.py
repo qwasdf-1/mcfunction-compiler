@@ -9,16 +9,20 @@ class Integration(unittest.TestCase):
     def test_no_historical_observer_mixins(self):
         cfg=json.loads((ROOT/"src/main/resources/function_compiler.mixins.json").read_text())
         self.assertFalse(any(m.startswith("Compiler") for m in cfg["mixins"]))
-        self.assertEqual(cfg["plugin"],"dev.functioncompiler.mixin.IntegrationMixinPlugin")
+        self.assertNotIn("plugin",cfg)
+        self.assertNotIn("ScoreboardQueueInjectionMixin",cfg["mixins"])
+        self.assertNotIn("ScoreValueRevisionMixin",cfg["mixins"])
         self.assertFalse(list((JAVA/"mixin").glob("Compiler*.java")))
         for stem in ("CompilerExecutionCensus","CompilerAcceptanceAudit","CompilerSelector022Probe",
                      "CompilerTagMutation023Probe","CompilerMacroLoadCpuProbe","IR041CompileProbe"):
             self.assertFalse((JAVA/(stem+".java")).exists())
     def test_unqualified_modes_withdrawn(self):
         text=(JAVA/"TypedScoreIR.java").read_text()
-        self.assertIn("SCORE_CACHE = false",text)
-        self.assertIn("COST_SELECT = false",text)
-        self.assertIn("ENABLED = false",(JAVA/"CompilerForkExecutor025.java").read_text())
+        self.assertNotIn("SCORE_CACHE",text)
+        self.assertNotIn("COST_SELECT",text)
+        for name in ("CompilerForkExecutor025","CompilerForkBytecode025","CompilerForkPlan024",
+                     "IR036CostModel","TypedIREffectAnalysis","ScoreValueRevisionAccess","ReentrantQueueProbe"):
+            self.assertFalse((JAVA/(name+".java")).exists())
         self.assertIn("NAMESPACE != null && !NAMESPACE.isBlank()",text)
     def test_frozen_reference_inputs(self):
         fixtures=ROOT/"tests/fixtures/compiler"
@@ -30,8 +34,22 @@ class Integration(unittest.TestCase):
         self.assertEqual(native["status"],"accepted")
         self.assertEqual(len(native["arms"]),5)
         self.assertTrue(all(len(a["cases"])==670 for a in native["arms"]))
+    def test_profile_and_fixture_build_boundaries(self):
+        config=(JAVA/"TypedCompilerConfiguration.java").read_text()
+        self.assertIn('"validated".equals(PROFILE)',config)
+        self.assertIn('NAMESPACE != null && !NAMESPACE.isBlank()',config)
+        self.assertIn('explicit != null ? Boolean.parseBoolean(explicit)',config)
+        self.assertNotIn('"FC_TYPED_IR_DIRECT_FUNCTION"',config)
+        self.assertNotIn('"FC_TYPED_IR_SINGLETON_FEEDBACK"',config)
+        self.assertIn('TypedCompilerConfiguration.profileActive()', (JAVA/"ProbeConfiguration.java").read_text())
+        gradle=(ROOT/"build.gradle").read_text()
+        self.assertIn('gradleProperty("fcIntegrationFixtures")',gradle)
+        self.assertIn("src/production/java",gradle)
+        self.assertIn("tests/runtime/compiler-fixtures/java",gradle)
+        self.assertNotIn("fc_ir040_batch",(JAVA/"ProbeCommands.java").read_text())
+        self.assertIn("fc_ir040_batch",(ROOT/"tests/runtime/compiler-fixtures/java/dev/functioncompiler/CompilerFixtures.java").read_text())
     def test_fixture_mixins_gated(self):
-        plugin=(JAVA/"mixin/IntegrationMixinPlugin.java").read_text()
+        plugin=(ROOT/"tests/runtime/compiler-fixtures/java/dev/functioncompiler/mixin/IntegrationMixinPlugin.java").read_text()
         for flag in ("FC_TYPED_IR046_TEST_OBSERVER","FC_TYPED_IR047_TEST_OBSERVER","FC_TYPED_IR_REENTRANT_TEST_OBSERVER"):
             self.assertIn(flag,plugin)
         builder=(JAVA/"mixin/FunctionBuilderMixin.java").read_text()
