@@ -96,8 +96,8 @@ Statuses follow the saved campaign results recorded in `docs/research/implementa
 
 | Optimization | Default | Promotion status | Evidence |
 |---|---|---|---|
-| Selective macro arguments | `true` | **Supported** — promoted | Real-event Vein Miner 6-pair confirmatory campaigns passed the 15% gate: Fabric -22.34%, Lithium -22.06%; MSPT-based Belows metric also passed (-73.75%). Native real-datapack confirmatory (2026-11-09, plain Fabric stack): 10 pairs, median event completion -29.58%, exact interval -30.30% to -26.37%, `no_regression_holds`. |
-| Selective macro arguments on Belows | `true` | **Supported with closed evidence** | New nested extraction run: -22.17% event completion (-25.41% to -16.50%), 6 pairs, 95% confidence; all 70,494 attempts became eligible. |
+| Selective macro arguments | `true` | **Supported** — promoted | Real-event Vein Miner 6-pair confirmatory campaigns passed the 15% gate: Fabric -22.34%, Lithium -22.06%; MSPT-based Bellows metric also passed (-73.75%). Native real-datapack confirmatory (2026-11-09, plain Fabric stack): 10 pairs, median event completion -29.58%, exact interval -30.30% to -26.37%, `no_regression_holds`. |
+| Selective macro arguments on Bellows | `true` | **Supported with closed evidence** | New nested extraction run: -22.17% event completion (-25.41% to -16.50%), 6 pairs, 95% confidence; all 70,494 attempts became eligible. |
 | Fused regions | `false` | Experimental / unqualified | Adjacent-eligible PERF-016 confirmatory campaign (`benchmarks/PERF-016-sustained-fused-region-active-tick.md`): all 10 pairs passed exact workload parity at 5,000 adds per active tick and exact region activation, median -19.72% workload-attributable tick average, but the 97.85% interval (-30.30% to -12.90%) overlaps the pre-declared 15% gain, so the decision is inconclusive. |
 | Tiered bytecode | `false` | Opt-in / evidence-gated | Static-fixture result shown as slower than fused interpreted; bounded Metaspace/reload evidence only. |
 | ScoreAdd specialization | `false` | Not qualified | 6-pair confirmatory Vein Miner run median -0.88%, `does_not_meet_threshold`; no current evidence qualifies it. |
