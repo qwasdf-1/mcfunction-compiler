@@ -78,3 +78,5 @@ The qualified Integration-001 rerun (45919681014) is now also retained: [updated
 The complete final consolidation matrix (45930919331), including unsuccessful timing studies, is preserved at [archive 74235ee](https://github.com/qwasdf-1/mcfunction-compiler/tree/74235ee5020e9085efd01bb322d044eb974e1d91/evidence/compiler), 67/67 ZIPs with verified hashes, 5,235,571 bytes. See [noise investigation](integration-001-noise.md).
 
 Controlled retry 45934828312 now durably retained in [archive 4a88a6f](https://github.com/qwasdf-1/mcfunction-compiler/tree/4a88a6f56b0819509da01894d76855a7b3ccbc3f/evidence/compiler): 71/71 original ZIPs, 5,855,181 bytes, no missing. See [noise investigation](integration-001-noise.md) for three accepted gates and one residual dedicated-host comparison.
+
+The additional mixed-only retry archive is durably stored at [49be887](https://github.com/qwasdf-1/mcfunction-compiler/tree/49be8873536f3d2580930df409180201164710e1/evidence/compiler), with 72/72 original ZIPs, 6,015,743 bytes, no missing; archival run 45947731829 succeeded. The last absolute mixed gate remains inconclusive.

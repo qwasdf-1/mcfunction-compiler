@@ -67,3 +67,5 @@ The operator declined dedicated hardware and authorized one additional controlle
 ### Additional hosted mixed-only result
 
 [45942387217](https://github.com/qwasdf-1/mcfunction-compiler/actions/runs/45942387217) completed inconclusive: 7/8 JVMs qualified; checkpoint boot 5 combined holdout spread 5.63565% exceeded 5%. Exact preflight parity; block one descriptive CPU reduction 2.82367%, A/A 2.40926%/1.64601%; block two incomplete. No absolute mixed regression demonstrated and no accepted mixed absolute nonregression result. Raw evidence hash/CRC verified; archive submitted. All other gates accepted. No more automatic hosted retries; explicit operator decision required. PR remains draft and unmerged.
+
+The additional mixed-only retry archive is durably stored at [49be887](https://github.com/qwasdf-1/mcfunction-compiler/tree/49be8873536f3d2580930df409180201164710e1/evidence/compiler), with 72/72 original ZIPs, 6,015,743 bytes, no missing; archival run 45947731829 succeeded. The last absolute mixed gate remains inconclusive.

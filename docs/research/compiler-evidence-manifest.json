@@ -861,6 +861,18 @@
       "sha256": "fcdeb6b2877071603f03077989716de55094ce4f168e537bf42a00ebe16f416e",
       "path": "evidence/compiler/15170079887-integration-noise-controlled-047_cpu.zip",
       "bytes": 145915
+    },
+    {
+      "run": 45942387217,
+      "id": 15173866979,
+      "name": "integration-noise-controlled-absolute_mixed",
+      "size": 160562,
+      "digest": "sha256:71759a3199609b18f2888910dd1e3b20bbe9c003f751b0e9561b9d699b377391",
+      "expired": false,
+      "status": "archived",
+      "sha256": "71759a3199609b18f2888910dd1e3b20bbe9c003f751b0e9561b9d699b377391",
+      "path": "evidence/compiler/15173866979-integration-noise-controlled-absolute_mixed.zip",
+      "bytes": 160562
     }
   ]
 }
