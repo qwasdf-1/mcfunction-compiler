@@ -21,7 +21,7 @@ BLOCKS=1024
 FIXTURES={"integration_child":["scoreboard players add #y fc_ir 1"],
           "integration_small":BLOCK*8,"integration_perf":BLOCK*BLOCKS}
 MIN_CPU=500_000_000
-TARGET_CPU=1_000_000_000
+TARGET_CPU=3_000_000_000
 LIMIT=.05
 def reset(c):
     c.command("gamerule minecraft:max_command_sequence_length 65536")
@@ -82,18 +82,18 @@ def boot(arm,index,batches,r):
                     "state":state,"environment":delta_environment(e0,e1)}
         if batches is None:
             batches=8
-            while batches<=512:
+            while batches<=4096:
                 sample=window(batches)
                 b["calibration"].append(sample)
                 save(r)
                 if sample["cpu_ns"]>=TARGET_CPU:break
                 batches*=2
-            if batches>512:raise AssertionError("calibration unqualified")
+            if batches>4096:raise AssertionError("calibration unqualified")
         b["fixed_batches"]=batches
         def spread(samples):
             v=[s["cpu_ns"] for s in samples]
             return (max(v)-min(v))/stats.median(v)
-        for _ in range(12):
+        for _ in range(24):
             b["warmup"].append(window(batches));save(r)
             last=b["warmup"][-6:]
             if len(last)==6 and min(s["cpu_ns"] for s in last)>=MIN_CPU and spread(last)<=LIMIT:break
@@ -123,8 +123,10 @@ def main():
     try:
         for index,arm in enumerate(SCHEDULE):
             batches=boot(arm,index,batches,r)
-            if r["boots"][-1]["status"]!="complete":
-                r["status"]="inconclusive";return
+        if any(b["status"]!="complete" for b in r["boots"]):
+            r["status"]="inconclusive"
+            print("INTEGRATION_OFF_SUMMARY "+json.dumps({"status":r["status"],"gate_pass":False,"boot_statuses":[b["status"] for b in r["boots"]]}),flush=True)
+            return
         blocks=[]
         for i in (0,4):
             m=[x["median_cpu_ns"] for x in r["boots"][i:i+4] if x["arm"]=="main"]
