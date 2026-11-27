@@ -1,7 +1,7 @@
 {
   "repository": "qwasdf-1/mcfunction-compiler",
   "checkpoint": "9dcd9fc6386aad8ef21400cfcb7e2a4d051e739c",
-  "scope": "IR037–047 selected native and CPU studies, failed attempts, original IR042 census and first integration matrix; earlier historical artifacts not exhaustively archived; qualified integration rerun 45919681014; complete final consolidation matrix 45930919331, including four unqualified CPU experiments; bounded controlled placement retry 45934828312",
+  "scope": "IR037–047 selected native and CPU studies, failed attempts, original IR042 census and first integration matrix; earlier historical artifacts not exhaustively archived; qualified integration rerun 45919681014; complete final consolidation matrix 45930919331, including four unqualified CPU experiments; bounded controlled placement retry 45934828312; authorized additional mixed-only hosted attempt 45942387217",
   "artifacts": [
     {
       "run": 45306171166,
@@ -569,6 +569,14 @@
       "name": "integration-noise-controlled-047_cpu",
       "size": 145915,
       "digest": "sha256:fcdeb6b2877071603f03077989716de55094ce4f168e537bf42a00ebe16f416e",
+      "expired": false
+    },
+    {
+      "run": 45942387217,
+      "id": 15173866979,
+      "name": "integration-noise-controlled-absolute_mixed",
+      "size": 160562,
+      "digest": "sha256:71759a3199609b18f2888910dd1e3b20bbe9c003f751b0e9561b9d699b377391",
       "expired": false
     }
   ]
