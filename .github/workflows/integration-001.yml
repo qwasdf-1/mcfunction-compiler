@@ -2,11 +2,6 @@ name: Integration-001 candidate verification
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - work/compiler-integration
-    paths:
-      - '.github/workflows/integration-001.yml'
 permissions:
   contents: read
   actions: read
