@@ -76,3 +76,5 @@ The maintained regression workflow uses in-tree scripts and structural contracts
 The qualified Integration-001 rerun (45919681014) is now also retained: [updated immutable archive](https://github.com/qwasdf-1/mcfunction-compiler/tree/a55647023e809b82a6e513869075441b45ad20a1/evidence/compiler), 55/55 original ZIPs, 3,684,104 bytes, no missing artifacts. The manifest above has been updated to that archive revision.
 
 The complete final consolidation matrix (45930919331), including unsuccessful timing studies, is preserved at [archive 74235ee](https://github.com/qwasdf-1/mcfunction-compiler/tree/74235ee5020e9085efd01bb322d044eb974e1d91/evidence/compiler), 67/67 ZIPs with verified hashes, 5,235,571 bytes. See [noise investigation](integration-001-noise.md).
+
+Controlled retry 45934828312 now durably retained in [archive 4a88a6f](https://github.com/qwasdf-1/mcfunction-compiler/tree/4a88a6f56b0819509da01894d76855a7b3ccbc3f/evidence/compiler): 71/71 original ZIPs, 5,855,181 bytes, no missing. See [noise investigation](integration-001-noise.md) for three accepted gates and one residual dedicated-host comparison.

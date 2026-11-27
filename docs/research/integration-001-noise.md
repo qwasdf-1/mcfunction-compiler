@@ -40,3 +40,5 @@ Independent inspection of all four results.json and host.json files: 576 recorde
 ### Stop rule and final dedicated-host gate
 
 No more hosted retries. Only absolute mixed remains. Preserve all attempts; do not discard the failed checkpoint boot or pool measurements across protocols. Dedicated host dispatch is prepared but requires a trusted, isolated Linux x64 runner with compiler-benchmark label, at least four allowed logical CPUs with usable distinct visible cores, preferably bare metal. Same unchanged mixed workload and exact protocol, original 5% thresholds. Operator must arrange exclusive hardware and consistent CPU governor; no claim a runner is registered or usable, and no self-hosted job is dispatched before the operator confirms. The one-shot dedicated workflow is manual-only; PR remains draft until this gate and final review. No runtime changes.
+
+The four retry archives were stored and digest/CRC verified in [archive 4a88a6f](https://github.com/qwasdf-1/mcfunction-compiler/tree/4a88a6f56b0819509da01894d76855a7b3ccbc3f/evidence/compiler), 71/71 original ZIPs, 5,855,181 bytes.
