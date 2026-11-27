@@ -5,6 +5,7 @@ import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.commands.data.DataCommands;
+import net.minecraft.commands.arguments.NbtPathArgument;
 
 import java.util.List;
 
@@ -20,14 +21,68 @@ final class DataGetParser {
 
         List<String> names = ScoreAddPrototype.nodeNames(context);
         if (isDataGetCommand(context, names)) {
-            ScoreAddPrototype.applyCommand(
-                    context,
-                    new DataGetCommand(command, functionId),
-                    functionId
-            );
+            if (ProbeConfiguration.ir030PosGetForFunction(functionId)) {
+                // In an IR-030 allowlisted function, only the exact admitted
+                // Pos[0..2] terminal is replaced. Every other data-get command
+                // remains the original native callback (no generic wrapper).
+                int positionAxis = ir030PositionAxis(context, functionId, names);
+                if (positionAxis < 0) {
+                    return false;
+                }
+                NbtPathArgument.NbtPath path =
+                        NbtPathArgument.getPath(context, "path");
+                ScoreAddPrototype.applyCommand(
+                        context,
+                        new EntityPosGetCommand(
+                                new DataGetCommand(command, functionId),
+                                path, positionAxis),
+                        functionId
+                );
+            } else {
+                ScoreAddPrototype.applyCommand(
+                        context,
+                        new DataGetCommand(command, functionId),
+                        functionId
+                );
+            }
             return true;
         }
         return false;
+    }
+
+    private static int ir030PositionAxis(
+            CommandContext<CommandSourceStack> context,
+            Identifier functionId,
+            List<String> names
+    ) {
+        if (!ProbeConfiguration.ir030PosGetForFunction(functionId)
+                || names.size() != 5
+                || !List.of("data", "get", "entity", "target", "path").equals(names)
+                || !"@s".equals(ScoreAddPrototype.extractNodeText(context, "target"))) {
+            return -1;
+        }
+        String input = context.getInput();
+        if (!"vm:queue/append_here".equals(functionId.toString())
+                && !"function_compiler_probe:ir030_pos_store".equals(functionId.toString())
+                && !"function_compiler_probe:ir030_missing_path".equals(functionId.toString())) {
+            return -1;
+        }
+        NbtPathArgument.NbtPath path;
+        try {
+            path = NbtPathArgument.getPath(context, "path");
+        } catch (IllegalArgumentException exception) {
+            return -1;
+        }
+        String pathText = path.asString();
+        for (int axis = 0; axis < 3; axis++) {
+            String suffix = "Pos[" + axis + "]";
+            String expected = "execute store result entity @s data.frontier[-1]."
+                    + "xyz".charAt(axis) + " int 1 run data get entity @s " + suffix;
+            if (suffix.equals(pathText) && expected.equals(input)) {
+                return axis;
+            }
+        }
+        return -1;
     }
 
     private static boolean isDataGetCommand(

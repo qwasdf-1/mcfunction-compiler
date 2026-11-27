@@ -20,9 +20,12 @@
     "FunctionCommandInvoker",
     "MacroFunctionAccessor",
     "CustomDataAccessor",
-    "BellowsHomePosAdapterMixin"
+    "BellowsHomePosAdapterMixin",
+    "ScoreValueRevisionMixin",
+    "ScoreboardQueueInjectionMixin"
   ],
   "injectors": {
     "defaultRequire": 1
-  }
+  },
+  "plugin": "dev.functioncompiler.mixin.IntegrationMixinPlugin"
 }

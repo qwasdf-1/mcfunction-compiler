@@ -67,27 +67,43 @@ public final class ScoreAddPrototype {
         } catch (ClassCastException exception) {
             return;
         }
+        // IR-only mode is intentionally narrower than ScoreAddPrototype's
+        // legacy parser. The legacy parser mutates Brigadier contexts while
+        // rewriting "execute" chains; if TypedScoreIR subsequently rejects
+        // the command, the saved fallback can reference the mutated wrapper
+        // recursively (observed on real Vein Miner 5.3.0 at startup).
+        //
+        // Before *any* parser mutation, leave every unsupported source shape
+        // on its original BuildContexts/vanilla scheduler path. This is
+        // admission control, NOT text parsing: accepted candidates still
+        // pass the ordinary Brigadier and typed-IR argument verification.
+        boolean typedOnly = TypedScoreIR.enabledFor(functionId)
+                && !ProbeConfiguration.scoreAddPrototypeEnabled()
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled();
+        if (typedOnly) {
+            String input = ((BuildContextsAccessor<CommandSourceStack>) buildContexts)
+                    .functionCompiler$getCommandInput();
+            boolean acceptedShape = chain.getStage() == ContextChain.Stage.EXECUTE
+                    ? ScoreAddCommand.typedIrLiteralSourceShape(input)
+                            || ScoreOperationCommand.typedIrLiteralSourceShape(input)
+                    : ScoreConditionCommand.typedIrLiteralGuardShape(input)
+                        && !ScoreOperationCommand.exceptionalSourceShape(input);
+            if (!acceptedShape) return;
+        }
+
         if (chain.getStage() != ContextChain.Stage.EXECUTE) {
             compileChainedModifiers(buildContexts, chain, functionId);
             return;
         }
 
         CommandContext<CommandSourceStack> context = chain.getTopContext();
-        if (compileScoreAdd(context, functionId)) {
-            return;
-        }
-        if (compileScoreOperation(context, functionId)) {
-            return;
-        }
-        if (compileScoreReset(context, functionId)) {
-            return;
-        }
-        if (DataStorageParser.compile(context, functionId)) {
-            return;
-        }
-        if (StateMachineParser.compile(context, functionId)) {
-            return;
-        }
+        if (compileScoreAdd(context, functionId)) return;
+        if (compileScoreOperation(context, functionId)) return;
+        if (compileScoreReset(context, functionId)) return;
+        if (DataStorageParser.compile(context, functionId)) return;
+        if (StateMachineParser.compile(context, functionId)) return;
         LeafFunctionParser.compile(context, functionId);
     }
 
@@ -112,17 +128,60 @@ public final class ScoreAddPrototype {
             return;
         }
 
+        // Snapshot the real Brigadier terminal BEFORE a prototype replaces
+        // the live parsed callback. For typed-only guarded commands, the
+        // original parsed fallback must not share the mutated executable
+        // context: that would recursively call ScoreConditionCommand again
+        // when @s (or a runtime objective) is unavailable.
+        Command<CommandSourceStack> originalExecutableCommand = executable.getCommand();
         if (!compileExecutable(executable, functionId)) {
             return;
         }
 
-        List<Object> parsedModifiers = parseModifiers(modifiers);
+        // Correct the historical literal target-node lookup only when the
+        // *whole* source line has the exact IR-009 guard/terminal shape.
+        // Unsupported modifiers must stay on their existing vanilla path.
+        boolean typedLiteralGuard = TypedScoreIR.enabledFor(functionId)
+                && ScoreConditionCommand.typedIrLiteralGuardShape(
+                        ((BuildContextsAccessor<CommandSourceStack>) buildContexts)
+                                .functionCompiler$getCommandInput());
+        List<Object> parsedModifiers = parseModifiers(modifiers, typedLiteralGuard);
         if (parsedModifiers == null) {
+            // The terminal callback may have been replaced already even though
+            // vanilla must continue to interpret the surrounding modifiers.
             return;
         }
 
+        ContextChain<CommandSourceStack> nativeFallback = chain;
+        boolean typedOnly = TypedScoreIR.enabledFor(functionId)
+                && !ProbeConfiguration.scoreAddPrototypeEnabled()
+                && !ProbeConfiguration.scoreAddTimingEnabled()
+                && !ProbeConfiguration.fusedRegionPrototypeEnabled()
+                && !ProbeConfiguration.bytecodeRegionPrototypeEnabled();
+        if (typedOnly && typedLiteralGuard) {
+            // Brigadier CommandContext is mutable through our mixin. Clone
+            // ONLY the terminal with its original vanilla callback, leaving
+            // modifier contexts and their parsed selector/range arguments
+            // untouched. This is the genuine original command for error and
+            // objective-lifecycle fallback, not a reparse or emulation.
+            CommandContext<CommandSourceStack> originalExecutable =
+                    new CommandContext<>(
+                            executable.getSource(),
+                            executable.getInput(),
+                            ((CommandContextAccessor<CommandSourceStack>) (Object) executable)
+                                    .functionCompiler$getArguments(),
+                            originalExecutableCommand,
+                            executable.getRootNode(),
+                            executable.getNodes(),
+                            executable.getRange(),
+                            executable.getChild(),
+                            executable.getRedirectModifier(),
+                            executable.isForked()
+                    );
+            nativeFallback = new ContextChain<>(List.copyOf(modifiers), originalExecutable);
+        }
         Command<CommandSourceStack> wrapped = wrapModifiers(
-                chain, parsedModifiers, executable.getCommand(), functionId
+                nativeFallback, parsedModifiers, executable.getCommand(), functionId
         );
 
         CommandContextAccessor<CommandSourceStack> execAccessor =
@@ -135,6 +194,135 @@ public final class ScoreAddPrototype {
                 new ContextChain<>(List.of(), executable)
         );
         ProbeMetrics.scoreAddCompiled(functionId);
+    }
+
+    /**
+     * IR-039: inspect the ORIGINAL Brigadier chain without rewriting it.
+     * Only a detached terminal context is wrapped for the existing typed
+     * terminal validator. Declined candidates and fallback retain the native
+     * BuildContexts action and all of its original redirect callbacks.
+     */
+    @SuppressWarnings("unchecked")
+    static TypedScoreIR.Compound lowerCompound(
+            UnboundEntryAction<CommandSourceStack> entry, Identifier functionId) {
+        if (!CompoundScoreIR.enabled() || !(entry instanceof BuildContexts.Unbound<?> unbound)) return null;
+        // Do not compose with a legacy callback-rewriting prototype.
+        if (ProbeConfiguration.scoreAddPrototypeEnabled()
+                || ProbeConfiguration.scoreAddTimingEnabled()
+                || ProbeConfiguration.fusedRegionPrototypeEnabled()
+                || ProbeConfiguration.bytecodeRegionPrototypeEnabled()) return null;
+        var accessor = (BuildContextsAccessor<CommandSourceStack>) unbound;
+        String input = accessor.functionCompiler$getCommandInput();
+        if (input == null || !input.startsWith("execute ")) return null;
+        String[] halves = input.substring(8).split(" run ", -1);
+        if (halves.length != 2) return null;
+        String[] parts = halves[0].split(" (?=(?:if|unless) score )", -1);
+        if (parts.length < 2 || parts.length > CompoundScoreIR.MAX_PREDICATES) return null;
+        for (String part : parts) {
+            if (!ScoreConditionCommand.typedIrLiteralGuardShape(
+                    "execute " + part + " run " + halves[1])) return null;
+        }
+
+        ContextChain<CommandSourceStack> chain = accessor.functionCompiler$getCommand();
+        if (chain.getStage() == ContextChain.Stage.EXECUTE) return null;
+        var chainAccessor = (ContextChainAccessor<CommandSourceStack>) (Object) chain;
+        List<CompoundScoreIR.Predicate> predicates = new ArrayList<>();
+        for (CommandContext<CommandSourceStack> modifier : chainAccessor.functionCompiler$getModifiers()) {
+            if (nodeNames(modifier).equals(List.of("run"))) continue;
+            if (predicates.size() >= parts.length || modifier.getRedirectModifier() == null) return null;
+            // Source text is ONLY an eligibility and identity check. Actual
+            // holders, objectives, comparisons and ranges come from Brigadier.
+            ParsedCondition parsed = parseScoreCondition(modifier, true, true);
+            if (parsed == null) return null;
+            String[] words = parts[predicates.size()].split(" ");
+            if (parsed.unless() != "unless".equals(words[0])
+                    || !words[2].equals(TypedScoreIR.slotName(parsed.targetHolder(), parsed.isTargetSelf()))
+                    || !words[3].equals(parsed.targetObjective())) return null;
+            CompoundScoreIR.Operand left = new CompoundScoreIR.Operand(
+                    parsed.targetHolder(), parsed.isTargetSelf(), parsed.targetObjective());
+            if ("matches".equals(words[4])) {
+                if (words.length != 6 || parsed.operator() != null
+                        || !ScoreConditionCommand.sameParsedRange(parsed.range(), words[5])) return null;
+                predicates.add(new CompoundScoreIR.Predicate(
+                        left, parsed.range(), words[5], null, null, parsed.unless()));
+            } else {
+                if (words.length != 7 || parsed.range() != null
+                        || parsed.operator() != parseOperator(words[4])
+                        || !words[5].equals(TypedScoreIR.slotName(parsed.sourceHolder(), parsed.isSourceSelf()))
+                        || !words[6].equals(parsed.sourceObjective())) return null;
+                var right = new CompoundScoreIR.Operand(
+                        parsed.sourceHolder(), parsed.isSourceSelf(), parsed.sourceObjective());
+                predicates.add(new CompoundScoreIR.Predicate(
+                        left, null, null, parsed.operator(), right, parsed.unless()));
+            }
+        }
+        if (predicates.size() != parts.length) return null;
+        var executable = chainAccessor.functionCompiler$getExecutable();
+        if (executable == null || executable.isForked()) return null;
+        var copy = new CommandContext<>(executable.getSource(), executable.getInput(),
+                ((CommandContextAccessor<CommandSourceStack>) (Object) executable)
+                        .functionCompiler$getArguments(),
+                executable.getCommand(), executable.getRootNode(), executable.getNodes(),
+                executable.getRange(), executable.getChild(), executable.getRedirectModifier(),
+                executable.isForked());
+        if (!compileScoreAdd(copy, functionId) && !compileScoreOperation(copy, functionId)) return null;
+        var original = new FusedRegionPrototype.FusedCommand(
+                entry, new ContextChain<>(List.of(), copy), input);
+        TypedScoreIR.Instruction terminal = null;
+        if (copy.getCommand() instanceof ScoreAddCommand mutation)
+            terminal = mutation.toMutation(original, halves[1]);
+        else if (copy.getCommand() instanceof ScoreOperationCommand binary)
+            terminal = binary.toBinary(original, halves[1]);
+        return terminal == null ? null : new TypedScoreIR.Compound(original, terminal, predicates,
+                CompoundScoreIR.dataflowEnabledFor(functionId));
+    }
+
+    @SuppressWarnings("unchecked")
+    static List<CompoundScoreIR.Predicate> parseDispatchPredicates(
+            ContextChain<CommandSourceStack> chain, String[] parts) {
+        var chainAccessor = (ContextChainAccessor<CommandSourceStack>) (Object) chain;
+        for (String part : parts) {
+            if (!ScoreConditionCommand.typedIrLiteralGuardShape(
+                    "execute " + part + " run scoreboard players add #ir043_shape dummy 1"))
+                return null;
+        }
+        List<CompoundScoreIR.Predicate> predicates = new ArrayList<>();
+        for (CommandContext<CommandSourceStack> modifier : chainAccessor.functionCompiler$getModifiers()) {
+            if (nodeNames(modifier).equals(List.of("run"))) {
+                if (modifier.getRedirectModifier() != null || modifier.isForked()) return null;
+                continue;
+            }
+            if (predicates.size() >= parts.length || modifier.getRedirectModifier() == null
+                    || modifier.getRedirectModifier() instanceof net.minecraft.commands.execution.CustomModifierExecutor<?>
+                    || !modifier.isForked()) return null;
+            // Source text is ONLY an eligibility and identity check. Actual
+            // holders, objectives, comparisons and ranges come from Brigadier.
+            ParsedCondition parsed = parseScoreCondition(modifier, true, true);
+            if (parsed == null) return null;
+            String[] words = parts[predicates.size()].split(" ");
+            if (parsed.unless() != "unless".equals(words[0])
+                    || !words[2].equals(TypedScoreIR.slotName(parsed.targetHolder(), parsed.isTargetSelf()))
+                    || !words[3].equals(parsed.targetObjective())) return null;
+            CompoundScoreIR.Operand left = new CompoundScoreIR.Operand(
+                    parsed.targetHolder(), parsed.isTargetSelf(), parsed.targetObjective());
+            if ("matches".equals(words[4])) {
+                if (words.length != 6 || parsed.operator() != null
+                        || !ScoreConditionCommand.sameParsedRange(parsed.range(), words[5])) return null;
+                predicates.add(new CompoundScoreIR.Predicate(
+                        left, parsed.range(), words[5], null, null, parsed.unless()));
+            } else {
+                if (words.length != 7 || parsed.range() != null
+                        || parsed.operator() != parseOperator(words[4])
+                        || !words[5].equals(TypedScoreIR.slotName(parsed.sourceHolder(), parsed.isSourceSelf()))
+                        || !words[6].equals(parsed.sourceObjective())) return null;
+                var right = new CompoundScoreIR.Operand(
+                        parsed.sourceHolder(), parsed.isSourceSelf(), parsed.sourceObjective());
+                predicates.add(new CompoundScoreIR.Predicate(
+                        left, null, null, parsed.operator(), right, parsed.unless()));
+            }
+        }
+        if (predicates.size() != parts.length) return null;
+        return List.copyOf(predicates);
     }
 
     @FunctionalInterface
@@ -172,7 +360,10 @@ public final class ScoreAddPrototype {
         return false;
     }
 
-    private static List<Object> parseModifiers(List<CommandContext<CommandSourceStack>> modifiers) {
+    private static List<Object> parseModifiers(
+            List<CommandContext<CommandSourceStack>> modifiers,
+            boolean typedLiteralGuard
+    ) {
         List<Object> result = new ArrayList<>();
         for (CommandContext<CommandSourceStack> mod : modifiers) {
             // 26.3 measured chain shape: the `run` literal redirects to the
@@ -189,7 +380,7 @@ public final class ScoreAddPrototype {
             if (nodeNames(mod).equals(List.of("run"))) {
                 continue;
             }
-            Object parsed = parseSingleModifier(mod);
+            Object parsed = parseSingleModifier(mod, typedLiteralGuard);
             if (parsed == null) {
                 return null;
             }
@@ -213,7 +404,16 @@ public final class ScoreAddPrototype {
             ScoreAddPrototype::parseContextModifier
     );
 
-    private static Object parseSingleModifier(CommandContext<CommandSourceStack> mod) {
+    private static Object parseSingleModifier(
+            CommandContext<CommandSourceStack> mod, boolean typedLiteralGuard
+    ) {
+        // Only IR-009's exact literal guard shape is allowed to correct the
+        // historical target/targets lookup, preventing an otherwise declined
+        // nonliteral / ranged condition from being silently rewritten.
+        if (typedLiteralGuard) {
+            Object guarded = parseScoreCondition(mod, true);
+            if (guarded != null) return guarded;
+        }
         for (SingleModifierParser parser : MODIFIER_PARSERS) {
             Object parsed = parser.parse(mod);
             if (parsed != null) {
@@ -413,7 +613,29 @@ public final class ScoreAddPrototype {
     private static ParsedCondition parseScoreCondition(
             CommandContext<CommandSourceStack> context
     ) {
+        return parseScoreCondition(context, false);
+    }
+
+    private static ParsedCondition parseScoreCondition(
+            CommandContext<CommandSourceStack> context, boolean typedIrTargetFix
+    ) {
+        return parseScoreCondition(context, typedIrTargetFix, false);
+    }
+
+    private static ParsedCondition parseScoreCondition(
+            CommandContext<CommandSourceStack> context, boolean typedIrTargetFix,
+            boolean compound
+    ) {
         List<String> names = nodeNames(context);
+        // A redirected execute context can begin directly with if/unless.
+        // Normalize only within the immutable IR-039 candidate parser.
+        if (compound && !names.isEmpty()
+                && ("if".equals(names.getFirst()) || "unless".equals(names.getFirst()))) {
+            List<String> normalized = new ArrayList<>();
+            normalized.add("execute");
+            normalized.addAll(names);
+            names = normalized;
+        }
         if (names.size() < 7
                 || !"execute".equals(names.get(0))
                 || (!"if".equals(names.get(1)) && !"unless".equals(names.get(1)))
@@ -436,7 +658,8 @@ public final class ScoreAddPrototype {
         boolean isTargetSelf = "@s".equals(targetText);
         ScoreHolder targetHolder = isTargetSelf
                 ? null
-                : resolveStaticHolder(targetResult, context.getSource(), extractNodeText(context, "targets"));
+                : resolveStaticHolder(targetResult, context.getSource(),
+                        typedIrTargetFix ? targetText : extractNodeText(context, "targets"));
         if (!isTargetSelf && targetHolder == null) {
             return null;
         }

@@ -21,13 +21,10 @@ abstract class FunctionBuilderMixin {
     ) {
         // Count every function the datapack load produces, grouped by namespace,
         // so FunctionCoverageReport can report totals once per reload.
-        if (id != null) {
-            ProbeMetrics.functionLoaded(id.getNamespace());
-        }
-
         if (!ProbeConfiguration.wrapperEnabled()) {
             return;
         }
+        if (id != null) ProbeMetrics.functionLoaded(id.getNamespace());
 
         CommandFunction<?> built = callback.getReturnValue();
         boolean compileMacroExpansion = built instanceof MacroFunction

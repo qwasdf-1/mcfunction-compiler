@@ -148,6 +148,15 @@ public final class ProbeMetrics {
     // the older scoreAddExecuted metric shared with operations, resets,
     // stores, modifier composites and fork composites.
     private static long SCORE_ADD_DIRECT_SUCCESSES;
+    // IR-030 exact-source candidate counters; server-thread-only and opt-in.
+    private static final long[] IR030_POS_COMPILED = new long[3];
+    private static final long[] IR030_POS_FAST_PATHS = new long[3];
+    private static long IR030_POS_VERIFIED;
+    private static long IR030_POS_VERIFY_MISMATCHES;
+    private static long IR030_POS_INVALID_TARGETS;
+    private static long IR030_POS_FALLBACK_VEHICLE;
+    private static long IR030_POS_FALLBACK_ENTITY_TYPE;
+    private static long IR030_POS_FALLBACK_NONFINITE;
     private static long SELECTIVE_MACRO_ARGUMENT_CALLS;
     private static final ConcurrentMap<String, AtomicLong> SELECTIVE_MACRO_UNSUPPORTED_PROVIDER_CLASSES = new ConcurrentHashMap<>();
     private static long SELECTIVE_MACRO_ARGUMENT_ATTEMPTS;
@@ -662,6 +671,70 @@ public final class ProbeMetrics {
 
     public static long selectiveMacroArgumentsMissingSelectedKeyCount() {
         return SELECTIVE_MACRO_MISSING_SELECTED_KEYS;
+    }
+
+    public static void ir030PosCompiled(int axis) {
+        if (axis >= 0 && axis < 3) IR030_POS_COMPILED[axis]++;
+    }
+
+    public static long ir030PosCompiledCount(int axis) {
+        return axis >= 0 && axis < 3 ? IR030_POS_COMPILED[axis] : 0L;
+    }
+
+    public static void ir030PosFastPath(int axis) {
+        if (axis >= 0 && axis < 3) IR030_POS_FAST_PATHS[axis]++;
+    }
+
+    public static long ir030PosFastPathCount(int axis) {
+        return axis >= 0 && axis < 3 ? IR030_POS_FAST_PATHS[axis] : 0L;
+    }
+
+    public static void ir030PosVerified() {
+        IR030_POS_VERIFIED++;
+    }
+
+    public static long ir030PosVerifiedCount() {
+        return IR030_POS_VERIFIED;
+    }
+
+    public static void ir030PosVerifyMismatch() {
+        IR030_POS_VERIFY_MISMATCHES++;
+    }
+
+    public static long ir030PosVerifyMismatchCount() {
+        return IR030_POS_VERIFY_MISMATCHES;
+    }
+
+    public static void ir030PosInvalidTarget() {
+        IR030_POS_INVALID_TARGETS++;
+    }
+
+    public static long ir030PosInvalidTargetCount() {
+        return IR030_POS_INVALID_TARGETS;
+    }
+
+    public static void ir030PosFallbackVehicle() {
+        IR030_POS_FALLBACK_VEHICLE++;
+    }
+
+    public static long ir030PosFallbackVehicleCount() {
+        return IR030_POS_FALLBACK_VEHICLE;
+    }
+
+    public static void ir030PosFallbackEntityType() {
+        IR030_POS_FALLBACK_ENTITY_TYPE++;
+    }
+
+    public static long ir030PosFallbackEntityTypeCount() {
+        return IR030_POS_FALLBACK_ENTITY_TYPE;
+    }
+
+    public static void ir030PosFallbackNonfinite() {
+        IR030_POS_FALLBACK_NONFINITE++;
+    }
+
+    public static long ir030PosFallbackNonfiniteCount() {
+        return IR030_POS_FALLBACK_NONFINITE;
     }
 
 }
