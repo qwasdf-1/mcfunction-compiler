@@ -47,6 +47,7 @@ jobs:
       - name: Maintained compiler regression contracts
         run: |
           python3 -m unittest discover -s tests -p 'test_integration_001.py' -v
+          python3 -m unittest discover -s tests -p 'test_integration_cpu_placement.py' -v
           for ir in 037 038 039 040 043 044 045 046 047; do python3 -m unittest discover -s tests -p "test_typed_ir${ir}.py" -v; done
           mkdir -p build/predicate-facts
           javac --release 25 -d build/predicate-facts src/main/java/dev/functioncompiler/PredicateFacts.java tests/java/dev/functioncompiler/PredicateFactsTest.java

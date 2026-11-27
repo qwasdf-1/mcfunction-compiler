@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import time
+import integration_cpu_placement as placement
 
 
 def _proc_cpu_ns(pid: int) -> int | None:
@@ -96,6 +97,7 @@ def snapshot_jvm_environment(pid: int) -> dict:
         "system_cpu_pressure_us": _cpu_pressure_us(),
         "process_affinity": affinity,
         "cpu_count": os.cpu_count(),
+        "controlled_placement": placement.snapshot(pid),
     }
 
 
@@ -161,4 +163,7 @@ def delta_environment(before: dict, after: dict) -> dict:
             for k, new in after[field].items()
             if k in before[field]
         }
+    controlled = placement.delta(before.get("controlled_placement"), after.get("controlled_placement"))
+    if controlled is not None:
+        d["controlled_placement"] = controlled
     return d

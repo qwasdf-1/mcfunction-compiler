@@ -220,6 +220,9 @@ def options(mode: str) -> dict[str, str]:
     }
 
 
+EXTRA_JVM_ARGS = ()  # verification-only, empty for historical protocols
+
+
 def start(mode: str):
     RUNS.mkdir(parents=True, exist_ok=True)
     OUT.mkdir(parents=True, exist_ok=True)
@@ -245,7 +248,7 @@ def start(mode: str):
     cmd = [
         str(ROOT / "gradlew"), "--no-daemon",
         "-Dorg.gradle.jvmargs=-Xmx1G -Dfile.encoding=UTF-8",
-        "-PfcJvmArgs=-Xms512M,-Xmx2G",
+        "-PfcJvmArgs=" + ",".join(("-Xms512M", "-Xmx2G", *EXTRA_JVM_ARGS)),
         f"-PfcRunDirectory={work.relative_to(ROOT)}", "runServer",
     ]
     log = (OUT / (mode + ".server.log")).open("w", encoding="utf-8")
